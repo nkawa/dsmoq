@@ -1,0 +1,9 @@
+[submodule "client/lib/setImmediate"]
+	path = client/lib/setImmediate
+	url = https://github.com/NobleJS/setImmediate.git
+[submodule "client/lib/promhx"]
+	path = client/lib/promhx
+	url = https://github.com/jdonaldson/promhx.git
+[submodule "client/lib/pushstate"]
+	path = client/lib/pushstate
+	url = https://github.com/jasononeil/hxpushstate.git

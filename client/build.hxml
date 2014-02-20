@@ -1,3 +1,5 @@
 -js www/application.js
 -cp src/main/
 -main Main
+-cp lib/promhx/src/main/
+-cp lib/pushstate/src/
