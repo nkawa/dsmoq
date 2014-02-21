@@ -18,6 +18,7 @@ class PlaceHolders{
             render: function(i){
                 var p = new Promise();
                 var body = divNamed(name);
+                var ret = {html: body, event: p, state: null, put: null};
                 function draw(a){
                     function step(n){
                         switch(n){
@@ -27,10 +28,12 @@ class PlaceHolders{
                     }
                     var rendered = foldable.render(converter(a));
                     body.empty().append(rendered.html);
+                    ret.state = rendered.state;
                     rendered.event.then(step);
                 }
                 draw(i);
-                return { html: body, event: p, state: Core.nop, put:draw };
+                ret.put = draw;
+                return ret;
             }
         };
     }
