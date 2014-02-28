@@ -13,7 +13,7 @@ class Promises{
         return promise;
     }
 
-    public static function void(): Promise<Void> {      // TODO: to be lazy evaluation
+    public static function void<A>(): Promise<A> {      // TODO: to be lazy evaluation
         var promise = new Promise();
         promise.reject("You can't call Promise<Void>.");
         return promise;
