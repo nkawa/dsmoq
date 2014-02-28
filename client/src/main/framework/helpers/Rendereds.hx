@@ -10,6 +10,14 @@ class Rendereds{
         return Promises.oneOf(components.map(function(c){return c.event;}));
     }
 
+    public static function stateMap<State, Output, State2>( r: Rendered<State,Output>, f: State -> State2):Rendered<State2, Output> {
+        return {
+            html: r.html,
+            state: function(){return f(r.state());},
+            event: r.event
+        };
+    }
+
     public static function eventMap<State, Output, Output2>( r: Rendered<State,Output>, f: Output -> Output2):Rendered<State, Output2> {
         return {
             html: r.html,
@@ -34,7 +42,7 @@ class Rendereds{
 
     public static function states<State,Output>(rendereds: Array<Rendered<State, Output>>){
         var array = rendereds.map(function(x){return x.state;});
-        return function(){return array.map(function(s){return s();});};
+        return Core.toState(array);
     }
     public static function renderAll<Input,State,Output>(
         component:Component<Input,State,Output>,

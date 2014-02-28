@@ -2,46 +2,133 @@ package framework.helpers;
 
 import framework.Types;
 import framework.JQuery.*;
-
+import promhx.Promise;
 
 class Components{
     public static function toComponent<Input, State, Output>(render: Input -> Rendered<State, Output>){
         return { render: render };
     }
 
-    static function decorate<Input,State,Output>(
-        component: Component<Input,State,Output>, f:Html -> Html
-    ) :Component<Input,State,Output>{
+    public static function justHtml(html: Html): Component<Unit, Void, Void>{
+        return toComponent(function(_){
+            return {html: html, state: Core.nop, event: Promises.void()};
+        });
+    }
+
+    public static function fromHtml<Input>(f: Input-> Html): Component<Input, Void, Void> {
+        return toComponent(function (x: Input){
+            return {html: f(x), state: Core.nop, event: Promises.void()};
+        });
+    }
+
+    public static function state<Input, State, Output>(component, f: Html -> State): Component<Input, State, Output>{
+        return toComponent(function(x: Input){
+            var rendered = component.render(x);
+            return {html: rendered.html, state: function(){return f(rendered.html);}, event: rendered.event}; 
+        });
+    }
+
+    public static function event<Input, State, Output>(component, f: Html -> Promise<Output>): Component<Input, State, Output>{
+        return toComponent(function(x: Input){
+            var rendered = component.render(x);
+            return {html: rendered.html, state: rendered.state, event: f(rendered.html)};
+        });
+    }
+
+    public static function emitInput<Input, State, Trancate>(component: Component<Input,State,Trancate>): Component<Input, State, Input>{
+        return toComponent(function(x: Input){
+            var rendered = component.render(x);
+            return {html: rendered.html, state: rendered.state, event: rendered.event.then(function(_){return x;})};
+        });
+    }
+    public static function emitState<Input, State, Trancate>(component: Component<Input,State,Trancate>): Component<Input, State, State>{
+        return toComponent(function(x: Input){
+            var rendered = component.render(x);
+            return {html: rendered.html, state: rendered.state, event: rendered.event.then(function(_){return rendered.state();})};
+        });
+    }
+
+    public static function decorate<Input,State,Output>( component, f:Html -> Html) :Component<Input,State,Output>{
         return toComponent(function(a){
             return Rendereds.decorate(component.render(a), f);
         });
     }
- 
-    public static function inMap<Input,State,Output,Input2>(
-        component: Component<Input,State,Output>, f:Input2 -> Input
-    ):Component<Input2,State,Output>{
+
+    public static function inMap<Input,State,Output,Input2>(component, f:Input2 -> Input):Component<Input2,State,Output>{
         return toComponent( function(d){
            return component.render(f(d));
         });
     }
-    static function stateMap<Input,State,Output,State2>(
-        component: Component<Input,State,Output>, f:State -> State2
-    ):Component<Input,State2,Output>{
-        return null;
+    public static function stateMap<Input,State,Output,State2>(component, f:State -> State2):Component<Input,State2,Output>{
+        return toComponent(function(a){
+            return Rendereds.stateMap(component.render(a), f);
+        });
     }
 
-    public static function outMap<Input,State,Output,Output2>(
-        component: Component<Input,State,Output>, f:Output -> Output2
-    ):Component<Input,State,Output2>{
+    public static function outMap<Input,State,Output,Output2>(component, f:Output -> Output2):Component<Input,State,Output2>{
         return toComponent( function(i){ 
             return Rendereds.eventMap(component.render(i), f);
         });
     }
+    public static function merge<Input, State, Output,In1, St1, Out1, In2, St2, Out2>(
+        mapForState: (Void -> St1) -> (Void -> St2) -> (Void -> State),
+        mapForOutput: Promise<Out1> -> Promise<Out2> -> Promise<Output>,
+        fieldName: String,
+        selector: String,
+        base:Component<In1, St1, Out1>,
+        component: Component<In2, St2, Out2>
+    ): Component<Input, State, Output>{
+        function render(x:Dynamic){
+            var renderedBase:Rendered<St1,Out1>   = base.render(x);
+            var targetValue = Reflect.field(x, fieldName);
+            var renderedComponent= component.render(targetValue);
+            JQuery.findAll(renderedBase.html, selector).empty().append(renderedComponent.html);
+            return {
+                html: renderedBase.html,
+                    state: mapForState(renderedBase.state, renderedComponent.state),
+                    event: mapForOutput(renderedBase.event, renderedComponent.event)
+            };
+        }
+        return toComponent(render);
+    }
 
-    public static function group<Input,State>(
-        components: Array<Component<Input, State, Void>>,
-        f: Array<Html> -> Html
-    ): Component<Array<Input>, Array<State>, Void>{
+    public static function inject<Input, State>(fieldName: String, selector: String){                             // not typesafe
+        function inner<In1, St1, Output, In2, St2, Out2>(
+            base:Component<In1, St1, Output>, component: Component<In2, St2, Out2>
+        ): Component<Input, State, Output>{
+            return merge(injectState(fieldName), useFirst, fieldName, selector, base, component);
+        }
+        return inner;
+    }
+ 
+    public static function put<Input>(fieldName: String, selector: String){                                  // not typesafe
+        function inner<In1, State, Output, In2, St2>(
+            base:Component<In1, State, Output>, component: Component<In2, St2, Output>
+        ): Component<Input, State, Output>{
+            return merge(useFirst, whichever, fieldName, selector, base, component);
+        }
+        return inner;
+    }
+ 
+    public static function justView<Input>(fieldName: String, selector: String){                                  // not typesafe
+        function inner<In1, State, Output, In2, St2>(
+            base:Component<In1, State, Output>, component: Component<In2, Void, Void>
+        ): Component<Input, State, Output>{
+            return merge(useFirst, useFirst, fieldName, selector, base, component);
+        }
+        return inner;
+    }
+
+    public static function list<Input, State, Output>(component, f: Array<Html> -> Html): Component<Array<Input>, Array<State>, Output>{
+        return toComponent(function(xs: Array<Input>){
+            return Rendereds.renderAll(component, xs, f);
+        });
+    }
+
+    public static function group<Input,State,Output>(
+            components: Array<Component<Input, State, Output>>,
+            f: Array<Html> -> Html
+        ): Component<Array<Input>, Array<State>, Output>{
         return {
             render: function(xs){
                 if(xs.length != components.length) {
@@ -49,17 +136,33 @@ class Components{
                 }
                 var rendered = [for(i in 0...components.length) components[i].render(xs[i])];
                 return {
-                    html: f(rendered.map(function(x){return x.html;})),
-                    event: Promises.void(),
+                    html: f(Rendereds.htmls(rendered)),
+                    event: Promises.oneOf(Rendereds.events(rendered)),
                     state: function(){return rendered.map(function(x){return x.state();}); }
                 };
             }
         };
     }
 
-    public static function list<Input, State, Output>(component: Component<Input, State, Output>, f: Array<Html> -> Html): Component<Array<Input>, Array<State>, Output>{
-        return toComponent(function(xs: Array<Input>){
-            return Rendereds.renderAll(component, xs, f);
-        });
+    public static function useFirst<A,B>(a: A, b: B):A{
+        return a;
+    }
+    public static function useSecond<A,B>(a: A, b: B):B{
+        return b;
+    }
+
+    public static function injectState<State>(fieldName){ 
+        function inner<St1, St2>(base: Void -> St1, target: Void -> St2):Void -> State{
+            return function(){
+                var targetValue = untyped {};
+                Reflect.setField(targetValue, fieldName, target());
+                return Core.merge(base(), targetValue);
+            };
+        }
+        return inner;
+    }
+
+    public static function whichever<A>(p1, p2):Promise<A>{
+        return Promises.oneOf([p1, p2]);
     }
 }
