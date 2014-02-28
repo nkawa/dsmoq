@@ -8,6 +8,11 @@ import framework.JQuery.*;
 using framework.helpers.Components;
 import framework.helpers.*;
 
+import components.ConnectionPanel;
+import components.Header;
+
+import pages.Auth;
+
 class Engine<Page>{
     var currentPage:Page;
     var application: Application<Page>;
@@ -24,8 +29,28 @@ class Engine<Page>{
     public function start(){
         PushState.init();
         PushState.addEventListener(onUrlChange);
-        container = PlaceHolders.withSideEffect("container", makePageFoldable(application.draw), changePage).render(currentPage);
-        j(selector).append(container.html);
+
+        function initialLoading(jq:Html){
+            return jq.text("waiting...");
+        }
+        var request = {url: Settings.api.login, json:{}};
+
+        var login = ConnectionPanel.create(initialLoading, "application", 
+            Components.inMap(layout(), Auth.extractUser)
+        ).render(request);
+
+        j(selector).append(login.html);
+    }
+
+    private function layout(){
+        function render(login: LoginStatus){
+            var header = Header.create().render(login);
+            container = PlaceHolders.withSideEffect("page-body", makePageFoldable(application.draw), changePage).render(currentPage);
+//            header.event.then(pageBody.put)                   // TODO: promise can be called only once
+            var body = div().append(header.html).append(container.html.addClass("container"));
+            return {html: body, state: Core.nop, event: Promises.void()};
+        }
+        return Components.toComponent(render);
     }
 
     private function makePageFoldable(f: Page -> Rendered<Void, Page>){
@@ -44,7 +69,11 @@ class Engine<Page>{
     private function onUrlChange(url){
         var newPage = application.fromUrl(url);
         if(! Type.enumEq(newPage, currentPage)) {
-            container.put(newPage);
+            if(container == null){
+                currentPage = newPage;
+            }else{
+                container.put(newPage);
+            }
         }
     }
 }
