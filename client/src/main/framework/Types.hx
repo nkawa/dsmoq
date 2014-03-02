@@ -28,4 +28,5 @@ typedef Application<Page> = {
     fromUrl: Url -> Page,
     draw: Page -> Rendered<Void, Page>
 }
-
+enum Unit {}
+enum Signal {Signal;}
