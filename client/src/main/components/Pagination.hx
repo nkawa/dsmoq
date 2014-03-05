@@ -14,11 +14,14 @@ typedef MassResult<A> = {paging: Paging, result: A}
 
 typedef Selector = String
 
+typedef Assign<Input, State, Output> = {selector: String, component: Component<Input, State, Output>}
+
 class Pagination{
     public static function injectInto<Input,State,Output>(
         waiting: Html -> Void,
         name: String,
         placeForPagination: String,
+        placeForResult: String,
         component: Component<Input,Void,Output>,
         f: PagingRequest -> {event: Promise<MassResult<Input>>, state: Void -> State}
     ){
@@ -27,8 +30,21 @@ class Pagination{
         var pagination = create().outMap(Inner);
         var baseComponent = component.inMap(extractResult).outMap(Outer);
         var component: Component<MassResult<Input>, Void, NextChange<PagingRequest, Output>> =
-            Components.put("paging", placeForPagination)(baseComponent, pagination);
+            Components.justView("paging", placeForResult)(
+                Components.put("paging", placeForPagination)(baseComponent, pagination),
+                result());
+
         return LoadingPanel.create(waiting, name, component, f);
+    }
+    public static function end(paging:Paging){
+        var n = paging.num + paging.numPerPage - 1;
+        return (paging.total < n) ? paging.total : n;
+    }
+
+    public static function result():Component<Paging, Void, Void>{
+        return Components.fromHtml(function(paging:Paging){
+            return j('<strong>Found ${paging.total} records (${paging.num} - ${end(paging)})</strong>');
+        });
     }
 
     public static function create(){
