@@ -11,7 +11,9 @@ extern class Jq{
     @:overload(function ():String{})
     public function text(text: String):Jq;
     @:overload(function (name: String): String{})
-    public function attr(name: String, value: String): Jq;
+    public function attr(name: String, value: Dynamic): Jq;
+    public function prop(name: String, value: Dynamic): Jq;
+    public function removeAttr(name: String): Jq;
     public function on<A>(event: String, f: A->Void): Jq;
     public function empty(): Jq;
     public function addClass(name: String): Jq;
