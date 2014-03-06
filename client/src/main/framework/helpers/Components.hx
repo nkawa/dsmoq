@@ -9,9 +9,9 @@ class Components{
         return { render: render };
     }
 
-    public static function justHtml(html: Html): Component<Unit, Void, Void>{
+    public static function justHtml(html: Void -> Html): Component<Unit, Void, Void>{
         return toComponent(function(_){
-            return {html: html, state: Core.nop, event: Promises.void()};
+            return {html: html(), state: Core.nop, event: Promises.void()};
         });
     }
 
@@ -54,6 +54,12 @@ class Components{
         });
     }
 
+    public static function decorateWithInput<Input,State,Output>( component, f:Html -> Input -> Html) :Component<Input,State,Output>{
+        return toComponent(function(a){
+            return Rendereds.decorate(component.render(a), f.bind(_, a));
+        });
+    }
+
     public static function inMap<Input,State,Output,Input2>(component, f:Input2 -> Input):Component<Input2,State,Output>{
         return toComponent( function(d){
            return component.render(f(d));
@@ -82,7 +88,7 @@ class Components{
             var renderedBase:Rendered<St1,Out1>   = base.render(x);
             var targetValue = Reflect.field(x, fieldName);
             var renderedComponent= component.render(targetValue);
-            JQuery.findAll(renderedBase.html, selector).empty().append(renderedComponent.html);
+            JQuery.findAll(renderedBase.html, selector).append(renderedComponent.html);
             return {
                 html: renderedBase.html,
                     state: mapForState(renderedBase.state, renderedComponent.state),
