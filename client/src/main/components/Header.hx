@@ -25,8 +25,9 @@ class Header{
 
             // TODO: force change url
             var links = [
-                    {selector: "[data-link-datasets]", url: "/datasets/show/"},
-                    {selector: "[data-link-groups]", url: "/groups/show/"},
+                    {selector: "[data-link-home]", url: "/"},
+                    {selector: "[data-link-datasets]", url: "/datasets/list/"},
+                    {selector: "[data-link-groups]", url: "/groups/list/"},
                     {selector: "[data-link-upload]", url: "/datasets/new/"},
                     {selector: "[data-link-profile]", url: "/profile/"}
                 ];
