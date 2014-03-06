@@ -1,8 +1,13 @@
 package com.constructiveproof.example
 
 import org.scalatra._
+import com.constructiveproof.example.facade.LoginFacade
+import org.scalatra.json.JacksonJsonSupport
+import org.json4s.{DefaultFormats, Formats}
 
-class ResourceController extends ScalatraServlet {
+class ResourceController extends ScalatraServlet with JacksonJsonSupport {
+  protected implicit val jsonFormats: Formats = DefaultFormats
+
   object Ext{
     val Js = """.*\.js$""".r
     val Json = """.*\.json$""".r
@@ -28,6 +33,13 @@ class ResourceController extends ScalatraServlet {
   get ("/*") {
     contentType="text/html"
     resource("index.html")
+  }
+
+  // JSON API
+  get ("/profile") {
+    contentType = formats("json")
+    val data = LoginFacade.getLoginInfo
+    data
   }
 
   get("/resources/(.*)$".r) {
