@@ -40,9 +40,20 @@ class Tab{
         }, baseComponent);
 
         return untyped (Components.decorateWithInput(tabContent, function(html, x){
-            var identity = x.componentTabName;
-            html.find('#$identity').addClass("active");
-            header.find('a[href="#$identity"]').parent().addClass("active");
+            function tabUI(klass){
+                return header.find('a[href="#$klass"]').parent();
+            }
+            var tabInfo = x.componentTab;
+            var activeTab = tabInfo.name;
+            tabUI(activeTab).addClass("active");
+
+            var disables = (tabInfo.disables == null) ? [] : tabInfo.disables;
+            Lambda.iter(disables, function(x){
+                tabUI(x).addClass("disabled").find('a').prop("disabled", true);
+            });
+
+            html.find('#$activeTab').addClass("active");
+
             return header.add(html);
         }));
     }
