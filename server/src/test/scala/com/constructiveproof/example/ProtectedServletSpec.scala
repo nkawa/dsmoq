@@ -8,7 +8,7 @@ class ProtectedServletSpec extends ScalatraSpec { def is =
     "should return status 200"                  ! root200^
                                                 end
 
-  addServlet(classOf[ProtectedController], "/*")
+  addServlet(classOf[ResourceController], "/*")
 
   def root200 = get("/") {
     status must_== 200
