@@ -17,7 +17,6 @@ class ApiController extends ScalatraServlet with JacksonJsonSupport {
   }
 
   get("/login") {
-    // FIXME
     val data = LoginFacade.getLoginInfo
     data
   }

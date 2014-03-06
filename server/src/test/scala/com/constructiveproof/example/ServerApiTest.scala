@@ -17,10 +17,7 @@ class ServerApiTest extends FreeSpec with ScalatraSuite {
       "simple" in {
         get("/api/login") {
           status should equal (200)
-          println(body)
           val result = parse(body).extract[AjaxResponse[LoginInfo]]
-          println(result)
-//          result.data.get("user")
           assert(result === AjaxResponse("OK", LoginInfo(Some(User("test01", "Test User 01")))))
         }
       }
