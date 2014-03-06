@@ -18,4 +18,10 @@ class Promises{
         promise.reject("You can't call Promise<Void>.");
         return promise;
     }
+
+    public static inline function tap<A>(f: Promise<A> -> Void){
+        var promise = new Promise();
+        f(promise);
+        return promise;
+    }
 }
