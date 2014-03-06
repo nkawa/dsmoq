@@ -1,0 +1,9 @@
+{
+  "status": "OK", 
+  "data": {
+      "user": {
+          "userId": "test01",
+          "userName": "Test User 01"
+      }
+  }
+}

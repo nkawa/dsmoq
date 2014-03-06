@@ -1,0 +1,15 @@
+{
+  "status": "OK",
+  data: {
+    "paging": {
+        "num": 2,
+        "numPerPage": 10,
+        "total": 100
+    },
+    "result": [
+        {id: "1"},
+        {id: "2"},
+        {id: "3"}
+    ]
+  }
+}

@@ -4,3 +4,4 @@
 -cp lib/promhx/src/main/
 -cp lib/pushstate/src/
 -resource templates/Header.html@header
+-resource templates/DatasetSummary.html@DatasetSummary
