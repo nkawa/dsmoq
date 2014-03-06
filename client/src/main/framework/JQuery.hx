@@ -18,6 +18,12 @@ extern class Jq{
     @:overload(function ():String{})
     public function val(value: String): Jq;
     public var length: Int;
+    public function is(attribute: String):Bool;
+    public function show(): Void;
+    public function hide(): Void;
+    public function index(target: Jq): Int;
+    public function remove(): Void;
+    public function insertBefore(target: Jq): Jq;
 }
 
 class JQuery{
@@ -39,7 +45,7 @@ class JQuery{
 
     public static function join(tag: String): Array<Jq> -> Jq{
         return function(htmls:Array<Jq>){
-            return Lambda.fold(htmls, 
+            return Lambda.fold(htmls,
                 function(html:Jq, acc:Jq){ return acc.add(j(tag).append(html));}, 
                 j('')
             );
@@ -47,10 +53,17 @@ class JQuery{
     }
     public static function gather(jq: Jq): Array<Jq> -> Jq{
         return function(htmls:Array<Jq>){
-            return Lambda.fold(htmls, 
-                function(html:Jq, acc:Jq){ return acc.append(html);}, 
-                jq 
+            return Lambda.fold(htmls,
+                function(html:Jq, acc:Jq){ return acc.append(html);},
+                jq
             );
         };
+    }
+    public static function add(tag: String, jq: Jq){
+        return jq.add(j(tag));
+    }
+
+    public static function wrapBy(tag: String, jq: Jq){
+        return j(tag).append(jq);
     }
 }
