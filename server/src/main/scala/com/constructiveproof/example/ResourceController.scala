@@ -42,6 +42,19 @@ class ResourceController extends ScalatraServlet with JacksonJsonSupport {
     data
   }
 
+  // JSON API
+  post("/signin") {
+    // FIXME parameter check & Authentication
+    val id = params("id")
+    val password = params("password")
+    redirect("/")
+  }
+
+  // JSON API
+  post("/signout") {
+    redirect("/")
+  }
+
   get("/resources/(.*)$".r) {
     returnResource(params("captures"))
   }
