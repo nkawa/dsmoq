@@ -24,6 +24,7 @@ extern class Jq{
     public function index(target: Jq): Int;
     public function remove(): Void;
     public function insertBefore(target: Jq): Jq;
+    public function parent(): Jq;
 }
 
 class JQuery{
