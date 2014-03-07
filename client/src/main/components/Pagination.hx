@@ -12,8 +12,6 @@ typedef PagingRequest = {num: Int, numPerPage: Int}
 typedef Paging =        {num: Int, numPerPage: Int, total: Int}
 typedef MassResult<A> = {paging: Paging, result: A}
 
-typedef Selector = String
-
 typedef Assign<Input, State, Output> = {selector: String, component: Component<Input, State, Output>}
 
 class Pagination{

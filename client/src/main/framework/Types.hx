@@ -30,3 +30,6 @@ typedef Application<Page> = {
 }
 enum Unit {}
 enum Signal {Signal;}
+
+typedef Selector = String 
+typedef Json = Dynamic

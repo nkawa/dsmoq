@@ -1,13 +1,13 @@
 package framework.helpers;
 
 import promhx.Promise;
+import framework.Types;
 import haxe.Json in JsonLib;
 
 enum HttpMethod{ Get; Post; }
 
 typedef HttpRequest = {method: HttpMethod, url: String, params: Dynamic}
 typedef HttpJsonRequest = {url: String, json: Json}
-typedef Json = Dynamic
 typedef HttpProcess = {event: Promise<Json>, state: Void -> ConnectionStatus}
 
 private extern class CancelToken{     // jqXHR actually
