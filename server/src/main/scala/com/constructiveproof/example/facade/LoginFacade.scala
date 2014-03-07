@@ -20,7 +20,7 @@ case class User(
   fullname: String,
   organization: String,
   title: String,
-  icon: String,
+  image: String,
   isGuest: Boolean
 )
 
