@@ -10,12 +10,12 @@ import org.json4s.jackson.JsonMethods._
 class ServerApiTest extends FreeSpec with ScalatraSuite {
   protected implicit val jsonFormats: Formats = DefaultFormats
 
-  addServlet(classOf[ResourceController], "/*")
+  addServlet(classOf[ServerApiController], "/api/*")
 
   "API test" - {
     "profile" - {
       "is signin user" in {
-        get("/profile") {
+        get("/api/profile") {
           status should equal (200)
           val result = parse(body).extract[AjaxResponse[Profile]]
           assert(result === AjaxResponse("OK", Profile(Some(User(
@@ -25,7 +25,7 @@ class ServerApiTest extends FreeSpec with ScalatraSuite {
       }
 
       "is guest" ignore {
-        get("/profile") {
+        get("/api/profile") {
           status should equal (200)
           val result = parse(body).extract[AjaxResponse[Profile]]
           assert(result === AjaxResponse("OK",Profile(Some(User(
@@ -40,14 +40,14 @@ class ServerApiTest extends FreeSpec with ScalatraSuite {
     "signin" - {
       "is success" in {
         val params = Map("id" -> "1", "password" -> "hoge")
-        post("/signin", params) {
+        post("/api/signin", params) {
           status should equal (302)
         }
       }
     }
     "signout" - {
       "is success" in {
-        post("/signout") {
+        post("/api/signout") {
           status should equal (302)
         }
       }

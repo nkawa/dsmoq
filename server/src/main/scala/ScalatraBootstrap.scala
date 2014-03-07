@@ -6,5 +6,6 @@ class ScalatraBootstrap extends LifeCycle {
   override def init(context: ServletContext) {
     context.mount(new ResourceController, "/*")
     context.mount(new SessionsController, "/sessions/*")
+    context.mount(new ServerApiController, "/api/*")
   }
 }

@@ -1,13 +1,9 @@
 package com.constructiveproof.example
 
 import org.scalatra._
-import com.constructiveproof.example.facade.LoginFacade
 import org.scalatra.json.JacksonJsonSupport
-import org.json4s.{DefaultFormats, Formats}
 
-class ResourceController extends ScalatraServlet with JacksonJsonSupport {
-  protected implicit val jsonFormats: Formats = DefaultFormats
-
+class ResourceController extends ScalatraServlet {
   object Ext{
     val Js = """.*\.js$""".r
     val Json = """.*\.json$""".r
@@ -33,26 +29,6 @@ class ResourceController extends ScalatraServlet with JacksonJsonSupport {
   get ("/*") {
     contentType="text/html"
     resource("index.html")
-  }
-
-  // JSON API
-  get ("/profile") {
-    contentType = formats("json")
-    val data = LoginFacade.getLoginInfo
-    data
-  }
-
-  // JSON API
-  post("/signin") {
-    // FIXME parameter check & Authentication
-    val id = params("id")
-    val password = params("password")
-    redirect("/")
-  }
-
-  // JSON API
-  post("/signout") {
-    redirect("/")
   }
 
   get("/resources/(.*)$".r) {
