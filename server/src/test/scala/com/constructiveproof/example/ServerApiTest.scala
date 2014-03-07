@@ -14,17 +14,7 @@ class ServerApiTest extends FreeSpec with ScalatraSuite {
 
   "API test" - {
     "profile" - {
-      "is signin user" in {
-        get("/api/profile") {
-          status should equal (200)
-          val result = parse(body).extract[AjaxResponse[Profile]]
-          assert(result === AjaxResponse("OK", Profile(Some(User(
-            "id", "name", "fullname", "organization", "title", "http://xxxx", false
-          )))))
-        }
-      }
-
-      "is guest" ignore {
+      "is guest" in {
         get("/api/profile") {
           status should equal (200)
           val result = parse(body).extract[AjaxResponse[Profile]]
@@ -34,21 +24,53 @@ class ServerApiTest extends FreeSpec with ScalatraSuite {
         }
       }
     }
-  }
-
-  "Authentication" - {
     "signin" - {
-      "is success" in {
-        val params = Map("id" -> "1", "password" -> "hoge")
+      "status is redirect" in {
+        val params = Map("id" -> "foo", "password" -> "foo")
         post("/api/signin", params) {
           status should equal (302)
         }
       }
     }
     "signout" - {
-      "is success" in {
+      "status is redirect" in {
         post("/api/signout") {
           status should equal (302)
+        }
+      }
+    }
+  }
+
+  "Authentication" - {
+    "sign-in user" - {
+      "profile is not guest" in {
+        val params = Map("id" -> "foo", "password" -> "foo")
+        post("/api/signin", params) {}
+        get("/api/profile") {
+          status should equal (200)
+          val response = parse(body).extract[AjaxResponse[Profile]]
+          val isGuest = response.data.user match {
+            case Some(x) => x.isGuest
+            case None => fail("Illegal Argument")
+          }
+          assert(!isGuest)
+        }
+        post("/api/signout") {}
+      }
+    }
+    "sign-out user" - {
+      "profile is guest" in {
+        val params = Map("id" -> "foo", "password" -> "foo")
+        post("/api/signin", params) {}
+        post("/api/signout") {}
+        get("/api/profile") {
+          status should equal (200)
+          val result = parse(body).extract[AjaxResponse[Profile]]
+          val isGuest = result.data.user match {
+            case Some(x) => x.isGuest
+            case None => fail("Illegal Argument")
+          }
+          assert(isGuest)
         }
       }
     }

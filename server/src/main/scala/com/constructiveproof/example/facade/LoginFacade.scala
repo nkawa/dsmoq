@@ -1,10 +1,13 @@
 package com.constructiveproof.example.facade
 
 object LoginFacade {
-  def getLoginInfo: AjaxResponse[Profile] = {
-    val user = User("id", "name", "fullname", "organization", "title", "http://xxxx", false)
-    // Not Login
-//    val user = User("id", "name", "fullname", "organization", "title", "http://xxxx", true)
+  def getLoginInfo[A](x: Option[A]): AjaxResponse[Profile] = {
+    val user = x match {
+      case Some(_) =>
+        User("id", "name", "fullname", "organization", "title", "http://xxxx", false)
+      case None =>
+        User("id", "name", "fullname", "organization", "title", "http://xxxx", true)
+    }
     AjaxResponse("OK", Profile(Some(user)))
   }
 }
