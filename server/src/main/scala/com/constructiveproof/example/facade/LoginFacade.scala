@@ -1,5 +1,7 @@
 package com.constructiveproof.example.facade
 
+import com.constructiveproof.example.AjaxResponse
+
 object LoginFacade {
   def getLoginInfo[A](x: Option[A]): AjaxResponse[Profile] = {
     val user = x match {
@@ -23,4 +25,3 @@ case class User(
 )
 
 case class Profile(user: Option[User])
-case class AjaxResponse[A](status: String, data: A)

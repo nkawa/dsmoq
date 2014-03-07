@@ -1,6 +1,6 @@
 package com.constructiveproof.example
 
-import _root_.com.constructiveproof.example.facade.{Profile, AjaxResponse, User }
+import _root_.com.constructiveproof.example.facade.{Profile, User }
 import org.scalatest.FreeSpec
 import org.scalatra.test.scalatest._
 
@@ -25,17 +25,20 @@ class ServerApiTest extends FreeSpec with ScalatraSuite {
       }
     }
     "signin" - {
-      "status is redirect" in {
+      "is success" in {
         val params = Map("id" -> "foo", "password" -> "foo")
         post("/api/signin", params) {
-          status should equal (302)
+          status should equal (200)
+          println(body)
+          assert(body == """{"status":"OK","data":{}}""")
         }
       }
     }
     "signout" - {
-      "status is redirect" in {
+      "is success" in {
         post("/api/signout") {
-          status should equal (302)
+          status should equal (200)
+          assert(body == """{"status":"OK","data":{}}""")
         }
       }
     }
