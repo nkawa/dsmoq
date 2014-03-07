@@ -5,3 +5,7 @@
 -cp lib/pushstate/src/
 -resource templates/Header.html@header
 -resource templates/DatasetSummary.html@DatasetSummary
+-resource templates/DatasetEdit/acl.html@DatasetEditAcl
+-resource templates/DatasetEdit/basic_tab.html@DatasetEditBasic
+-resource templates/DatasetEdit/upload_file.html@DatasetEditUpload
+-resource templates/DatasetRead/main.html@DatasetReadMain

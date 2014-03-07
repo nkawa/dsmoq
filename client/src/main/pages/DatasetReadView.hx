@@ -5,18 +5,19 @@ import framework.Types;
 import framework.helpers.*;
 import framework.JQuery.*;
 
-import components.Clickable;
+using components.Tab;
+
 using framework.helpers.Components;
 
 class DatasetReadView{
     public static function render(id: String):Rendered<Void, Page>{
-        function button(id:String){
-            return Clickable.create(
-                Components.fromHtml(function(page:Page){
-                    return div().text('Your id is: $id. Click to go to ' + Std.string(page));
-                })
-            ).emitInput();
-        }
-        return button(id).render(DatasetList);
+        var main = Templates.create("DatasetReadMain")
+            .event(function(html){
+                var promise = new Promise();
+                html.find("[data-link-edit]").on("click", function(_){ promise.resolve(Page.DatasetEdit(id));});
+                return promise;
+            });
+
+        return main.render(null);
     }
 }
