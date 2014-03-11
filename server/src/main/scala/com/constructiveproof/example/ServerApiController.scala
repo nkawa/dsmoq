@@ -6,8 +6,9 @@ import org.json4s.{DefaultFormats, Formats}
 import org.scalatra.json.JacksonJsonSupport
 import com.constructiveproof.example.facade.SessionParams
 import com.constructiveproof.example.facade.SigninParams
+import com.constructiveproof.example.traits.SessionTrait
 
-class ServerApiController extends ScalatraServlet with JacksonJsonSupport {
+class ServerApiController extends ScalatraServlet with JacksonJsonSupport with SessionTrait {
   protected implicit val jsonFormats: Formats = DefaultFormats
 
   val SessionKey = "user"
@@ -22,10 +23,7 @@ class ServerApiController extends ScalatraServlet with JacksonJsonSupport {
 
   // JSON API
   get ("/profile") {
-    val userInfo = sessionOption match {
-      case Some(_) => Option(session.getAttribute(SessionKey))
-      case None => None
-    }
+    val userInfo = getSessionParameter(SessionKey)
     val facadeParams = SessionParams(userInfo)
     val user = LoginFacade.getLoginInfo(facadeParams)
 
