@@ -19,7 +19,7 @@ class ServerApiTest extends FreeSpec with ScalatraSuite {
           status should equal (200)
           val result = parse(body).extract[AjaxResponse[User]]
           assert(result === AjaxResponse("OK", User(
-            "id", "name", "fullname", "organization", "title", "http://xxxx", true
+            "", "", "", "", "", "http://xxxx", true
           )))
         }
       }

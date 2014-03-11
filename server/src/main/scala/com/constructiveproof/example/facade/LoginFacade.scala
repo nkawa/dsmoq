@@ -1,19 +1,17 @@
 package com.constructiveproof.example.facade
 
-import com.constructiveproof.example.AjaxResponse
-
 object LoginFacade {
   def isAuthenticated(params: SigninParams) =
     params.id == "foo" && params.password == "foo"
 
-  def getLoginInfo(x: SessionParams): AjaxResponse[User] = {
+  def getLoginInfo(x: SessionParams): User = {
     val user = x.session match {
       case Some(_) =>
         User("id", "name", "fullname", "organization", "title", "http://xxxx", false)
       case None =>
-        User("id", "name", "fullname", "organization", "title", "http://xxxx", true)
+        User("", "", "", "", "", "http://xxxx", true)
     }
-    AjaxResponse("OK", user)
+    user
   }
 }
 
@@ -31,4 +29,3 @@ case class User(
   image: String,
   isGuest: Boolean
 )
-//case class Profile(user: Option[User])

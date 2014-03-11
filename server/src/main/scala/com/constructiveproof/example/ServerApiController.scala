@@ -20,9 +20,11 @@ class ServerApiController extends ScalatraServlet with JacksonJsonSupport {
 
   // JSON API
   get ("/profile") {
-    val session = SessionParams(Option(servletContext.getAttribute(SessionKey)))
-    val data = LoginFacade.getLoginInfo(session)
-    data
+    val params = SessionParams(Option(servletContext.getAttribute(SessionKey)))
+    val user = LoginFacade.getLoginInfo(params)
+
+    val response = AjaxResponse("OK", user)
+    response
   }
 
   post("/signin") {
@@ -32,7 +34,7 @@ class ServerApiController extends ScalatraServlet with JacksonJsonSupport {
     if (LoginFacade.isAuthenticated(signinParams)) {
       servletContext.setAttribute(SessionKey, id)
     }
-    val response = AjaxResponse("OK", {})
+    val response = AjaxResponse("OK")
     response
   }
 
@@ -40,9 +42,9 @@ class ServerApiController extends ScalatraServlet with JacksonJsonSupport {
     Option(servletContext.getAttribute(SessionKey)).foreach {
       _ =>  servletContext.removeAttribute(SessionKey)
     }
-    val response = AjaxResponse("OK", {})
+    val response = AjaxResponse("OK")
     response
   }
 }
 
-case class AjaxResponse[A](status: String, data: A)
+case class AjaxResponse[A](status: String, data: A = {})
