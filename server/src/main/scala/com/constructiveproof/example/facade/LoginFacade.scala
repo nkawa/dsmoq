@@ -1,8 +1,13 @@
 package com.constructiveproof.example.facade
 
 object LoginFacade {
-  def isAuthenticated(params: SigninParams) =
-    params.id == "foo" && params.password == "foo"
+  def getAuthenticatedUser(params: SigninParams) = {
+    if (params.id == "foo" && params.password == "foo") {
+      Option(User("id", "name", "fullname", "organization", "title", "http://xxxx", false))
+    } else {
+      None
+    }
+  }
 
   def getLoginInfo(x: SessionParams): User = {
     val user = x.session match {

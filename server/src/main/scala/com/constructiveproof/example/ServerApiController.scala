@@ -23,8 +23,8 @@ class ServerApiController extends ScalatraServlet with JacksonJsonSupport with S
 
   // JSON API
   get ("/profile") {
-    val userInfo = getSessionParameter(SessionKey)
-    val facadeParams = SessionParams(userInfo)
+    val sessionUserInfo = getSessionParameter(SessionKey)
+    val facadeParams = SessionParams(sessionUserInfo)
     val user = LoginFacade.getLoginInfo(facadeParams)
 
     val response = AjaxResponse("OK", user)
@@ -35,24 +35,23 @@ class ServerApiController extends ScalatraServlet with JacksonJsonSupport with S
     val id = params("id")
     val facadeParams = SigninParams(id, params("password"))
 
-    if (LoginFacade.isAuthenticated(facadeParams)) {
-      sessionOption match {
-        case None =>
-          session.setAttribute(SessionKey, id)
+    val user = LoginFacade.getAuthenticatedUser(facadeParams)
+    user match {
+      case Some(x) => sessionOption match {
+        case None => session.setAttribute(SessionKey, x)
         case Some(_) => // do nothing
-      }
+        }
+      case None => // Do nothing
     }
+
     val response = AjaxResponse("OK")
     response
   }
 
   post("/signout") {
+    // sessionを参照すると新規sessionが作成されてしまうため、sessionOptionで存在チェック
     sessionOption match {
-      case Some(_) =>
-        Option(session.getAttribute(SessionKey)).foreach { _ =>
-          session.removeAttribute(SessionKey)
-          session.invalidate()
-        }
+      case Some(_) => session.invalidate()
       case None => // do nothing
     }
     val response = AjaxResponse("OK")
