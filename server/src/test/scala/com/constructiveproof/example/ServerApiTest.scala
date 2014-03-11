@@ -29,8 +29,8 @@ class ServerApiTest extends FreeSpec with ScalatraSuite {
         val params = Map("id" -> "foo", "password" -> "foo")
         post("/api/signin", params) {
           status should equal (200)
-          println(body)
           assert(body == """{"status":"OK","data":{}}""")
+          response.getHeader("Set-Cookie") should not equal (null)
         }
       }
     }
@@ -60,25 +60,29 @@ class ServerApiTest extends FreeSpec with ScalatraSuite {
   "Authentication" - {
     "sign-in user" - {
       "profile is not guest" in {
-        val params = Map("id" -> "foo", "password" -> "foo")
-        post("/api/signin", params) {}
-        get("/api/profile") {
-          status should equal (200)
-          val result = parse(body).extract[AjaxResponse[User]]
-          assert(!result.data.isGuest)
+        session {
+          val params = Map("id" -> "foo", "password" -> "foo")
+          post("/api/signin", params) { status should equal (200) }
+          get("/api/profile") {
+            status should equal (200)
+            val result = parse(body).extract[AjaxResponse[User]]
+            assert(!result.data.isGuest)
+            post("/api/signout") { status should equal (200) }
+          }
         }
-        post("/api/signout") {}
       }
     }
     "sign-out user" - {
       "profile is guest" in {
-        val params = Map("id" -> "foo", "password" -> "foo")
-        post("/api/signin", params) {}
-        post("/api/signout") {}
-        get("/api/profile") {
-          status should equal (200)
-          val result = parse(body).extract[AjaxResponse[User]]
-          assert(result.data.isGuest)
+        session {
+          val params = Map("id" -> "foo", "password" -> "foo")
+          post("/api/signin", params) { status should equal (200) }
+          post("/api/signout") { status should equal (200) }
+          get("/api/profile") {
+            status should equal (200)
+            val result = parse(body).extract[AjaxResponse[User]]
+            assert(result.data.isGuest)
+          }
         }
       }
     }
