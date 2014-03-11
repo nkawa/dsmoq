@@ -1,6 +1,6 @@
 package com.constructiveproof.example
 
-import com.constructiveproof.example.facade.LoginFacade
+import com.constructiveproof.example.facade.{SigninParams, SessionParams, LoginFacade}
 import org.scalatra.ScalatraServlet
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatra.json.JacksonJsonSupport
@@ -9,9 +9,6 @@ class ServerApiController extends ScalatraServlet with JacksonJsonSupport {
   protected implicit val jsonFormats: Formats = DefaultFormats
 
   val SessionKey = "user"
-
-  private def isAuthenticated(id: String, password: String) =
-    id == "foo" && password == "foo"
 
   before() {
     contentType = formats("json")
@@ -23,17 +20,16 @@ class ServerApiController extends ScalatraServlet with JacksonJsonSupport {
 
   // JSON API
   get ("/profile") {
-    val session = Option(servletContext.getAttribute(SessionKey))
-
+    val session = SessionParams(Option(servletContext.getAttribute(SessionKey)))
     val data = LoginFacade.getLoginInfo(session)
     data
   }
 
   post("/signin") {
     val id = params("id")
-    val password = params("password")
+    val signinParams = SigninParams(id, params("password"))
 
-    if (isAuthenticated(id, password)) {
+    if (LoginFacade.isAuthenticated(signinParams)) {
       servletContext.setAttribute(SessionKey, id)
     }
     val response = AjaxResponse("OK", {})

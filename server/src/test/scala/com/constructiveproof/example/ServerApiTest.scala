@@ -1,6 +1,6 @@
 package com.constructiveproof.example
 
-import _root_.com.constructiveproof.example.facade.{Profile, User }
+import _root_.com.constructiveproof.example.facade.User
 import org.scalatest.FreeSpec
 import org.scalatra.test.scalatest._
 
@@ -17,10 +17,10 @@ class ServerApiTest extends FreeSpec with ScalatraSuite {
       "is guest" in {
         get("/api/profile") {
           status should equal (200)
-          val result = parse(body).extract[AjaxResponse[Profile]]
-          assert(result === AjaxResponse("OK",Profile(Some(User(
+          val result = parse(body).extract[AjaxResponse[User]]
+          assert(result === AjaxResponse("OK", User(
             "id", "name", "fullname", "organization", "title", "http://xxxx", true
-          )))))
+          )))
         }
       }
     }
@@ -51,12 +51,8 @@ class ServerApiTest extends FreeSpec with ScalatraSuite {
         post("/api/signin", params) {}
         get("/api/profile") {
           status should equal (200)
-          val response = parse(body).extract[AjaxResponse[Profile]]
-          val isGuest = response.data.user match {
-            case Some(x) => x.isGuest
-            case None => fail("Illegal Argument")
-          }
-          assert(!isGuest)
+          val result = parse(body).extract[AjaxResponse[User]]
+          assert(!result.data.isGuest)
         }
         post("/api/signout") {}
       }
@@ -68,12 +64,8 @@ class ServerApiTest extends FreeSpec with ScalatraSuite {
         post("/api/signout") {}
         get("/api/profile") {
           status should equal (200)
-          val result = parse(body).extract[AjaxResponse[Profile]]
-          val isGuest = result.data.user match {
-            case Some(x) => x.isGuest
-            case None => fail("Illegal Argument")
-          }
-          assert(isGuest)
+          val result = parse(body).extract[AjaxResponse[User]]
+          assert(result.data.isGuest)
         }
       }
     }
