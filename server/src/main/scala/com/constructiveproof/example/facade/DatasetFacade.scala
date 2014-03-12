@@ -5,9 +5,10 @@ import com.constructiveproof.example.traits.SessionUserInfo
 object DatasetFacade {
   def searchDatasets(params: SearchDatasetsParams) = {
     // FIXME dummy セッションデータ有無チェック
-    val name = params.userInfo match {
-      case Some(_) => "user"
-      case None => "guest"
+    val name = if (params.userInfo.isGuest) {
+      "guest"
+    } else {
+      "user"
     }
 
     // FIXME dummy
@@ -34,9 +35,10 @@ object DatasetFacade {
 
   def getDataset(params: GetDatasetParams) = {
     // FIXME dummy セッションデータ有無チェック
-    val primaryImage = params.userInfo match {
-      case Some(_) => "primaryImage user"
-      case None => "primaryImage guest"
+    val primaryImage = if (params.userInfo.isGuest) {
+      "primaryImage guest"
+    } else {
+      "primaryImage user"
     }
 
     // FIXME dummy data
@@ -73,12 +75,12 @@ case class SearchDatasetsParams(
   attributes: Map[String, Seq[String]],
   limit: Option[String],
   offset: Option[String],
-  userInfo: Option[User]
+  userInfo: User
 ) extends SessionUserInfo
 
 case class GetDatasetParams(
   id: String,
-  userInfo: Option[User]
+  userInfo: User
 ) extends SessionUserInfo
 
 // response

@@ -1,25 +1,19 @@
 package com.constructiveproof.example.facade
 
+import scala.util.{Failure, Success}
+
 object LoginFacade {
   def getAuthenticatedUser(params: SigninParams) = {
+    // TODO db access
     if (params.id == "foo" && params.password == "foo") {
-      Option(User("id", "name", "fullname", "organization", "title", "http://xxxx", false))
+      Success(User("id", "name", "fullname", "organization", "title", "http://xxxx", false))
     } else {
-      None
+      Failure(new Exception("User Not Found"))
     }
-  }
-
-  def getLoginInfo(params: SessionParams): User = {
-    val user = params.session match {
-      case Some(x) => x
-      case None => User("", "", "", "", "", "http://xxxx", true)
-    }
-    user
   }
 }
 
 // request
-case class SessionParams(session: Option[User])
 case class SigninParams(id: String, password: String)
 
 // response

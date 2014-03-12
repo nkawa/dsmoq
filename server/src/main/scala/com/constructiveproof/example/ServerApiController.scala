@@ -4,14 +4,12 @@ import com.constructiveproof.example.facade._
 import org.scalatra.ScalatraServlet
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatra.json.JacksonJsonSupport
-import com.constructiveproof.example.facade.SessionParams
 import com.constructiveproof.example.facade.SigninParams
 import com.constructiveproof.example.traits.SessionTrait
+import scala.util.{Success, Failure}
 
 class ServerApiController extends ScalatraServlet with JacksonJsonSupport with SessionTrait {
   protected implicit val jsonFormats: Formats = DefaultFormats
-
-  val SessionKey = "user"
 
   before() {
     contentType = formats("json")
@@ -23,45 +21,34 @@ class ServerApiController extends ScalatraServlet with JacksonJsonSupport with S
 
   // JSON API
   get ("/profile") {
-    val sessionUserInfo = getSessionParameter(SessionKey)
-    val facadeParams = SessionParams(sessionUserInfo)
-    val user = LoginFacade.getLoginInfo(facadeParams)
-
-    val response = AjaxResponse("OK", user)
-    response
+    val sessionUserInfo = getUserInfoFromSession() match {
+      case Success(x) => x
+      case Failure(e) => throw e
+    }
+    AjaxResponse("OK", sessionUserInfo)
   }
 
   post("/signin") {
     val id = params("id")
     val facadeParams = SigninParams(id, params("password"))
-
-    val user = LoginFacade.getAuthenticatedUser(facadeParams)
-    user match {
-      case Some(x) => sessionOption match {
-        case None => session.setAttribute(SessionKey, x)
-        case Some(_) => // do nothing
-        }
-      case None => // Do nothing
+    LoginFacade.getAuthenticatedUser(facadeParams) match {
+      case Success(x) => setUserInfoToSession(x)
+      case Failure(e) => clearSession()
     }
-
-    val response = AjaxResponse("OK")
-    response
+    AjaxResponse("OK")
   }
 
   post("/signout") {
-    // sessionを参照すると新規sessionが作成されてしまうため、sessionOptionで存在チェック
-    sessionOption match {
-      case Some(_) => session.invalidate()
-      case None => // do nothing
-    }
-    val response = AjaxResponse("OK")
-    response
+    clearSession()
+    AjaxResponse("OK")
   }
 
   // dataset JSON API
   get("/datasets") {
-    val sessionUserInfo = getSessionParameter(SessionKey)
-
+    val sessionUserInfo = getUserInfoFromSession() match {
+      case Success(x) => x
+      case Failure(e) => throw e
+    }
     val query = params.get("query")
     val group = params.get("group")
     val attributes = multiParams.toMap
@@ -69,20 +56,18 @@ class ServerApiController extends ScalatraServlet with JacksonJsonSupport with S
     val offset = params.get("offset")
     val facadeParams = SearchDatasetsParams(query, group, attributes, limit, offset, sessionUserInfo)
 
-    val datasets = DatasetFacade.searchDatasets(facadeParams)
-    val response = AjaxResponse("OK", datasets)
-    response
+    AjaxResponse("OK", DatasetFacade.searchDatasets(facadeParams))
   }
 
   get("/datasets/:id") {
-    val sessionUserInfo = getSessionParameter(SessionKey)
-
+    val sessionUserInfo = getUserInfoFromSession() match {
+      case Success(x) => x
+      case Failure(e) => throw e
+    }
     val id = params("id")
     val facadeParams = GetDatasetParams(id, sessionUserInfo)
-    val dataset = DatasetFacade.getDataset(facadeParams)
 
-    val response = AjaxResponse("OK", dataset)
-    response
+    AjaxResponse("OK", DatasetFacade.getDataset(facadeParams))
   }
 }
 
