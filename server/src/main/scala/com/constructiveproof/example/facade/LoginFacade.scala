@@ -9,8 +9,8 @@ object LoginFacade {
     }
   }
 
-  def getLoginInfo(x: SessionParams): User = {
-    val user = x.session match {
+  def getLoginInfo(params: SessionParams): User = {
+    val user = params.session match {
       case Some(_) =>
         User("id", "name", "fullname", "organization", "title", "http://xxxx", false)
       case None =>
@@ -21,7 +21,7 @@ object LoginFacade {
 }
 
 // request
-case class SessionParams(session: Object)
+case class SessionParams(session: Option[User])
 case class SigninParams(id: String, password: String)
 
 // response
