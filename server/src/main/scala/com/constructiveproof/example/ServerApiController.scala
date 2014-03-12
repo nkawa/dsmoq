@@ -60,14 +60,14 @@ class ServerApiController extends ScalatraServlet with JacksonJsonSupport with S
 
   // dataset JSON API
   get("/datasets") {
-    // TODO 認証
+    val sessionUserInfo = getSessionParameter(SessionKey)
 
     val query = params.get("query")
     val group = params.get("group")
     val attributes = multiParams.toMap
     val limit = params.get("limit")
     val offset = params.get("offset")
-    val facadeParams = SearchDatasetsParams(query, group, attributes, limit, offset)
+    val facadeParams = SearchDatasetsParams(query, group, attributes, limit, offset, sessionUserInfo)
 
     val datasets = DatasetFacade.searchDatasets(facadeParams)
     val response = AjaxResponse("OK", datasets)
@@ -75,10 +75,10 @@ class ServerApiController extends ScalatraServlet with JacksonJsonSupport with S
   }
 
   get("/datasets/:id") {
-    // TODO 認証
+    val sessionUserInfo = getSessionParameter(SessionKey)
 
     val id = params("id")
-    val facadeParams = GetDatasetParams(id)
+    val facadeParams = GetDatasetParams(id, sessionUserInfo)
     val dataset = DatasetFacade.getDataset(facadeParams)
 
     val response = AjaxResponse("OK", dataset)

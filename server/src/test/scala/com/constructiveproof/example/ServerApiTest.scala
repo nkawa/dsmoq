@@ -54,6 +54,31 @@ class ServerApiTest extends FreeSpec with ScalatraSuite {
           datasetResult.license should equal (1)
         }
       }
+      "is login user data" in {
+        session {
+          val params = Map("id" -> "foo", "password" -> "foo")
+          post("/api/signin", params) { status should equal (200) }
+          get("/api/datasets") {
+            status should equal (200)
+            val result = parse(body).extract[AjaxResponse[Datasets]]
+            result.data.results shouldNot(be(empty))
+            val datasetResult = result.data.results(0)
+            datasetResult.name should equal ("user")
+          }
+          post("/api/signout", params) { status should equal (200) }
+        }
+      }
+      "is guest data" in {
+        session {
+          get("/api/datasets") {
+            status should equal (200)
+            val result = parse(body).extract[AjaxResponse[Datasets]]
+            result.data.results shouldNot(be(empty))
+            val datasetResult = result.data.results(0)
+            datasetResult.name should equal ("guest")
+          }
+        }
+      }
     }
 
     "dataset" - {
@@ -64,6 +89,27 @@ class ServerApiTest extends FreeSpec with ScalatraSuite {
           result.status should equal ("OK")
           result.data.id should equal ("1")
           result.data.permission should equal (1)
+        }
+      }
+      "is login user data" in {
+        session {
+          val params = Map("id" -> "foo", "password" -> "foo")
+          post("/api/signin", params) { status should equal (200) }
+          get("/api/datasets/1") {
+            status should equal (200)
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.data.primaryImage should equal ("primaryImage user")
+          }
+          post("/api/signout", params) { status should equal (200) }
+        }
+      }
+      "is guest data" in {
+        session {
+          get("/api/datasets/1") {
+            status should equal (200)
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.data.primaryImage should equal ("primaryImage guest")
+          }
         }
       }
     }

@@ -11,3 +11,7 @@ trait SessionTrait extends ScalatraServlet {
     }
   }
 }
+
+trait SessionUserInfo {
+  val userInfo: Option[User]
+}

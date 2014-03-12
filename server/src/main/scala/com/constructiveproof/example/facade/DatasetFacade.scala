@@ -1,7 +1,15 @@
 package com.constructiveproof.example.facade
 
+import com.constructiveproof.example.traits.SessionUserInfo
+
 object DatasetFacade {
   def searchDatasets(params: SearchDatasetsParams) = {
+    // FIXME dummy セッションデータ有無チェック
+    val name = params.userInfo match {
+      case Some(_) => "user"
+      case None => "guest"
+    }
+
     // FIXME dummy
     val summary = DatasetsSummary(100)
     val attributes = List(DatasetAttribute("xxx", "xxx"))
@@ -9,7 +17,7 @@ object DatasetFacade {
     val groups = List(DatasetGroup(1, "xxx", "http://xxx"))
     val result = DatasetsResult(
       id = 1,
-      name = "xxxx",
+      name = name,
       description = "xxxx",
       image = "http://xxx",
       attributes = attributes,
@@ -25,6 +33,12 @@ object DatasetFacade {
   }
 
   def getDataset(params: GetDatasetParams) = {
+    // FIXME dummy セッションデータ有無チェック
+    val primaryImage = params.userInfo match {
+      case Some(_) => "primaryImage user"
+      case None => "primaryImage guest"
+    }
+
     // FIXME dummy data
     val datasetFiles = List(DatasetFile("1", "filename"))
     val datasetMetaData = DatasetMetaData(
@@ -42,7 +56,7 @@ object DatasetFacade {
       files = datasetFiles,
       meta = datasetMetaData,
       images = datasetImages,
-      primaryImage =  "primaryImage",
+      primaryImage =  primaryImage,
       owners = datasetOwners,
       groups = datasetGroups,
       defaultAccessLevel = 1,
@@ -58,12 +72,14 @@ case class SearchDatasetsParams(
   group: Option[String],
   attributes: Map[String, Seq[String]],
   limit: Option[String],
-  offset: Option[String]
-)
+  offset: Option[String],
+  userInfo: Option[User]
+) extends SessionUserInfo
 
 case class GetDatasetParams(
-  id: String
-)
+  id: String,
+  userInfo: Option[User]
+) extends SessionUserInfo
 
 // response
 case class Datasets(
