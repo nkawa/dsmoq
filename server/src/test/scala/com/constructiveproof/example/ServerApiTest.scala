@@ -33,6 +33,14 @@ class ServerApiTest extends FreeSpec with ScalatraSuite {
           response.getHeader("Set-Cookie") should not equal (null)
         }
       }
+      "is fail(wrong password)" in {
+        val params = Map("id" -> "foo", "password" -> "bar")
+        post("/api/signin", params) {
+          status should equal (200)
+          assert(body == """{"status":"NG","data":{}}""")
+          response.getHeader("Set-Cookie") should equal (null)
+        }
+      }
     }
     "signout" - {
       "is success" in {
