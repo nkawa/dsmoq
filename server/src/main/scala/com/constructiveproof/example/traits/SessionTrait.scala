@@ -2,28 +2,25 @@ package com.constructiveproof.example.traits
 
 import org.scalatra.ScalatraServlet
 import com.constructiveproof.example.facade.User
-import scala.util.{Failure, Success}
+import scala.util.{Try, Failure, Success}
 
 trait SessionTrait extends ScalatraServlet {
   private val SessionKey = "user"
 
-  def getUserInfoFromSession() = {
+  def getUserInfoFromSession(): Try[User] = {
     sessionOption match {
       case Some(_) => session.get(SessionKey) match {
-        case Some(_) => session.getAttribute(SessionKey) match {
-          case x: User => Success(session.getAttribute(SessionKey).asInstanceOf[User])
-          case _ => Failure(new ClassCastException("data error"))
-        }
-        case None => Failure(new Exception("session attributes is not found"))
+        case Some(x) => Success(x.asInstanceOf[User])
+        case None =>
+          clearSession()
+          Success(User("", "", "", "", "", "http://xxxx", true))
       }
       case None => Success(User("", "", "", "", "", "http://xxxx", true))
     }
   }
 
   def setUserInfoToSession(user: User) {
-    if (!user.isGuest) {
-      session.setAttribute(SessionKey, user)
-    }
+    session.setAttribute(SessionKey, user)
   }
 
   def clearSession() {

@@ -21,11 +21,10 @@ class ServerApiController extends ScalatraServlet with JacksonJsonSupport with S
 
   // JSON API
   get ("/profile") {
-    val sessionUserInfo = getUserInfoFromSession() match {
-      case Success(x) => x
-      case Failure(e) => throw e
+    getUserInfoFromSession() match {
+      case Success(x) => AjaxResponse("OK", x)
+      case Failure(e) => AjaxResponse("NG")
     }
-    AjaxResponse("OK", sessionUserInfo)
   }
 
   post("/signin") {
@@ -45,29 +44,29 @@ class ServerApiController extends ScalatraServlet with JacksonJsonSupport with S
 
   // dataset JSON API
   get("/datasets") {
-    val sessionUserInfo = getUserInfoFromSession() match {
-      case Success(x) => x
-      case Failure(e) => throw e
-    }
-    val query = params.get("query")
-    val group = params.get("group")
-    val attributes = multiParams.toMap
-    val limit = params.get("limit")
-    val offset = params.get("offset")
-    val facadeParams = SearchDatasetsParams(query, group, attributes, limit, offset, sessionUserInfo)
+    getUserInfoFromSession() match {
+      case Success(x) =>
+        val query = params.get("query")
+        val group = params.get("group")
+        val attributes = multiParams.toMap
+        val limit = params.get("limit")
+        val offset = params.get("offset")
+        val facadeParams = SearchDatasetsParams(query, group, attributes, limit, offset, x)
 
-    AjaxResponse("OK", DatasetFacade.searchDatasets(facadeParams))
+        AjaxResponse("OK", DatasetFacade.searchDatasets(facadeParams))
+      case Failure(e) => AjaxResponse("NG")
+    }
   }
 
   get("/datasets/:id") {
-    val sessionUserInfo = getUserInfoFromSession() match {
-      case Success(x) => x
-      case Failure(e) => throw e
-    }
-    val id = params("id")
-    val facadeParams = GetDatasetParams(id, sessionUserInfo)
+    getUserInfoFromSession() match {
+      case Success(x) =>
+        val id = params("id")
+        val facadeParams = GetDatasetParams(id, x)
 
-    AjaxResponse("OK", DatasetFacade.getDataset(facadeParams))
+        AjaxResponse("OK", DatasetFacade.getDataset(facadeParams))
+      case Failure(e) => AjaxResponse("NG")
+    }
   }
 }
 
