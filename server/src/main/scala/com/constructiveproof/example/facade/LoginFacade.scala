@@ -11,10 +11,8 @@ object LoginFacade {
 
   def getLoginInfo(params: SessionParams): User = {
     val user = params.session match {
-      case Some(_) =>
-        User("id", "name", "fullname", "organization", "title", "http://xxxx", false)
-      case None =>
-        User("", "", "", "", "", "http://xxxx", true)
+      case Some(x) => x
+      case None => User("", "", "", "", "", "http://xxxx", true)
     }
     user
   }
