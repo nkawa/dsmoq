@@ -1,9 +1,10 @@
 package com.constructiveproof.example.facade
 
 import com.constructiveproof.example.traits.SessionUserInfo
+import scala.util.{Try, Success}
 
 object DatasetFacade {
-  def searchDatasets(params: SearchDatasetsParams) = {
+  def searchDatasets(params: SearchDatasetsParams): Try[Datasets] = {
     // FIXME dummy セッションデータ有無チェック
     val name = if (params.userInfo.isGuest) {
       "guest"
@@ -29,11 +30,10 @@ object DatasetFacade {
       defaultAccessLevel = 1,
       permission = 1
     )
-    val datasets = Datasets(summary, List(result))
-    datasets
+    Success(Datasets(summary, List(result)))
   }
 
-  def getDataset(params: GetDatasetParams) = {
+  def getDataset(params: GetDatasetParams): Try[Dataset] = {
     // FIXME dummy セッションデータ有無チェック
     val primaryImage = if (params.userInfo.isGuest) {
       "primaryImage guest"
@@ -53,7 +53,7 @@ object DatasetFacade {
     val datasetOwners = List(DatasetOwner(1, "xxx", "http://xxxx"))
     val datasetGroups = List(DatasetGroup(1, "xxx", "http://xxxx"))
 
-    val dataset = Dataset(
+    Success(Dataset(
       id = params.id,
       files = datasetFiles,
       meta = datasetMetaData,
@@ -63,8 +63,7 @@ object DatasetFacade {
       groups = datasetGroups,
       defaultAccessLevel = 1,
       permission = 1
-    )
-    dataset
+    ))
   }
 }
 

@@ -53,7 +53,10 @@ class ServerApiController extends ScalatraServlet with JacksonJsonSupport with S
         val offset = params.get("offset")
         val facadeParams = SearchDatasetsParams(query, group, attributes, limit, offset, x)
 
-        AjaxResponse("OK", DatasetFacade.searchDatasets(facadeParams))
+        DatasetFacade.searchDatasets(facadeParams) match {
+          case Success(x) => AjaxResponse("OK", x)
+          case Failure(e) => AjaxResponse("NG")
+        }
       case Failure(e) => AjaxResponse("NG")
     }
   }
@@ -64,7 +67,10 @@ class ServerApiController extends ScalatraServlet with JacksonJsonSupport with S
         val id = params("id")
         val facadeParams = GetDatasetParams(id, x)
 
-        AjaxResponse("OK", DatasetFacade.getDataset(facadeParams))
+        DatasetFacade.getDataset(facadeParams) match {
+          case Success(x) => AjaxResponse("OK", x)
+          case Failure(e) => AjaxResponse("NG")
+        }
       case Failure(e) => AjaxResponse("NG")
     }
   }
