@@ -1,6 +1,6 @@
 package com.constructiveproof.example
 
-import com.constructiveproof.example.facade.{Datasets, User}
+import com.constructiveproof.example.facade.{Dataset, Datasets, User}
 import org.scalatest.FreeSpec
 import org.scalatra.test.scalatest._
 
@@ -52,6 +52,18 @@ class ServerApiTest extends FreeSpec with ScalatraSuite {
           result.data.summary.count should equal (20)
           val datasetResult = result.data.results(0)
           datasetResult.license should equal (1)
+        }
+      }
+    }
+
+    "dataset" - {
+      "can get" in {
+        get("/api/datasets/1") {
+          status should equal (200)
+          val result = parse(body).extract[AjaxResponse[Dataset]]
+          result.status should equal ("OK")
+          result.data.id should equal ("1")
+          result.data.permission should equal (1)
         }
       }
     }
