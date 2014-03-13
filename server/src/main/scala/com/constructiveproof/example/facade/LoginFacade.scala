@@ -16,8 +16,12 @@ object LoginFacade {
               users
             INNER JOIN
               passwords ON users.password_id = passwords.id
+            INNER JOIN
+              mail_addresses ON users.id = mail_addresses.user_id
             WHERE
               users.name = ${params.id}
+            OR
+              mail_addresses.address = ${params.id}
           """
             .map(_.toMap).first().apply()
         }

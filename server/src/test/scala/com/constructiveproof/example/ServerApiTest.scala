@@ -33,12 +33,24 @@ class ServerApiTest extends FreeSpec with ScalatraSuite with BeforeAndAfter {
       }
     }
     "signin" - {
-      "is success" in {
-        val params = Map("id" -> "test", "password" -> "foo")
-        post("/api/signin", params) {
-          status should equal (200)
-          assert(body == """{"status":"OK","data":{}}""")
-          response.getHeader("Set-Cookie") should not equal (null)
+      "with user name" - {
+        "is success" in {
+          val params = Map("id" -> "test", "password" -> "foo")
+          post("/api/signin", params) {
+            status should equal (200)
+            assert(body == """{"status":"OK","data":{}}""")
+            response.getHeader("Set-Cookie") should not equal (null)
+          }
+        }
+      }
+      "with mail address" - {
+        "is success" in {
+          val params = Map("id" -> "test@example.com", "password" -> "foo")
+          post("/api/signin", params) {
+            status should equal (200)
+            assert(body == """{"status":"OK","data":{}}""")
+            response.getHeader("Set-Cookie") should not equal (null)
+          }
         }
       }
       "is fail(wrong password)" in {
