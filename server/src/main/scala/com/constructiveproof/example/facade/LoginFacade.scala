@@ -22,8 +22,9 @@ object LoginFacade {
               users.name = ${params.id}
             OR
               mail_addresses.address = ${params.id}
+            LIMIT 1
           """
-            .map(_.toMap).first().apply()
+            .map(_.toMap).single.apply()
         }
       }
     // FIXME パスワードのソルトは適当('#' + password + "coi")
