@@ -5,13 +5,13 @@ import scalikejdbc.config.DBs
 
 class ScalatraBootstrap extends LifeCycle {
   override def init(context: ServletContext) {
-//    DBs.setup()
+    DBs.setup()
     context.mount(new ResourceController, "/*")
     context.mount(new SessionsController, "/sessions/*")
     context.mount(new ServerApiController, "/api/*")
   }
 
   override def destroy(context: ServletContext) {
-//    DBs.close()
+    DBs.close()
   }
 }

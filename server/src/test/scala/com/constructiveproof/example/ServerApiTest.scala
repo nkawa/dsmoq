@@ -1,16 +1,24 @@
 package com.constructiveproof.example
 
 import com.constructiveproof.example.facade.{Dataset, Datasets, User}
-import org.scalatest.FreeSpec
+import org.scalatest.{BeforeAndAfter, FreeSpec}
 import org.scalatra.test.scalatest._
 
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
+import scalikejdbc.config.DBs
 
-class ServerApiTest extends FreeSpec with ScalatraSuite {
+class ServerApiTest extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
 
   addServlet(classOf[ServerApiController], "/api/*")
+
+  before {
+    DBs.setup()
+  }
+  after {
+    DBs.close()
+  }
 
   "API test" - {
     "profile" - {
@@ -26,7 +34,7 @@ class ServerApiTest extends FreeSpec with ScalatraSuite {
     }
     "signin" - {
       "is success" in {
-        val params = Map("id" -> "foo", "password" -> "foo")
+        val params = Map("id" -> "test", "password" -> "foo")
         post("/api/signin", params) {
           status should equal (200)
           assert(body == """{"status":"OK","data":{}}""")
@@ -34,7 +42,7 @@ class ServerApiTest extends FreeSpec with ScalatraSuite {
         }
       }
       "is fail(wrong password)" in {
-        val params = Map("id" -> "foo", "password" -> "bar")
+        val params = Map("id" -> "test", "password" -> "bar")
         post("/api/signin", params) {
           status should equal (200)
           assert(body == """{"status":"NG","data":{}}""")
@@ -64,7 +72,7 @@ class ServerApiTest extends FreeSpec with ScalatraSuite {
       }
       "is login user data" in {
         session {
-          val params = Map("id" -> "foo", "password" -> "foo")
+          val params = Map("id" -> "test", "password" -> "foo")
           post("/api/signin", params) { status should equal (200) }
           get("/api/datasets") {
             status should equal (200)
@@ -101,7 +109,7 @@ class ServerApiTest extends FreeSpec with ScalatraSuite {
       }
       "is login user data" in {
         session {
-          val params = Map("id" -> "foo", "password" -> "foo")
+          val params = Map("id" -> "test", "password" -> "foo")
           post("/api/signin", params) { status should equal (200) }
           get("/api/datasets/1") {
             status should equal (200)
@@ -127,7 +135,7 @@ class ServerApiTest extends FreeSpec with ScalatraSuite {
     "sign-in user" - {
       "profile is not guest" in {
         session {
-          val params = Map("id" -> "foo", "password" -> "foo")
+          val params = Map("id" -> "test", "password" -> "foo")
           post("/api/signin", params) { status should equal (200) }
           get("/api/profile") {
             status should equal (200)
@@ -141,7 +149,7 @@ class ServerApiTest extends FreeSpec with ScalatraSuite {
     "sign-out user" - {
       "profile is guest" in {
         session {
-          val params = Map("id" -> "foo", "password" -> "foo")
+          val params = Map("id" -> "test", "password" -> "foo")
           post("/api/signin", params) { status should equal (200) }
           post("/api/signout") { status should equal (200) }
           get("/api/profile") {
