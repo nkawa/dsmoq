@@ -47,33 +47,36 @@ class ServerApiController extends ScalatraServlet with JacksonJsonSupport with S
 
   // dataset JSON API
   get("/datasets") {
-    getUserInfoFromSession() match {
-      case Success(x) =>
-        val query = params.get("query")
-        val group = params.get("group")
-        val attributes = multiParams.toMap
-        val limit = params.get("limit")
-        val offset = params.get("offset")
-        val facadeParams = SearchDatasetsParams(query, group, attributes, limit, offset, x)
+    val query = params.get("query")
+    val group = params.get("group")
+    val attributes = multiParams.toMap
+    val limit = params.get("limit")
+    val offset = params.get("offset")
 
-        DatasetFacade.searchDatasets(facadeParams) match {
-          case Success(x) => AjaxResponse("OK", x)
-          case Failure(e) => AjaxResponse("NG")
-        }
+    val response = for {
+      userInfo <- getUserInfoFromSession()
+      facadeParams = SearchDatasetsParams(query, group, attributes, limit, offset, userInfo)
+      datasets <- DatasetFacade.searchDatasets(facadeParams)
+    } yield {
+      AjaxResponse("OK", datasets)
+    }
+    response match {
+      case Success(x) => x
       case Failure(e) => AjaxResponse("NG")
     }
   }
 
   get("/datasets/:id") {
-    getUserInfoFromSession() match {
-      case Success(x) =>
-        val id = params("id")
-        val facadeParams = GetDatasetParams(id, x)
-
-        DatasetFacade.getDataset(facadeParams) match {
-          case Success(x) => AjaxResponse("OK", x)
-          case Failure(e) => AjaxResponse("NG")
-        }
+    val id = params("id")
+    val response = for {
+      userInfo <- getUserInfoFromSession()
+      facadeParams = GetDatasetParams(id, userInfo)
+      dataset <- DatasetFacade.getDataset(facadeParams)
+    } yield {
+      AjaxResponse("OK", dataset)
+    }
+    response match {
+      case Success(x) => x
       case Failure(e) => AjaxResponse("NG")
     }
   }
