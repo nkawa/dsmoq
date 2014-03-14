@@ -7,7 +7,7 @@ import org.scalatra.json.JacksonJsonSupport
 import com.constructiveproof.example.facade.SigninParams
 import com.constructiveproof.example.traits.SessionTrait
 import scala.util.{Success, Failure}
-import org.scalatra.servlet.FileUploadSupport
+import org.scalatra.servlet.{MultipartConfig, FileUploadSupport}
 
 class ServerApiController extends ScalatraServlet with JacksonJsonSupport with SessionTrait with FileUploadSupport {
   protected implicit val jsonFormats: Formats = DefaultFormats
@@ -83,13 +83,20 @@ class ServerApiController extends ScalatraServlet with JacksonJsonSupport with S
   }
 
   post("/datasets") {
-    // FIXME ファイル情報取得 Some(files)
     val files = fileMultiParams.get("file[]")
-    // debug
-    println(files)
-
-    // FIXME response
-    AjaxResponse("OK")
+    val response = for {
+      userInfo <- getUserInfoFromSession()
+      facadeParams = CreateDatasetParams(userInfo, files)
+      dataset <- DatasetFacade.createDataset(facadeParams)
+    } yield {
+      AjaxResponse("OK", dataset)
+    }
+    response match {
+      case Success(x) => x
+        // FIXME デバッグのため一時的に変更
+//      case Failure(e) => AjaxResponse("NG")
+      case Failure(e) => throw e
+    }
   }
 }
 
