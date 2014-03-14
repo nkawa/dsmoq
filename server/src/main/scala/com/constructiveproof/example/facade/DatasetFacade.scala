@@ -15,8 +15,8 @@ object DatasetFacade {
     // FIXME dummy
     val summary = DatasetsSummary(100)
     val attributes = List(DatasetAttribute("xxx", "xxx"))
-    val owners = List(DatasetOwner(1, "xxx", "http://xxx"))
-    val groups = List(DatasetGroup(1, "xxx", "http://xxx"))
+    val owners = List(DatasetsOwner(1, "xxx", "http://xxx"))
+    val groups = List(DatasetsGroup(1, "xxx", "http://xxx"))
     val result = DatasetsResult(
       id = 1,
       name = name,
@@ -50,8 +50,7 @@ object DatasetFacade {
       List(DatasetAttribute("attr_name", "attr_value"))
     )
     val datasetImages = List(DatasetImage("image_id", "http://xxx"))
-    val datasetOwners = List(DatasetOwner(1, "xxx", "http://xxxx"))
-    val datasetGroups = List(DatasetGroup(1, "xxx", "http://xxxx"))
+    val datasetOwnerships = List(DatasetOwnership("owner_id", 1, "ownership_name", "http://xxxx"))
 
     Success(Dataset(
       id = params.id,
@@ -59,8 +58,7 @@ object DatasetFacade {
       meta = datasetMetaData,
       images = datasetImages,
       primaryImage =  primaryImage,
-      owners = datasetOwners,
-      groups = datasetGroups,
+      ownerships = datasetOwnerships,
       defaultAccessLevel = 1,
       permission = 1
     ))
@@ -101,12 +99,24 @@ case class DatasetsResult(
   image: String,
   license: Int = 1,
   attributes: List[DatasetAttribute],
-  owners: List[DatasetOwner],
-  groups: List[DatasetGroup],
+  owners: List[DatasetsOwner],
+  groups: List[DatasetsGroup],
   files: Int,
   dataSize: Int,
   defaultAccessLevel: Int,
   permission: Int
+)
+
+case class DatasetsOwner(
+  id: Int,
+  name: String,
+  image: String
+)
+
+case class DatasetsGroup(
+  id: Int,
+  name: String,
+  image: String
 )
 
 case class Dataset(
@@ -115,8 +125,7 @@ case class Dataset(
   meta: DatasetMetaData,
   images: List[DatasetImage],
   primaryImage: String,
-  owners: List[DatasetOwner],
-  groups: List[DatasetGroup],
+  ownerships: List[DatasetOwnership],
   defaultAccessLevel: Int,
   permission: Int
 )
@@ -133,18 +142,6 @@ case class DatasetAttribute(
   value: String
 )
 
-case class DatasetOwner(
-  id: Int,
-  name: String,
-  image: String
-)
-
-case class DatasetGroup(
-  id: Int,
-  name: String,
-  image: String
-)
-
 case class DatasetFile(
   id: String,
   name: String
@@ -153,4 +150,11 @@ case class DatasetFile(
 case class DatasetImage(
   id: String,
   url: String
+)
+
+case class DatasetOwnership(
+  id: String,
+  ownerType: Int,
+  name: String,
+  image: String
 )
