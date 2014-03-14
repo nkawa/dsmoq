@@ -140,6 +140,16 @@ class ServerApiTest extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           }
         }
       }
+      "create" in {
+        session {
+          val params = Map("id" -> "test", "password" -> "foo")
+          post("/api/signin", params) { status should equal (200) }
+          post("/api/datasets") {
+            status should equal (200)
+            // FIXME 簡単な疎通レベルでOK あとはmock html使う
+          }
+        }
+      }
     }
   }
 

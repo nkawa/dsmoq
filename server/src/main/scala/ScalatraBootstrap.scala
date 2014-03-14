@@ -9,6 +9,9 @@ class ScalatraBootstrap extends LifeCycle {
     context.mount(new ResourceController, "/*")
     context.mount(new SessionsController, "/sessions/*")
     context.mount(new ServerApiController, "/api/*")
+
+    // mock
+    context.mount(new MockController, "/mock")
   }
 
   override def destroy(context: ServletContext) {
