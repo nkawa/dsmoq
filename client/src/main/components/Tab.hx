@@ -36,7 +36,7 @@ class Tab{
             return JQuery.div().addClass("tab-panel").append(JQuery.div().addClass("tab-content"));
         });
         var tabContent = Lambda.fold(builder.panes, function(pane, acc){
-            return Components.inject(pane.name, '.tab-content')(acc, renderEach(pane.name, pane.component));
+            return Components.inject(pane.name, '.tab-content', acc, renderEach(pane.name, pane.component));
         }, baseComponent);
 
         return untyped (Components.decorateWithInput(tabContent, function(html, x){
