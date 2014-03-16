@@ -69,4 +69,10 @@ class JQuery{
     public static function wrapBy(tag: String, jq: Jq){
         return j(tag).append(jq);
     }
+
+    public static function fromArray(htmls: Array<Jq>): Jq{
+        return Lambda.fold(htmls,
+                function(html: Jq, acc: Jq){ return acc.add(html);},
+                j(''));
+    }
 }
