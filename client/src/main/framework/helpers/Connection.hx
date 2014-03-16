@@ -8,7 +8,7 @@ enum HttpMethod{ Get; Post; }
 
 typedef HttpRequest = {method: HttpMethod, url: String, params: Dynamic}
 typedef HttpJsonRequest = {url: String, json: Json}
-typedef HttpProcess = {event: Promise<Json>, state: Void -> ConnectionStatus}
+typedef HttpProcess<A> = {event: Promise<A>, state: Void -> ConnectionStatus}
 
 private extern class CancelToken{     // jqXHR actually
     function abort():Void;
@@ -26,7 +26,11 @@ enum ConnectionStatus{
 class Connection{
     private static var jq = untyped __js__('$');
 
-    public static function send(request: HttpRequest): HttpProcess{
+    public static function then<A, B>(p: HttpProcess<A>, f: A -> B): HttpProcess<B>{
+        return {event: p.event.then(f), state: p.state};
+    }
+
+    public static function send<A>(request: HttpRequest): HttpProcess<A>{
         var p = new Promise();
         var token: CancelToken = jq.ajax({
             url: request.url,
@@ -50,11 +54,11 @@ class Connection{
         return {event: p, state: state};
     }
 
-    public static function sendJson(request: HttpJsonRequest): HttpProcess{
+    public static function sendJson<A>(request: HttpJsonRequest): HttpProcess<A>{
         return send({url: request.url, method: Post, params: JsonLib.stringify(request.json)});
 
     }
-    public static function abort(process: HttpProcess){
+    public static function abort<A>(process: HttpProcess<A>){
         switch(process.state()){
             case BeforeConnected(cancel) | DuringConnection(cancel):  cancel();
             case Done | Failed:

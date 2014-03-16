@@ -1,11 +1,11 @@
 package components;
 
-import pages.Auth;
+import pages.Api;
 import framework.helpers.*;
 using framework.helpers.Components;
 import framework.Types;
 import framework.JQuery;
-import pushstate.PushState;
+import framework.Effect;
 import js.Browser.document in doc;
 
 private typedef HeaderModel = {
@@ -34,10 +34,10 @@ class Header{
                     {selector: "[data-link-profile]", url: "/profile/"}
                 ];
             Lambda.iter(links, function(t){
-                html.find(t.selector).on("click", function(_){ PushState.push(t.url);});
+                html.find(t.selector).on("click", function(_){ Effect.global().changeUrl(Address.url(t.url));});
             });
 
-            clickToSubmit(html, "[data-submit-login]",  "[data-link-login]",  Settings.api.login);
+            clickToSubmit(html, "[data-submit-login]",  "[data-link-login]",  Settings.api.login, function(_){ html.find('[data-message-login]').text(Messages.loginFailure);});
             clickToSubmit(html, "[data-submit-logout]", "[data-link-logout]", Settings.api.logout);
 
             return html;
@@ -46,12 +46,16 @@ class Header{
         return Templates.create("header").inMap(toModel).stateMap(Core.ignore).decorate(after);
     }
 
-    private static function clickToSubmit(html: Html, formSelector, clickSelector, url){
+    private static function clickToSubmit(html: Html, formSelector, clickSelector, url, onError = null){
         JQuery.findAll(html, clickSelector).on("click", function(_){
             var jqXHR = (untyped JQuery.findAll(html, formSelector)).ajaxSubmit({url: url, dataType:"JSON"}).data('jqxhr');
             // TODO: Error handling
-            jqXHR.done(function(_){
-                doc.location.reload();
+            jqXHR.done(function(response){
+                if(response != null && response.status == "OK"){
+                   doc.location.reload();
+                }else{
+                    if(onError != null) onError(response);
+                }
             });
         });
     }

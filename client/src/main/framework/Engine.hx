@@ -2,7 +2,7 @@ package framework;
 
 import framework.Types;
 import js.JQuery.JQueryHelper.*;
-import pushstate.PushState;
+import framework.Effect;
 import framework.JQuery.*;
 
 using framework.helpers.Components;
@@ -11,40 +11,50 @@ import framework.helpers.*;
 import components.ConnectionPanel;
 import components.Header;
 
-import pages.Auth;
+import pages.Api;
 
 class Engine<Page>{
-    var currentPage:Page;
     var application: Application<Page>;
     var container: Replacable<Page, Void, Void>;
     var selector: String;
-    var initialAccess:Bool = true;
+    var currentPage: Page;
 
-    public function new(_application, initialPage, placeSelector = "#main"){
+    public function new(_application, placeSelector = "#main"){
         application = _application;
-        currentPage = initialPage;
         selector = placeSelector;
     }
 
     public function start(){
-        PushState.init();
-        PushState.addEventListener(onUrlChange);
+        Effect.initialize(renderPage);
 
         function initialLoading(jq:Html){
             return jq.text("waiting...");
         }
-        var request = {url: Settings.api.login, json:{}};
 
-        var login = ConnectionPanel.create(initialLoading, "application", 
-            Components.inMap(layout(), Auth.extractUser)
-        ).render(request);
+        var login = ConnectionPanel.request(initialLoading, "application", 
+            Components.inMap(layout(), Api.extractProfile)
+        ).render(Api.profile);
 
         j(selector).append(login.html);
     }
 
+    private function renderPage(location: PageInfo){
+        if(container != null){
+            var newPage = application.fromUrl(location);
+            if(!Type.enumEq(newPage, currentPage)){
+                currentPage = newPage;
+                container.put(currentPage);
+            }
+        }
+    }
+
     private function layout(){
+        function makePageFoldable(f: Page -> Rendered<Void, Page>){
+            return Components.toComponent(f).outMap(Inner);
+        }
         function render(login: LoginStatus){
             var header = Header.create().render(login);
+            currentPage = application.fromUrl(Effect.global().location());
             container = PlaceHolders.withSideEffect("page-body", makePageFoldable(application.draw), changePage).render(currentPage);
 //            header.event.then(pageBody.put)                   // TODO: promise can be called only once
             var body = div().append(header.html).append(container.html.addClass("container"));
@@ -53,27 +63,9 @@ class Engine<Page>{
         return Components.toComponent(render);
     }
 
-    private function makePageFoldable(f: Page -> Rendered<Void, Page>){
-        return Components.toComponent(f).outMap(Inner);
-    }
 
     private function changePage(page:Page){
-        currentPage = page;
-        if(initialAccess){
-            initialAccess = false;
-        }else{
-            PushState.push(application.toUrl(page));
-        }
+        Effect.global().changeUrl(application.toUrl(page));
     }
 
-    private function onUrlChange(url){
-        var newPage = application.fromUrl(url);
-        if(! Type.enumEq(newPage, currentPage)) {
-            if(container == null){
-                currentPage = newPage;
-            }else{
-                container.put(newPage);
-            }
-        }
-    }
 }

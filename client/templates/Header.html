@@ -25,7 +25,7 @@
             <span class="caret"></span>
           </a>
           <div class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu1">
-            <form class="form-horizontal" role="form" data-submit-login>
+            <form method="POST" class="form-horizontal" role="form" data-submit-login>
               <div class="form-group">
                 <label for="form-name" class="col-sm-4 control-label">User Id</label>
                 <div class="col-sm-8"> <input type="text" class="form-control" name="id" > </div>
@@ -38,6 +38,7 @@
                 <label class="col-sm-4 control-label"></label>
                 <div class="col-sm-8">
                   <a class="btn btn-primary btn-sm" data-link-login>Login</a>
+                  <span class="login-failure" data-message-login></span>
                 </div>
               </div>
             </form>
@@ -50,7 +51,7 @@
         </li>
         <li data-login="show:true">
            <a class="control-label" data-link-logout> Logout </a>
-          <form data-submit-logout method="POST">
+          <form data-submit-logout method="POST" style="display:none">
           </form>
         </li>
       </ul>

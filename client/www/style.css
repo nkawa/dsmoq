@@ -110,3 +110,8 @@ hr {
     border-bottom: 1px solid #DDDDDD;
     padding:10px 10px 5px;
 }
+
+.login-failure {
+    color: red;
+    font-size: x-small;
+}
