@@ -115,3 +115,7 @@ hr {
     color: red;
     font-size: x-small;
 }
+
+a:hover {
+    cursor: pointer;
+}
