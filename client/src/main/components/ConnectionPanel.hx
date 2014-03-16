@@ -9,14 +9,29 @@ import promhx.Promise;
 import components.LoadingPanel;
 
 class ConnectionPanel{
-    public static function create<Output>(
+    public static function request<Output>(
+        waiting: Html -> Void,
+        name,
+        component: Component<Json, Void, Output>
+    ): PlaceHolder<HttpRequest, ConnectionStatus, Output>{
+        return requestContinually(waiting, name, Components.outMap(component, Outer));
+    }
+
+    public static function requestContinually<Output>(
+        waiting: Html -> Void,
+        name,
+        component: Component<Json, Void, NextChange<HttpRequest, Output>>
+    ): PlaceHolder<HttpRequest, ConnectionStatus, Output>{
+        return LoadingPanel.create(waiting, name, component, Connection.send);
+    }
+    public static function requestByJson<Output>(
             waiting: Html -> Void,
             name,
             component: Component<Json, Void, Output>
     ): PlaceHolder<HttpJsonRequest, ConnectionStatus, Output>{
-        return requestContinually(waiting, name, Components.outMap(component, Outer));
+        return requestByJsonContinually(waiting, name, Components.outMap(component, Outer));
     }
-    public static function requestContinually<Output>(
+    public static function requestByJsonContinually<Output>(
             waiting: Html -> Void,
             name,
             component: Component<Json, Void, NextChange<HttpJsonRequest,Output>>
