@@ -6,4 +6,7 @@
 	url = https://github.com/jdonaldson/promhx.git
 [submodule "client/lib/pushstate"]
 	path = client/lib/pushstate
-	url = https://github.com/jasononeil/hxpushstate.git
+	url = https://github.com/illi-ichi/hxpushstate.git
+[submodule "client/lib/mocha.js-haxe"]
+	path = client/lib/mocha.js-haxe
+	url = https://github.com/illi-ichi/mocha.js-haxe.git
