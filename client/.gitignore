@@ -1,1 +1,4 @@
 www/application.js
+node_modules/
+test/*/*.js
+test/*/*.js.map
