@@ -8,9 +8,9 @@ import components.LoadingPanel;
 import framework.helpers.*;
 using framework.helpers.Components;
 
-typedef PagingRequest = {num: Int, numPerPage: Int}
-typedef Paging =        {num: Int, numPerPage: Int, total: Int}
-typedef MassResult<A> = {paging: Paging, result: A}
+typedef PagingRequest = {offset: Int, count: Int}
+typedef Paging =        {offset: Int, count: Int, total: Int}
+typedef MassResult<A> = {summary: Paging, results: A}
 
 typedef Assign<Input, State, Output> = {selector: String, component: Component<Input, State, Output>}
 
@@ -23,39 +23,38 @@ class Pagination{
         component: Component<Input,Void,Output>,
         f: PagingRequest -> {event: Promise<MassResult<Input>>, state: Void -> State}
     ){
-        function extractResult(x:MassResult<Input>){return x.result;}
+        function extractResult(x:MassResult<Input>){return x.results;}
 
         var pagination = create().outMap(Inner);
         var baseComponent = component.inMap(extractResult).outMap(Outer);
         var component: Component<MassResult<Input>, Void, NextChange<PagingRequest, Output>> =
-            Components.justView("paging", placeForResult)(
-                Components.put("paging", placeForPagination)(baseComponent, pagination),
-                result());
+            Components.put("summary", placeForPagination, baseComponent, pagination)
+            .justView(result(), "summary", placeForResult);
 
         return LoadingPanel.create(waiting, name, component, f);
     }
     public static function end(paging:Paging){
-        var n = paging.num + paging.numPerPage - 1;
+        var n = paging.offset + paging.count;
         return (paging.total < n) ? paging.total : n;
     }
 
     public static function result():Component<Paging, Void, Void>{
         return Components.fromHtml(function(paging:Paging){
-            return j('<strong>Found ${paging.total} records (${paging.num} - ${end(paging)})</strong>');
+            return j('<strong>Found ${paging.total} records (${paging.offset + 1} - ${end(paging)})</strong>');
         });
     }
 
     public static function create(){
         function nextPaging(current: Paging){
             return function(nextPage: Int): PagingRequest{
-                var next = (nextPage - 1) * current.numPerPage + 1;
-                return {num: next, numPerPage: current.numPerPage};
+                var next = (nextPage - 1) * current.count + 1;
+                return {offset: next, count: current.count};
             };
         }
         function render(paging: Paging){
             var p = new Promise();
-            var currentPage = Std.int(paging.num / paging.numPerPage) + 1;
-            var totalPage = Std.int((paging.total - 1) / paging.numPerPage) + 1;
+            var currentPage = Std.int(paging.offset / paging.count) + 1;
+            var totalPage = Std.int((paging.total - 1) / paging.count) + 1;
             var calculateNext = nextPaging(paging);
             function each(i){
                 return if(i == currentPage)
@@ -80,4 +79,6 @@ class Pagination{
         }
         return Components.toComponent(render);
     }
+
+    public inline static function top(){return {offset: 0, count: 20}; }
 }
