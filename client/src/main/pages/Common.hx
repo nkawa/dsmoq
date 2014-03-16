@@ -2,15 +2,59 @@ package pages;
 import framework.Types;
 import components.ConnectionPanel;
 
+using framework.helpers.Components;
+import framework.JQuery;
+import framework.helpers.Connection;
+import framework.Effect;
+import framework.helpers.Core;
+
 class Common{
     public static function waiting(html){
         html.text("waiting...");
     }
+    public static function observe<Input, Output>(comp: PlaceHolder<Input, ConnectionStatus, Output>): Component<Input, Void, Output>{
+        function render(x: Input){
+            var rendered = comp.render(x);
+            Effect.global().observeConnection(rendered.state);
+            rendered.state = Core.nop;  // never effect type by this assignment
+            return untyped rendered;
+        }
+        return Components.toComponent(render);
+    }
 
-    public static function connectionPanel<Output>(
-        name,
-        component: Component<Json, Void, Output>
-    ){
-        return ConnectionPanel.create.bind(waiting);
+    public static function connectionPanel<Input, Output>(name: String, comp: Component<Input, Void, Output>, request: HttpRequest): Rendered<Void, Output>{
+        var c: PlaceHolder<HttpRequest, ConnectionStatus, Output> = ConnectionPanel.request(waiting, name, comp);
+        return observe(c).render(request);
+    }
+
+    public static function textfield(fieldName){
+        return Components.fromHtml(function(input){return JQuery.j('<input name="$fieldName" class="form-control" type="text" value="$input"></input>');})
+            .state(function(html){return html.val();});
+    }
+
+    public static var label =
+        Components.fromHtml(function(input){return JQuery.j('<p class="form-control-static">$input</p>');})
+            .state(function(html){return html.text();});
+
+    public static function select(fieldName, xs: Array<{value: String, displayName: String}>) {
+        function selected(x, y){
+            return (x == y) ? "selected" : "";
+        }
+        return Components.fromHtml(function(input: String){ return JQuery.gather(JQuery.j('<select name="$fieldName"></select>'))
+            (xs.map(function(x){return JQuery.j('<option value="${x.value}" ${selected(input, x.value)}>${x.displayName}</option>');}));})
+            .state(function(html){return html.val();});
+    }
+
+    public static function radio(fieldName, xs: Array<{value: String, displayName: String}>){
+        function isChecked(x, y){
+            return (x == y) ? 'checked=""': '';
+        }
+        return Components.fromHtml(function(input: String){
+            return JQuery.join('<div class="radio"></div')(
+                xs.map(function(x){ return
+                    JQuery.j('<label><input type="radio" ${isChecked(x.value, input)} name="$fieldName"></input>${x.displayName}</label>');
+                })
+            );
+        });
     }
 }
