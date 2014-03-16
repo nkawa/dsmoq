@@ -98,31 +98,23 @@ class Components{
         return toComponent(render);
     }
 
-    public static function inject<Input, State>(fieldName: String, selector: String){                             // not typesafe
-        function inner<In1, St1, Output, In2, St2, Out2>(
+    public static function inject<Input, State, In1, St1, Output, In2, St2, Out2>(fieldName: String, selector: String,
             base:Component<In1, St1, Output>, component: Component<In2, St2, Out2>
         ): Component<Input, State, Output>{
-            return merge(injectState(fieldName), useFirst, fieldName, selector, base, component);
-        }
-        return inner;
+        return merge(injectState(fieldName), useFirst, fieldName, selector, base, component);
     }
  
-    public static function put<Input>(fieldName: String, selector: String){                                  // not typesafe
-        function inner<In1, State, Output, In2, St2>(
+    public static function put<Input,In1, State, Output, In2, St2>(fieldName: String, selector: String,
             base:Component<In1, State, Output>, component: Component<In2, St2, Output>
         ): Component<Input, State, Output>{
-            return merge(useFirst, whichever, fieldName, selector, base, component);
-        }
-        return inner;
+        return merge(useFirst, whichever, fieldName, selector, base, component);
     }
  
-    public static function justView<Input>(fieldName: String, selector: String){                                  // not typesafe
-        function inner<In1, State, Output, In2, St2>(
-            base:Component<In1, State, Output>, component: Component<In2, Void, Void>
-        ): Component<Input, State, Output>{
-            return merge(useFirst, useFirst, fieldName, selector, base, component);
-        }
-        return inner;
+    public static function justView<Input, In1, State, Output, In2, St2>(                                  // not typesafe
+        base:Component<In1, State, Output>, component: Component<In2, Void, Void>,
+        fieldName: String, selector: String
+    ): Component<Input, State, Output>{
+        return merge(useFirst, useFirst, fieldName, selector, base, component);
     }
 
     public static function list<Input, State, Output>(component, f: Array<Html> -> Html): Component<Array<Input>, Array<State>, Output>{
