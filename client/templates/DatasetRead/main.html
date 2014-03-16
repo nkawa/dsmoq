@@ -5,7 +5,7 @@
                 <h1>
                     <div class="pull-left"><img src="images/nagoya.jpg"/></div>
                     <div>
-                        <span>名古屋の施設データ</span>
+                        <span data-name="text"></span>
                         <span class="status text-danger">(private)</span>
                     </div>
                     <div class="title-owners text-muted"><strong>オープンデータ東海</strong> (john001, paul001)
@@ -14,10 +14,6 @@
             </div>
             <div class="col-sm-2 text-right">
                 <div class="btn-group-vertical">
-                    <button type="button" class="btn btn-default" data-link-share>
-                        <span class="glyphicon glyphicon-share"></span>
-                        Share
-                    </button>
                     <button type="button" class="btn btn-default" data-link-edit>
                         <span class="glyphicon glyphicon-edit"></span>
                         Edit
@@ -29,32 +25,12 @@
                 </div>
             </div>
         </div>
-        <p class="view-description">
-        愛知県名古屋市の色々な施設のデータが登録されています。
-        </p>
+        <p class="view-description" data-description="text"></p>
         <div class="dataset-view-body">
             <div class="form-horizontal">            
                 <div class="form-group">
                     <label class="col-sm-1 control-label">Files</label>
-                    <div class="col-sm-11">
-                        <div class="well well-sm">
-                            <div class="row"> <div class="col-sm-12">
-                                    <span class="glyphicon glyphicon-file"> </span>
-                                    <a>xxxx.csv</a> (112K)
-                                    uploaded by <strong>john001</strong>
-                                    <img src="images/user.jpg" class="icon"/>
-                            </div></div>
-                            <div class="form-control-static">病院の一覧です。</div>
-                        </div>
-                        <div class="well well-sm">
-                            <div class="row"> <div class="col-sm-12">
-                                    <span class="glyphicon glyphicon-file"> </span>
-                                    <a>xxxx.csv</a> (112K)
-                                    uploaded by <strong>john001</strong>
-                                    <img src="images/user.jpg" class="icon"/>
-                            </div></div>
-                            <div class="form-control-static">公共施設の住所です。</div>
-                        </div>
+                    <div class="col-sm-11" data-component-files>
                     </div>
                 </div>
                 <div class="form-group">
@@ -72,56 +48,20 @@
                             <tr><td><div class="form-control-static">2</div></td>
                                 <td><div class="form-control-static">VERSION</div></td>
                                 <td><div class="form-control-static">1.0.0</div></td>
-                            </tr>                
+                            </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
                 <div class="form-group">
                     <label class="col-sm-1 control-label">Access</label>
-                    <div class="col-sm-11">
-                        <table class="table table-bordered table-condensed">
-                            <thead>
-                                <tr>
-                                    <td class="col-min-width">#</td>
-                                    <td class="col-selections">Type</td>
-                                    <td>Name</td>
-                                    <td class="col-min-width">Download</td>
-                                </tr>
-                            </thead>
-                            <tbody>
-                            <tr><td><div class="form-control-static">1</div></td>
-                                <td><div class="form-control-static">Group</div></td>
-                                <td><div class="form-control-static">All Users</div></td>
-                                <td><div class="form-control-static text-center"></div></td>
-                            </tr>
-                            <tr><td><div class="form-control-static">2</div></td>
-                                <td><div class="form-control-static">Group</div></td>
-                                <td><div class="form-control-static">名古屋大学</div></td>
-                                <td><div class="form-control-static text-center">
-                                        <span class="icon glyphicon glyphicon-ok"></span>
-                                </div></td>
-                            </tr>
-                            <tr><td><div class="form-control-static">3</div></td>
-                                <td><div class="form-control-static">User</div></td>
-                                <td><div class="form-control-static">john001</div></td>
-                                <td><div class="form-control-static text-center"></div></td>
-                            </tr>
-                            <tr><td><div class="form-control-static">4</div></td>
-                                <td><div class="form-control-static">User</div></td>
-                                <td><div class="form-control-static">paul001</div></td>
-                                <td><div class="form-control-static text-center">
-                                        <span class="icon glyphicon glyphicon-ok"></span>
-                                </div></td>
-                            </tr>                
-                            </tbody>
-                        </table>
+                    <div class="col-sm-11" data-component-acl-table>
                     </div>
                 </div>
                 <div class="form-group">
                     <label class="col-sm-1 control-label">License</label>
                     <div class="col-sm-11">
-                        <div class="form-control-static">GNU Free Documentation License</div>
+                        <div class="form-control-static" data-license="text"></div>
                     </div>
                 </div>
             </div>
