@@ -1,0 +1,11 @@
+{
+    "status": "OK",
+    "data": {
+        "id": "",
+        "name": "",
+        "fullname": "",
+        "organization": "",
+        "image": "http://xxxx",
+        "isGuest": true
+    }
+}

@@ -1,0 +1,54 @@
+{
+    "status": "OK",
+    "data": {
+        "summary": {
+            "total": 100,
+            "count": 20,
+            "offset": 0
+        },
+        "results": [
+            {
+                "id": 1,
+                "name": "xxx", 
+                "description": "xxxx", 
+                "image": "http://xxx", 
+                "license": 1, 
+                "attributes": [ {"name":"xxx", "value": "xxx"}, {"name":"xxx"} ],
+                "owners": [ { "id": 1, "name": "xxx", "image": "http://xxx" } ],
+                "groups": [ { "id": 1, "name": "xxx", "image": "http://xxx" } ], 
+                "files": 3,
+                "dataSize": 1024,
+                "defaultAccessLevel": 1,
+                "permission": 1
+            },
+            {
+                "id": 2,
+                "name": "xxx", 
+                "description": "xxxx", 
+                "image": "http://xxx", 
+                "license": 1, 
+                "attributes": [ {"name":"xxx", "value": "xxx"}, {"name":"xxx"} ],
+                "owners": [ { "id": 1, "name": "xxx", "image": "http://xxx" } ],
+                "groups": [ { "id": 1, "name": "xxx", "image": "http://xxx" } ], 
+                "files": 3,
+                "dataSize": 1024,
+                "defaultAccessLevel": 1,
+                "permission": 1
+            },
+            {
+                "id": 3,
+                "name": "xxx", 
+                "description": "xxxx", 
+                "image": "http://xxx", 
+                "license": 1, 
+                "attributes": [ {"name":"xxx", "value": "xxx"}, {"name":"xxx"} ],
+                "owners": [ { "id": 1, "name": "xxx", "image": "http://xxx" } ],
+                "groups": [ { "id": 1, "name": "xxx", "image": "http://xxx" } ], 
+                "files": 3,
+                "dataSize": 1024,
+                "defaultAccessLevel": 1,
+                "permission": 1
+            }
+        ]
+    }
+}

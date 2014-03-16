@@ -1,0 +1,29 @@
+{
+    "status": "OK",
+    "data": {
+        "id": "xxx",
+        "files": [
+            { "id": "xxx", "name": "xxx" }
+        ],
+        "meta": {
+            "name": "xxx",
+            "description": "xxx",
+            "license": 1,
+            "attributes": [
+                { "name": "xxx", "value": "xxx" }
+            ]
+        },
+        "images": [
+            { "id": "xxx", "url": "http://xxx" }
+        ],
+        "primaryImage": "xxx",
+        "owners": [
+            { "id": "xxx", "name": "xxx", "image": "http://xxxx" }
+        ],
+        "groups": [
+            { "id": "xxx", "name": "xxx", "image": "http://xxxx" }
+        ],
+        "defaultAccessLevel": 1,
+        "permission": 1
+    }
+}
