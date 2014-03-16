@@ -49,7 +49,7 @@ class Tab{
 
             var disables = (tabInfo.disables == null) ? [] : tabInfo.disables;
             Lambda.iter(disables, function(x){
-                tabUI(x).addClass("disabled").find('a').prop("disabled", true);
+                tabUI(x).addClass("disabled").find('a').prop("disabled", true).removeAttr("href");
             });
 
             html.find('#$activeTab').addClass("active");
