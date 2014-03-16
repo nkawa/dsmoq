@@ -9,25 +9,31 @@ using framework.helpers.Rendereds;
 typedef RowStrings = Array<String>
 
 typedef Row = Component<RowStrings, RowStrings, Void>
-typedef RowWithAction = Component<RowInput, RowStrings, TableAction>
-
-enum TableActionSelection { Insert; Update; Delete; }
-
-enum TableAction {
-    UpdateRow(idx: Int, row: RowStrings);
-    InsertRow(idx: Int, row: RowStrings);
-    DeleteRow(idx: Int);
-}
-
-private typedef RowInput = {index: Int, rowStrings: RowStrings}
 
 class Table{
     static inline var DELETE_BUTTON_CLASS = "component-delete-button";
     static inline var INSERT_BUTTON_CLASS = "component-insert-button";
 
-    public static function create(name, row: Array<Component<String,String, Void>>):Component<Array<RowStrings>, Array<RowStrings>, Void>{
-        var rowComponent = Components.group(row, JQuery.join('<td></td>'));
-        return Components.list(rowComponent, JQuery.join('<tr></tr>')).decorate(JQuery.wrapBy.bind('<table><tbody></tbody></table>'));
+    public static function create(name, row: Array<Component<String,String, Void>>, header: Array<String> = null):Component<Array<RowStrings>, Array<RowStrings>, Void>{
+        var rowComponent = Components.group(row, JQuery.join('<td></td>'))
+            .decorate(function(html){
+                return JQuery.j('<td class="col-min-width table-numbering">0</td>').add(html);
+            });
+
+        return Components.list(rowComponent, JQuery.join('<tr></tr>'))
+            .decorate(function(html){
+                numbering(html);
+                html = JQuery.wrapBy('<tbody></tbody>', html);
+                if(header != null){
+                    function td(x){
+                        return JQuery.j('<td>$x</td>');
+                    }
+                    html = JQuery.j('<thead></thead>').append(JQuery.gather(JQuery.j('<tr></tr>'))(header.map(td)))
+                    .add(html);
+                }
+
+                return JQuery.wrapBy('<table class="table table-bordered table-condensed"></table>', html);
+            });
     }
 
     public static function editable(name, 
@@ -36,11 +42,20 @@ class Table{
         defaults: RowStrings,
         atLeastOne = false 
     ){
+        function addColumn(isInsert, row){
+            var klass = isInsert ? "btn-success $INSERT_BUTTON_CLASS" : "btn-warning $DELETE_BUTTON_CLASS";
+            var message = isInsert ? "add" : "del";
+            var head = isInsert ? '<td class="col-min-width">*</td>' : '<td class="table-numbering">0</td>';
+
+            return JQuery.j(head)
+                    .add(row)
+                    .add(JQuery.j('<td><a class="btn btn-sm $klass">$message</a></td>'));
+        }
         var rowComponent = Components.group(row, JQuery.join('<td></td>'))
-            .decorate(JQuery.add.bind('<td><a class="btn btn-warning btn-sm $DELETE_BUTTON_CLASS">del</a></td>'));
+            .decorate(addColumn.bind(false));
 
         var inputRowComponent = Components.group(inputRow, JQuery.join('<td></td>'))
-            .decorate(JQuery.add.bind('<td><a class="btn btn-success btn-sm $INSERT_BUTTON_CLASS">add</a></td>'));
+            .decorate(addColumn.bind(true));
 
         function render(xs: Array<RowStrings>){
             var renderedInputRow = inputRowComponent.render(defaults).decorate(JQuery.wrapBy.bind('<tr></tr>'));
@@ -51,6 +66,7 @@ class Table{
                 var index = body.find('.$DELETE_BUTTON_CLASS').index(untyped __js__('this'));
                 body.find('tr:nth-child(${index+1})').remove();
                 rowStates.splice(index, 1);
+                numbering(body);
             }
             function addRow(newInput: RowStrings){
                 var newRow = rowComponent.render(newInput).decorate(JQuery.wrapBy.bind('<tr></tr>'));
@@ -60,6 +76,7 @@ class Table{
                 renderedInputRow.html.remove();
                 renderedInputRow = inputRowComponent.render(defaults).decorate(JQuery.wrapBy.bind('<tr></tr>'));
                 body.append(renderedInputRow.html);
+                numbering(body);
                 renderedInputRow.html.find('.$INSERT_BUTTON_CLASS').on("click", function(_){
                     addRow(renderedInputRow.state());
                 });
@@ -69,12 +86,22 @@ class Table{
                 addRow(renderedInputRow.state());
             });
             body.find('.$DELETE_BUTTON_CLASS').on("click", removeRow);
+            numbering(body);
+//            body.prepend(JQuery.join('<td></td>')(headers));
             return {
-                html: body,
+                html: JQuery.wrapBy('<table class="table table-bordered table-condensed"></table>', body),
                 state: Core.toState(rowStates),
                 event: Promises.void()
             }
         }
         return Components.toComponent(render);
+    }
+
+    private static function numbering(html: Html){
+        var targets = html.find(".table-numbering");
+
+        for(i in 0...targets.length){
+            (untyped targets)[i].innerHTML = i + 1;
+        }
     }
 }
