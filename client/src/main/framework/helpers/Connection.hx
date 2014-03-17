@@ -64,4 +64,17 @@ class Connection{
             case Done | Failed:
         }
     }
+
+    public static function ajaxSubmit<A>(form: Html, url: String): Promise<A>{
+        return Promises.tap(function(p){
+            var jqXHR = (untyped form).ajaxSubmit({ url: url, dataType:"JSON"}).data('jqxhr');
+            // TODO: Resource Management
+            jqXHR.then(function(response){
+                p.resolve(response);
+            }, function(_, text, ex){
+                framework.Effect.global().notifyError(text, ex);
+                p.reject(ex);
+            });
+        });
+    }
 }

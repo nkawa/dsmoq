@@ -8,7 +8,7 @@ import components.LoadingPanel;
 import framework.helpers.*;
 using framework.helpers.Components;
 
-typedef PagingRequest = {offset: Int, count: Int}
+typedef PagingRequest = {?offset: Int, ?count: Int}
 typedef Paging =        {offset: Int, count: Int, total: Int}
 typedef MassResult<A> = {summary: Paging, results: A}
 

@@ -1,8 +1,10 @@
 package framework;
 
 import framework.helpers.Connection;
+import framework.helpers.Core;
 import pushstate.PushState;
 import js.Browser.document;
+import framework.Types;
 
 typedef PageInfo = {
     path: String,
@@ -92,18 +94,42 @@ class Effect{
             attributes: parseHash(location.hash)
         };
     }
+
+    public function notifyError(message: String, detail: Dynamic = null){
+        var msg = switch(message){                   // failed by jQuery ajax-method
+            case "timeout": Messages.timeout;
+            case "error": Messages.connectionFailure;
+            case "notmodified": Messages.notModified;
+            case "parsererror": Messages.parseError;
+            default: message;
+        }
+        trace(detail != null && detail != "");
+        trace(Std.string(detail));
+        var display = {
+            level: "Error! ",
+            message: msg,
+            detail: detail,
+            showDetail: detail != null && detail != ""
+        };
+        var html = framework.helpers.Templates.create("NotificationPanel").render(display).html;
+        if(detail != null){
+            html.find('.notification-detail').text(detail);
+        }
+        JQuery.j('#notification').empty().append(html);
+    }
 }
 
 class Address{
-    public static function url(s: String, v: Dynamic = null): PageInfo{ 
+    public static function url(s: String, v: Option<Dynamic> = null): PageInfo{ 
         var map = new Map<String, Dynamic>();
-        if(v != null){
+        Core.each(v, function(v){
             map.set(Effect.DEFAULT_FIELD, v);
-        }
+        });
         return {path: s, attributes: map}; 
     }
 
     public static function hash(pageInfo: PageInfo){
-        return pageInfo.attributes.get(Effect.DEFAULT_FIELD);
+        var v = pageInfo.attributes.get(Effect.DEFAULT_FIELD);
+        return Core.option(v);
     }
 }

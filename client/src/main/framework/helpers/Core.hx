@@ -1,5 +1,7 @@
 package framework.helpers;
 
+import framework.Types;
+
 class Core{
     public static function identity<A>(x:A):A{return x;}
     public static function effect<A>(f: A -> Void):A -> A{return function(x:A){f(x); return x;};}
@@ -27,5 +29,26 @@ class Core{
         copy(ret, a);
         copy(ret, b);
         return ret;
+    }
+
+    public static function isNone<A>(o: Option<A>){
+        return Type.enumEq(None, o);
+    }
+    public static function option<A>(x: A): Option<A>{
+        return (x == null) ? None : Some(x);
+    }
+    public static function each<A>(o: Option<A>, f: A -> Void): Void{
+        if(o == null) return;
+        return switch(o){
+            case Some(x): if(x != null) f(x);
+            case None:
+        };
+    }
+    public static function getOrElse<A>(o: Option<A>, f: Void -> A): A{
+        if(o == null) return f();
+        return switch(o){
+            case Some(x): (x == null) ? f() : x;
+            case None: f();
+        };
     }
 }

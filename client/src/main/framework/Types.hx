@@ -31,3 +31,5 @@ enum Signal {Signal;}
 
 typedef Selector = String 
 typedef Json = Dynamic
+
+enum Option<A> { Some(x: A); None; }
