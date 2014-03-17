@@ -7,6 +7,7 @@ import scalikejdbc._, SQLInterpolation._
 import java.util.{Properties, UUID}
 import java.nio.file.Paths
 import java.io.{FileInputStream, File}
+import com.constructiveproof.example.AppConf
 
 object DatasetFacade {
   def searchDatasets(params: SearchDatasetsParams): Try[Datasets] = {
@@ -94,11 +95,7 @@ object DatasetFacade {
 
     // FIXME ファイルパス読み込み 外部ライブラリ使うか要検討
     // properties使ったやっつけ実装
-    val basePath = {
-      val properties = new Properties()
-      properties.load(new FileInputStream("./src/main/resources/conf.properties"))
-      properties.get("file_root").toString
-    }
+    val basePath = AppConf.fileDir
 
     // 後で使用するデータセットの画像保存用のIDと画像情報をタプルとして管理
     val datasetFiles = for {
