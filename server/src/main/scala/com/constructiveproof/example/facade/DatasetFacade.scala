@@ -166,11 +166,12 @@ object DatasetFacade {
              UUID(${params.userInfo.id}), UUID(${params.userInfo.id}))
         """.update().apply()
 
+        val filePath = Paths.get(datasetID, x._1).toString
         sql"""
         INSERT INTO file_histories
           (file_id, file_path, created_by, updated_by)
         VALUES
-          (UUID(${x._1}), ${basePath + x._2.name}, UUID(${params.userInfo.id}), UUID(${params.userInfo.id}))
+          (UUID(${x._1}), ${filePath}, UUID(${params.userInfo.id}), UUID(${params.userInfo.id}))
        """.update().apply()
       }
 
