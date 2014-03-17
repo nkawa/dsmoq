@@ -118,9 +118,11 @@ object DatasetFacade {
       // save dataset
       sql"""
         INSERT INTO datasets
-          (id, name, description, license_id, default_access_level)
+          (id, name, description, license_id, default_access_level,
+           created_by, updated_by)
         VALUES
-          (UUID(${datasetID}), ${name}, '', UUID(${licenseID}), 0)
+          (UUID(${datasetID}), ${name}, '', UUID(${licenseID}), 0,
+           UUID(${params.userInfo.id}), UUID(${params.userInfo.id}))
       """.update().apply()
 
       // save files
@@ -131,25 +133,27 @@ object DatasetFacade {
         val fileAttributes = "{}"
         sql"""
           INSERT INTO files
-            (id, dataset_id, name, description, file_type, file_attributes)
+            (id, dataset_id, name, description, file_type, file_attributes,
+             created_by, updated_by)
           VALUES
-            (UUID(${x._1}), UUID(${datasetID}), ${x._2.name}, ${fileDescription}, ${filetype}, JSON(${fileAttributes}))
+            (UUID(${x._1}), UUID(${datasetID}), ${x._2.name}, ${fileDescription}, ${filetype}, JSON(${fileAttributes}),
+             UUID(${params.userInfo.id}), UUID(${params.userInfo.id}))
         """.update().apply()
 
         sql"""
         INSERT INTO file_histories
-          (file_id, file_path)
+          (file_id, file_path, created_by, updated_by)
         VALUES
-          (UUID(${x._1}), ${basePath + x._2.name})
+          (UUID(${x._1}), ${basePath + x._2.name}, UUID(${params.userInfo.id}), UUID(${params.userInfo.id}))
        """.update().apply()
       }
 
       // save ownerships onwer_type=1(user)
       sql"""
-      INSERT INTO ownership
-        (dataset_id, owner_type, owner_id, access_level)
+      INSERT INTO ownerships
+        (dataset_id, owner_type, owner_id, access_level, created_by, updated_by)
       VALUES
-        (UUID(${datasetID}), 1, UUID(${params.userInfo.id}), 3)
+        (UUID(${datasetID}), 1, UUID(${params.userInfo.id}), 3, UUID(${params.userInfo.id}), UUID(${params.userInfo.id}))
       """.update().apply()
 
       // ファイル保存パス：設定パス + /datasetID/ + fileID
