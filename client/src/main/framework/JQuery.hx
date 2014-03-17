@@ -6,6 +6,7 @@ extern class Jq{
     public function append(jq: Jq):Jq;
     public function add(jq: Jq):Jq;
     public function find(selector: String):Jq;
+    @:overload(function (f: Int -> Dynamic -> Bool): Jq{})
     public function filter(selector: String):Jq;
     public function html(text: String):Jq;
     @:overload(function ():String{})
