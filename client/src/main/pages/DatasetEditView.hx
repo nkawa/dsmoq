@@ -20,6 +20,14 @@ class DatasetEditView{
     static inline var TAB_FIELD_BASIC  = "datasetEditBasic";
     static inline var TAB_FIELD_ACL    = "datasetEditAcl";
 
+    private static function nextPage(id: String, isNew: Bool){
+        return if(isNew){
+            Page.DatasetList(null);
+        }else{
+            Page.DatasetRead(id);
+        }
+    }
+
     public static function render(id: String, isNew: Bool):Rendered<Void, Page>{
         var selectACL = {
             var accessLevel = [
@@ -49,7 +57,7 @@ class DatasetEditView{
             .toComponent()
             .event(function(html){
                 var promise = new Promise();
-                html.find("[data-link-cancel]").on("click", function(_){ promise.resolve(Page.DatasetRead(id));});
+                html.find("[data-link-cancel]").on("click", function(_){ promise.resolve(nextPage(id, isNew));});
                 return promise;
             });
         function toModel(input: Dynamic):Dynamic{
