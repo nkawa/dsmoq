@@ -47,25 +47,143 @@ object DatasetFacade {
       "primaryImage user"
     }
 
-    // FIXME dummy data
-    val datasetFiles = List(DatasetFile("1", "filename"))
+    // データ取得
+    // FIXME 権限を考慮したデータの取得
+    val dataset = DB readOnly { implicit session =>
+      sql"""
+        SELECT DISTINCT
+          datasets.*
+        FROM
+          datasets
+        WHERE
+          datasets.id = UUID(${params.id})
+      """.map(_.toMap()).single().apply()
+    } match {
+      case Some(x) => x
+      case None =>
+        // FIXME データがない時の処理(現状は例外)
+        return Failure(new Exception("No Dataset"))
+    }
+
+    // FIXME SELECTで取得するデータの指定(必要であれば)
+    val attributes = DB readOnly { implicit session =>
+      sql"""
+      SELECT
+        v.*, k.name
+      FROM
+        attribute_values AS v
+      INNER JOIN
+        attribute_keys AS k
+      ON
+        v.attribute_key_id = k.id
+      WHERE
+        v.dataset_id = UUID(${params.id})
+      """.map(_.toMap()).list().apply()
+    }
+
+    // FIXME SELECTで取得するデータの指定(必要であれば)
+    // FIXME 権限の仕様検討中のため、変わる可能性あり
+    // LEFT JOIN：ユーザー/グループに画像が設定されていない可能性を考慮
+    val ownerships = DB readOnly { implicit session =>
+      sql"""
+        SELECT
+          ownerships.*, users.fullname AS name
+        FROM
+          ownerships
+        INNER JOIN
+          users
+        ON
+          users.id = ownerships.owner_id AND owner_type = 1
+        WHERE
+          dataset_id = UUID(${params.id})
+        UNION
+        SELECT
+          ownerships.*, groups.name AS name
+        FROM
+          ownerships
+        INNER JOIN
+          groups
+        ON
+          groups.id = ownerships.owner_id AND owner_type = 2
+        WHERE
+          dataset_id = UUID(${params.id})
+      """.map(_.toMap()).list().apply()
+    }
+
+    // FIXME SELECTで取得するデータの指定(必要であれば)
+    val files = DB readOnly { implicit session =>
+      sql"""
+        SELECT
+          files.*, file_histories.file_path
+        FROM
+          files
+        INNER JOIN
+          file_histories
+        ON
+          files.id = file_histories.file_id
+        WHERE
+          files.dataset_id = UUID(${params.id})
+      """.map(_.toMap()).list().apply()
+    }
+
+    // FIXME SELECTで取得するデータの指定(必要であれば)
+    val images = DB readOnly { implicit session =>
+      sql"""
+        SELECT
+          images.*, relation.is_primary, relation.show_order
+        FROM
+          images
+        INNER JOIN
+          dataset_image_relation AS relation
+        ON
+          images.id = relation.image_id
+        WHERE relation.dataset_id = UUID(${params.id})
+      """.map(_.toMap()).list().apply()
+    }
+
+    // FIXME download用のURL、アップロードしたユーザー(先に）、ファイルサイズ(historyにカラム追加)、ファイルの説明(あとで)が必要になる(権限は見る？)
+    // アップロードユーザーはUUID返す？それともユーザー情報？→聞く
+    val datasetFiles = files.map { x =>
+      DatasetFile(
+        x("id").toString,
+        x("name").toString
+      )
+    }
     val datasetMetaData = DatasetMetaData(
-      "metadataName",
-      "metadataDescription",
+      dataset("name").toString,
+      dataset("description").toString,
       1,
-      List(DatasetAttribute("attr_name", "attr_value"))
+      attributes.map{ x =>
+        DatasetAttribute(
+          x("name").toString,
+          x("val").toString
+        )
+      }
     )
-    val datasetImages = List(DatasetImage("image_id", "http://xxx"))
-    val datasetOwnerships = List(DatasetOwnership("owner_id", 1, "ownership_name", "http://xxxx"))
+    val datasetImages = images.map { x =>
+      DatasetImage(
+        x("id").toString,
+        x("file_path").toString
+      )
+    }
+    // FIXME 画像URLはダミー
+    val datasetOwnerships = ownerships.map { x =>
+      DatasetOwnership(
+        x("id").toString,
+        x("owner_type").toString.toInt,
+        x("name").toString,
+        "http://dummy"
+      )
+    }
 
     Success(Dataset(
-      id = params.id,
+      id = dataset("id").toString,
       files = datasetFiles,
       meta = datasetMetaData,
       images = datasetImages,
       primaryImage =  primaryImage,
       ownerships = datasetOwnerships,
-      defaultAccessLevel = 1,
+      defaultAccessLevel = dataset("default_access_level").toString.toInt,
       permission = 1
     ))
   }
