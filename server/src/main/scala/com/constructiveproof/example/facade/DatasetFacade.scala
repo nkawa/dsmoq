@@ -114,6 +114,32 @@ object DatasetFacade {
     val licenseID = UUID.randomUUID().toString
     val datasetMetaData = DatasetMetaData(name, "", 1, List())
 
+    // ユーザーの画像情報はDBから引く
+    val imageInfo = DB readOnly { implicit session =>
+      sql"""
+        SELECT
+          images.*
+        FROM
+          users
+        INNER JOIN
+          images
+        ON
+          users.image_id = images.id
+        WHERE
+          users.id = UUID(${params.userInfo.id})
+      """.map(_.toMap).single.apply()
+    } match {
+      case Some(x) => x
+      // FIXME ユーザーのイメージがないときの処理(現状は例外)
+      case None => return Failure(new Exception("No Files"))
+    }
+    val datasetOwnerships = List(DatasetOwnership(
+      params.userInfo.id,
+      1,
+      params.userInfo.name,
+      imageInfo("file_path").toString
+    ))
+
     DB localTx { implicit session =>
       // save dataset
       sql"""
@@ -166,16 +192,13 @@ object DatasetFacade {
       }
     }
 
-    // FIXME 暫定
-    val datasetOwnerships = List(DatasetOwnership("owner_id", 1, "ownership_name", "http://xxxx"))
-
     Success(Dataset(
       id = datasetID,
       files = datasetFiles,
       meta = datasetMetaData,
       images = List(),
       primaryImage =  null,
-      ownerships = List(),
+      ownerships = datasetOwnerships,
       defaultAccessLevel = 0,
       permission = 3
     ))
