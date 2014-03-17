@@ -100,21 +100,19 @@ object DatasetFacade {
       properties.get("file_root").toString
     }
 
-    // 後のデータセットの画像保存用のIDと画像情報をタプルとして管理
+    // 後で使用するデータセットの画像保存用のIDと画像情報をタプルとして管理
     val datasetFiles = for {
       f <- files
     } yield {
       DatasetFile(f._1, f._2.name)
     }
 
-    // データセットの初期メタデータは適当に作る
+    // データセットの初期メタデータは適当に作る(名前のみ)
     val datasetID = UUID.randomUUID().toString
     val name = "dataset_" + files(0)._2.name
-    val description = "dataset_description_" + files(0)._1
     // FIXME ライセンスIDの指定
     val licenseID = UUID.randomUUID().toString
-    val datasetAttributes = List(DatasetAttribute("file_name", files(0)._2.name))
-    val datasetMetaData = DatasetMetaData(name, description, 1, datasetAttributes)
+    val datasetMetaData = DatasetMetaData(name, "", 1, List())
 
     DB localTx { implicit session =>
       // save dataset
@@ -122,24 +120,8 @@ object DatasetFacade {
         INSERT INTO datasets
           (id, name, description, license_id, default_access_level)
         VALUES
-          (UUID(${datasetID}), ${name}, ${description}, UUID(${licenseID}), 0)
+          (UUID(${datasetID}), ${name}, '', UUID(${licenseID}), 0)
       """.update().apply()
-
-      // save attributes
-      datasetAttributes.foreach {x =>
-        val attributeKeyID = UUID.randomUUID().toString
-        sql"""
-          INSERT INTO attribute_keys (id, name)
-          VALUES (UUID(${attributeKeyID}), ${x.name})
-        """.update().apply()
-
-        sql"""
-        INSERT INTO attribute_values
-          (attribute_key_id, dataset_id, val)
-        VALUES
-          (UUID(${attributeKeyID}), UUID(${datasetID}), ${x.value})
-        """.update().apply()
-      }
 
       // save files
       files.foreach{x =>
