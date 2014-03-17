@@ -1,8 +1,10 @@
 package framework;
 
 import framework.helpers.Connection;
+import framework.helpers.Core;
 import pushstate.PushState;
 import js.Browser.document;
+import framework.Types;
 
 typedef PageInfo = {
     path: String,
@@ -118,15 +120,16 @@ class Effect{
 }
 
 class Address{
-    public static function url(s: String, v: Dynamic = null): PageInfo{ 
+    public static function url(s: String, v: Option<Dynamic> = null): PageInfo{ 
         var map = new Map<String, Dynamic>();
-        if(v != null){
+        Core.each(v, function(v){
             map.set(Effect.DEFAULT_FIELD, v);
-        }
+        });
         return {path: s, attributes: map}; 
     }
 
     public static function hash(pageInfo: PageInfo){
-        return pageInfo.attributes.get(Effect.DEFAULT_FIELD);
+        var v = pageInfo.attributes.get(Effect.DEFAULT_FIELD);
+        return Core.option(v);
     }
 }

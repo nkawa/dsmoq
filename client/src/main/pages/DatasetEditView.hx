@@ -25,7 +25,7 @@ class DatasetEditView{
         var isNew = Core.isNone(id);
         var nextPage = switch(id){
             case Some(id): Page.DatasetRead(id);
-            case None:     Page.DatasetList(null);
+            case None:     Page.DatasetList(None);
         }
 
         var selectACL = {
