@@ -11,30 +11,120 @@ import com.constructiveproof.example.AppConf
 
 object DatasetFacade {
   def searchDatasets(params: SearchDatasetsParams): Try[Datasets] = {
-    // FIXME dummy セッションデータ有無チェック
-    val name = if (params.userInfo.isGuest) {
-      "guest"
-    } else {
-      "user"
+    // FIXME セッションデータの有無によるレスポンスの違い(現状は違いはない)
+
+    val offset = params.offset.getOrElse("0").toInt
+    val count = params.limit.getOrElse("20").toInt
+
+    // データ取得
+    // FIXME 権限を考慮したデータの取得
+    val datasets = DB readOnly { implicit session =>
+      sql"""
+        SELECT DISTINCT
+          datasets.*
+        FROM
+          datasets
+        INNER JOIN
+          ownerships
+        ON
+          datasets.id = ownerships.dataset_id
+        OFFSET
+          ${offset}
+        LIMIT
+          ${count}
+      """.map(_.toMap()).list().apply()
     }
 
-    // FIXME dummy
-    val summary = DatasetsSummary(100)
-    val attributes = List(DatasetAttribute("xxx", "xxx"))
-    val ownerships = List(DatasetOwnership("owner_id", 1, "ownership_name", "http://xxxx"))
-    val result = DatasetsResult(
-      id = 1,
-      name = name,
-      description = "xxxx",
-      image = "http://xxx",
-      attributes = attributes,
-      ownerships = ownerships,
-      files = 3,
-      dataSize = 1024,
-      defaultAccessLevel = 1,
-      permission = 1
-    )
-    Success(Datasets(summary, List(result)))
+    val summary = DatasetsSummary(datasets.size, count, offset)
+    val results = datasets.map { x =>
+      // FIXME image, dataSize, permissionは暫定値
+      // FIXME SELECTで取得するデータの指定(必要であれば)
+      val attributes = DB readOnly { implicit session =>
+        sql"""
+        SELECT
+          v.*, k.name
+        FROM
+          attribute_values AS v
+        INNER JOIN
+          attribute_keys AS k
+        ON
+          v.attribute_key_id = k.id
+        WHERE
+          v.dataset_id = UUID(${x("id")})
+      """.map(_.toMap()).list().apply()
+      }
+
+      // FIXME SELECTで取得するデータの指定(必要であれば)
+      // FIXME 権限の仕様検討中のため、変わる可能性あり
+      val ownerships = DB readOnly { implicit session =>
+        sql"""
+          SELECT
+            ownerships.*, users.fullname AS name
+          FROM
+            ownerships
+          INNER JOIN
+            users
+          ON
+            users.id = ownerships.owner_id AND owner_type = 1
+          WHERE
+            dataset_id = UUID(${x("id")})
+          UNION
+          SELECT
+            ownerships.*, groups.name AS name
+          FROM
+            ownerships
+          INNER JOIN
+            groups
+          ON
+            groups.id = ownerships.owner_id AND owner_type = 2
+          WHERE
+            dataset_id = UUID(${x("id")})
+       """.map(_.toMap()).list().apply()
+      }
+
+      // FIXME SELECTで取得するデータの指定(必要であれば)
+      val files = DB readOnly { implicit session =>
+        sql"""
+        SELECT
+          files.*, file_histories.file_path
+        FROM
+          files
+        INNER JOIN
+          file_histories
+        ON
+          files.id = file_histories.file_id
+        WHERE
+          files.dataset_id = UUID(${x("id")})
+      """.map(_.toMap()).list().apply()
+      }
+
+      DatasetsResult(
+        id = x("id").toString,
+        name = x("name").toString,
+        description = x("description").toString,
+        image = "http://xxx",
+        attributes = attributes.map { x =>
+          DatasetAttribute(
+            x("name").toString,
+            x("val").toString
+          )
+        },
+        // FIXME ownershipsのimage URLは暫定
+        ownerships = ownerships.map { x =>
+          DatasetOwnership(
+            x("id").toString,
+            x("owner_type").toString.toInt,
+            x("name").toString,
+            "http://dummy"
+          )
+        },
+        files = files.size,
+        dataSize = 1024,
+        defaultAccessLevel = x("default_access_level").toString.toInt,
+        permission = 1
+      )
+    }
+    Success(Datasets(summary, results))
   }
 
   def getDataset(params: GetDatasetParams): Try[Dataset] = {
@@ -81,7 +171,6 @@ object DatasetFacade {
 
     // FIXME SELECTで取得するデータの指定(必要であれば)
     // FIXME 権限の仕様検討中のため、変わる可能性あり
-    // LEFT JOIN：ユーザー/グループに画像が設定されていない可能性を考慮
     val ownerships = DB readOnly { implicit session =>
       sql"""
         SELECT
@@ -351,7 +440,7 @@ case class DatasetsSummary(
 )
 
 case class DatasetsResult(
-  id: Int,
+  id: String,
   name: String,
   description: String,
   image: String,
