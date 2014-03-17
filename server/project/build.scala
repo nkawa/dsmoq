@@ -3,9 +3,9 @@ import Keys._
 import org.scalatra.sbt._
 import org.scalatra.sbt.PluginKeys._
 
-object ScentryauthdemoBuild extends Build {
+object DsmoqBuild extends Build {
   val Organization = "com.constructiveproof"
-  val Name = "ScentryAuthDemo"
+  val Name = "dsmoq"
   val Version = "0.1.0-SNAPSHOT"
   val ScalaVersion = "2.10.3"
   val ScalatraVersion = "2.2.1"
