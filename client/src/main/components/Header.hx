@@ -48,9 +48,8 @@ class Header{
 
     private static function clickToSubmit(html: Html, formSelector, clickSelector, url, onError = null){
         JQuery.findAll(html, clickSelector).on("click", function(_){
-            var jqXHR = (untyped JQuery.findAll(html, formSelector)).ajaxSubmit({url: url, dataType:"JSON"}).data('jqxhr');
-            // TODO: Error handling
-            jqXHR.done(function(response){
+            var promise = Connection.ajaxSubmit(JQuery.findAll(html, formSelector), url);
+            promise.then(function(response){
                 if(response != null && response.status == "OK"){
                    doc.location.reload();
                 }else{

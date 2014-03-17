@@ -59,14 +59,9 @@ class DatasetEditView{
                 var promise = new Promise();
                 html.find("[data-link-save-upload]").on("click", function(_){
                     removeUnnecessaryField(html.find("[data-form-upload-files]"));
-                    (untyped html.find("[data-form-upload-files]")).ajaxSubmit({
-                        url: Settings.api.datasetNewPost,
-                        success: function(x){promise.resolve(nextPage);},
-                        error: function(x, text, ex){
-                            framework.Effect.global().notifyError(text, ex);
-                            putFileInputField(html);
-                        }
-                    });
+                    Connection.ajaxSubmit(html.find("[data-form-upload-files]"), Settings.api.datasetNewPost)
+                    .then(function(_){promise.resolve(nextPage);})
+                    .catchError(function(_){putFileInputField(html);});
                 });
                 html.find("[data-link-cancel]").on("click", function(_){ promise.resolve(nextPage);});
                 return promise;
