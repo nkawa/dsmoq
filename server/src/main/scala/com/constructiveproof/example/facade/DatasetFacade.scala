@@ -162,7 +162,7 @@ object DatasetFacade {
              UUID(${params.userInfo.id}), UUID(${params.userInfo.id}))
         """.update().apply()
 
-        val filePath = Paths.get(datasetID, x._1).toString
+        val filePath = Paths.get(datasetID, x._1 + '.' + x._2.name.split('.').last).toString
         sql"""
         INSERT INTO file_histories
           (file_id, file_path, created_by, updated_by)
@@ -181,7 +181,7 @@ object DatasetFacade {
 
       // ファイル保存パス：設定パス + /datasetID/ + fileID
       files.foreach {x =>
-        val path = Paths.get(basePath, datasetID, x._1)
+        val path = Paths.get(basePath, datasetID, x._1 + '.' + x._2.name.split('.').last)
         if (!path.toFile.getParentFile.exists()) {
           path.toFile.getParentFile.mkdir()
         }
