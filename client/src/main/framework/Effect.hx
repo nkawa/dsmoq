@@ -92,6 +92,29 @@ class Effect{
             attributes: parseHash(location.hash)
         };
     }
+
+    public function notifyError(message: String, detail: Dynamic = null){
+        var msg = switch(message){                   // failed by jQuery ajax-method
+            case "timeout": Messages.timeout;
+            case "error": Messages.connectionFailure;
+            case "notmodified": Messages.notModified;
+            case "parsererror": Messages.parseError;
+            default: message;
+        }
+        trace(detail != null && detail != "");
+        trace(Std.string(detail));
+        var display = {
+            level: "Error! ",
+            message: msg,
+            detail: detail,
+            showDetail: detail != null && detail != ""
+        };
+        var html = framework.helpers.Templates.create("NotificationPanel").render(display).html;
+        if(detail != null){
+            html.find('.notification-detail').text(detail);
+        }
+        JQuery.j('#notification').empty().append(html);
+    }
 }
 
 class Address{

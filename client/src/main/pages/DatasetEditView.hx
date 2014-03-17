@@ -62,7 +62,10 @@ class DatasetEditView{
                     (untyped html.find("[data-form-upload-files]")).ajaxSubmit({
                         url: Settings.api.datasetNewPost,
                         success: function(x){promise.resolve(nextPage);},
-                        error: function(x, text, ex){trace('error!: ${Std.string(x)} ${Std.string(text)} ${Std.string(ex)}'); putFileInputField(html);}
+                        error: function(x, text, ex){
+                            framework.Effect.global().notifyError(text, ex);
+                            putFileInputField(html);
+                        }
                     });
                 });
                 html.find("[data-link-cancel]").on("click", function(_){ promise.resolve(nextPage);});

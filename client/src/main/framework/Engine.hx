@@ -57,7 +57,8 @@ class Engine<Page>{
             currentPage = application.fromUrl(Effect.global().location());
             container = PlaceHolders.withSideEffect("page-body", makePageFoldable(application.draw), changePage).render(currentPage);
 //            header.event.then(pageBody.put)                   // TODO: promise can be called only once
-            var body = div().append(header.html).append(container.html.addClass("container"));
+            var notification = JQuery.div().attr("id", "notification");
+            var body = div().append(header.html).append(notification).append(container.html.addClass("container"));
             return {html: body, state: Core.nop, event: Promises.void()};
         }
         return Components.toComponent(render);

@@ -11,3 +11,4 @@
 -resource templates/DatasetRead/main.html@DatasetReadMain
 -resource templates/DatasetEdit/UploadFile.html@UploadFileEdit
 -resource templates/DatasetRead/UploadFile.html@UploadFileRead
+-resource templates/Notification.html@NotificationPanel
