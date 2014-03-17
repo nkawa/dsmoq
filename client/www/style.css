@@ -115,7 +115,10 @@ hr {
     color: red;
     font-size: x-small;
 }
-
+.upload-area {
+    border-style:dashed;
+    border-width:3px;
+}
 a:hover {
     cursor: pointer;
 }

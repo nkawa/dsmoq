@@ -15,20 +15,19 @@ private typedef DatasetEditViewModel = {
     description: String
 }
 
+
 class DatasetEditView{
     static inline var TAB_FIELD_UPLOAD = "datasetEditUpload";
     static inline var TAB_FIELD_BASIC  = "datasetEditBasic";
     static inline var TAB_FIELD_ACL    = "datasetEditAcl";
 
-    private static function nextPage(id: String, isNew: Bool){
-        return if(isNew){
-            Page.DatasetList(null);
-        }else{
-            Page.DatasetRead(id);
+    public static function render(id: Option<String>):Rendered<Void, Page>{
+        var isNew = Core.isNone(id);
+        var nextPage = switch(id){
+            case Some(id): Page.DatasetRead(id);
+            case None:     Page.DatasetList(null);
         }
-    }
 
-    public static function render(id: String, isNew: Bool):Rendered<Void, Page>{
         var selectACL = {
             var accessLevel = [
                 {value: "1", displayName:"Owner"},
@@ -55,9 +54,18 @@ class DatasetEditView{
             .append({name: TAB_FIELD_BASIC,  title: "Metadata",       component: Templates.create("DatasetEditBasic")})
             .append({name: TAB_FIELD_ACL,    title: "Access Control", component: Templates.create("DatasetEditAcl")})
             .toComponent()
+            .decorate(putFileInputField)
             .event(function(html){
                 var promise = new Promise();
-                html.find("[data-link-cancel]").on("click", function(_){ promise.resolve(nextPage(id, isNew));});
+                html.find("[data-link-save-upload]").on("click", function(_){
+                    removeUnnecessaryField(html.find("[data-form-upload-files]"));
+                    (untyped html.find("[data-form-upload-files]")).ajaxSubmit({
+                        url: Settings.api.datasetNewPost,
+                        success: function(x){promise.resolve(nextPage);},
+                        error: function(x, text, ex){trace('error!: ${Std.string(x)} ${Std.string(text)} ${Std.string(ex)}'); putFileInputField(html);}
+                    });
+                });
+                html.find("[data-link-cancel]").on("click", function(_){ promise.resolve(nextPage);});
                 return promise;
             });
         function toModel(input: Dynamic):Dynamic{
@@ -91,10 +99,25 @@ class DatasetEditView{
             .justView(files, "files", "[data-component-files]")
             .inMap(toModel);
 
-        return if(isNew){
-            comp.render({});
-        }else{
-            Common.connectionPanel("edit-view", comp, Api.datasetDetail(id));
+        return switch(id){
+            case Some(id): Common.connectionPanel("edit-view", comp, Api.datasetDetail(id));
+            case None:     comp.render({});
+        };
+    }
+
+    private static function putFileInputField(html: Html){
+        function addFileInputField(html: Html){
+            var field = JQuery.j('<input type="file" name="file[]"></input>').on("change", function(_){
+                addFileInputField(html);
+            });
+            html.append(field);
         }
+
+        addFileInputField(html.find("[data-form-upload-files]"));
+        return html;
+    }
+
+    private static function removeUnnecessaryField(html: Html){
+        html.find('input[type="file"]').filter(function(_, x){return x.value == "";}).remove();
     }
 }

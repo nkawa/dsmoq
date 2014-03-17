@@ -43,8 +43,8 @@ class Definitions{
                 var body = switch(page){
                     case DashBoard:                 DashBoardView.render();
                     case DatasetRead(id):           DatasetReadView.render(id);
-                    case DatasetEdit(id):           DatasetEditView.render(id, false);
-                    case DatasetNew:                DatasetEditView.render("", true);
+                    case DatasetEdit(id):           DatasetEditView.render(Some(id));
+                    case DatasetNew:                DatasetEditView.render(None);
                     case DatasetList(paging):       DatasetListView.render(paging);
                     case GroupList:                 DashBoardView.render();
                     case Profile:                   DashBoardView.render();

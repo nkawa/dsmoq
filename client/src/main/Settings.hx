@@ -6,6 +6,7 @@ private class ApiUrl{
     public function new(){}
     public var profile = "/api/profile";
     public var datasetList = "/api/datasets";
+    public var datasetNewPost = "/api/datasets";
     public function dataset(id: String) { return '/api/datasets/$id';}
 
 //    public var profile = "/resources/dummy/api/profile.json";
