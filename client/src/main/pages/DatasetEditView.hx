@@ -53,16 +53,21 @@ class DatasetEditView{
                 return promise;
             });
         function toModel(input: Dynamic):Dynamic{
-            var x = Api.extractData(input);
-            return {
-                datasetEditBasic: {
-                    name: x.meta.name,
-                    description: x.meta.description,
-                },
+            var ret = untyped {
                 componentTab: tabInfo,
-                acl: [["Taro","1"],["Hanako", "2"],["Mike", "3"]],
-                files: [{name: "hoge.csv"}, {name: "fuga.csv"}]
+                acl: [["Taro","1"],["Hanako", "2"],["Mike", "3"]]
             };
+            if(isNew){
+                ret.files = [];
+            }else{
+                var x = Api.extractData(input);
+                ret.datasetEditBasic = {
+                    name: x.meta.name,
+                    description: x.meta.description
+                };
+                ret.files = [{name: "hoge.csv"}, {name: "fuga.csv"}];
+            }
+            return ret;
         }
         var defaultACRadio = {
             var accessLevel = [
@@ -78,6 +83,10 @@ class DatasetEditView{
             .justView(files, "files", "[data-component-files]")
             .inMap(toModel);
 
-        return Common.connectionPanel("edit-view", comp, Api.datasetDetail(id));
+        return if(isNew){
+            comp.render({});
+        }else{
+            Common.connectionPanel("edit-view", comp, Api.datasetDetail(id));
+        }
     }
 }
