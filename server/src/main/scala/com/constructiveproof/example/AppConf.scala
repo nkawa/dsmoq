@@ -11,5 +11,6 @@ object AppConf {
   val imageDir = conf.getString("dsmoq.image_dir")
   val fileDir = conf.getString("dsmoq.file_dir")
 
-  val guestGroupId = conf.getString("dsmoq.guest_uuid")
+  val systemUserId = conf.getString("dsmoq.system_user_uuid")
+  val guestGroupId = conf.getString("dsmoq.guest_group_uuid")
 }
