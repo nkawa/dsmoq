@@ -21,16 +21,14 @@ object DatasetFacade {
     // FIXME dummy
     val summary = DatasetsSummary(100)
     val attributes = List(DatasetAttribute("xxx", "xxx"))
-    val owners = List(DatasetsOwner(1, "xxx", "http://xxx"))
-    val groups = List(DatasetsGroup(1, "xxx", "http://xxx"))
+    val ownerships = List(DatasetOwnership("owner_id", 1, "ownership_name", "http://xxxx"))
     val result = DatasetsResult(
       id = 1,
       name = name,
       description = "xxxx",
       image = "http://xxx",
       attributes = attributes,
-      owners = owners,
-      groups = groups,
+      ownerships = ownerships,
       files = 3,
       dataSize = 1024,
       defaultAccessLevel = 1,
@@ -359,8 +357,7 @@ case class DatasetsResult(
   image: String,
   license: Int = 1,
   attributes: List[DatasetAttribute],
-  owners: List[DatasetsOwner],
-  groups: List[DatasetsGroup],
+  ownerships: List[DatasetOwnership],
   files: Int,
   dataSize: Int,
   defaultAccessLevel: Int,
