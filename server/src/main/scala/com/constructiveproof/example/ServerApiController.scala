@@ -93,9 +93,7 @@ class ServerApiController extends ScalatraServlet with JacksonJsonSupport with S
     }
     response match {
       case Success(x) => x
-        // FIXME デバッグのため一時的に変更
-//      case Failure(e) => AjaxResponse("NG")
-      case Failure(e) => throw e
+      case Failure(e) => AjaxResponse("NG")
     }
   }
 }
