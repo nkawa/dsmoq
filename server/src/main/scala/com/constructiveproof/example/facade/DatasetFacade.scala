@@ -18,16 +18,21 @@ object DatasetFacade {
 
     // データ取得
     // FIXME 権限を考慮したデータの取得
+    val datasetCount = DB readOnly { implicit session =>
+      sql"""
+        SELECT
+          COUNT(DISTINCT datasets.id)
+        FROM
+          datasets
+      """.map(_.int("count")).single().apply().get
+    }
+
     val datasets = DB readOnly { implicit session =>
       sql"""
-        SELECT DISTINCT
+        SELECT
           datasets.*
         FROM
           datasets
-        INNER JOIN
-          ownerships
-        ON
-          datasets.id = ownerships.dataset_id
         OFFSET
           ${offset}
         LIMIT
@@ -35,7 +40,7 @@ object DatasetFacade {
       """.map(_.toMap()).list().apply()
     }
 
-    val summary = DatasetsSummary(datasets.size, count, offset)
+    val summary = DatasetsSummary(datasetCount, count, offset)
     val results = datasets.map { x =>
       // FIXME image, dataSize, permissionは暫定値
       // FIXME SELECTで取得するデータの指定(必要であれば)
@@ -228,12 +233,15 @@ object DatasetFacade {
       """.map(_.toMap()).list().apply()
     }
 
-    // FIXME download用のURL、アップロードしたユーザー(先に）、ファイルサイズ(historyにカラム追加)、ファイルの説明(あとで)が必要になる(権限は見る？)
-    // アップロードユーザーはUUID返す？それともユーザー情報？→聞く
+    // FIXME ファイルサイズ、ユーザー情報は暫定
     val datasetFiles = files.map { x =>
       DatasetFile(
-        x("id").toString,
-        x("name").toString
+        id = x("id").toString,
+        name = x("name").toString,
+        description = x("description").toString,
+        url = x("file_path").toString,
+        fileSize = 1024,
+        user = x("created_by").toString
       )
     }
     val datasetMetaData = DatasetMetaData(
@@ -281,13 +289,25 @@ object DatasetFacade {
       return Failure(new Exception("No Session"))
     }
 
+    val datasetID = UUID.randomUUID().toString
+    // データセットのファイル情報と画像情報をタプルとして管理
+    // FIXME ユーザー情報は暫定的にIDを格納
     val files = params.files match {
       case Some(x) =>
         for {
           f <- x
           if f.size != 0 && f.name != null
         } yield {
-          Pair(UUID.randomUUID().toString, f)
+          val fileID = UUID.randomUUID().toString
+          val datasetFile = DatasetFile(
+            id = fileID,
+            name = f.name,
+            description = "file_description_" + fileID,
+            url = Paths.get(datasetID, fileID + '.' + f.name.split('.').last).toString,
+            fileSize = f.size,
+            user = params.userInfo.id
+          )
+          Pair(datasetFile, f)
         }
       case None =>
         // FIXME ファイルが空の時の処理(現状は例外)
@@ -298,22 +318,11 @@ object DatasetFacade {
       return Failure(new Exception("No Files"))
     }
 
-    // FIXME ファイルパス読み込み 外部ライブラリ使うか要検討
-    val basePath = AppConf.fileDir
-
-    // 後で使用するデータセットの画像保存用のIDと画像情報をタプルとして管理
-    val datasetFiles = for {
-      f <- files
-    } yield {
-      DatasetFile(f._1, f._2.name)
-    }
-
     // データセットの初期メタデータは適当に作る(名前のみ)
-    val datasetID = UUID.randomUUID().toString
-    val name = "dataset_" + files(0)._2.name
+    val datasetName = "dataset_" + files(0)._1.name
     // FIXME ライセンスIDの指定
     val licenseID = UUID.randomUUID().toString
-    val datasetMetaData = DatasetMetaData(name, "", 1, List())
+    val datasetMetaData = DatasetMetaData(datasetName, "", 1, List())
 
     // ユーザーの画像情報はDBから引く
     val imageInfo = DB readOnly { implicit session =>
@@ -341,6 +350,9 @@ object DatasetFacade {
       imageInfo("file_path").toString
     ))
 
+    // FIXME ファイルパス読み込み 外部ライブラリ使うか要検討
+    val basePath = AppConf.fileDir
+
     DB localTx { implicit session =>
       // save dataset
       sql"""
@@ -348,31 +360,29 @@ object DatasetFacade {
           (id, name, description, license_id, default_access_level,
            created_by, updated_by)
         VALUES
-          (UUID(${datasetID}), ${name}, '', UUID(${licenseID}), 0,
+          (UUID(${datasetID}), ${datasetName}, '', UUID(${licenseID}), 0,
            UUID(${params.userInfo.id}), UUID(${params.userInfo.id}))
       """.update().apply()
 
       // save files
       files.foreach{x =>
         // FIXME file_type, file_attributesの指定があれば
-        val fileDescription = "file_description_" + x._1
-        val filetype = 0
+        val fileType = 0
         val fileAttributes = "{}"
         sql"""
           INSERT INTO files
             (id, dataset_id, name, description, file_type, file_attributes,
              created_by, updated_by)
           VALUES
-            (UUID(${x._1}), UUID(${datasetID}), ${x._2.name}, ${fileDescription}, ${filetype}, JSON(${fileAttributes}),
+            (UUID(${x._1.id}), UUID(${datasetID}), ${x._1.name}, ${x._1.description}, ${fileType}, JSON(${fileAttributes}),
              UUID(${params.userInfo.id}), UUID(${params.userInfo.id}))
         """.update().apply()
 
-        val filePath = Paths.get(datasetID, x._1 + '.' + x._2.name.split('.').last).toString
         sql"""
         INSERT INTO file_histories
           (file_id, file_path, created_by, updated_by)
         VALUES
-          (UUID(${x._1}), ${filePath}, UUID(${params.userInfo.id}), UUID(${params.userInfo.id}))
+          (UUID(${x._1.id}), ${x._1.url}, UUID(${params.userInfo.id}), UUID(${params.userInfo.id}))
        """.update().apply()
       }
 
@@ -386,7 +396,7 @@ object DatasetFacade {
 
       // ファイル保存パス：設定パス + /datasetID/ + fileID
       files.foreach {x =>
-        val path = Paths.get(basePath, datasetID, x._1 + '.' + x._2.name.split('.').last)
+        val path = Paths.get(basePath, x._1.url)
         if (!path.toFile.getParentFile.exists()) {
           path.toFile.getParentFile.mkdir()
         }
@@ -396,7 +406,7 @@ object DatasetFacade {
 
     Success(Dataset(
       id = datasetID,
-      files = datasetFiles,
+      files = files.map(_._1),
       meta = datasetMetaData,
       images = List(),
       primaryImage =  null,
@@ -488,9 +498,14 @@ case class DatasetAttribute(
   value: String
 )
 
+// TODO 返すべきユーザー情報
 case class DatasetFile(
   id: String,
-  name: String
+  name: String,
+  description: String,
+  url: String,
+  fileSize: Long,
+  user: String
 )
 
 case class DatasetImage(
