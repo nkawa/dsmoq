@@ -18,16 +18,21 @@ object DatasetFacade {
 
     // データ取得
     // FIXME 権限を考慮したデータの取得
+    val datasetCount = DB readOnly { implicit session =>
+      sql"""
+        SELECT
+          COUNT(DISTINCT datasets.id)
+        FROM
+          datasets
+      """.map(_.int("count")).single().apply().get
+    }
+
     val datasets = DB readOnly { implicit session =>
       sql"""
-        SELECT DISTINCT
+        SELECT
           datasets.*
         FROM
           datasets
-        INNER JOIN
-          ownerships
-        ON
-          datasets.id = ownerships.dataset_id
         OFFSET
           ${offset}
         LIMIT
@@ -35,7 +40,7 @@ object DatasetFacade {
       """.map(_.toMap()).list().apply()
     }
 
-    val summary = DatasetsSummary(datasets.size, count, offset)
+    val summary = DatasetsSummary(datasetCount, count, offset)
     val results = datasets.map { x =>
       // FIXME image, dataSize, permissionは暫定値
       // FIXME SELECTで取得するデータの指定(必要であれば)
