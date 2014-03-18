@@ -1,13 +1,13 @@
-package com.constructiveproof.example.facade
+package dsmoq.facade
 
-import com.constructiveproof.example.traits.SessionUserInfo
 import scala.util.{Failure, Try, Success}
 import org.scalatra.servlet.FileItem
 import scalikejdbc._, SQLInterpolation._
 import java.util.{Properties, UUID}
 import java.nio.file.Paths
 import java.io.{FileInputStream, File}
-import com.constructiveproof.example.AppConf
+import dsmoq.AppConf
+import dsmoq.traits.SessionUserInfo
 
 object DatasetFacade {
   def searchDatasets(params: SearchDatasetsParams): Try[Datasets] = {

@@ -1,11 +1,10 @@
-package com.constructiveproof.example
+package dsmoq
 
-import com.constructiveproof.example.facade._
 import org.scalatra.ScalatraServlet
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatra.json.JacksonJsonSupport
-import com.constructiveproof.example.facade.SigninParams
-import com.constructiveproof.example.traits.SessionTrait
+import dsmoq.facade._
+import dsmoq.traits.SessionTrait
 import scala.util.{Success, Failure}
 import org.scalatra.servlet.{MultipartConfig, FileUploadSupport}
 

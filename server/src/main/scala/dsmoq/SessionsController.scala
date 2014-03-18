@@ -1,5 +1,4 @@
-package com.constructiveproof.example
-
+package dsmoq
 
 import org.scalatra._
 

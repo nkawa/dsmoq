@@ -4,7 +4,7 @@ import org.scalatra.sbt._
 import org.scalatra.sbt.PluginKeys._
 
 object DsmoqBuild extends Build {
-  val Organization = "com.constructiveproof"
+  val Organization = "dsmoq"
   val Name = "dsmoq"
   val Version = "0.1.0-SNAPSHOT"
   val ScalaVersion = "2.10.3"

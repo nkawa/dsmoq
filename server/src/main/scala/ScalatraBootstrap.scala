@@ -1,4 +1,4 @@
-import com.constructiveproof.example._
+import dsmoq._
 import org.scalatra._
 import javax.servlet.ServletContext
 import scalikejdbc.config.DBs

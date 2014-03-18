@@ -1,4 +1,4 @@
-package com.constructiveproof.example
+package dsmoq
 
 import com.typesafe.config.ConfigFactory
 

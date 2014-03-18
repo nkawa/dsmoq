@@ -1,7 +1,7 @@
-package com.constructiveproof.example.traits
+package dsmoq.traits
 
 import org.scalatra.ScalatraServlet
-import com.constructiveproof.example.facade.User
+import dsmoq.facade.User
 import scala.util.{Try, Failure, Success}
 
 trait SessionTrait extends ScalatraServlet {

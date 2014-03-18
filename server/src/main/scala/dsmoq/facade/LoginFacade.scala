@@ -1,4 +1,4 @@
-package com.constructiveproof.example.facade
+package dsmoq.facade
 
 import scala.util.{Failure, Success}
 import scalikejdbc._, SQLInterpolation._
