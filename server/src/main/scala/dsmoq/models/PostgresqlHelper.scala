@@ -15,6 +15,8 @@ object PostgresqlHelper {
   implicit class UuidSQLSyntax(val self: sqls.type) extends AnyVal {
     def uuid(value: String): SQLSyntax = sqls"UUID(${value})"
 
+    def coalesce(column: SQLSyntax, value: Any): SQLSyntax = sqls"COALESCE(${column}, ${value})"
+
     def inByUuid(column: SQLSyntax, values: Seq[String]) = {
       if (values.nonEmpty) {
         sqls"${column} in ( ${sqls.join(values.map(x => sqls.uuid(x)), sqls",")} )"

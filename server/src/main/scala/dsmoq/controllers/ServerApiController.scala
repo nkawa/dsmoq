@@ -70,7 +70,7 @@ class ServerApiController extends ScalatraServlet with JacksonJsonSupport with S
     val response = for {
       userInfo <- getUserInfoFromSession()
       facadeParams = GetDatasetParams(id, userInfo)
-      dataset <- DatasetFacade.getDataset(facadeParams)
+      dataset <- DatasetFacade.get(facadeParams)
     } yield {
       AjaxResponse("OK", dataset)
     }
