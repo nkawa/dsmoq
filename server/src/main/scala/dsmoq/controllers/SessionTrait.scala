@@ -1,4 +1,4 @@
-package dsmoq.traits
+package dsmoq.controllers
 
 import org.scalatra.ScalatraServlet
 import dsmoq.facade.User

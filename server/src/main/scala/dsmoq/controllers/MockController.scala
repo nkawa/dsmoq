@@ -1,4 +1,4 @@
-package dsmoq
+package dsmoq.controllers
 
 import org.scalatra.ScalatraServlet
 

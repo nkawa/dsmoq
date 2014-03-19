@@ -7,7 +7,6 @@ import java.util.{Properties, UUID}
 import java.nio.file.Paths
 import java.io.{FileInputStream, File}
 import dsmoq.AppConf
-import dsmoq.traits.SessionUserInfo
 
 import dsmoq.models.PostgresqlHelper._
 
@@ -28,6 +27,8 @@ object DatasetFacade {
 
         val owners = getOwners(datasetIds)
         val guestAccessLevels = getGuestAccessLevel(datasetIds)
+        val attributes = getAttributes(datasetIds)
+
         datasets.map(x => {
           val ds = x._1
           val permission = x._2
@@ -446,9 +447,10 @@ object DatasetFacade {
   private def getAttributes(datasetIds: Seq[String])(implicit s: DBSession) = {
     if (datasetIds.nonEmpty) {
       //val k = ds
-      withSQL {
-        select()
-      }.map(_.toMap()).list().apply()
+//      withSQL {
+//        select()
+//      }.map(_.toMap()).list().apply()
+      List.empty
     } else {
       List.empty
     }
@@ -485,12 +487,12 @@ case class SearchDatasetsParams(
   limit: Option[String],
   offset: Option[String],
   userInfo: User
-) extends SessionUserInfo
+)
 
 case class GetDatasetParams(
   id: String,
   userInfo: User
-) extends SessionUserInfo
+)
 
 case class CreateDatasetParams(
   userInfo: User,

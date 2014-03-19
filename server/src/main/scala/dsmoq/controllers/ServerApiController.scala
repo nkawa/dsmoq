@@ -1,10 +1,9 @@
-package dsmoq
+package dsmoq.controllers
 
 import org.scalatra.ScalatraServlet
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatra.json.JacksonJsonSupport
 import dsmoq.facade._
-import dsmoq.traits.SessionTrait
 import scala.util.{Success, Failure}
 import org.scalatra.servlet.{MultipartConfig, FileUploadSupport}
 
