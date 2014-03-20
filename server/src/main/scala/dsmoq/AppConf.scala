@@ -13,4 +13,6 @@ object AppConf {
 
   val systemUserId = conf.getString("dsmoq.system_user_uuid")
   val guestGroupId = conf.getString("dsmoq.guest_group_uuid")
+
+  val defaultDatasetImageId = conf.getString("dsmoq.default_dataset_image_uuid")
 }

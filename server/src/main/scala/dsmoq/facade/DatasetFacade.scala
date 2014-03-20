@@ -73,23 +73,46 @@ object DatasetFacade {
           createdAt = timestamp,
           updatedBy = myself.id,
           updatedAt = timestamp)
+        val datasetImage = DatasetImage.create(
+          id = UUID.randomUUID.toString,
+          datasetId = dataset.id,
+          imageId = AppConf.defaultDatasetImageId,
+          isPrimary = true,
+          displayOrder = 0,
+          createdBy = myself.id,
+          createdAt = timestamp,
+          updatedBy = myself.id,
+          updatedAt = timestamp)
 
         Success(dsmoq.facade.data.DatasetData.Dataset(
           id = dataset.id,
           meta = dsmoq.facade.data.DatasetData.DatasetMetaData(
-            name = "",
-            description = "",
-            license = "",
+            name = dataset.name,
+            description = dataset.description,
+            license = dataset.licenseId,
             attributes = Seq.empty
           ),
-          files = Seq.empty,
-          images = Seq.empty,
-          primaryImage =  "",
+          files = files.map(x => dsmoq.facade.data.DatasetData.DatasetFile(
+            id = x._1.id,
+            name = x._1.name,
+            description = x._1.description,
+            size = x._2.fileSize,
+            url = "", //TODO
+            createdBy = params.userInfo,
+            createdAt = timestamp,
+            updatedBy = params.userInfo,
+            updatedAt = timestamp
+          )),
+          images = Seq(dsmoq.facade.data.Image(id = datasetImage.id, url = "")), //TODO
+          primaryImage =  datasetImage.id,
           ownerships = Seq(dsmoq.facade.data.DatasetData.DatasetOwnership(
             id = myself.id,
             name = myself.name,
             fullname = myself.fullname,
-            image = "http://xxx" //TODO
+            organization = myself.organization,
+            title = myself.title,
+            image = "", //TODO
+            accessLevel = ownership.accessLevel
           )),
           defaultAccessLevel = AccessLevel.Deny,
           permission = ownership.accessLevel
@@ -181,7 +204,7 @@ object DatasetFacade {
             meta = dsmoq.facade.data.DatasetData.DatasetMetaData(
               name = dataset.name,
               description = dataset.description,
-              license = "",
+              license = None,
               attributes = Seq.empty
             ),
             images = Seq.empty,
@@ -343,7 +366,7 @@ object DatasetFacade {
 //    ))
   }
 
-  private def getJoinedGroups(user: dsmoq.facade.data.LoginData.User)(implicit s: DBSession) = {
+  private def getJoinedGroups(user: dsmoq.facade.data.User)(implicit s: DBSession) = {
     if (user.isGuest) {
       Seq.empty
     } else {

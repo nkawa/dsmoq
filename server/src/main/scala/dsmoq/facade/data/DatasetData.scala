@@ -2,6 +2,7 @@ package dsmoq.facade.data
 
 import LoginData._
 import org.scalatra.servlet.FileItem
+import org.joda.time.DateTime
 
 /**
  * Created by terurou on 2014/03/20.
@@ -46,7 +47,7 @@ object DatasetData {
                       id: String,
                       files: Seq[DatasetFile],
                       meta: DatasetMetaData,
-                      images: Seq[DatasetImage],
+                      images: Seq[Image],
                       primaryImage: String,
                       ownerships: Seq[DatasetOwnership],
                       defaultAccessLevel: Int,
@@ -56,7 +57,7 @@ object DatasetData {
   case class DatasetMetaData(
                               name: String,
                               description: String,
-                              license : String,
+                              license : Option[String],
                               attributes: Seq[DatasetAttribute]
                               )
 
@@ -65,25 +66,25 @@ object DatasetData {
                                value: String
                                )
 
-  // TODO 返すべきユーザー情報
   case class DatasetFile(
-                          id: String,
-                          name: String,
-                          description: String,
-                          url: String,
-                          fileSize: Long,
-                          user: String
-                          )
+    id: String,
+    name: String,
+    description: String,
+    url: String,
+    size: Long,
+    createdBy: User,
+    createdAt: DateTime,
+    updatedBy: User,
+    updatedAt: DateTime
+  )
 
-  case class DatasetImage(
-                           id: String,
-                           url: String
-                           )
-
-  case class DatasetOwnership(
+  case class DatasetOwnership (
     id: String,
     name: String,
     fullname: String,
-    image: String
+    organization: String,
+    title: String,
+    image: String,
+    accessLevel: Int
   )
 }

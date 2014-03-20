@@ -7,7 +7,7 @@ import dsmoq.models._
 
 object LoginFacade {
 
-  def getAuthenticatedUser(params: dsmoq.facade.data.LoginData.SigninParams): Try[Option[dsmoq.facade.data.LoginData.User]] = {
+  def getAuthenticatedUser(params: dsmoq.facade.data.LoginData.SigninParams): Try[Option[dsmoq.facade.data.User]] = {
     // TODO dbアクセス時エラーでFailure返す try~catch
     try {
       // TODO パスワードソルトを追加
@@ -34,7 +34,7 @@ object LoginFacade {
         }
         .map(rs => User(u.resultName)(rs)).single.apply
         .map(x =>
-          dsmoq.facade.data.LoginData.User(
+          dsmoq.facade.data.User(
             id = x.id,
             name = x.name,
             fullname = x.fullname,
