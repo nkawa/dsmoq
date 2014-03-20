@@ -33,11 +33,11 @@ object DatasetData {
     name: String,
     description: String,
     image: String,
-    license: Int = 1,
+    license: Option[String] = None,
     attributes: Seq[DatasetAttribute],
     ownerships: Seq[DatasetOwnership],
-    files: Int,
-    dataSize: Int,
+    files: Long,
+    dataSize: Long,
     defaultAccessLevel: Int,
     permission: Int
   )

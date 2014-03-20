@@ -56,9 +56,9 @@ object DatasetFacade {
         })
         val dataset = Dataset.create(
           id = datasetId,
-          name = "",
+          name = files.head._1.name,
           description = "",
-          filesCount = files.size,
+          filesCount = files.length,
           filesSize = files.map(x => x._2.fileSize).sum,
           createdBy = myself.id,
           createdAt = timestamp,
@@ -144,8 +144,8 @@ object DatasetFacade {
               image = "http://xxx",
               attributes = List.empty, //TODO
               ownerships = List.empty, //TODO
-              files = 0, //TODO
-              dataSize = 1024, //TODO
+              files = ds.filesCount,
+              dataSize = ds.filesSize,
               defaultAccessLevel = guestAccessLevels.get(ds.id).getOrElse(0),
               permission = permission
             )
