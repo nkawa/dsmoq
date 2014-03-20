@@ -45,20 +45,16 @@ class DatasetEditView{
 
         var tableActions = {
             onDelete: function(xs){
-//                return Promises.value(true);
                 return Promises.tap(function(p){
-                    haxe.Timer.delay(function(){p.resolve(true);}, 1000);
+                    haxe.Timer.delay(function(){p.resolve(Some([]));}, 1000);
                 });
             },
             onAdd: function(xs){
-                return Promises.tap(function(p){
-                    if(xs[1] == ""){
-                        p.resolve(false);
-                    }else{
-                        haxe.Timer.delay(function(){p.resolve(true);}, 1000);
-                    }
-                });
-                return Promises.value(xs[1] != "");
+                return if(xs[1] == ""){
+                    Promises.value(None);
+                }else{
+                    Promises.value(Some(["groupId from API", xs[1], xs[2]]));
+                };
             }
         }
 

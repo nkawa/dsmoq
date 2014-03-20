@@ -11,8 +11,8 @@ typedef RowStrings = Array<String>
 typedef Row = Component<RowStrings, RowStrings, Void>
 
 typedef TableAction = {
-    onDelete: RowStrings -> Promise<Bool>,
-    onAdd:    RowStrings -> Promise<Bool>,
+    onDelete: RowStrings -> Promise<Option<RowStrings>>,
+    onAdd:    RowStrings -> Promise<Option<RowStrings>>,
     ?additionalAction: Html -> (RowStrings -> Void) -> Void
 }
 
@@ -49,8 +49,8 @@ class Table{
     }
 
     private static var defaultActions: TableAction = {
-        onDelete: function(xs: RowStrings){return Promises.value(true);},
-        onAdd:    function(xs: RowStrings){return Promises.value(true);}
+        onDelete: function(xs: RowStrings){return Promises.value(Some(xs));},
+        onAdd:    function(xs: RowStrings){return Promises.value(Some(xs));}
     }
 
     public static function editable(name,
@@ -77,9 +77,9 @@ class Table{
         var inputRowComponent = Components.group(inputRow, JQuery.join('<td></td>'))
             .decorate(addColumn.bind(true));
 
-        function ifTrue(p: Promise<Bool>, f: Void -> Void, final: Void -> Void = null){
+        function ifTrue(p: Promise<Option<RowStrings>>, f: RowStrings-> Void, final: Void -> Void = null){
             p.then(function(b){
-                if(b) f();
+                Core.each(b, f);
                 if(final != null) final();
             });
         }
@@ -93,7 +93,7 @@ class Table{
                 var buttons = body.find('.$DELETE_BUTTON_CLASS');
                 if(!(atLeastOne && buttons.length == 1)){
                     var index = buttons.index(untyped JQuery.self().button('loading'));
-                    ifTrue(actions.onDelete(rowStates[index]()), function(){
+                    ifTrue(actions.onDelete(rowStates[index]()), function(_){
                         body.find('tr:nth-child(${index+1})').remove();
                         rowStates.splice(index, 1);
                         afterRendering(body);
@@ -114,8 +114,8 @@ class Table{
 
             addRow = function(newInput: RowStrings, b: Html){
                 (untyped b).button("loading");
-                ifTrue(actions.onAdd(newInput), function(){
-                    var newRow = rowComponent.render(newInput).decorate(JQuery.wrapBy.bind('<tr></tr>'));
+                ifTrue(actions.onAdd(newInput), function(xs){
+                    var newRow = rowComponent.render(xs).decorate(JQuery.wrapBy.bind('<tr></tr>'));
                     newRow.html.insertBefore(renderedInputRow.html);
                     newRow.html.find('.$DELETE_BUTTON_CLASS').on("click", removeRow);
                     if(actions.additionalAction != null){
