@@ -43,7 +43,7 @@ class Table{
         atLeastOne = false 
     ){
         function addColumn(isInsert, row){
-            var klass = isInsert ? "btn-success $INSERT_BUTTON_CLASS" : "btn-warning $DELETE_BUTTON_CLASS";
+            var klass = isInsert ? 'btn-success $INSERT_BUTTON_CLASS' : 'btn-warning $DELETE_BUTTON_CLASS';
             var message = isInsert ? "add" : "del";
             var head = isInsert ? '<td class="col-min-width">*</td>' : '<td class="table-numbering">0</td>';
 
@@ -87,7 +87,6 @@ class Table{
             });
             body.find('.$DELETE_BUTTON_CLASS').on("click", removeRow);
             numbering(body);
-//            body.prepend(JQuery.join('<td></td>')(headers));
             return {
                 html: JQuery.wrapBy('<table class="table table-bordered table-condensed"></table>', body),
                 state: Core.toState(rowStates),
