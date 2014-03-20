@@ -18,6 +18,7 @@ extern class Jq{
     public function on<A>(event: String, f: A->Void): Jq;
     public function empty(): Jq;
     public function addClass(name: String): Jq;
+    public function removeClass(name: String): Jq;
     @:overload(function ():String{})
     public function val(value: String): Jq;
     public var length: Int;

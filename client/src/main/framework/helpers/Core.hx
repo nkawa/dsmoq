@@ -51,4 +51,11 @@ class Core{
             case None: f();
         };
     }
+
+    public static function get<A>(o: Option<A>): A{
+        return switch(o){
+            case Some(x): x;
+            case None: throw "Option should be Some";
+        }
+    }
 }
