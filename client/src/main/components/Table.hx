@@ -69,10 +69,13 @@ class Table{
             var rowStates = rendereds.map(function(r){return r.state;});
             var body = JQuery.wrapBy('<tbody></tbody>', JQuery.join('<tr></tr>')(rendereds.htmls()).add(renderedInputRow.html));
             function removeRow(element: Dynamic){
-                var index = body.find('.$DELETE_BUTTON_CLASS').index(untyped __js__('this'));
-                body.find('tr:nth-child(${index+1})').remove();
-                rowStates.splice(index, 1);
-                afterRendering(body);
+                var buttons = body.find('.$DELETE_BUTTON_CLASS');
+                if(!(atLeastOne && buttons.length == 1)){
+                    var index = buttons.index(untyped __js__('this'));
+                    body.find('tr:nth-child(${index+1})').remove();
+                    rowStates.splice(index, 1);
+                    afterRendering(body);
+                }
             }
             function addRow(newInput: RowStrings){
                 var newRow = rowComponent.render(newInput).decorate(JQuery.wrapBy.bind('<tr></tr>'));
