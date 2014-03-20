@@ -5,17 +5,17 @@ import scalikejdbc.SQLInterpolation._
 import org.joda.time.{DateTime}
 
 case class Member(
-  id: Any, 
-  groupId: Any, 
-  userId: Any, 
+  id: String,
+  groupId: String,
+  userId: String,
   role: Int, 
   status: Int, 
+  createdBy: String,
   createdAt: DateTime, 
+  updatedBy: String,
   updatedAt: DateTime, 
-  deletedAt: Option[DateTime] = None, 
-  createdBy: Any, 
-  updatedBy: Any, 
-  deletedBy: Option[Any] = None) {
+  deletedBy: Option[String] = None,
+  deletedAt: Option[DateTime] = None) {
 
   def save()(implicit session: DBSession = Member.autoSession): Member = Member.save(this)(session)
 
@@ -28,20 +28,20 @@ object Member extends SQLSyntaxSupport[Member] {
 
   override val tableName = "members"
 
-  override val columns = Seq("id", "group_id", "user_id", "role", "status", "created_at", "updated_at", "deleted_at", "created_by", "updated_by", "deleted_by")
+  override val columns = Seq("id", "group_id", "user_id", "role", "status", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
 
   def apply(m: ResultName[Member])(rs: WrappedResultSet): Member = new Member(
-    id = rs.any(m.id),
-    groupId = rs.any(m.groupId),
-    userId = rs.any(m.userId),
+    id = rs.string(m.id),
+    groupId = rs.string(m.groupId),
+    userId = rs.string(m.userId),
     role = rs.int(m.role),
     status = rs.int(m.status),
+    createdBy = rs.string(m.createdBy),
     createdAt = rs.timestamp(m.createdAt).toDateTime,
+    updatedBy = rs.string(m.updatedBy),
     updatedAt = rs.timestamp(m.updatedAt).toDateTime,
-    deletedAt = rs.timestampOpt(m.deletedAt).map(_.toDateTime),
-    createdBy = rs.any(m.createdBy),
-    updatedBy = rs.any(m.updatedBy),
-    deletedBy = rs.anyOpt(m.deletedBy)
+    deletedBy = rs.stringOpt(m.deletedBy),
+    deletedAt = rs.timestampOpt(m.deletedAt).map(_.toDateTime)
   )
       
   val m = Member.syntax("m")
@@ -75,17 +75,17 @@ object Member extends SQLSyntaxSupport[Member] {
   }
       
   def create(
-    id: Any,
-    groupId: Any,
-    userId: Any,
+    id: String,
+    groupId: String,
+    userId: String,
     role: Int,
     status: Int,
+    createdBy: String,
     createdAt: DateTime,
+    updatedBy: String,
     updatedAt: DateTime,
-    deletedAt: Option[DateTime] = None,
-    createdBy: Any,
-    updatedBy: Any,
-    deletedBy: Option[Any] = None)(implicit session: DBSession = autoSession): Member = {
+    deletedBy: Option[String] = None,
+    deletedAt: Option[DateTime] = None)(implicit session: DBSession = autoSession): Member = {
     withSQL {
       insert.into(Member).columns(
         column.id,
@@ -93,24 +93,24 @@ object Member extends SQLSyntaxSupport[Member] {
         column.userId,
         column.role,
         column.status,
-        column.createdAt,
-        column.updatedAt,
-        column.deletedAt,
         column.createdBy,
+        column.createdAt,
         column.updatedBy,
-        column.deletedBy
+        column.updatedAt,
+        column.deletedBy,
+        column.deletedAt
       ).values(
         id,
         groupId,
         userId,
         role,
         status,
-        createdAt,
-        updatedAt,
-        deletedAt,
         createdBy,
+        createdAt,
         updatedBy,
-        deletedBy
+        updatedAt,
+        deletedBy,
+        deletedAt
       )
     }.update.apply()
 
@@ -120,12 +120,12 @@ object Member extends SQLSyntaxSupport[Member] {
       userId = userId,
       role = role,
       status = status,
-      createdAt = createdAt,
-      updatedAt = updatedAt,
-      deletedAt = deletedAt,
       createdBy = createdBy,
+      createdAt = createdAt,
       updatedBy = updatedBy,
-      deletedBy = deletedBy)
+      updatedAt = updatedAt,
+      deletedBy = deletedBy,
+      deletedAt = deletedAt)
   }
 
   def save(entity: Member)(implicit session: DBSession = autoSession): Member = {
@@ -136,12 +136,12 @@ object Member extends SQLSyntaxSupport[Member] {
         m.userId -> entity.userId,
         m.role -> entity.role,
         m.status -> entity.status,
-        m.createdAt -> entity.createdAt,
-        m.updatedAt -> entity.updatedAt,
-        m.deletedAt -> entity.deletedAt,
         m.createdBy -> entity.createdBy,
+        m.createdAt -> entity.createdAt,
         m.updatedBy -> entity.updatedBy,
-        m.deletedBy -> entity.deletedBy
+        m.updatedAt -> entity.updatedAt,
+        m.deletedBy -> entity.deletedBy,
+        m.deletedAt -> entity.deletedAt
       ).where.eq(m.id, entity.id)
     }.update.apply()
     entity 

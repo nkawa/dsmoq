@@ -3,18 +3,19 @@ package dsmoq.models
 import scalikejdbc._
 import scalikejdbc.SQLInterpolation._
 import org.joda.time.{DateTime}
+import PostgresqlHelper._
 
 case class Group(
   id: String,
   name: String, 
   description: String, 
-  dataType: Int, 
+  groupType: Int, 
+  createdBy: String,
   createdAt: DateTime, 
+  updatedBy: String,
   updatedAt: DateTime, 
-  deletedAt: Option[DateTime] = None, 
-  createdBy: Any, 
-  updatedBy: Any, 
-  deletedBy: Option[Any] = None) {
+  deletedBy: Option[String] = None,
+  deletedAt: Option[DateTime] = None) {
 
   def save()(implicit session: DBSession = Group.autoSession): Group = Group.save(this)(session)
 
@@ -27,19 +28,19 @@ object Group extends SQLSyntaxSupport[Group] {
 
   override val tableName = "groups"
 
-  override val columns = Seq("id", "name", "description", "data_type", "created_at", "updated_at", "deleted_at", "created_by", "updated_by", "deleted_by")
+  override val columns = Seq("id", "name", "description", "group_type", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
 
   def apply(g: ResultName[Group])(rs: WrappedResultSet): Group = new Group(
     id = rs.string(g.id),
     name = rs.string(g.name),
     description = rs.string(g.description),
-    dataType = rs.int(g.dataType),
+    groupType = rs.int(g.groupType),
+    createdBy = rs.string(g.createdBy),
     createdAt = rs.timestamp(g.createdAt).toDateTime,
+    updatedBy = rs.string(g.updatedBy),
     updatedAt = rs.timestamp(g.updatedAt).toDateTime,
-    deletedAt = rs.timestampOpt(g.deletedAt).map(_.toDateTime),
-    createdBy = rs.any(g.createdBy),
-    updatedBy = rs.any(g.updatedBy),
-    deletedBy = rs.anyOpt(g.deletedBy)
+    deletedBy = rs.stringOpt(g.deletedBy),
+    deletedAt = rs.timestampOpt(g.deletedAt).map(_.toDateTime)
   )
       
   val g = Group.syntax("g")
@@ -76,36 +77,36 @@ object Group extends SQLSyntaxSupport[Group] {
     id: String,
     name: String,
     description: String,
-    dataType: Int,
+    groupType: Int,
+    createdBy: String,
     createdAt: DateTime,
+    updatedBy: String,
     updatedAt: DateTime,
-    deletedAt: Option[DateTime] = None,
-    createdBy: Any,
-    updatedBy: Any,
-    deletedBy: Option[Any] = None)(implicit session: DBSession = autoSession): Group = {
+    deletedBy: Option[String] = None,
+    deletedAt: Option[DateTime] = None)(implicit session: DBSession = autoSession): Group = {
     withSQL {
       insert.into(Group).columns(
         column.id,
         column.name,
         column.description,
-        column.dataType,
-        column.createdAt,
-        column.updatedAt,
-        column.deletedAt,
+        column.groupType,
         column.createdBy,
+        column.createdAt,
         column.updatedBy,
-        column.deletedBy
+        column.updatedAt,
+        column.deletedBy,
+        column.deletedAt
       ).values(
-        id,
+        sqls.uuid(id),
         name,
         description,
-        dataType,
+        groupType,
+        sqls.uuid(createdBy),
         createdAt,
+        sqls.uuid(updatedBy),
         updatedAt,
-        deletedAt,
-        createdBy,
-        updatedBy,
-        deletedBy
+        deletedBy.map(x => sqls.uuid(x)),
+        deletedAt
       )
     }.update.apply()
 
@@ -113,13 +114,13 @@ object Group extends SQLSyntaxSupport[Group] {
       id = id,
       name = name,
       description = description,
-      dataType = dataType,
-      createdAt = createdAt,
-      updatedAt = updatedAt,
-      deletedAt = deletedAt,
+      groupType = groupType,
       createdBy = createdBy,
+      createdAt = createdAt,
       updatedBy = updatedBy,
-      deletedBy = deletedBy)
+      updatedAt = updatedAt,
+      deletedBy = deletedBy,
+      deletedAt = deletedAt)
   }
 
   def save(entity: Group)(implicit session: DBSession = autoSession): Group = {
@@ -128,13 +129,13 @@ object Group extends SQLSyntaxSupport[Group] {
         g.id -> entity.id,
         g.name -> entity.name,
         g.description -> entity.description,
-        g.dataType -> entity.dataType,
-        g.createdAt -> entity.createdAt,
-        g.updatedAt -> entity.updatedAt,
-        g.deletedAt -> entity.deletedAt,
+        g.groupType -> entity.groupType,
         g.createdBy -> entity.createdBy,
+        g.createdAt -> entity.createdAt,
         g.updatedBy -> entity.updatedBy,
-        g.deletedBy -> entity.deletedBy
+        g.updatedAt -> entity.updatedAt,
+        g.deletedBy -> entity.deletedBy,
+        g.deletedAt -> entity.deletedAt
       ).where.eq(g.id, entity.id)
     }.update.apply()
     entity 

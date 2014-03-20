@@ -9,14 +9,15 @@ case class Dataset(
   id: String,
   name: String, 
   description: String, 
-  licenseId: Any, 
-  defaultAccessLevel: Int, 
+  licenseId: Option[String],
+  filesCount: Int, 
+  filesSize: Long,
+  createdBy: String,
   createdAt: DateTime, 
+  updatedBy: String,
   updatedAt: DateTime, 
-  deletedAt: Option[DateTime] = None, 
-  createdBy: Any, 
-  updatedBy: Any, 
-  deletedBy: Option[Any] = None) {
+  deletedBy: Option[String] = None,
+  deletedAt: Option[DateTime] = None) {
 
   def save()(implicit session: DBSession = Dataset.autoSession): Dataset = Dataset.save(this)(session)
 
@@ -29,20 +30,21 @@ object Dataset extends SQLSyntaxSupport[Dataset] {
 
   override val tableName = "datasets"
 
-  override val columns = Seq("id", "name", "description", "license_id", "default_access_level", "created_at", "updated_at", "deleted_at", "created_by", "updated_by", "deleted_by")
+  override val columns = Seq("id", "name", "description", "license_id", "files_count", "files_size", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
 
   def apply(d: ResultName[Dataset])(rs: WrappedResultSet): Dataset = new Dataset(
     id = rs.string(d.id),
     name = rs.string(d.name),
     description = rs.string(d.description),
-    licenseId = rs.any(d.licenseId),
-    defaultAccessLevel = rs.int(d.defaultAccessLevel),
+    licenseId = rs.stringOpt(d.licenseId),
+    filesCount = rs.int(d.filesCount),
+    filesSize = rs.long(d.filesSize),
+    createdBy = rs.string(d.createdBy),
     createdAt = rs.timestamp(d.createdAt).toDateTime,
+    updatedBy = rs.string(d.updatedBy),
     updatedAt = rs.timestamp(d.updatedAt).toDateTime,
-    deletedAt = rs.timestampOpt(d.deletedAt).map(_.toDateTime),
-    createdBy = rs.any(d.createdBy),
-    updatedBy = rs.any(d.updatedBy),
-    deletedBy = rs.anyOpt(d.deletedBy)
+    deletedBy = rs.stringOpt(d.deletedBy),
+    deletedAt = rs.timestampOpt(d.deletedAt).map(_.toDateTime)
   )
       
   val d = Dataset.syntax("d")
@@ -79,39 +81,42 @@ object Dataset extends SQLSyntaxSupport[Dataset] {
     id: String,
     name: String,
     description: String,
-    licenseId: Any,
-    defaultAccessLevel: Int,
+    licenseId: Option[String] = None,
+    filesCount: Int,
+    filesSize: Long,
+    createdBy: String,
     createdAt: DateTime,
+    updatedBy: String,
     updatedAt: DateTime,
-    deletedAt: Option[DateTime] = None,
-    createdBy: Any,
-    updatedBy: Any,
-    deletedBy: Option[Any] = None)(implicit session: DBSession = autoSession): Dataset = {
+    deletedBy: Option[String] = None,
+    deletedAt: Option[DateTime] = None)(implicit session: DBSession = autoSession): Dataset = {
     withSQL {
       insert.into(Dataset).columns(
         column.id,
         column.name,
         column.description,
         column.licenseId,
-        column.defaultAccessLevel,
-        column.createdAt,
-        column.updatedAt,
-        column.deletedAt,
+        column.filesCount,
+        column.filesSize,
         column.createdBy,
+        column.createdAt,
         column.updatedBy,
-        column.deletedBy
+        column.updatedAt,
+        column.deletedBy,
+        column.deletedAt
       ).values(
-        id,
+        sqls.uuid(id),
         name,
         description,
-        licenseId,
-        defaultAccessLevel,
+        licenseId.map(sqls.uuid),
+        filesCount,
+        filesSize,
+        sqls.uuid(createdBy),
         createdAt,
+        sqls.uuid(updatedBy),
         updatedAt,
-        deletedAt,
-        createdBy,
-        updatedBy,
-        deletedBy
+        deletedBy.map(sqls.uuid),
+        deletedAt
       )
     }.update.apply()
 
@@ -120,13 +125,14 @@ object Dataset extends SQLSyntaxSupport[Dataset] {
       name = name,
       description = description,
       licenseId = licenseId,
-      defaultAccessLevel = defaultAccessLevel,
-      createdAt = createdAt,
-      updatedAt = updatedAt,
-      deletedAt = deletedAt,
+      filesCount = filesCount,
+      filesSize = filesSize,
       createdBy = createdBy,
+      createdAt = createdAt,
       updatedBy = updatedBy,
-      deletedBy = deletedBy)
+      updatedAt = updatedAt,
+      deletedBy = deletedBy,
+      deletedAt = deletedAt)
   }
 
   def save(entity: Dataset)(implicit session: DBSession = autoSession): Dataset = {
@@ -136,13 +142,14 @@ object Dataset extends SQLSyntaxSupport[Dataset] {
         d.name -> entity.name,
         d.description -> entity.description,
         d.licenseId -> entity.licenseId,
-        d.defaultAccessLevel -> entity.defaultAccessLevel,
-        d.createdAt -> entity.createdAt,
-        d.updatedAt -> entity.updatedAt,
-        d.deletedAt -> entity.deletedAt,
+        d.filesCount -> entity.filesCount,
+        d.filesSize -> entity.filesSize,
         d.createdBy -> entity.createdBy,
+        d.createdAt -> entity.createdAt,
         d.updatedBy -> entity.updatedBy,
-        d.deletedBy -> entity.deletedBy
+        d.updatedAt -> entity.updatedAt,
+        d.deletedBy -> entity.deletedBy,
+        d.deletedAt -> entity.deletedAt
       ).where.eq(d.id, entity.id)
     }.update.apply()
     entity 

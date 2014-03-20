@@ -3,6 +3,7 @@ package dsmoq.models
 import scalikejdbc._
 import scalikejdbc.SQLInterpolation._
 import org.joda.time.{DateTime}
+import PostgresqlHelper._
 
 case class User(
   id: String,
@@ -52,9 +53,9 @@ object User extends SQLSyntaxSupport[User] {
 
   //val autoSession = AutoSession
 
-  def find(id: Any)(implicit session: DBSession = autoSession): Option[User] = {
+  def find(id: String)(implicit session: DBSession = autoSession): Option[User] = {
     withSQL { 
-      select.from(User as u).where.eq(u.id, id)
+      select.from(User as u).where.eq(u.id, sqls.uuid(id))
     }.map(User(u.resultName)).single.apply()
   }
           

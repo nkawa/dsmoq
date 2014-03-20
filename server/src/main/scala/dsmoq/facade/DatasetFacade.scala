@@ -1,21 +1,121 @@
 package dsmoq.facade
 
 import scala.util.{Failure, Try, Success}
-import org.scalatra.servlet.FileItem
 import scalikejdbc._, SQLInterpolation._
 import java.util.UUID
 import java.nio.file.Paths
 import dsmoq.AppConf
-
+import dsmoq.models._
 import dsmoq.models.PostgresqlHelper._
+import dsmoq.exceptions.{ValidationException, NotAuthorizedException}
+import org.joda.time.DateTime
+import org.scalatra.servlet.FileItem
 
 object DatasetFacade {
+  /**
+   * データセットを新規作成します。
+   * @param params
+   * @return
+   */
+  def create(params: dsmoq.facade.data.DatasetData.CreateDatasetParams): Try[dsmoq.facade.data.DatasetData.Dataset] = {
+    try {
+      if (params.userInfo.isGuest) throw new NotAuthorizedException
+      if (params.files.getOrElse(Seq.empty).isEmpty) throw new ValidationException
+
+      DB localTx { implicit s =>
+        val myself = User.find(params.userInfo.id).get
+        val myGroup = getPersonalGroup(myself.id).get
+
+        val datasetId = UUID.randomUUID().toString
+        val timestamp = DateTime.now()
+
+        val files = params.files.getOrElse(Seq.empty).map(f => {
+          val file = File.create(
+            id = UUID.randomUUID.toString,
+            datasetId = datasetId,
+            name = f.name,
+            description = "",
+            createdBy = myself.id,
+            createdAt = timestamp,
+            updatedBy = myself.id,
+            updatedAt = timestamp
+          )
+          val histroy = FileHistory.create(
+            id = UUID.randomUUID.toString,
+            fileId = file.id,
+            fileType = 0,
+            fileMime = "",
+            fileSize = f.size,
+            createdBy = myself.id,
+            createdAt = timestamp,
+            updatedBy = myself.id,
+            updatedAt = timestamp
+          )
+          writeFile(datasetId, file.id, histroy.id, f)
+          (file, histroy)
+        })
+        val dataset = Dataset.create(
+          id = datasetId,
+          name = "",
+          description = "",
+          filesCount = files.size,
+          filesSize = files.map(x => x._2.fileSize).sum,
+          createdBy = myself.id,
+          createdAt = timestamp,
+          updatedBy = myself.id,
+          updatedAt = timestamp)
+        val ownership = Ownership.create(
+          id = UUID.randomUUID.toString,
+          datasetId = datasetId,
+          groupId = myGroup.id,
+          accessLevel = AccessLevel.AllowAll,
+          createdBy = myself.id,
+          createdAt = timestamp,
+          updatedBy = myself.id,
+          updatedAt = timestamp)
+
+        Success(dsmoq.facade.data.DatasetData.Dataset(
+          id = dataset.id,
+          meta = dsmoq.facade.data.DatasetData.DatasetMetaData(
+            name = "",
+            description = "",
+            license = "",
+            attributes = Seq.empty
+          ),
+          files = Seq.empty,
+          images = Seq.empty,
+          primaryImage =  "",
+          ownerships = Seq(dsmoq.facade.data.DatasetData.DatasetOwnership(
+            id = myself.id,
+            name = myself.name,
+            fullname = myself.fullname,
+            image = "http://xxx" //TODO
+          )),
+          defaultAccessLevel = AccessLevel.Deny,
+          permission = ownership.accessLevel
+        ))
+      }
+    } catch {
+      case e: RuntimeException => Failure(e)
+    }
+  }
+
+  private def writeFile(datasetId: String, fileId: String, historyId: String, file: FileItem) = {
+    val datasetDir = Paths.get(AppConf.fileDir, datasetId).toFile
+    if (!datasetDir.exists()) datasetDir.mkdir()
+
+    val fileDir = datasetDir.toPath.resolve(fileId).toFile
+    if (!fileDir.exists()) fileDir.mkdir()
+
+    file.write(fileDir.toPath.resolve(historyId).toFile)
+  }
+
   /**
    * データセットを検索し、該当するデータセットの一覧を取得します。
    * @param params
    * @return
    */
-  def search(params: SearchDatasetsParams): Try[Datasets] = {
+  def search(params: dsmoq.facade.data.DatasetData.SearchDatasetsParams): Try[dsmoq.facade.data.RangeSlice[dsmoq.facade.data.DatasetData.DatasetsSummary]] = {
     try {
       val offset = params.offset.getOrElse("0").toInt
       val limit = params.limit.getOrElse("20").toInt
@@ -24,7 +124,7 @@ object DatasetFacade {
         val groups = getJoinedGroups(params.userInfo)
         val count = countDatasets(groups)
 
-        val summary = DatasetsSummary(count, limit, offset)
+        val summary = dsmoq.facade.data.RangeSliceSummary(count, limit, offset)
         val results = if (count > offset) {
           val datasets = findDatasets(groups, limit, offset)
           val datasetIds = datasets.map(_._1.id)
@@ -37,8 +137,7 @@ object DatasetFacade {
           datasets.map(x => {
             val ds = x._1
             val permission = x._2
-
-            DatasetsResult(
+            dsmoq.facade.data.DatasetData.DatasetsSummary(
               id = ds.id,
               name = ds.name,
               description = ds.description,
@@ -54,8 +153,7 @@ object DatasetFacade {
         } else {
           List.empty
         }
-
-        Success(Datasets(summary, results))
+        Success(dsmoq.facade.data.RangeSlice(summary, results))
       }
     } catch {
       case e: Exception => Failure(e)
@@ -67,7 +165,7 @@ object DatasetFacade {
    * @param params
    * @return
    */
-  def get(params: GetDatasetParams): Try[Dataset] = {
+  def get(params: dsmoq.facade.data.DatasetData.GetDatasetParams): Try[dsmoq.facade.data.DatasetData.Dataset] = {
     try {
       DB readOnly { implicit s =>
         val groups = getJoinedGroups(params.userInfo)
@@ -75,20 +173,20 @@ object DatasetFacade {
         (for {
           dataset <- getDataset(params.id)
           permission <- getPermission(params.id, groups)
-          guestAccessLevel <- getGuestAccessLevel(params.id)
+          guestAccessLevel <- Some(getGuestAccessLevel(params.id))
         } yield {
-          Dataset(
+          dsmoq.facade.data.DatasetData.Dataset(
             id = dataset.id,
-            files = List.empty,
-            meta = DatasetMetaData(
+            files = Seq.empty,
+            meta = dsmoq.facade.data.DatasetData.DatasetMetaData(
               name = dataset.name,
               description = dataset.description,
-              license = 0,
-              attributes = List.empty
+              license = "",
+              attributes = Seq.empty
             ),
-            images = List.empty,
+            images = Seq.empty,
             primaryImage = "",
-            ownerships = List.empty,
+            ownerships = Seq.empty,
             defaultAccessLevel = guestAccessLevel,
             permission = permission
           )
@@ -245,149 +343,16 @@ object DatasetFacade {
 //    ))
   }
 
-  def createDataset(params: CreateDatasetParams): Try[Dataset] = {
-    // FIXME ログインユーザーかどうかの処理(現状は例外)
-    if (params.userInfo.isGuest) {
-      return Failure(new Exception("No Session"))
-    }
-
-    val datasetID = UUID.randomUUID().toString
-    // データセットのファイル情報と画像情報をタプルとして管理
-    // FIXME ユーザー情報は暫定的にIDを格納
-    val files = params.files match {
-      case Some(x) =>
-        for {
-          f <- x
-          if f.size != 0 && f.name != null
-        } yield {
-          val fileID = UUID.randomUUID().toString
-          val datasetFile = DatasetFile(
-            id = fileID,
-            name = f.name,
-            description = "file_description_" + fileID,
-            url = Paths.get(datasetID, fileID + '.' + f.name.split('.').last).toString,
-            fileSize = f.size,
-            user = params.userInfo.id
-          )
-          Pair(datasetFile, f)
-        }
-      case None =>
-        // FIXME ファイルが空の時の処理(現状は例外)
-        return Failure(new Exception("No Files"))
-    }
-    // FIXME ファイルがないときの処理(現状は例外)
-    if (files.size == 0) {
-      return Failure(new Exception("No Files"))
-    }
-
-    // データセットの初期メタデータは適当に作る(名前のみ)
-    val datasetName = "dataset_" + files(0)._1.name
-    // FIXME ライセンスIDの指定
-    val licenseID = UUID.randomUUID().toString
-    val datasetMetaData = DatasetMetaData(datasetName, "", 1, List())
-
-    // ユーザーの画像情報はDBから引く
-    val imageInfo = DB readOnly { implicit session =>
-      sql"""
-        SELECT
-          images.*
-        FROM
-          users
-        INNER JOIN
-          images
-        ON
-          users.image_id = images.id
-        WHERE
-          users.id = UUID(${params.userInfo.id})
-      """.map(_.toMap).single.apply()
-    } match {
-      case Some(x) => x
-      // FIXME ユーザーのイメージがないときの処理(現状は例外)
-      case None => return Failure(new Exception("No Files"))
-    }
-    val datasetOwnerships = List(DatasetOwnership(
-      params.userInfo.id,
-      1,
-      params.userInfo.name,
-      imageInfo("file_path").toString
-    ))
-
-    // FIXME ファイルパス読み込み 外部ライブラリ使うか要検討
-    val basePath = AppConf.fileDir
-
-    DB localTx { implicit session =>
-      // save dataset
-      sql"""
-        INSERT INTO datasets
-          (id, name, description, license_id, default_access_level,
-           created_by, updated_by)
-        VALUES
-          (UUID(${datasetID}), ${datasetName}, '', UUID(${licenseID}), 0,
-           UUID(${params.userInfo.id}), UUID(${params.userInfo.id}))
-      """.update().apply()
-
-      // save files
-      files.foreach{x =>
-        // FIXME file_type, file_attributesの指定があれば
-        val fileType = 0
-        val fileAttributes = "{}"
-        sql"""
-          INSERT INTO files
-            (id, dataset_id, name, description, file_type, file_attributes,
-             created_by, updated_by)
-          VALUES
-            (UUID(${x._1.id}), UUID(${datasetID}), ${x._1.name}, ${x._1.description}, ${fileType}, JSON(${fileAttributes}),
-             UUID(${params.userInfo.id}), UUID(${params.userInfo.id}))
-        """.update().apply()
-
-        sql"""
-        INSERT INTO file_histories
-          (file_id, file_path, created_by, updated_by)
-        VALUES
-          (UUID(${x._1.id}), ${x._1.url}, UUID(${params.userInfo.id}), UUID(${params.userInfo.id}))
-       """.update().apply()
-      }
-
-      // save ownerships onwer_type=1(user)
-      sql"""
-      INSERT INTO ownerships
-        (dataset_id, owner_type, owner_id, access_level, created_by, updated_by)
-      VALUES
-        (UUID(${datasetID}), 1, UUID(${params.userInfo.id}), 3, UUID(${params.userInfo.id}), UUID(${params.userInfo.id}))
-      """.update().apply()
-
-      // ファイル保存パス：設定パス + /datasetID/ + fileID
-      files.foreach {x =>
-        val path = Paths.get(basePath, x._1.url)
-        if (!path.toFile.getParentFile.exists()) {
-          path.toFile.getParentFile.mkdir()
-        }
-        x._2.write(path.toFile)
-      }
-    }
-
-    Success(Dataset(
-      id = datasetID,
-      files = files.map(_._1),
-      meta = datasetMetaData,
-      images = List(),
-      primaryImage =  null,
-      ownerships = datasetOwnerships,
-      defaultAccessLevel = 0,
-      permission = 3
-    ))
-  }
-
-  private def getJoinedGroups(user: User)(implicit s: DBSession) = {
+  private def getJoinedGroups(user: dsmoq.facade.data.LoginData.User)(implicit s: DBSession) = {
     if (user.isGuest) {
       Seq.empty
     } else {
-      val g = dsmoq.models.Group.syntax("g")
-      val m = dsmoq.models.Member.syntax("m")
+      val g = Group.syntax("g")
+      val m = Member.syntax("m")
       withSQL {
         select(g.id)
-          .from(dsmoq.models.Group as g)
-          .innerJoin(dsmoq.models.Member as m).on(m.groupId, g.id)
+          .from(Group as g)
+          .innerJoin(Member as m).on(m.groupId, g.id)
           .where
             .eq(m.userId, sqls.uuid(user.id))
             .and
@@ -398,15 +363,30 @@ object DatasetFacade {
     }
   }
 
+  private def getPersonalGroup(userId: String)(implicit s:DBSession) = {
+    val g = Group.syntax("g")
+    val m = Member.syntax("m")
+    withSQL {
+      select(g.result.*)
+        .from(Group as g)
+        .innerJoin(Member as m).on(g.id, m.groupId)
+        .where
+          .eq(m.userId, sqls.uuid(userId))
+          .and
+          .eq(g.groupType, GroupType.Personal)
+        .limit(1)
+    }.map(rs => Group(g.resultName)(rs)).single().apply()
+  }
+
   private def countDatasets(groups : Seq[String])(implicit s: DBSession) = {
-    val ds = dsmoq.models.Dataset.syntax("ds")
-    val o = dsmoq.models.Ownership.syntax("o")
+    val ds = Dataset.syntax("ds")
+    val o = Ownership.syntax("o")
     withSQL {
       select(sqls.count(sqls.distinct(ds.id)).append(sqls"count"))
-        .from(dsmoq.models.Dataset as ds)
-        .innerJoin(dsmoq.models.Ownership as o).on(o.datasetId, ds.id)
+        .from(Dataset as ds)
+        .innerJoin(Ownership as o).on(o.datasetId, ds.id)
         .where
-        .inByUuid(o.ownerId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
+        .inByUuid(o.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
         .and
         .gt(o.accessLevel, 0)
         .and
@@ -417,14 +397,14 @@ object DatasetFacade {
   }
 
   private def findDatasets(groups: Seq[String], limit: Int, offset: Int)(implicit s: DBSession) = {
-    val ds = dsmoq.models.Dataset.syntax("ds")
-    val o = dsmoq.models.Ownership.syntax("o")
+    val ds = Dataset.syntax("ds")
+    val o = Ownership.syntax("o")
     withSQL {
       select(ds.result.*, sqls.max(o.accessLevel).append(sqls"access_level"))
-        .from(dsmoq.models.Dataset as ds)
-        .innerJoin(dsmoq.models.Ownership as o).on(ds.id, o.datasetId)
+        .from(Dataset as ds)
+        .innerJoin(Ownership as o).on(ds.id, o.datasetId)
         .where
-          .inByUuid(o.ownerId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
+          .inByUuid(o.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
           .and
           .gt(o.accessLevel, 0)
           .and
@@ -435,49 +415,49 @@ object DatasetFacade {
         .orderBy(ds.updatedAt).desc
         .offset(offset)
         .limit(limit)
-    }.map(rs => (dsmoq.models.Dataset(ds.resultName)(rs), rs.int("access_level"))).list().apply()
+    }.map(rs => (Dataset(ds.resultName)(rs), rs.int("access_level"))).list().apply()
   }
 
   private def getDataset(id: String)(implicit s: DBSession) = {
-    dsmoq.models.Dataset.find(id)
+    Dataset.find(id)
   }
 
   private def getPermission(id: String, groups: Seq[String])(implicit s: DBSession) = {
-    val o = dsmoq.models.Ownership.syntax("o")
+    val o = Ownership.syntax("o")
     withSQL {
-      select(sqls.coalesce(sqls.max(o.accessLevel), 0).append(sqls"access_level"))
-        .from(dsmoq.models.Ownership as o)
+      select(sqls.max(o.accessLevel).append(sqls"access_level"))
+        .from(Ownership as o)
         .where
           .eq(o.datasetId, sqls.uuid(id))
           .and
-          .inByUuid(o.ownerId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
-    }.map(_.int("access_level")).single().apply()
+          .inByUuid(o.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
+    }.map(_.intOpt("access_level")).single().apply().flatten
   }
 
   private def getGuestAccessLevel(datasetId: String)(implicit s: DBSession) = {
-    val o = dsmoq.models.Ownership.syntax("o")
+    val o = Ownership.syntax("o")
     withSQL {
       select(o.result.accessLevel)
-        .from(dsmoq.models.Ownership as o)
+        .from(Ownership as o)
         .where
         .eq(o.datasetId, sqls.uuid(datasetId))
         .and
-        .eq(o.ownerId, sqls.uuid(AppConf.guestGroupId))
+        .eq(o.groupId, sqls.uuid(AppConf.guestGroupId))
         .and
         .isNull(o.deletedAt)
-    }.map(_.int(o.resultName.accessLevel)).single().apply()
+    }.map(_.int(o.resultName.accessLevel)).single().apply().getOrElse(0)
   }
 
   private def getGuestAccessLevel(datasetIds: Seq[String])(implicit s: DBSession): Map[String, Int] = {
     if (datasetIds.nonEmpty) {
-      val o = dsmoq.models.Ownership.syntax("o")
+      val o = Ownership.syntax("o")
       withSQL {
         select(o.result.datasetId, o.result.accessLevel)
-          .from(dsmoq.models.Ownership as o)
+          .from(Ownership as o)
           .where
             .inByUuid(o.datasetId, datasetIds)
             .and
-            .eq(o.ownerId, sqls.uuid(AppConf.guestGroupId))
+            .eq(o.groupId, sqls.uuid(AppConf.guestGroupId))
             .and
             .isNull(o.deletedAt)
       }.map(x => (x.string(o.resultName.datasetId), x.int(o.resultName.accessLevel)) ).list().apply().toMap
@@ -488,19 +468,19 @@ object DatasetFacade {
 
   private def getOwners(datasetIds: Seq[String])(implicit s: DBSession) = {
     if (datasetIds.nonEmpty) {
-      val o = dsmoq.models.Ownership.syntax("o")
-      val g = dsmoq.models.Group.syntax("g")
+      val o = Ownership.syntax("o")
+      val g = Group.syntax("g")
       val tmp = withSQL {
         select(o.result.*, g.result.*)
-          .from(dsmoq.models.Ownership as o)
-          .innerJoin(dsmoq.models.Group as g).on(g.id, o.ownerId)
+          .from(Ownership as o)
+          .innerJoin(Group as g).on(g.id, o.groupId)
           .where
           .inByUuid(o.datasetId, datasetIds)
           .and
           .isNull(o.deletedAt)
           .and
           .isNull(g.deletedAt)
-      }.map(rs => (dsmoq.models.Group(g.resultName)(rs), rs.int(o.accessLevel))).list().apply()
+      }.map(rs => (Group(g.resultName)(rs), rs.int(o.resultName.accessLevel))).list().apply()
 
       tmp.groupBy(_._1.id)
 //        .groupBy(x => {
@@ -544,107 +524,3 @@ object DatasetFacade {
     Map.empty
   }
 }
-
-
-// request
-case class SearchDatasetsParams(
-  query: Option[String],
-  group: Option[String],
-  attributes: Map[String, Seq[String]],
-  limit: Option[String],
-  offset: Option[String],
-  userInfo: User
-)
-
-case class GetDatasetParams(
-  id: String,
-  userInfo: User
-)
-
-case class CreateDatasetParams(
-  userInfo: User,
-  files: Option[Seq[FileItem]]
-)
-
-// response
-case class Datasets(
-  summary: DatasetsSummary,
-  results: List[DatasetsResult]
-)
-
-case class DatasetsSummary(
-  total: Int,
-  count: Int = 20,
-  offset: Int = 0
-)
-
-case class DatasetsResult(
-  id: String,
-  name: String,
-  description: String,
-  image: String,
-  license: Int = 1,
-  attributes: List[DatasetAttribute],
-  ownerships: List[DatasetOwnership],
-  files: Int,
-  dataSize: Int,
-  defaultAccessLevel: Int,
-  permission: Int
-)
-
-case class DatasetsOwner(
-  id: Int,
-  name: String,
-  image: String
-)
-
-case class DatasetsGroup(
-  id: Int,
-  name: String,
-  image: String
-)
-
-case class Dataset(
-  id: String,
-  files: Seq[DatasetFile],
-  meta: DatasetMetaData,
-  images: List[DatasetImage],
-  primaryImage: String,
-  ownerships: List[DatasetOwnership],
-  defaultAccessLevel: Int,
-  permission: Int
-)
-
-case class DatasetMetaData(
-  name: String,
-  description: String,
-  license : Int,
-  attributes: List[DatasetAttribute]
-)
-
-case class DatasetAttribute(
-  name: String,
-  value: String
-)
-
-// TODO 返すべきユーザー情報
-case class DatasetFile(
-  id: String,
-  name: String,
-  description: String,
-  url: String,
-  fileSize: Long,
-  user: String
-)
-
-case class DatasetImage(
-  id: String,
-  url: String
-)
-
-case class DatasetOwnership(
-  id: String,
-  ownerType: Int,
-  name: String,
-  image: String
-)

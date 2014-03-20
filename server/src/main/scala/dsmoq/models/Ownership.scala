@@ -3,19 +3,19 @@ package dsmoq.models
 import scalikejdbc._
 import scalikejdbc.SQLInterpolation._
 import org.joda.time.{DateTime}
+import PostgresqlHelper._
 
 case class Ownership(
   id: String,
   datasetId: String,
-  ownerType: Int, 
-  ownerId: String,
+  groupId: String,
   accessLevel: Int, 
-  createdAt: DateTime, 
-  updatedAt: DateTime, 
-  deletedAt: Option[DateTime] = None, 
   createdBy: String,
+  createdAt: DateTime, 
   updatedBy: String,
-  deletedBy: Option[String] = None) {
+  updatedAt: DateTime,
+  deletedBy: Option[String] = None,
+  deletedAt: Option[DateTime] = None) {
 
   def save()(implicit session: DBSession = Ownership.autoSession): Ownership = Ownership.save(this)(session)
 
@@ -28,20 +28,19 @@ object Ownership extends SQLSyntaxSupport[Ownership] {
 
   override val tableName = "ownerships"
 
-  override val columns = Seq("id", "dataset_id", "owner_type", "owner_id", "access_level", "created_at", "updated_at", "deleted_at", "created_by", "updated_by", "deleted_by")
+  override val columns = Seq("id", "dataset_id", "group_id", "access_level", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
 
   def apply(o: ResultName[Ownership])(rs: WrappedResultSet): Ownership = new Ownership(
     id = rs.string(o.id),
     datasetId = rs.string(o.datasetId),
-    ownerType = rs.int(o.ownerType),
-    ownerId = rs.string(o.ownerId),
+    groupId = rs.string(o.groupId),
     accessLevel = rs.int(o.accessLevel),
-    createdAt = rs.timestamp(o.createdAt).toDateTime,
-    updatedAt = rs.timestamp(o.updatedAt).toDateTime,
-    deletedAt = rs.timestampOpt(o.deletedAt).map(_.toDateTime),
     createdBy = rs.string(o.createdBy),
+    createdAt = rs.timestamp(o.createdAt).toDateTime,
     updatedBy = rs.string(o.updatedBy),
-    deletedBy = rs.stringOpt(o.deletedBy)
+    updatedAt = rs.timestamp(o.updatedAt).toDateTime,
+    deletedBy = rs.stringOpt(o.deletedBy),
+    deletedAt = rs.timestampOpt(o.deletedAt).map(_.toDateTime)
   )
       
   val o = Ownership.syntax("o")
@@ -77,55 +76,51 @@ object Ownership extends SQLSyntaxSupport[Ownership] {
   def create(
     id: String,
     datasetId: String,
-    ownerType: Int,
-    ownerId: String,
+    groupId: String,
     accessLevel: Int,
-    createdAt: DateTime,
-    updatedAt: DateTime,
-    deletedAt: Option[DateTime] = None,
     createdBy: String,
+    createdAt: DateTime,
     updatedBy: String,
-    deletedBy: Option[String] = None)(implicit session: DBSession = autoSession): Ownership = {
+    updatedAt: DateTime,
+    deletedBy: Option[String] = None,
+    deletedAt: Option[DateTime] = None)(implicit session: DBSession = autoSession): Ownership = {
     withSQL {
       insert.into(Ownership).columns(
         column.id,
         column.datasetId,
-        column.ownerType,
-        column.ownerId,
+        column.groupId,
         column.accessLevel,
-        column.createdAt,
-        column.updatedAt,
-        column.deletedAt,
         column.createdBy,
+        column.createdAt,
         column.updatedBy,
-        column.deletedBy
+        column.updatedAt,
+        column.deletedBy,
+        column.deletedAt
       ).values(
-        id,
-        datasetId,
-        ownerType,
-        ownerId,
+        sqls.uuid(id),
+        sqls.uuid(datasetId),
+        sqls.uuid(groupId),
         accessLevel,
+        sqls.uuid(createdBy),
         createdAt,
+        sqls.uuid(updatedBy),
         updatedAt,
-        deletedAt,
-        createdBy,
-        updatedBy,
-        deletedBy
+        deletedBy.map(sqls.uuid),
+        deletedAt
       )
     }.update.apply()
 
     Ownership(
       id = id,
       datasetId = datasetId,
-      ownerType = ownerType,
-      ownerId = ownerId,
+      groupId = groupId,
       accessLevel = accessLevel,
-      createdAt = createdAt,
-      updatedAt = updatedAt,
-      deletedAt = deletedAt,
       createdBy = createdBy,
+      createdAt = createdAt,
       updatedBy = updatedBy,
-      deletedBy = deletedBy)
+      updatedAt = updatedAt,
+      deletedBy = deletedBy,
+      deletedAt = deletedAt)
   }
 
   def save(entity: Ownership)(implicit session: DBSession = autoSession): Ownership = {
@@ -133,15 +128,14 @@ object Ownership extends SQLSyntaxSupport[Ownership] {
       update(Ownership as o).set(
         o.id -> entity.id,
         o.datasetId -> entity.datasetId,
-        o.ownerType -> entity.ownerType,
-        o.ownerId -> entity.ownerId,
+        o.groupId -> entity.groupId,
         o.accessLevel -> entity.accessLevel,
-        o.createdAt -> entity.createdAt,
-        o.updatedAt -> entity.updatedAt,
-        o.deletedAt -> entity.deletedAt,
         o.createdBy -> entity.createdBy,
+        o.createdAt -> entity.createdAt,
         o.updatedBy -> entity.updatedBy,
-        o.deletedBy -> entity.deletedBy
+        o.updatedAt -> entity.updatedAt,
+        o.deletedBy -> entity.deletedBy,
+        o.deletedAt -> entity.deletedAt
       ).where.eq(o.id, entity.id)
     }.update.apply()
     entity 

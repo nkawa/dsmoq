@@ -6,6 +6,8 @@ import org.scalatra.json.JacksonJsonSupport
 import dsmoq.facade._
 import scala.util.{Success, Failure}
 import org.scalatra.servlet.{MultipartConfig, FileUploadSupport}
+import dsmoq.facade.data.LoginData._
+import dsmoq.facade.data.DatasetData._
 
 class ServerApiController extends ScalatraServlet with JacksonJsonSupport with SessionTrait with FileUploadSupport {
   protected implicit val jsonFormats: Formats = DefaultFormats
@@ -91,7 +93,7 @@ class ServerApiController extends ScalatraServlet with JacksonJsonSupport with S
     val response = for {
       userInfo <- getUserInfoFromSession()
       facadeParams = CreateDatasetParams(userInfo, files)
-      dataset <- DatasetFacade.createDataset(facadeParams)
+      dataset <- DatasetFacade.create(facadeParams)
     } yield {
       AjaxResponse("OK", dataset)
     }
