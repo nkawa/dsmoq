@@ -75,6 +75,9 @@ class DatasetEditView{
             .append({name: TAB_FIELD_ACL,    title: "Access Control", component: Templates.create("DatasetEditAcl")})
             .toComponent()
             .decorate(putFileInputField)
+            .decorate(function(html){
+                return JQuery.j('<div class="text-right"><a class="btn btn-primary" data-link-cancel>Back</a></div>').add(html);
+            })
             .event(function(html){
                 var promise = new Promise();
                 html.find("[data-link-save-upload]").on("click", function(_){
@@ -84,6 +87,7 @@ class DatasetEditView{
                     .catchError(function(_){putFileInputField(html);});
                 });
                 html.find("[data-link-cancel]").on("click", function(_){ promise.resolve(nextPage);});
+
                 return promise;
             });
         function toModel(input: Dynamic):Dynamic{
@@ -121,6 +125,10 @@ class DatasetEditView{
             case Some(id): Common.connectionPanel("edit-view", comp, Api.datasetDetail(id));
             case None:     comp.render({});
         };
+    }
+
+    private static function layout(html){
+        return JQuery.j('<div><a class="btn btn-primary">Done</a></div>').append(html);
     }
 
     private static function putFileInputField(html: Html){
