@@ -39,6 +39,8 @@ class DatasetEditView{
             Common.select("access-level", accessLevel);
         }
 
+        var groupCombobox = Common.select("group-combobox", Settings.groups);
+
         var tabInfo = if(isNew){
             {name: TAB_FIELD_UPLOAD, disables:[TAB_FIELD_BASIC, TAB_FIELD_ACL]};
         }else{
@@ -77,7 +79,7 @@ class DatasetEditView{
         var aclTable:Component<Dynamic, Void, Void> = Table.editable(
                 "acl-table",
                 [Table.hiddenCell, Common.label, selectACL],
-                [Table.hiddenCell, Common.textfield("user-name"), selectACL],
+                [Table.hiddenCell, groupCombobox, selectACL],
                 ["", "","1"],
                 tableActions, true).state(Core.ignore).event(function(_){return Promises.void();});
 

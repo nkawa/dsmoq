@@ -1,5 +1,12 @@
 class Settings{
     public static var api = new ApiUrl();
+
+    public static var groups = [
+        {displayName: "Hanako", value: "1"},
+        {displayName: "Taro", value: "2"},
+        {displayName: "Yoshio", value: "3"},
+        {displayName: "Tanaka", value: "4"}
+    ];
 }
 
 private class ApiUrl{
