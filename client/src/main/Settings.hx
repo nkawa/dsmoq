@@ -37,7 +37,7 @@ private class ApiUrl{
     public function datasetChangeAcl(datasetId: String, itemId: String){
         return "/resources/dummy/api/ok.json";
     }
-    public function datasetRemoveAcl(datasetId: String, itemId: String){
+    public function datasetDeleteAcl(datasetId: String, itemId: String){
         return "/resources/dummy/api/ok.json";
     }
 }

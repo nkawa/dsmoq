@@ -55,6 +55,14 @@ class Api{
         };
     }
 
+    public static function datasetsAclDelete(datasetId, groupId){
+        return {
+            method: HttpMethod.Delete,
+            url: Settings.api.datasetDeleteAcl(datasetId, datasetId),
+            params: {}
+        };
+    }
+
     public static function extractData<A>(json: JsonResponse<A>, field = ""):Null<A>{
         return if(json.status.toUpperCase() == "OK"){
             if(json.data == null){
@@ -98,4 +106,11 @@ class Api{
         );
     }
 
+    public static function sendDatasetsAclDelete(
+        datasetId: String, groupId: String
+    ): HttpProcess<Dynamic>{
+        return Connection.then(
+            Connection.send(datasetsAclDelete(datasetId, groupId)), extractData.bind(_, "")
+        );
+    }
 }

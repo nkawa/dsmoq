@@ -58,9 +58,8 @@ class DatasetEditView{
 
         var tableActions: TableAction = {
             onDelete: function(xs){
-                return Promises.tap(function(p){
-                    haxe.Timer.delay(function(){p.resolve(Some([]));}, 1000);
-                });
+                var model = toAclModel(xs);
+                return Api.sendDatasetsAclDelete(Core.get(id), model.id).event.then(Some);
             },
             onAdd: function(xs){
                 var model = toAclModel(xs);
