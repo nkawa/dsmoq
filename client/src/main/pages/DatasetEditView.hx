@@ -43,12 +43,21 @@ class DatasetEditView{
             {name: TAB_FIELD_BASIC, disables:[]};
         }
 
+        var tableActions = {
+            onDelete: function(xs){
+                return Promises.value(true);
+            },
+            onAdd: function(xs){
+                return Promises.value(xs[1] != "");
+            }
+        }
+
         var aclTable:Component<Dynamic, Void, Void> = Table.editable(
                 "acl-table",
                 [Table.hiddenCell, Common.label, selectACL],
                 [Table.hiddenCell, Common.textfield("user-name"), selectACL],
                 ["", "","1"],
-                true).state(Core.ignore).event(function(_){return Promises.void();});
+                tableActions, true).state(Core.ignore).event(function(_){return Promises.void();});
 
         var tab:Component<Dynamic, Void, Page> = Tab.base()
             .append({name: TAB_FIELD_UPLOAD, title: "Files",          component: Templates.create("DatasetEditUpload")})

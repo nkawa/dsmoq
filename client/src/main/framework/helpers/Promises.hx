@@ -13,6 +13,10 @@ class Promises{
         return promise;
     }
 
+    public static function value<A>(x: A): Promise<A>{
+        return tap(function(p){p.resolve(x);});
+    }
+
     public static function void<A>(): Promise<A> {      // TODO: to be lazy evaluation
         var promise = new Promise();
         promise.reject("You can't call Promise<Void>.");

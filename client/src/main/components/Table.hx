@@ -10,6 +10,11 @@ typedef RowStrings = Array<String>
 
 typedef Row = Component<RowStrings, RowStrings, Void>
 
+typedef TableAction = {
+    onDelete: RowStrings -> Promise<Bool>,
+    onAdd:    RowStrings -> Promise<Bool>
+}
+
 class Table{
     static inline var DELETE_BUTTON_CLASS = "component-table-delete-button";
     static inline var INSERT_BUTTON_CLASS = "component-table-insert-button";
@@ -42,12 +47,20 @@ class Table{
             });
     }
 
-    public static function editable(name, 
+    private static var defaultActions: TableAction = {
+        onDelete: function(xs: RowStrings){return Promises.value(true);},
+        onAdd:    function(xs: RowStrings){return Promises.value(true);}
+    }
+
+    public static function editable(name,
         row:      Array<Component<String, String, Void>>,
         inputRow: Array<Component<String, String, Void>>,
         defaults: RowStrings,
-        atLeastOne = false 
+        actions:TableAction = null,
+        atLeastOne = false
     ){
+        if(actions == null) actions = defaultActions;
+
         function addColumn(isInsert, row){
             var klass = isInsert ? 'btn-success $INSERT_BUTTON_CLASS' : 'btn-warning $DELETE_BUTTON_CLASS';
             var message = isInsert ? "add" : "del";
@@ -63,6 +76,12 @@ class Table{
         var inputRowComponent = Components.group(inputRow, JQuery.join('<td></td>'))
             .decorate(addColumn.bind(true));
 
+        function ifTrue(p: Promise<Bool>, f: Void -> Void){
+            p.then(function(b){
+                if(b) f();
+            });
+        }
+
         function render(xs: Array<RowStrings>){
             var renderedInputRow = inputRowComponent.render(defaults).decorate(JQuery.wrapBy.bind('<tr></tr>'));
             var rendereds = xs.map(rowComponent.render);
@@ -73,21 +92,25 @@ class Table{
                 if(!(atLeastOne && buttons.length == 1)){
                     var index = buttons.index(untyped __js__('this'));
                     body.find('tr:nth-child(${index+1})').remove();
-                    rowStates.splice(index, 1);
-                    afterRendering(body);
+                    ifTrue(actions.onDelete(rowStates[index]()), function(){
+                        rowStates.splice(index, 1);
+                        afterRendering(body);
+                    });
                 }
             }
             function addRow(newInput: RowStrings){
-                var newRow = rowComponent.render(newInput).decorate(JQuery.wrapBy.bind('<tr></tr>'));
-                newRow.html.insertBefore(renderedInputRow.html);
-                newRow.html.find('.$DELETE_BUTTON_CLASS').on("click", removeRow);
-                rowStates.push(newRow.state);
-                renderedInputRow.html.remove();
-                renderedInputRow = inputRowComponent.render(defaults).decorate(JQuery.wrapBy.bind('<tr></tr>'));
-                body.append(renderedInputRow.html);
-                afterRendering(body);
-                renderedInputRow.html.find('.$INSERT_BUTTON_CLASS').on("click", function(_){
-                    addRow(renderedInputRow.state());
+                ifTrue(actions.onAdd(newInput), function(){
+                    var newRow = rowComponent.render(newInput).decorate(JQuery.wrapBy.bind('<tr></tr>'));
+                    newRow.html.insertBefore(renderedInputRow.html);
+                    newRow.html.find('.$DELETE_BUTTON_CLASS').on("click", removeRow);
+                    rowStates.push(newRow.state);
+                    renderedInputRow.html.remove();
+                    renderedInputRow = inputRowComponent.render(defaults).decorate(JQuery.wrapBy.bind('<tr></tr>'));
+                    body.append(renderedInputRow.html);
+                    afterRendering(body);
+                    renderedInputRow.html.find('.$INSERT_BUTTON_CLASS').on("click", function(_){
+                        addRow(renderedInputRow.state());
+                    });
                 });
             }
 
