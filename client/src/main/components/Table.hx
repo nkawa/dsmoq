@@ -12,7 +12,8 @@ typedef Row = Component<RowStrings, RowStrings, Void>
 
 typedef TableAction = {
     onDelete: RowStrings -> Promise<Bool>,
-    onAdd:    RowStrings -> Promise<Bool>
+    onAdd:    RowStrings -> Promise<Bool>,
+    ?additionalAction: Html -> (RowStrings -> Void) -> Void
 }
 
 class Table{
@@ -76,9 +77,10 @@ class Table{
         var inputRowComponent = Components.group(inputRow, JQuery.join('<td></td>'))
             .decorate(addColumn.bind(true));
 
-        function ifTrue(p: Promise<Bool>, f: Void -> Void){
+        function ifTrue(p: Promise<Bool>, f: Void -> Void, final: Void -> Void = null){
             p.then(function(b){
                 if(b) f();
+                if(final != null) final();
             });
         }
 
@@ -98,23 +100,30 @@ class Table{
                     });
                 }
             }
-            function addRow(newInput: RowStrings, b: Html){
+            var addRow;
+
+            function refreshInputRow(){
+                renderedInputRow.html.remove();
+                renderedInputRow = inputRowComponent.render(defaults).decorate(JQuery.wrapBy.bind('<tr></tr>'));
+                body.append(renderedInputRow.html);
+                afterRendering(body);
+                renderedInputRow.html.find('.$INSERT_BUTTON_CLASS').on("click", function(_){
+                    addRow(renderedInputRow.state(), JQuery.self());
+                });
+            }
+
+            addRow = function(newInput: RowStrings, b: Html){
                 (untyped b).button("loading");
                 ifTrue(actions.onAdd(newInput), function(){
                     var newRow = rowComponent.render(newInput).decorate(JQuery.wrapBy.bind('<tr></tr>'));
                     newRow.html.insertBefore(renderedInputRow.html);
                     newRow.html.find('.$DELETE_BUTTON_CLASS').on("click", removeRow);
+                    if(actions.additionalAction != null){
+                       // actions.additionalAction(newRow.html);
+                    }
                     rowStates.push(newRow.state);
-                    renderedInputRow.html.remove();
-                    renderedInputRow = inputRowComponent.render(defaults).decorate(JQuery.wrapBy.bind('<tr></tr>'));
-                    body.append(renderedInputRow.html);
-                    afterRendering(body);
-                    renderedInputRow.html.find('.$INSERT_BUTTON_CLASS').on("click", function(_){
-                        addRow(renderedInputRow.state(), JQuery.self());
-                    });
-                });
+                }, refreshInputRow);
             }
-
             renderedInputRow.html.find('.$INSERT_BUTTON_CLASS').on("click", function(_){
                 addRow(renderedInputRow.state(), JQuery.self());
             });
