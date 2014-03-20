@@ -1,5 +1,6 @@
 package pages;
 import promhx.Promise;
+import promhx.Stream;
 import pages.Definitions;
 import framework.Types;
 import framework.helpers.*;
@@ -73,6 +74,17 @@ class DatasetEditView{
                     });
                     // TODO: resource management
                 };
+            },
+            additional: {
+                selector: 'select[name="access-level"]',
+                action:function(target: Html, strings: Html -> RowStrings):Stream<Signal>{
+                    var stream = new Stream();
+                    target.on("change", function(_){
+                        trace(strings(JQuery.self()));
+                        haxe.Timer.delay(function(){stream.resolve(Signal);}, 1000);
+                    });
+                    return stream;
+                }
             }
         }
 

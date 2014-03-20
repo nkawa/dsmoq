@@ -1,5 +1,6 @@
 package components;
 import promhx.Promise;
+import promhx.Stream;
 import framework.Types;
 import framework.JQuery;
 import framework.helpers.*;
@@ -13,7 +14,7 @@ typedef Row = Component<RowStrings, RowStrings, Void>
 typedef TableAction = {
     onDelete: RowStrings -> Promise<Option<RowStrings>>,
     onAdd:    RowStrings -> Promise<Option<RowStrings>>,
-    ?additionalAction: Html -> (RowStrings -> Void) -> Void
+    ?additional: {selector: String, action: Html -> (Html -> RowStrings) -> Stream<Signal>}
 }
 
 class Table{
@@ -34,7 +35,6 @@ class Table{
 
         return Components.list(rowComponent, JQuery.join('<tr></tr>'))
             .decorate(function(html){
-                afterRendering(html);
                 html = JQuery.wrapBy('<tbody></tbody>', html);
                 if(header != null){
                     function td(x){
@@ -61,6 +61,10 @@ class Table{
         atLeastOne = false
     ){
         if(actions == null) actions = defaultActions;
+        var selector = '.$DELETE_BUTTON_CLASS, .$INSERT_BUTTON_CLASS';
+        if(actions.additional!= null){
+            selector = selector + ', ${actions.additional.selector}';
+        }
 
         function addColumn(isInsert, row){
             var klass = isInsert ? 'btn-success $INSERT_BUTTON_CLASS' : 'btn-warning $DELETE_BUTTON_CLASS';
@@ -92,12 +96,12 @@ class Table{
             function removeRow(element: Dynamic){
                 var buttons = body.find('.$DELETE_BUTTON_CLASS');
                 if(!(atLeastOne && buttons.length == 1)){
-                    disableButtons(body);
+                    disableButtons(body, selector);
                     var index = buttons.index(untyped JQuery.self().button('loading'));
                     ifTrue(actions.onDelete(rowStates[index]()), function(_){
                         body.find('tr:nth-child(${index+1})').remove();
                         rowStates.splice(index, 1);
-                        afterRendering(body);
+                        afterRendering(body, selector);
                     });
                 }
             }
@@ -107,21 +111,30 @@ class Table{
                 renderedInputRow.html.remove();
                 renderedInputRow = inputRowComponent.render(defaults).decorate(JQuery.wrapBy.bind('<tr></tr>'));
                 body.append(renderedInputRow.html);
-                afterRendering(body);
+                afterRendering(body, selector);
                 renderedInputRow.html.find('.$INSERT_BUTTON_CLASS').on("click", function(_){
                     addRow(renderedInputRow.state(), JQuery.self());
                 });
             }
 
+            function beforeAdditionalAction(rowHtml: Html){
+                disableButtons(body, selector);
+                var index = body.find(actions.additional.selector).index(rowHtml);
+                return rowStates[index]();
+            }
+
             addRow = function(newInput: RowStrings, b: Html){
-                disableButtons(body);
+                disableButtons(body, selector);
                 (untyped b).button("loading");
                 ifTrue(actions.onAdd(newInput), function(xs){
                     var newRow = rowComponent.render(xs).decorate(JQuery.wrapBy.bind('<tr></tr>'));
                     newRow.html.insertBefore(renderedInputRow.html);
                     newRow.html.find('.$DELETE_BUTTON_CLASS').on("click", removeRow);
-                    if(actions.additionalAction != null){
-                       // actions.additionalAction(newRow.html);
+                    if(actions.additional!= null){
+                        var targetSelector = actions.additional.selector;
+                        actions.additional.action(newRow.html.find(targetSelector), beforeAdditionalAction).then(function(_){
+                            afterRendering(body, selector);
+                        });
                     }
                     rowStates.push(newRow.state);
                 }, refreshInputRow);
@@ -129,8 +142,14 @@ class Table{
             renderedInputRow.html.find('.$INSERT_BUTTON_CLASS').on("click", function(_){
                 addRow(renderedInputRow.state(), JQuery.self());
             });
+            if(actions.additional!= null){
+                var targetSelector = actions.additional.selector;
+                actions.additional.action(body.find(targetSelector), beforeAdditionalAction).then(function(_){
+                    afterRendering(body, selector);
+                });
+            }
             body.find('.$DELETE_BUTTON_CLASS').on("click", removeRow);
-            afterRendering(body);
+            afterRendering(body, selector);
             return {
                 html: JQuery.wrapBy('<table class="table table-bordered table-condensed"></table>', body),
                 state: Core.toState(rowStates),
@@ -140,17 +159,18 @@ class Table{
         return Components.toComponent(render);
     }
 
-    private static function afterRendering(html){
+    private static function afterRendering(html, selector){
         numbering(html);
         hideHiddenCell(html);
-        enableButtons(html);
+        enableButtons(html, selector);
     }
-    private static function disableButtons(html: Html){
-        html.find('.$DELETE_BUTTON_CLASS, .$INSERT_BUTTON_CLASS').addClass("disabled");
+    private static function disableButtons(html: Html, selector){
+        html.find(selector).addClass("disabled");
     }
 
-    private static function enableButtons(html: Html){
-        html.find('.$DELETE_BUTTON_CLASS, .$INSERT_BUTTON_CLASS').removeClass("disabled");
+    private static function enableButtons(html: Html, selector){
+        trace(selector);
+        html.find(selector).removeClass("disabled");
     }
 
     private static function numbering(html: Html){
