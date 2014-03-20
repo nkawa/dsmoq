@@ -31,8 +31,14 @@ class ServerApiController extends ScalatraServlet with JacksonJsonSupport with S
     val facadeParams = SigninParams(id, params("password"))
     LoginFacade.getAuthenticatedUser(facadeParams) match {
       case Success(x) =>
-        setUserInfoToSession(x)
-        AjaxResponse("OK")
+        x match {
+          case Some(y) =>
+            setUserInfoToSession(y)
+            AjaxResponse("OK")
+          case None =>
+            clearSession()
+            AjaxResponse("NG")
+        }
       case Failure(e) =>
         clearSession()
         AjaxResponse("NG")

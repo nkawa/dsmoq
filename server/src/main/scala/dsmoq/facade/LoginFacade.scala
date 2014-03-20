@@ -1,51 +1,52 @@
 package dsmoq.facade
 
-import scala.util.{Failure, Success}
+import scala.util.{Try, Failure, Success}
 import scalikejdbc._, SQLInterpolation._
 import java.security.MessageDigest
 
 object LoginFacade {
-  def getAuthenticatedUser(params: SigninParams) = {
-    // TODO dbアクセス時エラーでFailure返す try~catch
-    val user = try {
-        DB readOnly { implicit session =>
-          sql"""
-            SELECT
-              users.*, passwords.hash
-            FROM
-              users
-            INNER JOIN
-              passwords ON users.password_id = passwords.id
-            INNER JOIN
-              mail_addresses ON users.id = mail_addresses.user_id
-            WHERE
-              users.name = ${params.id}
-            OR
-              mail_addresses.address = ${params.id}
-            LIMIT 1
-          """
-            .map(_.toMap).single.apply()
-        }
-      }
-    // FIXME パスワードのソルトは適当('#' + password + "coi")
-    val saltPassword = "#" + params.password + "coi"
-    val hash = MessageDigest.getInstance("SHA-256").digest(saltPassword.getBytes("UTF-8")).map("%02x".format(_)).mkString
 
-    user match {
-      case Some(x) =>
-        if (hash == x("hash")) {
-          Success(User(
-            x("id").toString,
-            x("name").toString,
-            x("fullname").toString,
-            x("organization").toString,
-            x("title").toString,
-            "http://xxxx",
-            false))
-        } else {
-          Failure(new Exception("User Not Found"))
+  def getAuthenticatedUser(params: SigninParams): Try[Option[User]] = {
+    // TODO dbアクセス時エラーでFailure返す try~catch
+    try {
+      // TODO パスワードソルトを追加
+      val hash = MessageDigest.getInstance("SHA-256").digest(params.password.getBytes("UTF-8")).map("%02x".format(_)).mkString
+
+      DB readOnly { implicit s =>
+        val u = dsmoq.models.User.syntax("u")
+        var a = dsmoq.models.MailAddress.syntax("a")
+        val p = dsmoq.models.Password.syntax("p")
+
+        val user = withSQL {
+          select(u.result.*)
+            .from(dsmoq.models.User as u)
+            .innerJoin(dsmoq.models.MailAddress as a).on(u.id, a.userId)
+            .innerJoin(dsmoq.models.Password as p).on(u.id, p.userId)
+            .where
+              .append(sqls"(")
+                .eq(u.name, params.id)
+                .or
+                .eq(a.address, params.id)
+              .append(sqls")")
+              .and
+              .eq(p.hash, hash)
         }
-      case None => Failure(new Exception("User Not Found"))
+        .map(rs => dsmoq.models.User(u.resultName)(rs)).single.apply
+        .map(x =>
+          User(
+            id = x.id,
+            name = x.name,
+            fullname = x.fullname,
+            organization = x.organization,
+            title = x.title,
+            image = "http://xxx",
+            isGuest = false
+          )
+        )
+        Success(user)
+      }
+    } catch {
+      case e: RuntimeException => Failure(e)
     }
   }
 }

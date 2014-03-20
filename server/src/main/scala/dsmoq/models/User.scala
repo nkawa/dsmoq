@@ -5,20 +5,19 @@ import scalikejdbc.SQLInterpolation._
 import org.joda.time.{DateTime}
 
 case class User(
-  id: Any, 
+  id: String,
   name: String, 
   fullname: String, 
   organization: String, 
   title: String, 
   description: String, 
-  passwordId: Option[Any] = None, 
-  imageId: Any, 
+  imageId: String,
+  createdBy: String,
   createdAt: DateTime, 
+  updatedBy: String,
   updatedAt: DateTime, 
-  deletedAt: Option[DateTime] = None, 
-  createdBy: Any, 
-  updatedBy: Any, 
-  deletedBy: Option[Any] = None) {
+  deletedBy: Option[String] = None,
+  deletedAt: Option[DateTime] = None) {
 
   def save()(implicit session: DBSession = User.autoSession): User = User.save(this)(session)
 
@@ -31,23 +30,22 @@ object User extends SQLSyntaxSupport[User] {
 
   override val tableName = "users"
 
-  override val columns = Seq("id", "name", "fullname", "organization", "title", "description", "password_id", "image_id", "created_at", "updated_at", "deleted_at", "created_by", "updated_by", "deleted_by")
+  override val columns = Seq("id", "name", "fullname", "organization", "title", "description", "image_id", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
 
   def apply(u: ResultName[User])(rs: WrappedResultSet): User = new User(
-    id = rs.any(u.id),
+    id = rs.string(u.id),
     name = rs.string(u.name),
     fullname = rs.string(u.fullname),
     organization = rs.string(u.organization),
     title = rs.string(u.title),
     description = rs.string(u.description),
-    passwordId = rs.anyOpt(u.passwordId),
-    imageId = rs.any(u.imageId),
+    imageId = rs.string(u.imageId),
+    createdBy = rs.string(u.createdBy),
     createdAt = rs.timestamp(u.createdAt).toDateTime,
+    updatedBy = rs.string(u.updatedBy),
     updatedAt = rs.timestamp(u.updatedAt).toDateTime,
-    deletedAt = rs.timestampOpt(u.deletedAt).map(_.toDateTime),
-    createdBy = rs.any(u.createdBy),
-    updatedBy = rs.any(u.updatedBy),
-    deletedBy = rs.anyOpt(u.deletedBy)
+    deletedBy = rs.stringOpt(u.deletedBy),
+    deletedAt = rs.timestampOpt(u.deletedAt).map(_.toDateTime)
   )
       
   val u = User.syntax("u")
@@ -81,20 +79,19 @@ object User extends SQLSyntaxSupport[User] {
   }
       
   def create(
-    id: Any,
+    id: String,
     name: String,
     fullname: String,
     organization: String,
     title: String,
     description: String,
-    passwordId: Option[Any] = None,
-    imageId: Any,
+    imageId: String,
+    createdBy: String,
     createdAt: DateTime,
+    updatedBy: String,
     updatedAt: DateTime,
-    deletedAt: Option[DateTime] = None,
-    createdBy: Any,
-    updatedBy: Any,
-    deletedBy: Option[Any] = None)(implicit session: DBSession = autoSession): User = {
+    deletedBy: Option[String] = None,
+    deletedAt: Option[DateTime] = None)(implicit session: DBSession = autoSession): User = {
     withSQL {
       insert.into(User).columns(
         column.id,
@@ -103,14 +100,13 @@ object User extends SQLSyntaxSupport[User] {
         column.organization,
         column.title,
         column.description,
-        column.passwordId,
         column.imageId,
-        column.createdAt,
-        column.updatedAt,
-        column.deletedAt,
         column.createdBy,
+        column.createdAt,
         column.updatedBy,
-        column.deletedBy
+        column.updatedAt,
+        column.deletedBy,
+        column.deletedAt
       ).values(
         id,
         name,
@@ -118,14 +114,13 @@ object User extends SQLSyntaxSupport[User] {
         organization,
         title,
         description,
-        passwordId,
         imageId,
-        createdAt,
-        updatedAt,
-        deletedAt,
         createdBy,
+        createdAt,
         updatedBy,
-        deletedBy
+        updatedAt,
+        deletedBy,
+        deletedAt
       )
     }.update.apply()
 
@@ -136,14 +131,13 @@ object User extends SQLSyntaxSupport[User] {
       organization = organization,
       title = title,
       description = description,
-      passwordId = passwordId,
       imageId = imageId,
-      createdAt = createdAt,
-      updatedAt = updatedAt,
-      deletedAt = deletedAt,
       createdBy = createdBy,
+      createdAt = createdAt,
       updatedBy = updatedBy,
-      deletedBy = deletedBy)
+      updatedAt = updatedAt,
+      deletedBy = deletedBy,
+      deletedAt = deletedAt)
   }
 
   def save(entity: User)(implicit session: DBSession = autoSession): User = {
@@ -155,14 +149,13 @@ object User extends SQLSyntaxSupport[User] {
         u.organization -> entity.organization,
         u.title -> entity.title,
         u.description -> entity.description,
-        u.passwordId -> entity.passwordId,
         u.imageId -> entity.imageId,
-        u.createdAt -> entity.createdAt,
-        u.updatedAt -> entity.updatedAt,
-        u.deletedAt -> entity.deletedAt,
         u.createdBy -> entity.createdBy,
+        u.createdAt -> entity.createdAt,
         u.updatedBy -> entity.updatedBy,
-        u.deletedBy -> entity.deletedBy
+        u.updatedAt -> entity.updatedAt,
+        u.deletedBy -> entity.deletedBy,
+        u.deletedAt -> entity.deletedAt
       ).where.eq(u.id, entity.id)
     }.update.apply()
     entity 
