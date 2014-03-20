@@ -76,4 +76,8 @@ class JQuery{
                 function(html: Jq, acc: Jq){ return acc.add(html);},
                 j(''));
     }
+
+    public static inline function self(): Dynamic{
+        return j(untyped __js__('this'));
+    }
 }

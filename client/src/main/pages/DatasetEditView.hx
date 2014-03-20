@@ -45,9 +45,19 @@ class DatasetEditView{
 
         var tableActions = {
             onDelete: function(xs){
-                return Promises.value(true);
+//                return Promises.value(true);
+                return Promises.tap(function(p){
+                    haxe.Timer.delay(function(){p.resolve(true);}, 1000);
+                });
             },
             onAdd: function(xs){
+                return Promises.tap(function(p){
+                    if(xs[1] == ""){
+                        p.resolve(false);
+                    }else{
+                        haxe.Timer.delay(function(){p.resolve(true);}, 1000);
+                    }
+                });
                 return Promises.value(xs[1] != "");
             }
         }

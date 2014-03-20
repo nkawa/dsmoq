@@ -90,15 +90,16 @@ class Table{
             function removeRow(element: Dynamic){
                 var buttons = body.find('.$DELETE_BUTTON_CLASS');
                 if(!(atLeastOne && buttons.length == 1)){
-                    var index = buttons.index(untyped __js__('this'));
-                    body.find('tr:nth-child(${index+1})').remove();
+                    var index = buttons.index(untyped JQuery.self().button('loading'));
                     ifTrue(actions.onDelete(rowStates[index]()), function(){
+                        body.find('tr:nth-child(${index+1})').remove();
                         rowStates.splice(index, 1);
                         afterRendering(body);
                     });
                 }
             }
-            function addRow(newInput: RowStrings){
+            function addRow(newInput: RowStrings, b: Html){
+                (untyped b).button("loading");
                 ifTrue(actions.onAdd(newInput), function(){
                     var newRow = rowComponent.render(newInput).decorate(JQuery.wrapBy.bind('<tr></tr>'));
                     newRow.html.insertBefore(renderedInputRow.html);
@@ -109,13 +110,13 @@ class Table{
                     body.append(renderedInputRow.html);
                     afterRendering(body);
                     renderedInputRow.html.find('.$INSERT_BUTTON_CLASS').on("click", function(_){
-                        addRow(renderedInputRow.state());
+                        addRow(renderedInputRow.state(), JQuery.self());
                     });
                 });
             }
 
             renderedInputRow.html.find('.$INSERT_BUTTON_CLASS').on("click", function(_){
-                addRow(renderedInputRow.state());
+                addRow(renderedInputRow.state(), JQuery.self());
             });
             body.find('.$DELETE_BUTTON_CLASS').on("click", removeRow);
             afterRendering(body);
