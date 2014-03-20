@@ -45,9 +45,9 @@ class DatasetEditView{
 
         var aclTable:Component<Dynamic, Void, Void> = Table.editable(
                 "acl-table",
-                [Common.label, selectACL],
-                [Common.textfield("user-name"), selectACL],
-                ["","1"]).state(Core.ignore).event(function(_){return Promises.void();});
+                [Table.hiddenCell, Common.label, selectACL],
+                [Table.hiddenCell, Common.textfield("user-name"), selectACL],
+                ["", "","1"]).state(Core.ignore).event(function(_){return Promises.void();});
 
         var tab:Component<Dynamic, Void, Page> = Tab.base()
             .append({name: TAB_FIELD_UPLOAD, title: "Files",          component: Templates.create("DatasetEditUpload")})
@@ -69,7 +69,7 @@ class DatasetEditView{
         function toModel(input: Dynamic):Dynamic{
             var ret = untyped {
                 componentTab: tabInfo,
-                acl: [["Taro","1"],["Hanako", "2"],["Mike", "3"]]
+                acl: [["1", "Taro","1"],["2", "Hanako", "2"],["3", "Mike", "3"]]
             };
             if(isNew){
                 ret.files = [];
