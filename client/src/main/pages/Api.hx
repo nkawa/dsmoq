@@ -4,8 +4,10 @@ import components.Pagination;
 import framework.helpers.Connection;
 import framework.helpers.*;
 import pages.Models;
+import framework.Types;
 
 typedef User = {userId: String, userName: String}
+typedef GroupId = String
 
 enum LoginStatus {
     Anonymouse;
@@ -34,6 +36,22 @@ class Api{
             method: HttpMethod.Get,
             url: Settings.api.dataset(id),
             params: {}
+        };
+    }
+
+    private static function fromAclLevel(l: AclLevel): Int{
+        return switch(l){
+            case(AclLevel.LimitedPublic): 1;
+            case(AclLevel.FullPublic):    2;
+            case(AclLevel.Owner):         3;
+        };
+    }
+
+    public static function datasetsAclAdd(datasetId, groupId, level){
+        return {
+            method: HttpMethod.Post,
+            url: Settings.api.datasetAddAcl(datasetId),
+            params: {id: groupId, level: fromAclLevel(level) }
         };
     }
 
@@ -71,4 +89,13 @@ class Api{
             extractData.bind(_, "")
         );
     }
+
+    public static function sendDatasetsAclAdd(
+        datasetId: String, groupId: String, level: AclLevel
+    ): HttpProcess<AclGroup>{
+        return Connection.then(
+            Connection.send(datasetsAclAdd(datasetId, groupId, level)), extractData.bind(_, "")
+        );
+    }
+
 }

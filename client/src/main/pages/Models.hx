@@ -15,3 +15,10 @@ typedef DatasetSummary ={
     permission: String
 }
 
+enum AclLevel {
+    LimitedPublic;
+    FullPublic;
+    Owner; // this is for User, it's Provider if for Group
+}
+
+typedef AclGroup = {id: String, name: String}

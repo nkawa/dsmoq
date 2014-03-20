@@ -92,6 +92,7 @@ class Table{
             function removeRow(element: Dynamic){
                 var buttons = body.find('.$DELETE_BUTTON_CLASS');
                 if(!(atLeastOne && buttons.length == 1)){
+                    disableButtons(body);
                     var index = buttons.index(untyped JQuery.self().button('loading'));
                     ifTrue(actions.onDelete(rowStates[index]()), function(_){
                         body.find('tr:nth-child(${index+1})').remove();
@@ -113,6 +114,7 @@ class Table{
             }
 
             addRow = function(newInput: RowStrings, b: Html){
+                disableButtons(body);
                 (untyped b).button("loading");
                 ifTrue(actions.onAdd(newInput), function(xs){
                     var newRow = rowComponent.render(xs).decorate(JQuery.wrapBy.bind('<tr></tr>'));
@@ -141,6 +143,14 @@ class Table{
     private static function afterRendering(html){
         numbering(html);
         hideHiddenCell(html);
+        enableButtons(html);
+    }
+    private static function disableButtons(html: Html){
+        html.find('.$DELETE_BUTTON_CLASS, .$INSERT_BUTTON_CLASS').addClass("disabled");
+    }
+
+    private static function enableButtons(html: Html){
+        html.find('.$DELETE_BUTTON_CLASS, .$INSERT_BUTTON_CLASS').removeClass("disabled");
     }
 
     private static function numbering(html: Html){

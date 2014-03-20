@@ -9,6 +9,8 @@ using components.Tab;
 import components.Table;
 
 using framework.helpers.Components;
+import pages.Api;
+import pages.Models;
 
 private typedef DatasetEditViewModel = {
     name: String,
@@ -31,8 +33,8 @@ class DatasetEditView{
         var selectACL = {
             var accessLevel = [
                 {value: "1", displayName:"Owner"},
-                {value: "2", displayName:"Full Read"},
-                {value: "3", displayName:"Limited Read"}
+                {value: "2", displayName:"Full Public"},
+                {value: "3", displayName:"Limited Public"}
             ];
             Common.select("access-level", accessLevel);
         }
@@ -43,17 +45,32 @@ class DatasetEditView{
             {name: TAB_FIELD_BASIC, disables:[]};
         }
 
-        var tableActions = {
+        function toAclModel(xs: RowStrings){
+            if(xs.length != 3) throw "illegal size of array @ DatasetEditView";
+            var level = switch(xs[2]){
+                case "1": AclLevel.Owner;
+                case "2": AclLevel.FullPublic;
+                case "3": AclLevel.LimitedPublic;
+                default: throw "illegal selection letter @ DatasetEditView";
+            }
+            return { id: xs[0], name: xs[1], level: level };
+        }
+
+        var tableActions: TableAction = {
             onDelete: function(xs){
                 return Promises.tap(function(p){
                     haxe.Timer.delay(function(){p.resolve(Some([]));}, 1000);
                 });
             },
             onAdd: function(xs){
-                return if(xs[1] == ""){
+                var model = toAclModel(xs);
+                return if(model.name == ""){
                     Promises.value(None);
                 }else{
-                    Promises.value(Some(["groupId from API", xs[1], xs[2]]));
+                    Api.sendDatasetsAclAdd(Core.get(id), model.name, model.level).event.then(function(resp){
+                        return Some([resp.id, resp.name, xs[2]]);
+                    });
+                    // TODO: resource management
                 };
             }
         }
