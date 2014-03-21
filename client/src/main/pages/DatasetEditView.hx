@@ -70,7 +70,6 @@ class DatasetEditView{
                     Promises.value(None);
                 }else{
                     Api.sendDatasetsAclChange(Core.get(id), model.name, model.level).event.then(function(resp){
-                        trace(resp);
                         return Some([resp.id, resp.name, resp.accessLevel]);
                     });
                     // TODO: resource management
