@@ -154,7 +154,7 @@ object DatasetFacade {
           val datasets = findDatasets(groups, limit, offset)
           val datasetIds = datasets.map(_._1.id)
 
-          val owners = getOwners(datasetIds)
+          val owners = getOwnerGroups(datasetIds)
           val guestAccessLevels = getGuestAccessLevel(datasetIds)
           val attributes = getAttributes(datasetIds)
           val files = getFiles(datasetIds)
@@ -193,17 +193,17 @@ object DatasetFacade {
   def get(params: dsmoq.facade.data.DatasetData.GetDatasetParams): Try[dsmoq.facade.data.DatasetData.Dataset] = {
     try {
       DB readOnly { implicit s =>
-        val groups = getJoinedGroups(params.userInfo)
-
         (for {
           dataset <- getDataset(params.id)
+          groups <- Some(getJoinedGroups(params.userInfo))
           permission <- getPermission(params.id, groups)
           guestAccessLevel <- Some(getGuestAccessLevel(params.id))
+          owners <- Some(getOwnerGroups(params.id))
         } yield {
           dsmoq.facade.data.DatasetData.Dataset(
             id = dataset.id,
             files = Seq.empty,
-            meta = dsmoq.facade.data.DatasetData.DatasetMetaData(
+            meta = DatasetData.DatasetMetaData(
               name = dataset.name,
               description = dataset.description,
               license = None,
@@ -211,7 +211,15 @@ object DatasetFacade {
             ),
             images = Seq.empty,
             primaryImage = "",
-            ownerships = Seq.empty,
+            ownerships = owners.map(x => DatasetData.DatasetOwnership(
+              id = x._1.id,
+              name = x._1.name,
+              fullname = "", //TODO
+              organization = "", //TODO
+              title = "", //TODO
+              image = "", //TODO
+              accessLevel = x._2
+            )),
             defaultAccessLevel = guestAccessLevel,
             permission = permission
           )
@@ -410,11 +418,27 @@ object DatasetFacade {
     }
   }
 
-  private def getOwners(datasetIds: Seq[String])(implicit s: DBSession) = {
+  private def getOwnerGroups(datasetId: String)(implicit s: DBSession) = {
+    val o = persistence.Ownership.syntax("o")
+    val g = persistence.Group.syntax("g")
+    withSQL {
+      select(o.result.*, g.result.*)
+        .from(persistence.Ownership as o)
+        .innerJoin(persistence.Group as g).on(g.id, o.groupId)
+        .where
+        .eq(o.datasetId, sqls.uuid(datasetId))
+        .and
+        .isNull(o.deletedAt)
+        .and
+        .isNull(g.deletedAt)
+    }.map(rs => (persistence.Group(g.resultName)(rs), rs.int(o.resultName.accessLevel))).list().apply()
+  }
+
+  private def getOwnerGroups(datasetIds: Seq[String])(implicit s: DBSession) = {
     if (datasetIds.nonEmpty) {
       val o = persistence.Ownership.syntax("o")
       val g = persistence.Group.syntax("g")
-      val tmp = withSQL {
+      withSQL {
         select(o.result.*, g.result.*)
           .from(persistence.Ownership as o)
           .innerJoin(persistence.Group as g).on(g.id, o.groupId)
@@ -425,12 +449,7 @@ object DatasetFacade {
           .and
           .isNull(g.deletedAt)
       }.map(rs => (persistence.Group(g.resultName)(rs), rs.int(o.resultName.accessLevel))).list().apply()
-
-      tmp.groupBy(_._1.id)
-//        .groupBy(x => {
-//          val y = x._1
-//          y.id
-//        })
+      .groupBy(_._1.id)
     } else {
       Map.empty
     }
