@@ -115,6 +115,11 @@ class Effect{
         }
         JQuery.j('#notification').empty().append(html);
     }
+
+    public function connectionError(x: Dynamic){
+        trace(Std.string(x));
+        notifyError(Messages.connectionFailure, x.statusText);
+    }
 }
 
 class Address{

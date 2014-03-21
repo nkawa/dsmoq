@@ -79,11 +79,15 @@ class DatasetEditView{
                 selector: 'select[name="access-level"]',
                 action:function(target: Html, strings: Html -> RowStrings):Stream<Signal>{
                     var stream = new Stream();
+                    function errorProcess(msg){
+                        framework.Effect.global().notifyError(msg, null);
+                        stream.resolve(Signal);
+                    }
                     target.on("change", function(_){
                         var model = toAclModel(strings(JQuery.self()));
                         Api.sendDatasetsAclChange(Core.get(id), model.id, model.level).event.then(function(_){
                             stream.resolve(Signal);
-                        });
+                        }).catchError(errorProcess);
                     });
                     return stream;
                 }
@@ -151,11 +155,15 @@ class DatasetEditView{
                 }
             }
             var stream = new Stream();
+            function errorProcess(msg){
+                framework.Effect.global().notifyError(msg, null);
+                stream.resolve(Signal);
+            }
             Common.withRequest(Common.radio("defaultAccessLevel", accessLevel), "click", function(stateStream){
                 stateStream.then(function(state){
                     Api.sendDatasetsDefaultAccess(Core.get(id), toDefaultAccess(state)).event.then(function(_){
                         stream.resolve(Signal);
-                    });
+                    }).catchError(errorProcess);
                 });
                 return stream;
             }, "input").state(Core.ignore);

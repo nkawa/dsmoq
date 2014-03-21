@@ -25,7 +25,7 @@ class Common{
     }
 
     public static function connectionPanel<Input, Output>(name: String, comp: Component<Input, Void, Output>, request: HttpRequest): Rendered<Void, Output>{
-        var c: PlaceHolder<HttpRequest, ConnectionStatus, Output> = ConnectionPanel.request(waiting, name, comp);
+        var c: PlaceHolder<HttpRequest, ConnectionStatus, Output> = ConnectionPanel.request(waiting, name, comp, Effect.global().notifyError.bind(_, null));
         return observe(c).render(request);
     }
 

@@ -31,7 +31,7 @@ class Pagination{
             Components.put("summary", placeForPagination, baseComponent, pagination)
             .justView(result(), "summary", placeForResult);
 
-        return LoadingPanel.create(waiting, name, component, f);
+        return LoadingPanel.create(waiting, name, component, f, framework.Effect.global().connectionError);
     }
     public static function end(paging:Paging){
         var n = paging.offset + paging.count;

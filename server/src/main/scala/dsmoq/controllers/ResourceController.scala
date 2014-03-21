@@ -43,6 +43,10 @@ class ResourceController extends ScalatraServlet {
     returnResource(params("captures"))
   }
 
+  put("/resources/(.*)$".r) {
+    returnResource(params("captures"))
+  }
+
   def returnResource(filename: String) = {
     contentType = filename match{
       case Ext.Js() => "application/javascript"
