@@ -103,8 +103,6 @@ class Effect{
             case "parsererror": Messages.parseError;
             default: message;
         }
-        trace(detail != null && detail != "");
-        trace(Std.string(detail));
         var display = {
             level: "Error! ",
             message: msg,

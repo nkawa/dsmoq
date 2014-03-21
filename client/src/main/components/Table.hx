@@ -82,18 +82,22 @@ class Table{
         var inputRowComponent = Components.group(inputRow, JQuery.join('<td></td>'))
             .decorate(addColumn.bind(true));
 
-        function ifTrue(p: Promise<Option<RowStrings>>, f: RowStrings-> Void, final: Void -> Void = null){
-            p.then(function(b){
-                Core.each(b, f);
-                if(final != null) final();
-            });
-        }
 
         function render(xs: Array<RowStrings>){
             var renderedInputRow = inputRowComponent.render(defaults).decorate(JQuery.wrapBy.bind('<tr></tr>'));
             var rendereds = xs.map(rowComponent.render);
             var rowStates = rendereds.map(function(r){return r.state;});
             var body = JQuery.wrapBy('<tbody></tbody>', JQuery.join('<tr></tr>')(rendereds.htmls()).add(renderedInputRow.html));
+            function errorProcess(msg){
+                framework.Effect.global().notifyError(msg);
+                enableButtons(body, selector);
+            }
+            function ifTrue(p: Promise<Option<RowStrings>>, f: RowStrings-> Void, final: Void -> Void = null){
+                p.then(function(b){
+                    Core.each(b, f);
+                    if(final != null) final();
+                }).catchError(errorProcess);
+            }
             function removeRow(element: Dynamic){
                 var buttons = body.find('.$DELETE_BUTTON_CLASS');
                 if(!(atLeastOne && buttons.length == 1)){
@@ -135,7 +139,7 @@ class Table{
                         var targetSelector = actions.additional.selector;
                         actions.additional.action(newRow.html.find(targetSelector), beforeAdditionalAction).then(function(_){
                             afterRendering(body, selector);
-                        });
+                        }).catchError(errorProcess);
                     }
                     rowStates.push(newRow.state);
                 }, refreshInputRow);
@@ -147,7 +151,7 @@ class Table{
                 var targetSelector = actions.additional.selector;
                 actions.additional.action(body.find(targetSelector), beforeAdditionalAction).then(function(_){
                     afterRendering(body, selector);
-                });
+                }).catchError(errorProcess);
             }
             body.find('.$DELETE_BUTTON_CLASS').on("click", removeRow);
             afterRendering(body, selector);
@@ -170,7 +174,7 @@ class Table{
     }
 
     private static function enableButtons(html: Html, selector){
-        html.find(selector).removeClass("disabled");
+        (untyped html.find(selector).removeClass("disabled")).button('reset');
     }
 
     private static function numbering(html: Html){

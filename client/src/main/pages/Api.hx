@@ -78,7 +78,7 @@ class Api{
                 }
             }
         }else{
-            throw json.message;
+            throw 'Status was not OK: ${Std.string(json)}';
         }
     }
 
