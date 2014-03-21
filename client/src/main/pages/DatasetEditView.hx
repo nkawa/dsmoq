@@ -119,7 +119,8 @@ class DatasetEditView{
         function toModel(input: Dynamic):Dynamic{
             var ret = untyped {
                 componentTab: tabInfo,
-                acl: [["1", "Taro","1"],["2", "Hanako", "2"],["3", "Mike", "3"]]
+                acl: [["1", "Taro","1"],["2", "Hanako", "2"],["3", "Mike", "3"]],
+                defaultAC: "1"
             };
             if(isNew){
                 ret.files = [];
@@ -136,14 +137,23 @@ class DatasetEditView{
         var defaultACRadio = {
             var accessLevel = [
                 {value: "0", displayName:"Deny"},
-                {value: "1", displayName:"limited public (ignore download)"},
-                {value: "2", displayName:"full public (allow download)"}
+                {value: "1", displayName:"Limited public (ignore download)"},
+                {value: "2", displayName:"Full public (allow download)"}
             ];
-            Common.radio("defaultAccessLevel", accessLevel);
+            var stream = new Stream();
+            Common.withRequest(Common.radio("defaultAccessLevel", accessLevel), "click", function(stateStream){
+                stateStream.then(function(state){
+                    trace(state);
+                    haxe.Timer.delay(function(){
+                        stream.resolve(Signal);
+                    }, 1000);
+                });
+                return stream;
+            }, "input").state(Core.ignore);
         }
         var files = Components.list(Templates.create("UploadFileEdit"), JQuery.fromArray).state(Core.ignore);
         var comp = tab.justView(aclTable, "acl", "[data-component-acl-table]")
-            .justView(defaultACRadio, "defaultAC", "[data-component-defaultAC-select]")
+            .justView(defaultACRadio, "defaultAC", "[data-component-acl-default]")
             .justView(files, "files", "[data-component-files]")
             .inMap(toModel);
 

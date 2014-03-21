@@ -170,7 +170,6 @@ class Table{
     }
 
     private static function enableButtons(html: Html, selector){
-        trace(selector);
         html.find(selector).removeClass("disabled");
     }
 

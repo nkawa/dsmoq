@@ -127,7 +127,7 @@ a:hover {
     padding-top: 10px;
 }
 
-select.disabled {
+select.disabled, .can-disable.disabled {
   pointer-events: none;
   cursor: not-allowed;
   opacity: 0.65;
