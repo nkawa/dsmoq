@@ -6,15 +6,6 @@ import framework.helpers.*;
 import pages.Models;
 import framework.Types;
 
-typedef User = {userId: String, userName: String}
-typedef GroupId = String
-
-enum LoginStatus {
-    Anonymouse;
-    LogedIn(user: User);
-}
-
-typedef JsonResponse<A> = {status: String, ?data: A, ?message: String}
 
 class Api{
     public static var profile = {
@@ -39,29 +30,6 @@ class Api{
         };
     }
 
-    private static function fromAclLevel(l: AclLevel): Int{
-        return switch(l){
-            case(AclLevel.LimitedPublic): 1;
-            case(AclLevel.FullPublic):    2;
-            case(AclLevel.Owner):         3;
-        };
-    }
-
-    public static function datasetsAclAdd(datasetId, groupId, level){
-        return {
-            method: HttpMethod.Post,
-            url: Settings.api.datasetAddAcl(datasetId),
-            params: {id: groupId, level: fromAclLevel(level) }
-        };
-    }
-
-    public static function datasetsAclDelete(datasetId, groupId){
-        return {
-            method: HttpMethod.Delete,
-            url: Settings.api.datasetDeleteAcl(datasetId, datasetId),
-            params: {}
-        };
-    }
 
     public static function extractData<A>(json: JsonResponse<A>, field = ""):Null<A>{
         return if(json.status.toUpperCase() == "OK"){
@@ -92,25 +60,74 @@ class Api{
     }
 
     public static function sendDatasetsList(req: PagingRequest): HttpProcess<MassResult<Array<DatasetSummary>>>{
-        return Connection.then(
-            Connection.send(datasetsList(req)),
-            extractData.bind(_, "")
-        );
+        return send(datasetsList(req));
     }
 
-    public static function sendDatasetsAclAdd(
-        datasetId: String, groupId: String, level: AclLevel
-    ): HttpProcess<AclGroup>{
-        return Connection.then(
-            Connection.send(datasetsAclAdd(datasetId, groupId, level)), extractData.bind(_, "")
-        );
+    public static function sendDatasetsAclAdd( datasetId: String, groupId: String, level: AclLevel): HttpProcess<AclGroup>{
+        return send( datasetsAclAdd(datasetId, groupId, level));
     }
 
-    public static function sendDatasetsAclDelete(
-        datasetId: String, groupId: String
-    ): HttpProcess<Dynamic>{
-        return Connection.then(
-            Connection.send(datasetsAclDelete(datasetId, groupId)), extractData.bind(_, "")
-        );
+    public static function sendDatasetsAclDelete( datasetId: String, groupId: String): HttpProcess<Dynamic>{
+        return send(datasetsAclDelete(datasetId, groupId));
+    }
+
+    public static function sendDatasetsAclChange( datasetId: String, groupId: String, level: AclLevel): HttpProcess<Dynamic>{
+        return send(datasetsAclChange(datasetId, groupId, level));
+    }
+
+    public static function sendDatasetsDefaultAccess( datasetId: String, level:DefaultLevel ): HttpProcess<Dynamic>{
+        return send(datasetsDefaultAccessChange(datasetId, level));
+    }
+
+    private static function send<A>(request): HttpProcess<A>{
+        return Connection.then(Connection.send(request), extractData.bind(_, ""));
+    }
+
+    private static function fromAclLevel(l: AclLevel): Int{
+        return switch(l){
+            case(AclLevel.LimitedPublic): 1;
+            case(AclLevel.FullPublic):    2;
+            case(AclLevel.Owner):         3;
+        };
+    }
+
+    private static function datasetsAclAdd(datasetId, groupId, level){
+        return {
+            method: HttpMethod.Post,
+            url: Settings.api.datasetAddAcl(datasetId),
+            params: {id: groupId, level: fromAclLevel(level) }
+        };
+    }
+
+    private static function datasetsAclDelete(datasetId, groupId){
+        return {
+            method: HttpMethod.Delete,
+            url: Settings.api.datasetDeleteAcl(datasetId, groupId),
+            params: {}
+        };
+    }
+
+    private static function datasetsAclChange(datasetId, groupId, level){
+        return {
+            method: HttpMethod.Put,
+            url: Settings.api.datasetChangeAcl(datasetId, groupId),
+            params: {level: fromAclLevel(level)}
+        };
+    }
+
+    private static function fromDefaultLevel(l: DefaultLevel): Int{
+        return switch(l){
+            case(DefaultLevel.Deny): 0;
+            case(DefaultLevel.LimitedPublic): 1;
+            case(DefaultLevel.FullPublic): 2;
+        };
+    }
+
+    private static function datasetsDefaultAccessChange(datasetId, level){
+        return {
+            method: HttpMethod.Put,
+            url: Settings.api.datasetDefaultAccess(datasetId),
+            params: {level: fromDefaultLevel(level)}
+        };
     }
 }

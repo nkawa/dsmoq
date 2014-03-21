@@ -12,6 +12,7 @@ import components.ConnectionPanel;
 import components.Header;
 
 import pages.Api;
+import pages.Models;
 
 class Engine<Page>{
     var application: Application<Page>;
