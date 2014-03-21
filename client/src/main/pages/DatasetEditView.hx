@@ -31,13 +31,13 @@ class DatasetEditView{
             case None:     Page.DatasetList(None);
         }
 
-        var selectACL = {
+        function selectACL(name){
             var accessLevel = [
                 {value: "1", displayName:"Owner"},
                 {value: "2", displayName:"Full Public"},
                 {value: "3", displayName:"Limited Public"}
             ];
-            Common.select("access-level", accessLevel);
+            return Common.select(name, accessLevel);
         }
 
         var groupCombobox = Common.select("group-combobox", Settings.groups);
@@ -90,8 +90,8 @@ class DatasetEditView{
 
         var aclTable:Component<Dynamic, Void, Void> = Table.editable(
                 "acl-table",
-                [Table.hiddenCell, Common.label, selectACL],
-                [Table.hiddenCell, groupCombobox, selectACL],
+                [Table.hiddenCell, Common.label, selectACL("access-level")],
+                [Table.hiddenCell, groupCombobox, selectACL("access-level-input")],
                 ["", "","1"],
                 tableActions, true).state(Core.ignore).event(function(_){return Promises.void();});
 
