@@ -13,7 +13,7 @@ case class Ownership(
   createdBy: String,
   createdAt: DateTime, 
   updatedBy: String,
-  updatedAt: DateTime,
+  updatedAt: DateTime, 
   deletedBy: Option[String] = None,
   deletedAt: Option[DateTime] = None) {
 
@@ -45,7 +45,7 @@ object Ownership extends SQLSyntaxSupport[Ownership] {
       
   val o = Ownership.syntax("o")
 
-  //val autoSession = AutoSession
+  override val autoSession = AutoSession
 
   def find(id: Any)(implicit session: DBSession = autoSession): Option[Ownership] = {
     withSQL { 
@@ -125,18 +125,18 @@ object Ownership extends SQLSyntaxSupport[Ownership] {
 
   def save(entity: Ownership)(implicit session: DBSession = autoSession): Ownership = {
     withSQL { 
-      update(Ownership as o).set(
-        o.id -> entity.id,
-        o.datasetId -> entity.datasetId,
-        o.groupId -> entity.groupId,
-        o.accessLevel -> entity.accessLevel,
-        o.createdBy -> entity.createdBy,
-        o.createdAt -> entity.createdAt,
-        o.updatedBy -> entity.updatedBy,
-        o.updatedAt -> entity.updatedAt,
-        o.deletedBy -> entity.deletedBy,
-        o.deletedAt -> entity.deletedAt
-      ).where.eq(o.id, entity.id)
+      update(Ownership).set(
+        column.id -> sqls.uuid(entity.id),
+        column.datasetId -> sqls.uuid(entity.datasetId),
+        column.groupId -> sqls.uuid(entity.groupId),
+        column.accessLevel -> entity.accessLevel,
+        column.createdBy -> sqls.uuid(entity.createdBy),
+        column.createdAt -> entity.createdAt,
+        column.updatedBy -> sqls.uuid(entity.updatedBy),
+        column.updatedAt -> entity.updatedAt,
+        column.deletedBy -> entity.deletedBy.map(sqls.uuid),
+        column.deletedAt -> entity.deletedAt
+      ).where.eq(column.id, sqls.uuid(entity.id))
     }.update.apply()
     entity 
   }

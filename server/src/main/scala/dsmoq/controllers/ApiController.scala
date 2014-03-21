@@ -8,8 +8,10 @@ import scala.util.{Success, Failure}
 import org.scalatra.servlet.{MultipartConfig, FileUploadSupport}
 import dsmoq.facade.data.LoginData._
 import dsmoq.facade.data.DatasetData._
+import dsmoq.forms._
 
-class ServerApiController extends ScalatraServlet with JacksonJsonSupport with SessionTrait with FileUploadSupport {
+class ApiController extends ScalatraServlet
+    with JacksonJsonSupport with SessionTrait with FileUploadSupport {
   protected implicit val jsonFormats: Formats = DefaultFormats
 
   before() {
@@ -53,6 +55,21 @@ class ServerApiController extends ScalatraServlet with JacksonJsonSupport with S
   }
 
   // dataset JSON API
+  post("/datasets") {
+    val files = fileMultiParams.get("file[]")
+    val response = for {
+      userInfo <- getUserInfoFromSession()
+      facadeParams = CreateDatasetParams(userInfo, files)
+      dataset <- DatasetFacade.create(facadeParams)
+    } yield {
+      AjaxResponse("OK", dataset)
+    }
+    response match {
+      case Success(x) => x
+      case Failure(e) => AjaxResponse("NG")
+    }
+  }
+
   get("/datasets") {
     val query = params.get("query")
     val group = params.get("group")
@@ -88,22 +105,19 @@ class ServerApiController extends ScalatraServlet with JacksonJsonSupport with S
     }
   }
 
-  post("/datasets") {
-    val files = fileMultiParams.get("file[]")
-    val response = for {
+  post("/datasets/:datasetId/acl") {
+    val aci = AccessControl(params("datasetId"), params("id"), params("accessLevel").toInt)
+
+    (for {
       userInfo <- getUserInfoFromSession()
-      facadeParams = CreateDatasetParams(userInfo, files)
-      dataset <- DatasetFacade.create(facadeParams)
+      result <- DatasetFacade.setAccessContorl(userInfo, aci)
     } yield {
-      AjaxResponse("OK", dataset)
-    }
-    response match {
-      case Success(x) => x
+      Success(result)
+    }) match {
+      case Success(x) => AjaxResponse("OK", x)
       case Failure(e) => AjaxResponse("NG")
     }
   }
-
-
 }
 
 case class AjaxResponse[A](status: String, data: A = {})

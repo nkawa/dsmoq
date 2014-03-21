@@ -5,11 +5,13 @@ import scalikejdbc._, SQLInterpolation._
 import java.util.UUID
 import java.nio.file.Paths
 import dsmoq.AppConf
-import dsmoq.persistence._
+import dsmoq.facade.data._
+import dsmoq.persistence
 import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.exceptions.{ValidationException, NotAuthorizedException}
 import org.joda.time.DateTime
 import org.scalatra.servlet.FileItem
+import dsmoq.forms.{AccessCrontolItem, AccessControl}
 
 object DatasetFacade {
   /**
@@ -17,20 +19,20 @@ object DatasetFacade {
    * @param params
    * @return
    */
-  def create(params: dsmoq.facade.data.DatasetData.CreateDatasetParams): Try[dsmoq.facade.data.DatasetData.Dataset] = {
+  def create(params: DatasetData.CreateDatasetParams): Try[DatasetData.Dataset] = {
     try {
       if (params.userInfo.isGuest) throw new NotAuthorizedException
       if (params.files.getOrElse(Seq.empty).isEmpty) throw new ValidationException
 
       DB localTx { implicit s =>
-        val myself = User.find(params.userInfo.id).get
+        val myself = persistence.User.find(params.userInfo.id).get
         val myGroup = getPersonalGroup(myself.id).get
 
         val datasetId = UUID.randomUUID().toString
         val timestamp = DateTime.now()
 
         val files = params.files.getOrElse(Seq.empty).map(f => {
-          val file = File.create(
+          val file = persistence.File.create(
             id = UUID.randomUUID.toString,
             datasetId = datasetId,
             name = f.name,
@@ -40,7 +42,7 @@ object DatasetFacade {
             updatedBy = myself.id,
             updatedAt = timestamp
           )
-          val histroy = FileHistory.create(
+          val histroy = persistence.FileHistory.create(
             id = UUID.randomUUID.toString,
             fileId = file.id,
             fileType = 0,
@@ -54,7 +56,7 @@ object DatasetFacade {
           writeFile(datasetId, file.id, histroy.id, f)
           (file, histroy)
         })
-        val dataset = Dataset.create(
+        val dataset = persistence.Dataset.create(
           id = datasetId,
           name = files.head._1.name,
           description = "",
@@ -64,16 +66,16 @@ object DatasetFacade {
           createdAt = timestamp,
           updatedBy = myself.id,
           updatedAt = timestamp)
-        val ownership = Ownership.create(
+        val ownership = persistence.Ownership.create(
           id = UUID.randomUUID.toString,
           datasetId = datasetId,
           groupId = myGroup.id,
-          accessLevel = AccessLevel.AllowAll,
+          accessLevel = persistence.AccessLevel.AllowAll,
           createdBy = myself.id,
           createdAt = timestamp,
           updatedBy = myself.id,
           updatedAt = timestamp)
-        val datasetImage = DatasetImage.create(
+        val datasetImage = persistence.DatasetImage.create(
           id = UUID.randomUUID.toString,
           datasetId = dataset.id,
           imageId = AppConf.defaultDatasetImageId,
@@ -114,7 +116,7 @@ object DatasetFacade {
             image = "", //TODO
             accessLevel = ownership.accessLevel
           )),
-          defaultAccessLevel = AccessLevel.Deny,
+          defaultAccessLevel = persistence.AccessLevel.Deny,
           permission = ownership.accessLevel
         ))
       }
@@ -219,163 +221,78 @@ object DatasetFacade {
     } catch {
       case e: Exception => Failure(e)
     }
-//
-//
-//
-//
-//    // データ取得
-//    // FIXME 権限を考慮したデータの取得
-//    val dataset = DB readOnly { implicit session =>
-//      sql"""
-//        SELECT DISTINCT
-//          datasets.*
-//        FROM
-//          datasets
-//        WHERE
-//          datasets.id = UUID(${params.id})
-//      """.map(_.toMap()).single().apply()
-//    } match {
-//      case Some(x) => x
-//      case None =>
-//        // FIXME データがない時の処理(現状は例外)
-//        return Failure(new Exception("No Dataset"))
-//    }
-//
-//    // FIXME SELECTで取得するデータの指定(必要であれば)
-//    val attributes = DB readOnly { implicit session =>
-//      sql"""
-//      SELECT
-//        v.*, k.name
-//      FROM
-//        attribute_values AS v
-//      INNER JOIN
-//        attribute_keys AS k
-//      ON
-//        v.attribute_key_id = k.id
-//      WHERE
-//        v.dataset_id = UUID(${params.id})
-//      """.map(_.toMap()).list().apply()
-//    }
-//
-//    // FIXME SELECTで取得するデータの指定(必要であれば)
-//    // FIXME 権限の仕様検討中のため、変わる可能性あり
-//    val ownerships = DB readOnly { implicit session =>
-//      sql"""
-//        SELECT
-//          ownerships.*, users.fullname AS name
-//        FROM
-//          ownerships
-//        INNER JOIN
-//          users
-//        ON
-//          users.id = ownerships.owner_id AND owner_type = 1
-//        WHERE
-//          dataset_id = UUID(${params.id})
-//        UNION
-//        SELECT
-//          ownerships.*, groups.name AS name
-//        FROM
-//          ownerships
-//        INNER JOIN
-//          groups
-//        ON
-//          groups.id = ownerships.owner_id AND owner_type = 2
-//        WHERE
-//          dataset_id = UUID(${params.id})
-//      """.map(_.toMap()).list().apply()
-//    }
-//
-//    // FIXME SELECTで取得するデータの指定(必要であれば)
-//    val files = DB readOnly { implicit session =>
-//      sql"""
-//        SELECT
-//          files.*, file_histories.file_path
-//        FROM
-//          files
-//        INNER JOIN
-//          file_histories
-//        ON
-//          files.id = file_histories.file_id
-//        WHERE
-//          files.dataset_id = UUID(${params.id})
-//      """.map(_.toMap()).list().apply()
-//    }
-//
-//    // FIXME SELECTで取得するデータの指定(必要であれば)
-//    val images = DB readOnly { implicit session =>
-//      sql"""
-//        SELECT
-//          images.*, relation.is_primary, relation.show_order
-//        FROM
-//          images
-//        INNER JOIN
-//          dataset_image_relation AS relation
-//        ON
-//          images.id = relation.image_id
-//        WHERE relation.dataset_id = UUID(${params.id})
-//      """.map(_.toMap()).list().apply()
-//    }
-//
-//    // FIXME ファイルサイズ、ユーザー情報は暫定
-//    val datasetFiles = files.map { x =>
-//      DatasetFile(
-//        id = x("id").toString,
-//        name = x("name").toString,
-//        description = x("description").toString,
-//        url = x("file_path").toString,
-//        fileSize = 1024,
-//        user = x("created_by").toString
-//      )
-//    }
-//    val datasetMetaData = DatasetMetaData(
-//      dataset("name").toString,
-//      dataset("description").toString,
-//      1,
-//      attributes.map{ x =>
-//        DatasetAttribute(
-//          x("name").toString,
-//          x("val").toString
-//        )
-//      }
-//    )
-//    val datasetImages = images.map { x =>
-//      DatasetImage(
-//        x("id").toString,
-//        x("file_path").toString
-//      )
-//    }
-//    // FIXME 画像URLはダミー
-//    val datasetOwnerships = ownerships.map { x =>
-//      DatasetOwnership(
-//        x("id").toString,
-//        x("owner_type").toString.toInt,
-//        x("name").toString,
-//        "http://dummy"
-//      )
-//    }
-//
-//    Success(Dataset(
-//      id = dataset("id").toString,
-//      files = datasetFiles,
-//      meta = datasetMetaData,
-//      images = datasetImages,
-//      primaryImage =  "",
-//      ownerships = datasetOwnerships,
-//      defaultAccessLevel = dataset("default_access_level").toString.toInt,
-//      permission = 1
-//    ))
   }
 
-  private def getJoinedGroups(user: dsmoq.facade.data.User)(implicit s: DBSession) = {
+  /**
+   *
+   * @param user
+   * @param item
+   * @return
+   */
+  def setAccessContorl(user: User, item: AccessControl): Try[AccessCrontolItem] = {
+    try {
+      if (user.isGuest) throw new NotAuthorizedException
+
+      DB localTx { implicit s =>
+        val myself = persistence.User.find(user.id).get
+        var group = persistence.Group.find(item.groupId).get
+
+        val o = persistence.Ownership.o
+        val ownership = withSQL(
+          select(o.result.*)
+            .from(persistence.Ownership as o)
+            .where
+              .eq(o.datasetId, sqls.uuid(item.datasetId))
+              .and
+              .eq(o.groupId, sqls.uuid(group.id))
+        ).map(persistence.Ownership(o.resultName)).single.apply match {
+          case Some(x) =>
+            persistence.Ownership(
+              id = x.id,
+              datasetId = x.datasetId,
+              groupId = x.groupId,
+              accessLevel = item.accessLevel,
+              createdBy = x.createdBy,
+              createdAt = x.createdAt,
+              updatedBy = myself.id,
+              updatedAt = DateTime.now
+            ).save()
+          case None =>
+            val ts = DateTime.now
+            persistence.Ownership.create(
+              id = UUID.randomUUID.toString,
+              datasetId = item.datasetId,
+              groupId = item.groupId,
+              accessLevel = item.accessLevel,
+              createdBy = myself.id,
+              createdAt = ts,
+              updatedBy = myself.id,
+              updatedAt = ts
+            )
+        }
+
+        Success(AccessCrontolItem(
+          id = group.id,
+          name = group.name,
+          image = "", //TODO
+          accessLevel = ownership.accessLevel
+        ))
+      }
+    } catch {
+      case e: RuntimeException => Failure(e)
+    }
+  }
+
+  private def getJoinedGroups(user: User)(implicit s: DBSession) = {
     if (user.isGuest) {
       Seq.empty
     } else {
-      val g = Group.syntax("g")
-      val m = Member.syntax("m")
+      val g = persistence.Group.syntax("g")
+      val m = persistence.Member.syntax("m")
       withSQL {
         select(g.id)
-          .from(Group as g)
-          .innerJoin(Member as m).on(m.groupId, g.id)
+          .from(persistence.Group as g)
+          .innerJoin(persistence.Member as m).on(m.groupId, g.id)
           .where
             .eq(m.userId, sqls.uuid(user.id))
             .and
@@ -387,27 +304,27 @@ object DatasetFacade {
   }
 
   private def getPersonalGroup(userId: String)(implicit s:DBSession) = {
-    val g = Group.syntax("g")
-    val m = Member.syntax("m")
+    val g = persistence.Group.syntax("g")
+    val m = persistence.Member.syntax("m")
     withSQL {
       select(g.result.*)
-        .from(Group as g)
-        .innerJoin(Member as m).on(g.id, m.groupId)
+        .from(persistence.Group as g)
+        .innerJoin(persistence.Member as m).on(g.id, m.groupId)
         .where
           .eq(m.userId, sqls.uuid(userId))
           .and
-          .eq(g.groupType, GroupType.Personal)
+          .eq(g.groupType, persistence.GroupType.Personal)
         .limit(1)
-    }.map(rs => Group(g.resultName)(rs)).single().apply()
+    }.map(rs => persistence.Group(g.resultName)(rs)).single().apply()
   }
 
   private def countDatasets(groups : Seq[String])(implicit s: DBSession) = {
-    val ds = Dataset.syntax("ds")
-    val o = Ownership.syntax("o")
+    val ds = persistence.Dataset.syntax("ds")
+    val o = persistence.Ownership.syntax("o")
     withSQL {
       select(sqls.count(sqls.distinct(ds.id)).append(sqls"count"))
-        .from(Dataset as ds)
-        .innerJoin(Ownership as o).on(o.datasetId, ds.id)
+        .from(persistence.Dataset as ds)
+        .innerJoin(persistence.Ownership as o).on(o.datasetId, ds.id)
         .where
         .inByUuid(o.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
         .and
@@ -420,12 +337,12 @@ object DatasetFacade {
   }
 
   private def findDatasets(groups: Seq[String], limit: Int, offset: Int)(implicit s: DBSession) = {
-    val ds = Dataset.syntax("ds")
-    val o = Ownership.syntax("o")
+    val ds = persistence.Dataset.syntax("ds")
+    val o = persistence.Ownership.syntax("o")
     withSQL {
       select(ds.result.*, sqls.max(o.accessLevel).append(sqls"access_level"))
-        .from(Dataset as ds)
-        .innerJoin(Ownership as o).on(ds.id, o.datasetId)
+        .from(persistence.Dataset as ds)
+        .innerJoin(persistence.Ownership as o).on(ds.id, o.datasetId)
         .where
           .inByUuid(o.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
           .and
@@ -438,18 +355,18 @@ object DatasetFacade {
         .orderBy(ds.updatedAt).desc
         .offset(offset)
         .limit(limit)
-    }.map(rs => (Dataset(ds.resultName)(rs), rs.int("access_level"))).list().apply()
+    }.map(rs => (persistence.Dataset(ds.resultName)(rs), rs.int("access_level"))).list().apply()
   }
 
   private def getDataset(id: String)(implicit s: DBSession) = {
-    Dataset.find(id)
+    persistence.Dataset.find(id)
   }
 
   private def getPermission(id: String, groups: Seq[String])(implicit s: DBSession) = {
-    val o = Ownership.syntax("o")
+    val o = persistence.Ownership.syntax("o")
     withSQL {
       select(sqls.max(o.accessLevel).append(sqls"access_level"))
-        .from(Ownership as o)
+        .from(persistence.Ownership as o)
         .where
           .eq(o.datasetId, sqls.uuid(id))
           .and
@@ -458,10 +375,10 @@ object DatasetFacade {
   }
 
   private def getGuestAccessLevel(datasetId: String)(implicit s: DBSession) = {
-    val o = Ownership.syntax("o")
+    val o = persistence.Ownership.syntax("o")
     withSQL {
       select(o.result.accessLevel)
-        .from(Ownership as o)
+        .from(persistence.Ownership as o)
         .where
         .eq(o.datasetId, sqls.uuid(datasetId))
         .and
@@ -473,10 +390,10 @@ object DatasetFacade {
 
   private def getGuestAccessLevel(datasetIds: Seq[String])(implicit s: DBSession): Map[String, Int] = {
     if (datasetIds.nonEmpty) {
-      val o = Ownership.syntax("o")
+      val o = persistence.Ownership.syntax("o")
       withSQL {
         select(o.result.datasetId, o.result.accessLevel)
-          .from(Ownership as o)
+          .from(persistence.Ownership as o)
           .where
             .inByUuid(o.datasetId, datasetIds)
             .and
@@ -491,19 +408,19 @@ object DatasetFacade {
 
   private def getOwners(datasetIds: Seq[String])(implicit s: DBSession) = {
     if (datasetIds.nonEmpty) {
-      val o = Ownership.syntax("o")
-      val g = Group.syntax("g")
+      val o = persistence.Ownership.syntax("o")
+      val g = persistence.Group.syntax("g")
       val tmp = withSQL {
         select(o.result.*, g.result.*)
-          .from(Ownership as o)
-          .innerJoin(Group as g).on(g.id, o.groupId)
+          .from(persistence.Ownership as o)
+          .innerJoin(persistence.Group as g).on(g.id, o.groupId)
           .where
           .inByUuid(o.datasetId, datasetIds)
           .and
           .isNull(o.deletedAt)
           .and
           .isNull(g.deletedAt)
-      }.map(rs => (Group(g.resultName)(rs), rs.int(o.resultName.accessLevel))).list().apply()
+      }.map(rs => (persistence.Group(g.resultName)(rs), rs.int(o.resultName.accessLevel))).list().apply()
 
       tmp.groupBy(_._1.id)
 //        .groupBy(x => {

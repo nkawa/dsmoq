@@ -47,9 +47,9 @@ object Group extends SQLSyntaxSupport[Group] {
 
   //val autoSession = AutoSession
 
-  def find(id: Any)(implicit session: DBSession = autoSession): Option[Group] = {
+  def find(id: String)(implicit session: DBSession = autoSession): Option[Group] = {
     withSQL { 
-      select.from(Group as g).where.eq(g.id, id)
+      select.from(Group as g).where.eq(g.id, sqls.uuid(id))
     }.map(Group(g.resultName)).single.apply()
   }
           
