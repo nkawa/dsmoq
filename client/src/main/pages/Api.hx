@@ -95,7 +95,7 @@ class Api{
         return {
             method: HttpMethod.Post,
             url: Settings.api.datasetAddAcl(datasetId),
-            params: {id: groupId, level: fromAclLevel(level) }
+            params: {id: groupId, accessLevel: fromAclLevel(level) }
         };
     }
 
@@ -111,7 +111,7 @@ class Api{
         return {
             method: HttpMethod.Put,
             url: Settings.api.datasetChangeAcl(datasetId, groupId),
-            params: {level: fromAclLevel(level)}
+            params: {accessLevel: fromAclLevel(level)}
         };
     }
 
@@ -127,7 +127,7 @@ class Api{
         return {
             method: HttpMethod.Put,
             url: Settings.api.datasetDefaultAccess(datasetId),
-            params: {level: fromDefaultLevel(level)}
+            params: {accessLevel: fromDefaultLevel(level)}
         };
     }
 }
