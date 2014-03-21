@@ -63,10 +63,6 @@ class Api{
         return send(datasetsList(req));
     }
 
-    public static function sendDatasetsAclAdd( datasetId: String, groupId: String, level: AclLevel): HttpProcess<AclGroup>{
-        return send( datasetsAclAdd(datasetId, groupId, level));
-    }
-
     public static function sendDatasetsAclDelete( datasetId: String, groupId: String): HttpProcess<Dynamic>{
         return send(datasetsAclDelete(datasetId, groupId));
     }
@@ -88,14 +84,6 @@ class Api{
             case(AclLevel.LimitedPublic): 1;
             case(AclLevel.FullPublic):    2;
             case(AclLevel.Owner):         3;
-        };
-    }
-
-    private static function datasetsAclAdd(datasetId, groupId, level){
-        return {
-            method: HttpMethod.Post,
-            url: Settings.api.datasetAddAcl(datasetId),
-            params: {id: groupId, accessLevel: fromAclLevel(level) }
         };
     }
 

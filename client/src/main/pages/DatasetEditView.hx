@@ -33,9 +33,9 @@ class DatasetEditView{
 
         function selectACL(name){
             var accessLevel = [
-                {value: "1", displayName:"Owner"},
+                {value: "3", displayName:"Owner"},
                 {value: "2", displayName:"Full Public"},
-                {value: "3", displayName:"Limited Public"}
+                {value: "1", displayName:"Limited Public"}
             ];
             return Common.select(name, accessLevel);
         }
@@ -51,9 +51,9 @@ class DatasetEditView{
         function toAclModel(xs: RowStrings){
             if(xs.length != 3) throw "illegal size of array @ DatasetEditView";
             var level = switch(xs[2]){
-                case "1": AclLevel.Owner;
+                case "3": AclLevel.Owner;
                 case "2": AclLevel.FullPublic;
-                case "3": AclLevel.LimitedPublic;
+                case "1": AclLevel.LimitedPublic;
                 default: throw "illegal selection letter @ DatasetEditView";
             }
             return { id: xs[0], name: xs[1], level: level };
@@ -69,8 +69,9 @@ class DatasetEditView{
                 return if(model.name == ""){
                     Promises.value(None);
                 }else{
-                    Api.sendDatasetsAclAdd(Core.get(id), model.name, model.level).event.then(function(resp){
-                        return Some([resp.id, resp.name, xs[2]]);
+                    Api.sendDatasetsAclChange(Core.get(id), model.name, model.level).event.then(function(resp){
+                        trace(resp);
+                        return Some([resp.id, resp.name, resp.accessLevel]);
                     });
                     // TODO: resource management
                 };
@@ -125,7 +126,7 @@ class DatasetEditView{
         function toModel(input: Dynamic):Dynamic{
             var ret = untyped {
                 componentTab: tabInfo,
-                acl: [["1", "Taro","1"],["2", "Hanako", "2"],["3", "Mike", "3"]],
+                acl: [],
                 defaultAC: "1"
             };
             if(isNew){
