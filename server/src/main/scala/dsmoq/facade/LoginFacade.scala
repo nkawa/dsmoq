@@ -3,7 +3,7 @@ package dsmoq.facade
 import scala.util.{Try, Failure, Success}
 import scalikejdbc._, SQLInterpolation._
 import java.security.MessageDigest
-import dsmoq.models._
+import dsmoq.persistence._
 
 object LoginFacade {
 

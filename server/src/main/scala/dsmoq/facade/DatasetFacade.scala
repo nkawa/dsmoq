@@ -5,8 +5,8 @@ import scalikejdbc._, SQLInterpolation._
 import java.util.UUID
 import java.nio.file.Paths
 import dsmoq.AppConf
-import dsmoq.models._
-import dsmoq.models.PostgresqlHelper._
+import dsmoq.persistence._
+import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.exceptions.{ValidationException, NotAuthorizedException}
 import org.joda.time.DateTime
 import org.scalatra.servlet.FileItem

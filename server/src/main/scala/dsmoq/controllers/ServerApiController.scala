@@ -102,6 +102,8 @@ class ServerApiController extends ScalatraServlet with JacksonJsonSupport with S
       case Failure(e) => AjaxResponse("NG")
     }
   }
+
+
 }
 
 case class AjaxResponse[A](status: String, data: A = {})
