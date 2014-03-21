@@ -238,7 +238,7 @@ object DatasetFacade {
         var group = persistence.Group.find(item.groupId).get
 
         val o = persistence.Ownership.o
-        val ownership = withSQL(
+        withSQL(
           select(o.result.*)
             .from(persistence.Ownership as o)
             .where
@@ -247,35 +247,39 @@ object DatasetFacade {
               .eq(o.groupId, sqls.uuid(group.id))
         ).map(persistence.Ownership(o.resultName)).single.apply match {
           case Some(x) =>
-            persistence.Ownership(
-              id = x.id,
-              datasetId = x.datasetId,
-              groupId = x.groupId,
-              accessLevel = item.accessLevel,
-              createdBy = x.createdBy,
-              createdAt = x.createdAt,
-              updatedBy = myself.id,
-              updatedAt = DateTime.now
-            ).save()
+            if (item.accessLevel != x.accessLevel) {
+              persistence.Ownership(
+                id = x.id,
+                datasetId = x.datasetId,
+                groupId = x.groupId,
+                accessLevel = item.accessLevel,
+                createdBy = x.createdBy,
+                createdAt = x.createdAt,
+                updatedBy = myself.id,
+                updatedAt = DateTime.now
+              ).save()
+            }
           case None =>
-            val ts = DateTime.now
-            persistence.Ownership.create(
-              id = UUID.randomUUID.toString,
-              datasetId = item.datasetId,
-              groupId = item.groupId,
-              accessLevel = item.accessLevel,
-              createdBy = myself.id,
-              createdAt = ts,
-              updatedBy = myself.id,
-              updatedAt = ts
-            )
+            if (item.accessLevel > 0) {
+              val ts = DateTime.now
+              persistence.Ownership.create(
+                id = UUID.randomUUID.toString,
+                datasetId = item.datasetId,
+                groupId = item.groupId,
+                accessLevel = item.accessLevel,
+                createdBy = myself.id,
+                createdAt = ts,
+                updatedBy = myself.id,
+                updatedAt = ts
+              )
+            }
         }
 
         Success(AccessCrontolItem(
           id = group.id,
           name = group.name,
           image = "", //TODO
-          accessLevel = ownership.accessLevel
+          accessLevel = item.accessLevel
         ))
       }
     } catch {
