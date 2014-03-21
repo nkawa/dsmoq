@@ -32,6 +32,13 @@ class Rendereds{
             event: r.event
         };
     }
+    public static function decorateWithState<State, Output>( r: Rendered<State,Output>, f: Html -> (Void -> State) -> Html):Rendered<State, Output> {
+        return {
+            html: f(r.html, r.state),
+            state: r.state,
+            event: r.event
+        };
+    }
     public static function htmls<State,Output>(rendereds: Array<Rendered<State, Output>>){
         return rendereds.map(function(x){return x.html;});
     }

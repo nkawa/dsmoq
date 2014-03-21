@@ -8,6 +8,8 @@ import framework.helpers.Connection;
 import framework.Effect;
 import framework.helpers.Core;
 
+import promhx.Stream;
+
 class Common{
     public static function waiting(html){
         html.text("waiting...");
@@ -23,7 +25,7 @@ class Common{
     }
 
     public static function connectionPanel<Input, Output>(name: String, comp: Component<Input, Void, Output>, request: HttpRequest): Rendered<Void, Output>{
-        var c: PlaceHolder<HttpRequest, ConnectionStatus, Output> = ConnectionPanel.request(waiting, name, comp);
+        var c: PlaceHolder<HttpRequest, ConnectionStatus, Output> = ConnectionPanel.request(waiting, name, comp, Effect.global().notifyError.bind(_, null));
         return observe(c).render(request);
     }
 
@@ -49,12 +51,31 @@ class Common{
         function isChecked(x, y){
             return (x == y) ? 'checked=""': '';
         }
+        function val(html:Html){
+            return html.find(":checked").val();
+        }
         return Components.fromHtml(function(input: String){
-            return JQuery.join('<div class="radio"></div')(
+            return JQuery.join('<div class="radio"></div>')(
                 xs.map(function(x){ return
-                    JQuery.j('<label><input type="radio" ${isChecked(x.value, input)} name="$fieldName"></input>${x.displayName}</label>');
+                    JQuery.j('<label><input type="radio" value=${x.value} ${isChecked(x.value, input)} name="$fieldName"></input>${x.displayName}</label>');
                 })
             );
+        }).state(val);
+    }
+
+    public static function withRequest<Input, State, Output>(component: Component<Input, State, Output>, eventName: String, f: Stream<State> -> Stream<Signal>, selector = "*"){
+        return component.decorateWithState(function(html, state: Void -> State){
+            var stream = new Stream();
+            f(stream).then(function(_){
+                html.removeClass("disabled");
+            });
+            html.addClass("can-disable");
+            JQuery.findAll(html, selector).on(eventName, function(x){
+                html.addClass("disabled");
+                stream.resolve(state());
+            });
+
+            return html;
         });
     }
 }

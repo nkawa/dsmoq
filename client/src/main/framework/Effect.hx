@@ -103,8 +103,6 @@ class Effect{
             case "parsererror": Messages.parseError;
             default: message;
         }
-        trace(detail != null && detail != "");
-        trace(Std.string(detail));
         var display = {
             level: "Error! ",
             message: msg,
@@ -116,6 +114,11 @@ class Effect{
             html.find('.notification-detail').text(detail);
         }
         JQuery.j('#notification').empty().append(html);
+    }
+
+    public function connectionError(x: Dynamic){
+        trace(Std.string(x));
+        notifyError(Messages.connectionFailure, x.statusText);
     }
 }
 

@@ -1,6 +1,6 @@
 package components;
 
-import pages.Api;
+import pages.Models;
 import framework.helpers.*;
 using framework.helpers.Components;
 import framework.Types;

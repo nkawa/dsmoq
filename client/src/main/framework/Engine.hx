@@ -12,6 +12,7 @@ import components.ConnectionPanel;
 import components.Header;
 
 import pages.Api;
+import pages.Models;
 
 class Engine<Page>{
     var application: Application<Page>;
@@ -31,9 +32,8 @@ class Engine<Page>{
             return jq.text("waiting...");
         }
 
-        var login = ConnectionPanel.request(initialLoading, "application", 
-            Components.inMap(layout(), Api.extractProfile)
-        ).render(Api.profile);
+        var login = ConnectionPanel.request(initialLoading, "application", Components.inMap(layout(), Api.extractProfile), Effect.global().notifyError.bind(_, null))
+            .render(Api.profile);
 
         j(selector).append(login.html);
     }

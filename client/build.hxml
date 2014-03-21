@@ -12,3 +12,8 @@
 -resource templates/DatasetEdit/UploadFile.html@UploadFileEdit
 -resource templates/DatasetRead/UploadFile.html@UploadFileRead
 -resource templates/Notification.html@NotificationPanel
+-resource templates/DashBoard.html@DashBoard
+-resource templates/Profile.html@Profile
+-resource templates/GroupList.html@GroupList
+-resource templates/GroupEdit.html@GroupEdit
+-resource templates/GroupRead.html@GroupRead

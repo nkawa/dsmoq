@@ -54,6 +54,12 @@ class Components{
         });
     }
 
+    public static function decorateWithState<Input,State,Output>( component, f:Html -> (Void -> State) -> Html) :Component<Input,State,Output>{
+        return toComponent(function(a){
+            return Rendereds.decorateWithState(component.render(a), f);
+        });
+    }
+
     public static function decorateWithInput<Input,State,Output>( component, f:Html -> Input -> Html) :Component<Input,State,Output>{
         return toComponent(function(a){
             return Rendereds.decorate(component.render(a), f.bind(_, a));

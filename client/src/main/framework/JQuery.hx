@@ -13,11 +13,13 @@ extern class Jq{
     public function text(text: String):Jq;
     @:overload(function (name: String): String{})
     public function attr(name: String, value: Dynamic): Jq;
+    @:overload(function (name: String): String{})
     public function prop(name: String, value: Dynamic): Jq;
     public function removeAttr(name: String): Jq;
     public function on<A>(event: String, f: A->Void): Jq;
     public function empty(): Jq;
     public function addClass(name: String): Jq;
+    public function removeClass(name: String): Jq;
     @:overload(function ():String{})
     public function val(value: String): Jq;
     public var length: Int;
@@ -75,5 +77,9 @@ class JQuery{
         return Lambda.fold(htmls,
                 function(html: Jq, acc: Jq){ return acc.add(html);},
                 j(''));
+    }
+
+    public static inline function self(): Dynamic{
+        return j(untyped __js__('this'));
     }
 }
