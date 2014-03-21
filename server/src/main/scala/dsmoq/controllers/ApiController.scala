@@ -105,14 +105,28 @@ class ApiController extends ScalatraServlet
     }
   }
 
-  post("/datasets/:datasetId/acl") {
-    val aci = AccessControl(params("datasetId"), params("id"), params("accessLevel").toInt)
+  put("/datasets/:datasetId/acl/:groupId") {
+    val aci = AccessControl(params("datasetId"), params("groupId"), params("accessLevel").toInt)
 
     (for {
       userInfo <- getUserInfoFromSession()
       result <- DatasetFacade.setAccessContorl(userInfo, aci)
     } yield {
       Success(result)
+    }) match {
+      case Success(x) => AjaxResponse("OK", x)
+      case Failure(e) => AjaxResponse("NG")
+    }
+  }
+
+  delete("/datasets/:datasetId/acl/:groupId") {
+    val aci = AccessControl(params("datasetId"), params("groupId"), 0)
+
+    (for {
+      userInfo <- getUserInfoFromSession()
+      result <- DatasetFacade.setAccessContorl(userInfo, aci)
+    } yield {
+      Success(Unit)
     }) match {
       case Success(x) => AjaxResponse("OK", x)
       case Failure(e) => AjaxResponse("NG")
