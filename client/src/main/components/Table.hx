@@ -174,7 +174,7 @@ class Table{
     }
 
     private static function enableButtons(html: Html, selector){
-        (untyped html.find(selector).removeClass("disabled")).button('reset');
+        (untyped html.find(selector).removeClass("disabled").filter('input')).button();
     }
 
     private static function numbering(html: Html){

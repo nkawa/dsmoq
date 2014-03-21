@@ -80,8 +80,10 @@ class DatasetEditView{
                 action:function(target: Html, strings: Html -> RowStrings):Stream<Signal>{
                     var stream = new Stream();
                     target.on("change", function(_){
-                        trace(strings(JQuery.self()));
-                        haxe.Timer.delay(function(){stream.resolve(Signal);}, 1000);
+                        var model = toAclModel(strings(JQuery.self()));
+                        Api.sendDatasetsAclChange(Core.get(id), model.id, model.level).event.then(function(_){
+                            stream.resolve(Signal);
+                        });
                     });
                     return stream;
                 }
@@ -140,13 +142,20 @@ class DatasetEditView{
                 {value: "1", displayName:"Limited public (ignore download)"},
                 {value: "2", displayName:"Full public (allow download)"}
             ];
+            function toDefaultAccess(str: String){
+                return switch(str){
+                    case "0": DefaultLevel.Deny;
+                    case "1": DefaultLevel.LimitedPublic;
+                    case "2": DefaultLevel.FullPublic;
+                    default: throw "illegal selection letter @ DatasetEditView";
+                }
+            }
             var stream = new Stream();
             Common.withRequest(Common.radio("defaultAccessLevel", accessLevel), "click", function(stateStream){
                 stateStream.then(function(state){
-                    trace(state);
-                    haxe.Timer.delay(function(){
+                    Api.sendDatasetsDefaultAccess(Core.get(id), toDefaultAccess(state)).event.then(function(_){
                         stream.resolve(Signal);
-                    }, 1000);
+                    });
                 });
                 return stream;
             }, "input").state(Core.ignore);
