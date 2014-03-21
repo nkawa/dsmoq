@@ -43,6 +43,7 @@ class Table{
                     html = JQuery.j('<thead></thead>').append(JQuery.gather(JQuery.j('<tr></tr>'))(header.map(td)))
                     .add(html);
                 }
+                numbering(html);
 
                 return JQuery.wrapBy('<table class="table table-bordered table-condensed"></table>', html);
             });
