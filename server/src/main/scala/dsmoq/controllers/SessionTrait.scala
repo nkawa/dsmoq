@@ -13,9 +13,9 @@ trait SessionTrait extends ScalatraServlet {
         case Some(x) => Success(x.asInstanceOf[User])
         case None =>
           clearSession()
-          Success(User("", "", "", "", "", "http://xxxx", true))
+          Success(User("", "", "", "", "", "http://xxxx", true, false))
       }
-      case None => Success(User("", "", "", "", "", "http://xxxx", true))
+      case None => Success(User("", "", "", "", "", "http://xxxx", true, false))
     }
   }
 

@@ -44,15 +44,17 @@ object DatasetData {
   )
 
   case class Dataset(
-                      id: String,
-                      files: Seq[DatasetFile],
-                      meta: DatasetMetaData,
-                      images: Seq[Image],
-                      primaryImage: String,
-                      ownerships: Seq[DatasetOwnership],
-                      defaultAccessLevel: Int,
-                      permission: Int
-                      )
+    id: String,
+    filesSize: Long,
+    filesCount: Int,
+    files: Seq[DatasetFile],
+    meta: DatasetMetaData,
+    images: Seq[Image],
+    primaryImage: String,
+    ownerships: Seq[DatasetOwnership],
+    defaultAccessLevel: Int,
+    permission: Int
+  )
 
   case class DatasetMetaData(
                               name: String,
@@ -73,10 +75,10 @@ object DatasetData {
     url: String,
     size: Long,
     createdBy: User,
-    createdAt: DateTime,
+    createdAt: String,
     updatedBy: User,
-    updatedAt: DateTime
-  )
+    updatedAt: String
+    )
 
   case class DatasetOwnership (
     id: String,

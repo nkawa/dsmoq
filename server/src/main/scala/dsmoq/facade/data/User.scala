@@ -7,5 +7,19 @@ case class User(
   organization: String,
   title: String,
   image: String,
-  isGuest: Boolean
+  isGuest: Boolean,
+  isDeleted: Boolean
 )
+
+object User {
+  def apply(x: dsmoq.persistence.User) = new User(
+    id = x.id,
+    name = x.name,
+    fullname = x.fullname,
+    organization = x.organization,
+    title = x.title,
+    image = "", //TODO
+    isGuest = false,
+    isDeleted = x.deletedAt.isDefined
+  )
+}

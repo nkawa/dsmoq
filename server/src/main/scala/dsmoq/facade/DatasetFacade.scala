@@ -37,6 +37,9 @@ object DatasetFacade {
             datasetId = datasetId,
             name = f.name,
             description = "",
+            fileType = 0,
+            fileMime = "application/octet-stream",
+            fileSize = f.size,
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
@@ -46,7 +49,7 @@ object DatasetFacade {
             id = UUID.randomUUID.toString,
             fileId = file.id,
             fileType = 0,
-            fileMime = "",
+            fileMime = "application/octet-stream",
             fileSize = f.size,
             createdBy = myself.id,
             createdAt = timestamp,
@@ -86,28 +89,30 @@ object DatasetFacade {
           updatedBy = myself.id,
           updatedAt = timestamp)
 
-        Success(dsmoq.facade.data.DatasetData.Dataset(
+        Success(DatasetData.Dataset(
           id = dataset.id,
-          meta = dsmoq.facade.data.DatasetData.DatasetMetaData(
+          meta = DatasetData.DatasetMetaData(
             name = dataset.name,
             description = dataset.description,
             license = dataset.licenseId,
             attributes = Seq.empty
           ),
-          files = files.map(x => dsmoq.facade.data.DatasetData.DatasetFile(
+          filesCount = dataset.filesCount,
+          filesSize = dataset.filesSize,
+          files = files.map(x => DatasetData.DatasetFile(
             id = x._1.id,
             name = x._1.name,
             description = x._1.description,
             size = x._2.fileSize,
             url = "", //TODO
             createdBy = params.userInfo,
-            createdAt = timestamp,
+            createdAt = timestamp.toString(),
             updatedBy = params.userInfo,
-            updatedAt = timestamp
+            updatedAt = timestamp.toString()
           )),
-          images = Seq(dsmoq.facade.data.Image(id = datasetImage.id, url = "")), //TODO
+          images = Seq(Image(id = datasetImage.id, url = "")), //TODO
           primaryImage =  datasetImage.id,
-          ownerships = Seq(dsmoq.facade.data.DatasetData.DatasetOwnership(
+          ownerships = Seq(DatasetData.DatasetOwnership(
             id = myself.id,
             name = myself.name,
             fullname = myself.fullname,
@@ -140,7 +145,7 @@ object DatasetFacade {
    * @param params
    * @return
    */
-  def search(params: dsmoq.facade.data.DatasetData.SearchDatasetsParams): Try[dsmoq.facade.data.RangeSlice[dsmoq.facade.data.DatasetData.DatasetsSummary]] = {
+  def search(params: DatasetData.SearchDatasetsParams): Try[RangeSlice[DatasetData.DatasetsSummary]] = {
     try {
       val offset = params.offset.getOrElse("0").toInt
       val limit = params.limit.getOrElse("20").toInt
@@ -149,7 +154,7 @@ object DatasetFacade {
         val groups = getJoinedGroups(params.userInfo)
         val count = countDatasets(groups)
 
-        val summary = dsmoq.facade.data.RangeSliceSummary(count, limit, offset)
+        val summary = RangeSliceSummary(count, limit, offset)
         val results = if (count > offset) {
           val datasets = findDatasets(groups, limit, offset)
           val datasetIds = datasets.map(_._1.id)
@@ -162,7 +167,7 @@ object DatasetFacade {
           datasets.map(x => {
             val ds = x._1
             val permission = x._2
-            dsmoq.facade.data.DatasetData.DatasetsSummary(
+            DatasetData.DatasetsSummary(
               id = ds.id,
               name = ds.name,
               description = ds.description,
@@ -178,7 +183,7 @@ object DatasetFacade {
         } else {
           List.empty
         }
-        Success(dsmoq.facade.data.RangeSlice(summary, results))
+        Success(RangeSlice(summary, results))
       }
     } catch {
       case e: Exception => Failure(e)
@@ -190,7 +195,7 @@ object DatasetFacade {
    * @param params
    * @return
    */
-  def get(params: dsmoq.facade.data.DatasetData.GetDatasetParams): Try[dsmoq.facade.data.DatasetData.Dataset] = {
+  def get(params: DatasetData.GetDatasetParams): Try[DatasetData.Dataset] = {
     try {
       DB readOnly { implicit s =>
         (for {
@@ -199,18 +204,21 @@ object DatasetFacade {
           permission <- getPermission(params.id, groups)
           guestAccessLevel <- Some(getGuestAccessLevel(params.id))
           owners <- Some(getOwnerGroups(params.id))
+          files <- Some(getFiles(params.id))
         } yield {
-          dsmoq.facade.data.DatasetData.Dataset(
+          DatasetData.Dataset(
             id = dataset.id,
-            files = Seq.empty,
+            files = files,
+            filesCount = dataset.filesCount,
+            filesSize = dataset.filesSize,
             meta = DatasetData.DatasetMetaData(
               name = dataset.name,
               description = dataset.description,
               license = None,
               attributes = Seq.empty
             ),
-            images = Seq.empty,
-            primaryImage = "",
+            images = Seq.empty, //TODO
+            primaryImage = "", //TODO
             ownerships = owners.map(x => DatasetData.DatasetOwnership(
               id = x._1.id,
               name = x._1.name,
@@ -481,6 +489,42 @@ object DatasetFacade {
     //            .list().apply()
     //            .groupBy {x => x._1 }
 
+  }
+
+  private def getFiles(datasetId: String)(implicit s: DBSession) = {
+    val f = persistence.File.f
+    val u1 = persistence.User.syntax("u1")
+    val u2 = persistence.User.syntax("u2")
+
+    withSQL {
+      select(f.result.*, u1.result.*, u2.result.*)
+        .from(persistence.File as f)
+        .innerJoin(persistence.User as u1).on(f.createdBy, u1.id)
+        .innerJoin(persistence.User as u2).on(f.updatedBy, u2.id)
+        .where
+          .eq(f.datasetId, sqls.uuid(datasetId))
+          .and
+          .isNull(f.deletedAt)
+        .orderBy(f.createdAt)
+    }.map(rs =>
+      (
+        persistence.File(f.resultName)(rs),
+        persistence.User(u1.resultName)(rs),
+        persistence.User(u2.resultName)(rs)
+      )
+    ).list.apply.map(x =>
+      DatasetData.DatasetFile(
+        id = x._1.id,
+        name = x._1.name,
+        description = x._1.description,
+        url = "", //TODO
+        size = x._1.fileSize,
+        createdBy = User(x._2),
+        createdAt = x._1.createdAt.toString(),
+        updatedBy = User(x._3),
+        updatedAt = x._1.updatedAt.toString()
+      )
+    )
   }
 
   private def getFiles(datasetIds: Seq[String])(implicit s: DBSession) = {
