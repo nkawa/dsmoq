@@ -112,9 +112,9 @@ class ApiController extends ScalatraServlet
       userInfo <- getUserInfoFromSession()
       result <- DatasetFacade.setAccessContorl(userInfo, aci)
     } yield {
-      Success(result)
+      result
     }) match {
-      case Success(x) => AjaxResponse("OK", x.value)
+      case Success(x) => AjaxResponse("OK", x)
       case Failure(e) => AjaxResponse("NG")
     }
   }
@@ -126,7 +126,7 @@ class ApiController extends ScalatraServlet
       userInfo <- getUserInfoFromSession()
       result <- DatasetFacade.setAccessContorl(userInfo, aci)
     } yield {
-      Success(Unit)
+      Unit
     }) match {
       case Success(x) => AjaxResponse("OK", x)
       case Failure(e) => AjaxResponse("NG")
