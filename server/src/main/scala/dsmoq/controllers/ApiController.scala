@@ -114,7 +114,7 @@ class ApiController extends ScalatraServlet
     } yield {
       Success(result)
     }) match {
-      case Success(x) => AjaxResponse("OK", x)
+      case Success(x) => AjaxResponse("OK", x.value)
       case Failure(e) => AjaxResponse("NG")
     }
   }
