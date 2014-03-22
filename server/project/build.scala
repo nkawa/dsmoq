@@ -2,6 +2,9 @@ import sbt._
 import Keys._
 import org.scalatra.sbt._
 import org.scalatra.sbt.PluginKeys._
+import org.scalatra.sbt.DistPlugin.Dist
+import com.earldouglas.xsbtwebplugin.PluginKeys._
+import com.earldouglas.xsbtwebplugin.WebPlugin.container
 
 object DsmoqBuild extends Build {
   val Organization = "dsmoq"
@@ -19,6 +22,7 @@ object DsmoqBuild extends Build {
       version := Version,
       scalaVersion := ScalaVersion,
       resolvers += Classpaths.typesafeReleases,
+      //port in container.Configuration := 8080,
       libraryDependencies ++= Seq(
         "org.scalatra" %% "scalatra" % ScalatraVersion,
         "org.scalatra" %% "scalatra-auth" % ScalatraVersion,

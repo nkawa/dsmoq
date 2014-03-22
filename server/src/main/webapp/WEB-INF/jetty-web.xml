@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!DOCTYPE Configure PUBLIC "-//Jetty//Configure//EN" "http://www.eclipse.org/jetty/configure.dtd">
+<Configure id="Server" class="org.eclipse.jetty.webapp.WebAppContext">
+  <Set name="sessionHandler">
+    <New class="org.eclipse.jetty.server.session.SessionHandler">
+      <Arg>
+        <New class="org.eclipse.jetty.server.session.HashSessionManager">
+          <Set name="storeDirectory">../tmp/session</Set>
+          <Set name="savePeriod">5</Set>
+          <Set name="maxInactiveInterval">-1</Set>
+        </New>
+      </Arg>
+    </New>
+  </Set>
+</Configure>
