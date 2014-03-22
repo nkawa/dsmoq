@@ -1,4 +1,4 @@
-package dsmoq.facade.data
+package dsmoq.services.data
 
 /**
  * Created by terurou on 2014/03/20.

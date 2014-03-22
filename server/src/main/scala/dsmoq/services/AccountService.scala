@@ -1,12 +1,12 @@
-package dsmoq.facade
+package dsmoq.services
 
 import scala.util.{Try, Failure, Success}
 import scalikejdbc._, SQLInterpolation._
 import java.security.MessageDigest
 import dsmoq.persistence
-import dsmoq.facade.data._
+import dsmoq.services.data._
 
-object LoginFacade {
+object AccountService {
 
   def getAuthenticatedUser(params: LoginData.SigninParams): Try[Option[User]] = {
     // TODO dbアクセス時エラーでFailure返す try~catch

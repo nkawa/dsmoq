@@ -1,11 +1,11 @@
-package dsmoq.facade
+package dsmoq.services
 
 import scala.util.{Failure, Try, Success}
 import scalikejdbc._, SQLInterpolation._
 import java.util.UUID
 import java.nio.file.Paths
 import dsmoq.AppConf
-import dsmoq.facade.data._
+import dsmoq.services.data._
 import dsmoq.persistence
 import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.exceptions.{ValidationException, NotAuthorizedException}
@@ -13,7 +13,7 @@ import org.joda.time.DateTime
 import org.scalatra.servlet.FileItem
 import dsmoq.forms.{AccessCrontolItem, AccessControl}
 
-object DatasetFacade {
+object DatasetService {
   /**
    * データセットを新規作成します。
    * @param params
@@ -303,7 +303,7 @@ object DatasetFacade {
     }
   }
 
-  private def getJoinedGroups(user: User)(implicit s: DBSession) = {
+  private def getJoinedGroups(user: User)(implicit s: DBSession): Seq[String] = {
     if (user.isGuest) {
       Seq.empty
     } else {

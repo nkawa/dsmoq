@@ -1,4 +1,4 @@
-package dsmoq.facade.data
+package dsmoq.services.data
 
 case class User(
   id: String,

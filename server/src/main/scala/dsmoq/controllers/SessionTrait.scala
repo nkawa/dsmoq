@@ -1,7 +1,7 @@
 package dsmoq.controllers
 
 import org.scalatra.ScalatraServlet
-import dsmoq.facade.data.User
+import dsmoq.services.data.User
 import scala.util.{Try, Failure, Success}
 
 trait SessionTrait extends ScalatraServlet {

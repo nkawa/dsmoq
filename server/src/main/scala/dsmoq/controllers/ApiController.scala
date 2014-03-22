@@ -3,11 +3,11 @@ package dsmoq.controllers
 import org.scalatra.ScalatraServlet
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatra.json.JacksonJsonSupport
-import dsmoq.facade._
+import dsmoq.services._
 import scala.util.{Success, Failure}
 import org.scalatra.servlet.{MultipartConfig, FileUploadSupport}
-import dsmoq.facade.data.LoginData._
-import dsmoq.facade.data.DatasetData._
+import dsmoq.services.data.LoginData._
+import dsmoq.services.data.DatasetData._
 import dsmoq.forms._
 
 class ApiController extends ScalatraServlet
@@ -33,7 +33,7 @@ class ApiController extends ScalatraServlet
   post("/signin") {
     val id = params("id")
     val facadeParams = SigninParams(id, params("password"))
-    LoginFacade.getAuthenticatedUser(facadeParams) match {
+    AccountService.getAuthenticatedUser(facadeParams) match {
       case Success(x) =>
         x match {
           case Some(y) =>
@@ -60,7 +60,7 @@ class ApiController extends ScalatraServlet
     val response = for {
       userInfo <- getUserInfoFromSession()
       facadeParams = CreateDatasetParams(userInfo, files)
-      dataset <- DatasetFacade.create(facadeParams)
+      dataset <- DatasetService.create(facadeParams)
     } yield {
       AjaxResponse("OK", dataset)
     }
@@ -80,7 +80,7 @@ class ApiController extends ScalatraServlet
     val response = for {
       userInfo <- getUserInfoFromSession()
       facadeParams = SearchDatasetsParams(query, group, attributes, limit, offset, userInfo)
-      datasets <- DatasetFacade.search(facadeParams)
+      datasets <- DatasetService.search(facadeParams)
     } yield {
       AjaxResponse("OK", datasets)
     }
@@ -95,7 +95,7 @@ class ApiController extends ScalatraServlet
     val response = for {
       userInfo <- getUserInfoFromSession()
       facadeParams = GetDatasetParams(id, userInfo)
-      dataset <- DatasetFacade.get(facadeParams)
+      dataset <- DatasetService.get(facadeParams)
     } yield {
       AjaxResponse("OK", dataset)
     }
@@ -110,7 +110,7 @@ class ApiController extends ScalatraServlet
 
     (for {
       userInfo <- getUserInfoFromSession()
-      result <- DatasetFacade.setAccessContorl(userInfo, aci)
+      result <- DatasetService.setAccessContorl(userInfo, aci)
     } yield {
       result
     }) match {
@@ -124,7 +124,7 @@ class ApiController extends ScalatraServlet
 
     (for {
       userInfo <- getUserInfoFromSession()
-      result <- DatasetFacade.setAccessContorl(userInfo, aci)
+      result <- DatasetService.setAccessContorl(userInfo, aci)
     } yield {
       Unit
     }) match {
