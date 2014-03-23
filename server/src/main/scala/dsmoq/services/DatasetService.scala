@@ -12,6 +12,7 @@ import dsmoq.exceptions.{ValidationException, NotAuthorizedException}
 import org.joda.time.DateTime
 import org.scalatra.servlet.FileItem
 import dsmoq.forms.{AccessCrontolItem, AccessControl}
+import dsmoq.persistence.GroupMemberRole
 
 object DatasetService {
   /**
@@ -219,15 +220,7 @@ object DatasetService {
             ),
             images = Seq.empty, //TODO
             primaryImage = "", //TODO
-            ownerships = owners.map(x => DatasetData.DatasetOwnership(
-              id = x._1.id,
-              name = x._1.name,
-              fullname = "", //TODO
-              organization = "", //TODO
-              title = "", //TODO
-              image = "", //TODO
-              accessLevel = x._2
-            )),
+            ownerships = owners,
             defaultAccessLevel = guestAccessLevel,
             permission = permission
           )
@@ -427,19 +420,37 @@ object DatasetService {
   }
 
   private def getOwnerGroups(datasetId: String)(implicit s: DBSession) = {
-    val o = persistence.Ownership.syntax("o")
-    val g = persistence.Group.syntax("g")
+    val o = persistence.Ownership.o
+    val g = persistence.Group.g
+    val m = persistence.Member.m
+    val u = persistence.User.u
     withSQL {
-      select(o.result.*, g.result.*)
+      select(o.result.*, g.result.*, u.result.*)
         .from(persistence.Ownership as o)
-        .innerJoin(persistence.Group as g).on(g.id, o.groupId)
+        .innerJoin(persistence.Group as g)
+          .on(sqls.eq(g.id, o.groupId).and.isNull(g.deletedAt))
+        .leftJoin(persistence.Member as m)
+          .on(sqls.eq(g.id, m.groupId)
+              .and.eq(g.groupType, persistence.GroupType.Personal)
+              .and.eq(m.role, persistence.GroupMemberRole.Administrator)
+              .and.isNull(m.deletedAt))
+        .innerJoin(persistence.User as u)
+          .on(sqls.eq(m.userId, u.id).and.isNull(u.deletedAt))
         .where
-        .eq(o.datasetId, sqls.uuid(datasetId))
-        .and
-        .isNull(o.deletedAt)
-        .and
-        .isNull(g.deletedAt)
-    }.map(rs => (persistence.Group(g.resultName)(rs), rs.int(o.resultName.accessLevel))).list().apply()
+          .eq(o.datasetId, sqls.uuid(datasetId))
+          .and
+          .isNull(o.deletedAt)
+    }.map(rs =>
+      DatasetData.DatasetOwnership(
+        id = rs.string(g.resultName.id),
+        name = rs.stringOpt(u.resultName.name).getOrElse(rs.string(g.resultName.name)),
+        fullname = rs.stringOpt(u.resultName.fullname).getOrElse(""),
+        organization = rs.stringOpt(u.resultName.organization).getOrElse(""),
+        title = rs.stringOpt(u.resultName.title).getOrElse(""),
+        image = "", //TODO
+        accessLevel = rs.int(o.resultName.accessLevel)
+      )
+    ).list().apply()
   }
 
   private def getOwnerGroups(datasetIds: Seq[String])(implicit s: DBSession) = {
