@@ -9,7 +9,7 @@ case class DatasetImage(
   id: String,
   datasetId: String,
   imageId: String,
-  isPrimary: Boolean,
+  isPrimary: Boolean, 
   displayOrder: Int, 
   createdBy: String,
   createdAt: DateTime, 
@@ -47,7 +47,7 @@ object DatasetImage extends SQLSyntaxSupport[DatasetImage] {
       
   val di = DatasetImage.syntax("di")
 
-  //val autoSession = AutoSession
+  override val autoSession = AutoSession
 
   def find(id: String)(implicit session: DBSession = autoSession): Option[DatasetImage] = {
     withSQL { 
@@ -131,19 +131,19 @@ object DatasetImage extends SQLSyntaxSupport[DatasetImage] {
 
   def save(entity: DatasetImage)(implicit session: DBSession = autoSession): DatasetImage = {
     withSQL { 
-      update(DatasetImage as di).set(
-        di.id -> entity.id,
-        di.datasetId -> entity.datasetId,
-        di.imageId -> entity.imageId,
-        di.isPrimary -> entity.isPrimary,
-        di.displayOrder -> entity.displayOrder,
-        di.createdBy -> entity.createdBy,
-        di.createdAt -> entity.createdAt,
-        di.updatedBy -> entity.updatedBy,
-        di.updatedAt -> entity.updatedAt,
-        di.deletedBy -> entity.deletedBy,
-        di.deletedAt -> entity.deletedAt
-      ).where.eq(di.id, entity.id)
+      update(DatasetImage).set(
+        column.id -> sqls.uuid(entity.id),
+        column.datasetId -> sqls.uuid(entity.datasetId),
+        column.imageId -> sqls.uuid(entity.imageId),
+        column.isPrimary -> entity.isPrimary,
+        column.displayOrder -> entity.displayOrder,
+        column.createdBy -> sqls.uuid(entity.createdBy),
+        column.createdAt -> entity.createdAt,
+        column.updatedBy -> sqls.uuid(entity.updatedBy),
+        column.updatedAt -> entity.updatedAt,
+        column.deletedBy -> entity.deletedBy.map(sqls.uuid),
+        column.deletedAt -> entity.deletedAt
+      ).where.eq(column.id, sqls.uuid(entity.id))
     }.update.apply()
     entity 
   }

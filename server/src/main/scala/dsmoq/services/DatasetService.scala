@@ -12,7 +12,7 @@ import dsmoq.exceptions.{ValidationException, NotAuthorizedException}
 import org.joda.time.DateTime
 import org.scalatra.servlet.FileItem
 import dsmoq.forms.{AccessCrontolItem, AccessControl}
-import dsmoq.persistence.GroupMemberRole
+import dsmoq.persistence.{AccessLevel, GroupMemberRole}
 
 object DatasetService {
   /**
@@ -174,7 +174,7 @@ object DatasetService {
               description = ds.description,
               image = "http://xxx",
               attributes = List.empty, //TODO
-              ownerships = List.empty, //TODO
+              ownerships = owners.get(ds.id).getOrElse(Seq.empty),
               files = ds.filesCount,
               dataSize = ds.filesSize,
               defaultAccessLevel = guestAccessLevels.get(ds.id).getOrElse(0),
@@ -206,6 +206,7 @@ object DatasetService {
           guestAccessLevel <- Some(getGuestAccessLevel(params.id))
           owners <- Some(getOwnerGroups(params.id))
           files <- Some(getFiles(params.id))
+          attributes <- Some(getAttributes(params.id))
         } yield {
           DatasetData.Dataset(
             id = dataset.id,
@@ -216,7 +217,7 @@ object DatasetService {
               name = dataset.name,
               description = dataset.description,
               license = None,
-              attributes = Seq.empty
+              attributes = attributes
             ),
             images = Seq.empty, //TODO
             primaryImage = "", //TODO
@@ -419,6 +420,51 @@ object DatasetService {
     }
   }
 
+  private def getOwnerGroups(datasetIds: Seq[String])(implicit s: DBSession):Map[String, Seq[DatasetData.DatasetOwnership]] = {
+    if (datasetIds.nonEmpty) {
+      val o = persistence.Ownership.o
+      val g = persistence.Group.g
+      val m = persistence.Member.m
+      val u = persistence.User.u
+      withSQL {
+        select(o.result.*, g.result.*, u.result.*)
+          .from(persistence.Ownership as o)
+          .innerJoin(persistence.Group as g)
+            .on(sqls.eq(g.id, o.groupId).and.isNull(g.deletedAt))
+          .leftJoin(persistence.Member as m)
+            .on(sqls.eq(g.id, m.groupId)
+                .and.eq(g.groupType, persistence.GroupType.Personal)
+                .and.eq(m.role, persistence.GroupMemberRole.Administrator)
+                .and.isNull(m.deletedAt))
+          .innerJoin(persistence.User as u)
+            .on(sqls.eq(m.userId, u.id).and.isNull(u.deletedAt))
+          .where
+            .inByUuid(o.datasetId, datasetIds)
+            .and
+            .eq(o.accessLevel, AccessLevel.AllowAll)
+            .and
+            .isNull(o.deletedAt)
+      }.map(rs =>
+        (
+          rs.string(o.resultName.datasetId),
+          DatasetData.DatasetOwnership(
+            id = rs.string(g.resultName.id),
+            name = rs.stringOpt(u.resultName.name).getOrElse(rs.string(g.resultName.name)),
+            fullname = rs.stringOpt(u.resultName.fullname).getOrElse(""),
+            organization = rs.stringOpt(u.resultName.organization).getOrElse(""),
+            title = rs.stringOpt(u.resultName.title).getOrElse(""),
+            image = "", //TODO
+            accessLevel = rs.int(o.resultName.accessLevel)
+          )
+        )
+      ).list().apply()
+      .groupBy(_._1)
+      .map(x => (x._1, x._2.map(_._2)))
+    } else {
+      Map.empty
+    }
+  }
+
   private def getOwnerGroups(datasetId: String)(implicit s: DBSession) = {
     val o = persistence.Ownership.o
     val g = persistence.Group.g
@@ -453,27 +499,6 @@ object DatasetService {
     ).list().apply()
   }
 
-  private def getOwnerGroups(datasetIds: Seq[String])(implicit s: DBSession) = {
-    if (datasetIds.nonEmpty) {
-      val o = persistence.Ownership.syntax("o")
-      val g = persistence.Group.syntax("g")
-      withSQL {
-        select(o.result.*, g.result.*)
-          .from(persistence.Ownership as o)
-          .innerJoin(persistence.Group as g).on(g.id, o.groupId)
-          .where
-          .inByUuid(o.datasetId, datasetIds)
-          .and
-          .isNull(o.deletedAt)
-          .and
-          .isNull(g.deletedAt)
-      }.map(rs => (persistence.Group(g.resultName)(rs), rs.int(o.resultName.accessLevel))).list().apply()
-      .groupBy(_._1.id)
-    } else {
-      Map.empty
-    }
-  }
-
   private def getAttributes(datasetIds: Seq[String])(implicit s: DBSession) = {
     if (datasetIds.nonEmpty) {
       //val k = ds
@@ -500,6 +525,28 @@ object DatasetService {
     //            .list().apply()
     //            .groupBy {x => x._1 }
 
+  }
+
+  private def getAttributes(datasetId: String)(implicit s: DBSession) = {
+    Seq.empty
+  }
+
+  private def getImages(datasetId: String)(implicit s: DBSession) = {
+    val di = persistence.DatasetImage.di
+    val i = persistence.Image.i
+
+    withSQL {
+      select(di.result.*, i.result.*)
+        .from(persistence.DatasetImage as di)
+        .innerJoin(persistence.Image as i).on(di.imageId, i.id)
+        .where
+          .eq(di.datasetId, sqls.uuid(datasetId))
+          .and
+          .isNull(di.deletedAt)
+          .and
+          .isNull(i.deletedAt)
+        .orderBy(di.displayOrder)
+    }
   }
 
   private def getFiles(datasetId: String)(implicit s: DBSession) = {
