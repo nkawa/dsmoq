@@ -9,6 +9,7 @@ import org.scalatra.servlet.{MultipartConfig, FileUploadSupport}
 import dsmoq.services.data.LoginData._
 import dsmoq.services.data.DatasetData._
 import dsmoq.forms._
+import dsmoq.AppConf
 
 class ApiController extends ScalatraServlet
     with JacksonJsonSupport with SessionTrait with FileUploadSupport {
@@ -18,12 +19,12 @@ class ApiController extends ScalatraServlet
     contentType = formats("json")
   }
 
-  get ("/*") {
+  get("/*") {
     throw new Exception("err")
   }
 
   // JSON API
-  get ("/profile") {
+  get("/profile") {
     getUserInfoFromSession() match {
       case Success(x) => AjaxResponse("OK", x)
       case Failure(e) => AjaxResponse("NG")
@@ -105,28 +106,30 @@ class ApiController extends ScalatraServlet
     }
   }
 
-  put("/datasets/:datasetId/acl/:groupId") {
-    val aci = AccessControl(params("datasetId"), params("groupId"), params("accessLevel").toInt)
+  put("/datasets/:datasetId/acl/guest") {
+    setAccessControl(params("datasetId"), AppConf.guestGroupId, params("accessLevel").toInt)
+  }
 
-    (for {
-      userInfo <- getUserInfoFromSession()
-      result <- DatasetService.setAccessContorl(userInfo, aci)
-    } yield {
-      result
-    }) match {
-      case Success(x) => AjaxResponse("OK", x)
-      case Failure(e) => AjaxResponse("NG")
-    }
+  delete("/datasets/:datasetId/acl/guest") {
+    setAccessControl(params("datasetId"), AppConf.guestGroupId, 0)
+  }
+
+  put("/datasets/:datasetId/acl/:groupId") {
+    setAccessControl(params("datasetId"), params("groupId"), params("accessLevel").toInt)
   }
 
   delete("/datasets/:datasetId/acl/:groupId") {
-    val aci = AccessControl(params("datasetId"), params("groupId"), 0)
+    setAccessControl(params("datasetId"), params("groupId"), 0)
+  }
+
+  private def setAccessControl(datasetId: String, groupId: String, accessLevel: Int) {
+    val aci = AccessControl(datasetId, groupId, accessLevel)
 
     (for {
       userInfo <- getUserInfoFromSession()
-      result <- DatasetService.setAccessContorl(userInfo, aci)
+      result <- DatasetService.setAccessControl(userInfo, aci)
     } yield {
-      Unit
+      result
     }) match {
       case Success(x) => AjaxResponse("OK", x)
       case Failure(e) => AjaxResponse("NG")

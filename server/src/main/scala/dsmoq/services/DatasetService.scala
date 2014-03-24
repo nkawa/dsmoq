@@ -204,7 +204,7 @@ object DatasetService {
           groups <- Some(getJoinedGroups(params.userInfo))
           permission <- getPermission(params.id, groups)
           guestAccessLevel <- Some(getGuestAccessLevel(params.id))
-          owners <- Some(getOwnerGroups(params.id))
+          owners <- Some(getAllOwnerships(params.id))
           files <- Some(getFiles(params.id))
           attributes <- Some(getAttributes(params.id))
         } yield {
@@ -239,13 +239,13 @@ object DatasetService {
    * @param item
    * @return
    */
-  def setAccessContorl(user: User, item: AccessControl): Try[AccessCrontolItem] = {
+  def setAccessControl(user: User, item: AccessControl): Try[AccessCrontolItem] = {
     try {
       if (user.isGuest) throw new NotAuthorizedException
 
       DB localTx { implicit s =>
-        val myself = persistence.User.find(user.id).get
-        var group = persistence.Group.find(item.groupId).get
+        if (!hasAllowAllPermission(user.id, item.datasetId))
+            throw new NotAuthorizedException
 
         val o = persistence.Ownership.o
         withSQL(
@@ -254,7 +254,7 @@ object DatasetService {
             .where
               .eq(o.datasetId, sqls.uuid(item.datasetId))
               .and
-              .eq(o.groupId, sqls.uuid(group.id))
+              .eq(o.groupId, sqls.uuid(item.groupId))
         ).map(persistence.Ownership(o.resultName)).single.apply match {
           case Some(x) =>
             if (item.accessLevel != x.accessLevel) {
@@ -265,7 +265,7 @@ object DatasetService {
                 accessLevel = item.accessLevel,
                 createdBy = x.createdBy,
                 createdAt = x.createdAt,
-                updatedBy = myself.id,
+                updatedBy = user.id,
                 updatedAt = DateTime.now
               ).save()
             }
@@ -277,17 +277,17 @@ object DatasetService {
                 datasetId = item.datasetId,
                 groupId = item.groupId,
                 accessLevel = item.accessLevel,
-                createdBy = myself.id,
+                createdBy = user.id,
                 createdAt = ts,
-                updatedBy = myself.id,
+                updatedBy = user.id,
                 updatedAt = ts
               )
             }
         }
 
         Success(AccessCrontolItem(
-          id = group.id,
-          name = group.name,
+          id = item.groupId,
+          name = "", //TODO
           image = "", //TODO
           accessLevel = item.accessLevel
         ))
@@ -295,6 +295,33 @@ object DatasetService {
     } catch {
       case e: RuntimeException => Failure(e)
     }
+  }
+
+  private def hasAllowAllPermission(userId: String, datasetId: String)(implicit s: DBSession) = {
+    val o = persistence.Ownership.o
+    val g = persistence.Group.g
+    val m = persistence.Member.m
+    val u = persistence.User.u
+    val d = persistence.Dataset.d
+    withSQL {
+      select(sqls"1")
+        .from(persistence.Ownership as o)
+        .innerJoin(persistence.Group as g).on(sqls.eq(o.groupId, g.id).and.isNull(g.deletedAt))
+        .innerJoin(persistence.Member as m).on(sqls.eq(g.id, m.groupId).and.isNull(m.deletedAt))
+        .innerJoin(persistence.User as u).on(sqls.eq(u.id, m.userId).and.isNull(u.deletedAt))
+        .innerJoin(persistence.Dataset as d).on(sqls.eq(o.datasetId, d.id).and.isNull(d.deletedAt))
+        .where
+          .eq(u.id, sqls.uuid(userId))
+          .and
+          .eq(d.id, sqls.uuid(datasetId))
+          .and
+          .eq(g.groupType, persistence.GroupType.Personal)
+          .and
+          .eq(o.accessLevel, persistence.AccessLevel.AllowAll)
+          .and
+          .isNull(o.deletedAt)
+        .limit(1)
+    }.map(x => true).single.apply().getOrElse(false)
   }
 
   private def getJoinedGroups(user: User)(implicit s: DBSession): Seq[String] = {
@@ -317,7 +344,7 @@ object DatasetService {
     }
   }
 
-  private def getPersonalGroup(userId: String)(implicit s:DBSession) = {
+  private def getPersonalGroup(userId: String)(implicit s: DBSession) = {
     val g = persistence.Group.syntax("g")
     val m = persistence.Member.syntax("m")
     withSQL {
@@ -330,6 +357,22 @@ object DatasetService {
           .eq(g.groupType, persistence.GroupType.Personal)
         .limit(1)
     }.map(rs => persistence.Group(g.resultName)(rs)).single().apply()
+  }
+
+  private def getGroup(groupId: String)(implicit s: DBSession) = {
+    if (groupId == AppConf.guestGroupId) {
+      persistence.Group(
+        id = groupId,
+        name = "guest",
+        description = "",
+        groupType = persistence.GroupType.Public,
+        createdBy = AppConf.systemUserId,
+        createdAt = new DateTime(0),
+        updatedBy = AppConf.systemUserId,
+        updatedAt = new DateTime(0))
+    } else {
+      persistence.Group.find(groupId).get
+    }
   }
 
   private def countDatasets(groups : Seq[String])(implicit s: DBSession) = {
@@ -465,7 +508,8 @@ object DatasetService {
     }
   }
 
-  private def getOwnerGroups(datasetId: String)(implicit s: DBSession) = {
+  private def getAllOwnerships(datasetId: String)(implicit s: DBSession) = {
+    // ゲストアカウント情報はownersテーブルに存在しないので、このメソッドからは取得されない
     val o = persistence.Ownership.o
     val g = persistence.Group.g
     val m = persistence.Member.m
@@ -484,6 +528,8 @@ object DatasetService {
           .on(sqls.eq(m.userId, u.id).and.isNull(u.deletedAt))
         .where
           .eq(o.datasetId, sqls.uuid(datasetId))
+          .and
+          .gt(o.accessLevel, AccessLevel.Deny)
           .and
           .isNull(o.deletedAt)
     }.map(rs =>
