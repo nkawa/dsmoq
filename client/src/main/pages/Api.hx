@@ -46,6 +46,7 @@ class Api{
                 }
             }
         }else{
+            framework.Effect.global().notifyError('Status was not OK: ${Std.string(json)}');  // TODO: this notification may be called twice
             throw 'Status was not OK: ${Std.string(json)}';
         }
     }
