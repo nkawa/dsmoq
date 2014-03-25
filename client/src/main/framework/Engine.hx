@@ -38,12 +38,12 @@ class Engine<Page>{
         j(selector).append(login.html);
     }
 
-    private function renderPage(location: PageInfo){
+    private function renderPage(location: PageInfo, needRender: Bool){
         if(container != null){
             var newPage = application.fromUrl(location);
             if(!Type.enumEq(newPage, currentPage)){
                 currentPage = newPage;
-                container.put(currentPage);
+                if(needRender) container.put(currentPage);
             }
         }
     }
@@ -66,7 +66,7 @@ class Engine<Page>{
 
 
     private function changePage(page:Page){
-        Effect.global().changeUrl(application.toUrl(page));
+        Effect.global().changeUrl(application.toUrl(page), false);
     }
 
 }

@@ -14,11 +14,11 @@ typedef PageInfo = {
 
 class Effect{
     public inline static var DEFAULT_FIELD = "query";
-    static var NoCallback = {};
+    static var NoRendering = {};
 
     static var singleton: Effect = null;
 
-    var handler: PageInfo -> Void;
+    var handler: PageInfo -> Bool -> Void;
     var firstAccess = true;
 
     var connections: Array<Void -> ConnectionStatus> = null;
@@ -34,16 +34,16 @@ class Effect{
         return singleton;
     }
 
-    public static function initialize(handler: PageInfo -> Void){
+    public static function initialize(handler: PageInfo -> Bool -> Void){
         if(singleton != null){
             throw "Already initialized: GlobalEffect";
         }
         singleton = new Effect(handler);
     }
 
-    public function changeUrl(pageInfo: PageInfo){
+    public function changeUrl(pageInfo: PageInfo, notifyChange = true){
         var location = fromPageInfo(pageInfo);
-        PushState.push(location);
+        PushState.push(location, notifyChange ? null: NoRendering);
     }
 
     public function updateHash(value: Dynamic){
@@ -54,7 +54,7 @@ class Effect{
         var pageInfo= location();
         pageInfo.attributes.set(key, value);
         var location = fromPageInfo(pageInfo);
-        PushState.push(location, NoCallback);
+        PushState.push(location, NoRendering);
     }
 
     public function observeConnection(c: Void -> ConnectionStatus){
@@ -66,9 +66,7 @@ class Effect{
     }
 
     private function onUrlChange(location: Location, state: Dynamic){
-        if(state != NoCallback){
-            handler(toPageInfo(location));
-        }
+        handler(toPageInfo(location), state != NoRendering);
     }
     private function fromPageInfo(pageInfo: PageInfo): Location{
         function stringifyHash(map: Map<String, Dynamic>){
