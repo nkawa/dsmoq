@@ -3,6 +3,13 @@ package pages;
 typedef User = {userId: String, userName: String}
 typedef GroupId = String
 
+typedef Person = {
+    name: String,
+    organization: String,
+    fullname: String,
+    accessLevel: String
+}
+
 enum LoginStatus {
     Anonymouse;
     LogedIn(user: User);

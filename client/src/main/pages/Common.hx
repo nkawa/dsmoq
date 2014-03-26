@@ -78,4 +78,16 @@ class Common{
             return html;
         });
     }
+    public static function displayStringForUser(user){
+        return '${user.organization} ${user.fullname} (${user.name})';
+    }
+
+    public static function displayStringForAccess(acl){
+        return switch(Std.string(acl)){
+            case "3": "Owner";
+            case "2": "Full Public";
+            case "1": "Limited Public";
+            default: throw "Unknown Value for ACL:" + acl;
+        }
+    }
 }

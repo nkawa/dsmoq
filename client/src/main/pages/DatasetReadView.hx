@@ -5,6 +5,7 @@ import framework.Types;
 import framework.helpers.*;
 import framework.JQuery;
 import components.LoadingPanel;
+import pages.Models;
 
 using components.Tab;
 
@@ -30,14 +31,25 @@ class DatasetReadView{
                     default: "License Not Specified";
                 }
             }
+            function fileViewModel(file){
+                return {
+                    name: file.name,
+                    description: file.description,
+                    size: file.size,
+                    uploadedBy: Common.displayStringForUser(file.updatedBy)
+                };
+            }
+            function aclViewModel(owner:Person){
+                return [Common.displayStringForUser(owner), Common.displayStringForAccess(owner.accessLevel)];
+            }
             return {
                 name: data.meta.name,
                 description: data.meta.description,
                 canDownload: (data.permission >= 1),
                 canEdit: (data.permission >= 2),
                 license: licenseString(data.meta.license),
-                files: [{name: "hoge.csv"}, {name: "fuga.csv"}],
-                acls: [["Taro","Owner"],["Hanako", "Full Read"],["Mike", "Limited Read"]]
+                files: data.files.map(fileViewModel),
+                acls: data.ownerships.map(aclViewModel)
             };
         }
         var files = Components.list(Templates.create("UploadFileRead"), JQuery.fromArray).state(Core.ignore);
