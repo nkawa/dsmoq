@@ -6,7 +6,7 @@ resolvers += "Sonatype snapshots" at "http://oss.sonatype.org/content/repositori
 
 resolvers += "mvnrepository" at "http://mvnrepository.com/artifact/"
 
-libraryDependencies += "org.postgresql" % "postgresql" % "[9.3,)"
+libraryDependencies += "org.postgresql" % "postgresql" % "9.3-1100-jdbc41"
 
 addSbtPlugin("org.scalatra.sbt" % "scalatra-sbt" % "0.3.2")
 

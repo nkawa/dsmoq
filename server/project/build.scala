@@ -33,10 +33,10 @@ object DsmoqBuild extends Build {
         "org.eclipse.jetty.orbit" % "javax.servlet" % "3.0.0.v201112011016" % "container;provided;test" artifacts (Artifact("javax.servlet", "jar", "jar")),
         "org.scalatest" % "scalatest_2.10" % "2.1.0" % "test",
         "org.postgresql" % "postgresql" % "9.3-1101-jdbc41",
-        "org.scalikejdbc" %% "scalikejdbc" % "[1.7,)",
-        "org.scalikejdbc" %% "scalikejdbc-interpolation" % "[1.7,)",
-        "org.scalikejdbc" %% "scalikejdbc-config" % "[1.7,)",
-        "org.scalikejdbc" %% "scalikejdbc-test" % "[1.7,)" % "test",
+        "org.scalikejdbc" %% "scalikejdbc" % "1.7.4",
+        "org.scalikejdbc" %% "scalikejdbc-interpolation" % "1.7.4",
+        "org.scalikejdbc" %% "scalikejdbc-config" % "1.7.4",
+        "org.scalikejdbc" %% "scalikejdbc-test" % "1.7.4" % "test",
         "org.scalatra" %% "scalatra-json" % "2.2.2",
         "org.json4s" %% "json4s-jackson" % "3.2.6"
       )
