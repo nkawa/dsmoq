@@ -129,7 +129,8 @@ class DatasetEditView{
         function toModel(input: Dynamic):Dynamic{
             var ret = untyped {
                 componentTab: tabInfo,
-                defaultAC: "0"
+                defaultAC: "0",
+                acl: []
             };
             if(isNew){
                 ret.files = [];
