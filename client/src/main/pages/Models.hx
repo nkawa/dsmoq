@@ -24,7 +24,7 @@ typedef DatasetSummary ={
     image: String,
     license: String,
     attributes: String,
-    owners: String,
+    ownerships: Array<Person>,
     groups: String,
     files: String,
     dataSize: String,

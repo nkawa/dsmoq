@@ -22,8 +22,18 @@ class DatasetListView{
         function changeHash(req: PagingRequest){
             framework.Effect.global().updateHash(req);
         }
+        function toViewModel(dataset: DatasetSummary){
+            return {
+                name: dataset.name,
+                dataSize: dataset.dataSize,
+                description: dataset.description,
+                files: dataset.files,
+                uploadedBy: dataset.ownerships.map(Common.displayStringForUser).join(",")
+            }
+        }
 
         var summaryComponent = Clickable.create(Templates.create("DatasetSummary"), "a")
+            .inMap(toViewModel)
             .state(Core.ignore)
             .emitInput()
             .outMap(toViewPage);
