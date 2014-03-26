@@ -7,6 +7,10 @@ class Settings{
     {value: "cb898991-9f49-4574-8659-a8379390dc5d", displayName: "maeda_ "},
     {value: "aed619f9-92f9-4298-a079-707594b72341", displayName: "kawagti"}
     ];
+
+    public static function findNameById(id){
+        return groups.filter(function(x){return x.value== id;})[0].displayName;
+    }
 }
 
 private class ApiUrl{

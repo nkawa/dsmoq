@@ -70,7 +70,7 @@ class DatasetEditView{
                     Promises.value(None);
                 }else{
                     Api.sendDatasetsAclChange(Core.get(id), model.name, model.level).event.then(function(resp){
-                        return Some([resp.id, resp.name, resp.accessLevel]);
+                        return Some([resp.id, /* resp.name */ Settings.findNameById(resp.id), resp.accessLevel]);   // no name from response currently
                     });
                     // TODO: resource management
                 };
@@ -129,7 +129,6 @@ class DatasetEditView{
         function toModel(input: Dynamic):Dynamic{
             var ret = untyped {
                 componentTab: tabInfo,
-                acl: [],
                 defaultAC: "0"
             };
             if(isNew){
@@ -145,6 +144,10 @@ class DatasetEditView{
                 }
                 ret.files = x.files.map(Common.fileViewModel);
                 ret.defaultAC = Std.string(x.defaultAccessLevel);
+                function aclViewModel(person){
+                    return [person.id, person.name, person.accessLevel];
+                }
+                ret.acl = x.ownerships.map(aclViewModel);
             }
             return ret;
         }
