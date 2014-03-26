@@ -33,11 +33,9 @@ private class ApiUrl{
     public function datasetDeleteAcl(datasetId: String, groupId: String){
         return '/api/datasets/$datasetId/acl/$groupId';
     }
-    /*
     public function datasetDefaultAccess(datasetId: String){
-        return '/datasets/${dataset_id}/default_access_level';
+        return '/api/datasets/${datasetId}/acl/guest';
     }
-    */
 /*
     public function datasetChangeAcl(datasetId: String, itemId: String){
         return "/resources/dummy/api/ok.json";
@@ -45,8 +43,8 @@ private class ApiUrl{
     public function datasetDeleteAcl(datasetId: String, itemId: String){
         return "/resources/dummy/api/ok.json";
     }
-    */
     public function datasetDefaultAccess(datasetId: String){
         return "/resources/dummy/api/ok.json";
     }
+    */
 }

@@ -126,7 +126,7 @@ class DatasetEditView{
             var ret = untyped {
                 componentTab: tabInfo,
                 acl: [],
-                defaultAC: "1"
+                defaultAC: "0"
             };
             if(isNew){
                 ret.files = [];
@@ -137,6 +137,7 @@ class DatasetEditView{
                     description: x.meta.description
                 };
                 ret.files = x.files.map(Common.fileViewModel);
+                ret.defaultAC = Std.string(x.defaultAccessLevel);
             }
             return ret;
         }
