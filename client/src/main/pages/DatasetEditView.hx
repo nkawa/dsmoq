@@ -120,6 +120,10 @@ class DatasetEditView{
                 });
                 html.find("[data-link-cancel]").on("click", function(_){ promise.resolve(nextPage);});
 
+                if(html.find('[data-canEdit]').text() == ""){   // temporary fix
+                    promise.resolve(nextPage);
+                }
+
                 return promise;
             });
         function toModel(input: Dynamic):Dynamic{
@@ -132,10 +136,13 @@ class DatasetEditView{
                 ret.files = [];
             }else{
                 var x = Api.extractData(input);
-                ret.datasetEditBasic = {
+                ret.datasetEditBasic = untyped {
                     name: x.meta.name,
-                    description: x.meta.description
+                    description: x.meta.description,
                 };
+                if(x.permission <= 2){
+                    ret.datasetEditBasic.canEdit = "";  // this will be caused transiton of page
+                }
                 ret.files = x.files.map(Common.fileViewModel);
                 ret.defaultAC = Std.string(x.defaultAccessLevel);
             }
