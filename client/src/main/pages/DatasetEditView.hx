@@ -136,7 +136,7 @@ class DatasetEditView{
                     name: x.meta.name,
                     description: x.meta.description
                 };
-                ret.files = [{name: "hoge.csv"}, {name: "fuga.csv"}];
+                ret.files = x.files.map(Common.fileViewModel);
             }
             return ret;
         }

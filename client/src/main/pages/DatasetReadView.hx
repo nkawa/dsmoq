@@ -31,14 +31,6 @@ class DatasetReadView{
                     default: "License Not Specified";
                 }
             }
-            function fileViewModel(file){
-                return {
-                    name: file.name,
-                    description: file.description,
-                    size: file.size,
-                    uploadedBy: Common.displayStringForUser(file.updatedBy)
-                };
-            }
             function aclViewModel(owner:Person){
                 return [Common.displayStringForUser(owner), Common.displayStringForAccess(owner.accessLevel)];
             }
@@ -48,7 +40,7 @@ class DatasetReadView{
                 canDownload: (data.permission >= 1),
                 canEdit: (data.permission >= 2),
                 license: licenseString(data.meta.license),
-                files: data.files.map(fileViewModel),
+                files: data.files.map(Common.fileViewModel),
                 acls: data.ownerships.map(aclViewModel)
             };
         }

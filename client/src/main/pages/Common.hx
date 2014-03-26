@@ -82,6 +82,15 @@ class Common{
         return '${user.organization} ${user.fullname} (${user.name})';
     }
 
+    public static function fileViewModel(file){
+        return {
+            name: file.name,
+            description: file.description,
+            size: file.size,
+            uploadedBy: displayStringForUser(file.updatedBy)
+        };
+    }
+
     public static function displayStringForAccess(acl){
         return switch(Std.string(acl)){
             case "3": "Owner";
