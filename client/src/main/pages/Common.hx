@@ -82,12 +82,13 @@ class Common{
         return '${user.organization} ${user.fullname} (${user.name})';
     }
 
-    public static function fileViewModel(file){
+    public static function fileViewModel(file, canDownload=true){
         return {
             name: file.name,
             description: file.description,
             size: file.size,
-            uploadedBy: displayStringForUser(file.updatedBy)
+            uploadedBy: displayStringForUser(file.updatedBy),
+            canDownload: canDownload
         };
     }
 

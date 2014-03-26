@@ -1,7 +1,14 @@
 <div class="well well-sm">
     <div class="row"> <div class="col-sm-12">
-            <span class="glyphicon glyphicon-file"> </span>
-            <a><span data-name="text">xxxx.csv</span></a> (<span data-size="text">xxx</span> bytes)
+            <span class="glyphicon glyphicon-file" data-canDownload="show:true"> </span>
+            <span class="glyphicon glyphicon-ban-circle" data-canDownload="show:false"> </span>
+            <span data-canDownload="show:true">
+                <a><span data-name="text">xxxx.csv</span></a>
+            </span>
+            <span data-canDownload="show:false">
+                <span data-name="text">xxxx.csv</span>
+            </span> 
+            (<span data-size="text">xxx</span> bytes)
             by <strong><span data-uploadedBy="text"></span></strong>
             <img src="/resources/dummy/images/user.jpg" class="icon"/>
     </div></div>

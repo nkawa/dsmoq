@@ -37,10 +37,9 @@ class DatasetReadView{
             return {
                 name: data.meta.name,
                 description: data.meta.description,
-                canDownload: (data.permission >= 1),
-                canEdit: (data.permission >= 2),
+                canEdit: (data.permission >= 3),
                 license: licenseString(data.meta.license),
-                files: data.files.map(Common.fileViewModel),
+                files: data.files.map(Common.fileViewModel.bind(_, data.permission >= 2)),
                 acls: data.ownerships.map(aclViewModel)
             };
         }
