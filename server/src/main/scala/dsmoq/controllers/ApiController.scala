@@ -106,13 +106,6 @@ class ApiController extends ScalatraServlet
     }
   }
 
-  put("/datasets/:datasetId/acl/guest") {
-    setAccessControl(params("datasetId"), AppConf.guestGroupId, params("accessLevel").toInt)
-  }
-
-  delete("/datasets/:datasetId/acl/guest") {
-    setAccessControl(params("datasetId"), AppConf.guestGroupId, 0)
-  }
 
   put("/datasets/:datasetId/acl/:groupId") {
     setAccessControl(params("datasetId"), params("groupId"), params("accessLevel").toInt)
@@ -121,8 +114,15 @@ class ApiController extends ScalatraServlet
   delete("/datasets/:datasetId/acl/:groupId") {
     setAccessControl(params("datasetId"), params("groupId"), 0)
   }
+  put("/datasets/:datasetId/acl/guest") {
+    setAccessControl(params("datasetId"), AppConf.guestGroupId, params("accessLevel").toInt)
+  }
 
-  private def setAccessControl(datasetId: String, groupId: String, accessLevel: Int) {
+  delete("/datasets/:datasetId/acl/guest") {
+    setAccessControl(params("datasetId"), AppConf.guestGroupId, 0)
+  }
+
+  private def setAccessControl(datasetId: String, groupId: String, accessLevel: Int) = {
     val aci = AccessControl(datasetId, groupId, accessLevel)
 
     (for {
