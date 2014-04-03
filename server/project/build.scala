@@ -38,7 +38,10 @@ object DsmoqBuild extends Build {
         "org.scalikejdbc" %% "scalikejdbc-config" % "1.7.4",
         "org.scalikejdbc" %% "scalikejdbc-test" % "1.7.4" % "test",
         "org.scalatra" %% "scalatra-json" % "2.2.2",
-        "org.json4s" %% "json4s-jackson" % "3.2.6"
+        "org.json4s" %% "json4s-jackson" % "3.2.6",
+        "com.google.api-client" % "google-api-client" % "1.18.0-rc",
+        "com.google.http-client" % "google-http-client-jackson" % "1.18.0-rc",
+        "com.google.apis" % "google-api-services-oauth2" % "v2-rev66-1.18.0-rc"
       )
     )
   )
