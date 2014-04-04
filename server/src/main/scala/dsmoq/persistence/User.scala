@@ -109,18 +109,18 @@ object User extends SQLSyntaxSupport[User] {
         column.deletedBy,
         column.deletedAt
       ).values(
-        id,
+        sqls.uuid(id),
         name,
         fullname,
         organization,
         title,
         description,
-        imageId,
-        createdBy,
+        sqls.uuid(imageId),
+        sqls.uuid(createdBy),
         createdAt,
-        updatedBy,
+        sqls.uuid(updatedBy),
         updatedAt,
-        deletedBy,
+        deletedBy.map(sqls.uuid),
         deletedAt
       )
     }.update.apply()

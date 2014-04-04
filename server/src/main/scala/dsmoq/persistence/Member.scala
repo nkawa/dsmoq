@@ -3,6 +3,7 @@ package dsmoq.persistence
 import scalikejdbc._
 import scalikejdbc.SQLInterpolation._
 import org.joda.time.{DateTime}
+import PostgresqlHelper._
 
 case class Member(
   id: String,
@@ -100,16 +101,16 @@ object Member extends SQLSyntaxSupport[Member] {
         column.deletedBy,
         column.deletedAt
       ).values(
-        id,
-        groupId,
-        userId,
+        sqls.uuid(id),
+        sqls.uuid(groupId),
+        sqls.uuid(userId),
         role,
         status,
-        createdBy,
+        sqls.uuid(createdBy),
         createdAt,
-        updatedBy,
+        sqls.uuid(updatedBy),
         updatedAt,
-        deletedBy,
+        deletedBy.map(sqls.uuid),
         deletedAt
       )
     }.update.apply()
