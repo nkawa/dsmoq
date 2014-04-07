@@ -62,7 +62,7 @@ class Header{
 	
 	private static function clickToRedirect(html: Html, formSelector, clickSelector, url) {
 		JQuery.findAll(html, clickSelector).on("click", function(_) {
-			doc.location.href = url + "?path=" + doc.location.pathname;
+			doc.location.href = url + "?location=" + doc.location.pathname;
         });
 	}
 }
