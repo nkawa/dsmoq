@@ -126,28 +126,32 @@ class ApiController extends ScalatraServlet
   }
 
   get("/signin_google") {
-    // TODO パラメーターチェック(必要なら)およびエラー処理
     val location = params("path")
     redirect(OAuthService.getAuthenticationUrl(location))
   }
 
-  // FIXME service(facade)等は別途作成する
   get ("/callback") {
     // TODO パラメーターチェック(必要ならCSRFチェック)、エラー処理
     // 認証拒否された時、DB接続エラー時、APIコールでエラー時etc
 
+    // TODO 連携拒否時の処理
     val userRedirectUri = params("state")
     val authenticationCode = params("code")
 
-    // 認証処理
-    val user = OAuthService.loginWithGoogle(authenticationCode)
-
-    // セッション作成
-    clearSession()
-    setUserInfoToSession(user)
-
-    // 元いたページに戻す
-    redirect(userRedirectUri)
+    (for {
+      result <- OAuthService.loginWithGoogle(authenticationCode)
+    } yield {
+      result
+    }) match {
+      case Success(x) =>
+        clearSession()
+        setUserInfoToSession(x)
+        redirect(userRedirectUri)
+      case Failure(e) =>
+        // エラー時にはトップにredirect
+        clearSession()
+        redirect("/")
+    }
   }
 
   private def setAccessControl(datasetId: String, groupId: String, accessLevel: Int) = {
