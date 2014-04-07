@@ -31,14 +31,15 @@ class Header{
                     {selector: "[data-link-datasets]", url: "/datasets/list/"},
                     {selector: "[data-link-groups]", url: "/groups/list/"},
                     {selector: "[data-link-upload]", url: "/datasets/new/"},
-                    {selector: "[data-link-profile]", url: "/profile/"}
+                    {selector: "[data-link-profile]", url: "/profile/" }
                 ];
             Lambda.iter(links, function(t){
                 html.find(t.selector).on("click", function(_){ Effect.global().changeUrl(Address.url(t.url));});
             });
 
-            clickToSubmit(html, "[data-submit-login]",  "[data-link-login]",  Settings.api.login, function(_){ html.find('[data-message-login]').text(Messages.loginFailure);});
+            clickToSubmit(html, "[data-submit-login]",  "[data-link-login]",  Settings.api.login, function(_) { html.find('[data-message-login]').text(Messages.loginFailure); } );			
             clickToSubmit(html, "[data-submit-logout]", "[data-link-logout]", Settings.api.logout);
+			clickToRedirect(html, "[data-submit-google-login]",  "[data-link-google-login]", "/mock/login_google");
 
             return html;
         }
@@ -58,4 +59,10 @@ class Header{
             });
         });
     }
+	
+	private static function clickToRedirect(html: Html, formSelector, clickSelector, url) {
+		JQuery.findAll(html, clickSelector).on("click", function(_) {
+			doc.location.href = url + "?path=" + doc.location.pathname;
+        });
+	}
 }
