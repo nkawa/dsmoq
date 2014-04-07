@@ -11,7 +11,7 @@ import org.joda.time.DateTime
 
 // あとで消す
 import scalikejdbc._, SQLInterpolation._
-import dsmoq.{OAuthConf, AppConf, persistence}
+import dsmoq.{AppConf, persistence}
 
 class MockController extends ScalatraServlet with SessionTrait {
   get("/") {
@@ -52,7 +52,7 @@ class MockController extends ScalatraServlet with SessionTrait {
     val userBackUri = params("path")
 
 //    val url = new GoogleAuthorizationCodeRequestUrl(clientId, callbackUrl, scopes).setState(userBackUri)
-    val url = new GoogleAuthorizationCodeRequestUrl(OAuthConf.clientId, OAuthConf.callbackUrl, OAuthConf.scopes).setState(userBackUri)
+    val url = new GoogleAuthorizationCodeRequestUrl(AppConf.clientId, AppConf.callbackUrl, AppConf.scopes).setState(userBackUri)
     redirect(url.toURL.toString)
   }
 
@@ -73,12 +73,12 @@ class MockController extends ScalatraServlet with SessionTrait {
     val authenticationCode = params("code")
 
     // get access token
-    val flow = new GoogleAuthorizationCodeFlow(new NetHttpTransport(), new JacksonFactory(), OAuthConf.clientId, OAuthConf.clientSecret, OAuthConf.scopes);
-    val tokenResponse = flow.newTokenRequest(authenticationCode).setRedirectUri(OAuthConf.callbackUrl).execute();
+    val flow = new GoogleAuthorizationCodeFlow(new NetHttpTransport(), new JacksonFactory(), AppConf.clientId, AppConf.clientSecret, AppConf.scopes);
+    val tokenResponse = flow.newTokenRequest(authenticationCode).setRedirectUri(AppConf.callbackUrl).execute();
     val credential = flow.createAndStoreCredential(tokenResponse, null);
 
     // call google api : get user information (name & e-mail)
-    val oauth2 = new Oauth2.Builder(credential.getTransport, credential.getJsonFactory, credential).setApplicationName(OAuthConf.applicationName).build()
+    val oauth2 = new Oauth2.Builder(credential.getTransport, credential.getJsonFactory, credential).setApplicationName(AppConf.applicationName).build()
     val user = oauth2.userinfo().get().execute()
     println("debug:" + user)
     println("name:" + user.getName)

@@ -15,10 +15,6 @@ object AppConf {
   val guestGroupId = conf.getString("dsmoq.guest_group_uuid")
 
   val defaultDatasetImageId = conf.getString("dsmoq.default_dataset_image_uuid")
-}
-
-object OAuthConf {
-  private val conf = ConfigFactory.load
 
   val clientId = conf.getString("oauth.client_id")
   val clientSecret = conf.getString("oauth.client_secret")

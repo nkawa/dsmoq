@@ -3,20 +3,20 @@ package dsmoq.services
 import com.google.api.client.googleapis.auth.oauth2.{GoogleAuthorizationCodeRequestUrl, GoogleAuthorizationCodeFlow}
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.jackson.JacksonFactory
-import dsmoq.{AppConf, persistence, OAuthConf}
+import dsmoq.{AppConf, persistence}
 import com.google.api.services.oauth2.Oauth2
 import org.joda.time.DateTime
 import java.util.UUID
 import scalikejdbc._, SQLInterpolation._
 import com.google.api.services.oauth2.model.Userinfoplus
-import scala.util.{Failure, Try, Success}
+import scala.util.{Failure, Success}
 
 object OAuthService {
   def getAuthenticationUrl(location: String) = {
     new GoogleAuthorizationCodeRequestUrl(
-      OAuthConf.clientId,
-      OAuthConf.callbackUrl,
-      OAuthConf.scopes)
+      AppConf.clientId,
+      AppConf.callbackUrl,
+      AppConf.scopes)
       .setState(location)
       .toURL.toString
   }
@@ -27,11 +27,11 @@ object OAuthService {
       val flow = new GoogleAuthorizationCodeFlow(
         new NetHttpTransport(),
         new JacksonFactory(),
-        OAuthConf.clientId,
-        OAuthConf.clientSecret,
-        OAuthConf.scopes)
+        AppConf.clientId,
+        AppConf.clientSecret,
+        AppConf.scopes)
       val tokenResponse = flow.newTokenRequest(authenticationCode)
-        .setRedirectUri(OAuthConf.callbackUrl).execute();
+        .setRedirectUri(AppConf.callbackUrl).execute()
       val credential = flow.createAndStoreCredential(tokenResponse, null)
 
       // Google APIを使用してユーザー情報取得
@@ -39,9 +39,10 @@ object OAuthService {
         credential.getTransport,
         credential.getJsonFactory,
         credential)
-        .setApplicationName(OAuthConf.applicationName).build()
+        .setApplicationName(AppConf.applicationName).build()
       val googleUser = oauth2.userinfo().get().execute()
 
+      // FIXME transaction 修正
       val coiUser = DB readOnly {
         implicit s =>
           val u = persistence.User.u
@@ -54,7 +55,7 @@ object OAuthService {
               .where
               .eq(gu.googleId, googleUser.getId)
           }
-          .map(persistence.User(u.resultName)).single.apply
+          .map(persistence.User(u.resultName)).single().apply
           .map(x => dsmoq.services.data.User(x))
       }
 
