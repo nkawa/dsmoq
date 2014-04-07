@@ -11,7 +11,7 @@ import org.joda.time.DateTime
 
 // あとで消す
 import scalikejdbc._, SQLInterpolation._
-import dsmoq.{AppConf, persistence}
+import dsmoq.{OAuthConf, AppConf, persistence}
 
 class MockController extends ScalatraServlet with SessionTrait {
   get("/") {
@@ -45,12 +45,14 @@ class MockController extends ScalatraServlet with SessionTrait {
     // TODO パラメーターチェック(必要なら)、エラー処理
     println(params("path"))
 
-    val clientId = "770034855439.apps.googleusercontent.com"
-    val callbackUrl = "http://localhost:8080/mock/callback"
-    val scopes = util.Arrays.asList("https://www.googleapis.com/auth/plus.me", "profile", "email")
+//    val clientId = "770034855439.apps.googleusercontent.com"
+//    val callbackUrl = "http://localhost:8080/mock/callback"
+//    val scopes = util.Arrays.asList("https://www.googleapis.com/auth/plus.me", "profile", "email")
+
     val userBackUri = params("path")
 
-    val url = new GoogleAuthorizationCodeRequestUrl(clientId, callbackUrl, scopes).setState(userBackUri)
+//    val url = new GoogleAuthorizationCodeRequestUrl(clientId, callbackUrl, scopes).setState(userBackUri)
+    val url = new GoogleAuthorizationCodeRequestUrl(OAuthConf.clientId, OAuthConf.callbackUrl, OAuthConf.scopes).setState(userBackUri)
     redirect(url.toURL.toString)
   }
 
@@ -60,22 +62,23 @@ class MockController extends ScalatraServlet with SessionTrait {
     println(params)
 
      // 固有設定系はファイルに避ける予定
-    val clientId = "770034855439.apps.googleusercontent.com";
-    val clientSecret = "stTAYEg6CVW6pj7Mab3SgoGm";
-    val callbackUrl = "http://localhost:8080/mock/callback";
-    val scopes = util.Arrays.asList("https://www.googleapis.com/auth/plus.me", "profile", "email")
-    val applicationName = "COI Data Store"
+//    val clientId = "770034855439.apps.googleusercontent.com";
+//    val clientSecret = "stTAYEg6CVW6pj7Mab3SgoGm";
+//    val callbackUrl = "http://localhost:8080/mock/callback";
+//    val scopes = util.Arrays.asList("https://www.googleapis.com/auth/plus.me", "profile", "email")
+//    val applicationName = "COI Data Store"
+
 
     val userRedirectUri = params("state")
     val authenticationCode = params("code")
 
     // get access token
-    val flow = new GoogleAuthorizationCodeFlow(new NetHttpTransport(), new JacksonFactory(), clientId, clientSecret, scopes);
-    val tokenResponse = flow.newTokenRequest(authenticationCode).setRedirectUri(callbackUrl).execute();
+    val flow = new GoogleAuthorizationCodeFlow(new NetHttpTransport(), new JacksonFactory(), OAuthConf.clientId, OAuthConf.clientSecret, OAuthConf.scopes);
+    val tokenResponse = flow.newTokenRequest(authenticationCode).setRedirectUri(OAuthConf.callbackUrl).execute();
     val credential = flow.createAndStoreCredential(tokenResponse, null);
 
     // call google api : get user information (name & e-mail)
-    val oauth2 = new Oauth2.Builder(credential.getTransport, credential.getJsonFactory, credential).setApplicationName(applicationName).build()
+    val oauth2 = new Oauth2.Builder(credential.getTransport, credential.getJsonFactory, credential).setApplicationName(OAuthConf.applicationName).build()
     val user = oauth2.userinfo().get().execute()
     println("debug:" + user)
     println("name:" + user.getName)
