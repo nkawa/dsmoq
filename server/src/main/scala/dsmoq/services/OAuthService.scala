@@ -42,98 +42,94 @@ object OAuthService {
         .setApplicationName(AppConf.applicationName).build()
       val googleUser = oauth2.userinfo().get().execute()
 
-      // FIXME transaction 修正
-      val coiUser = DB readOnly {
-        implicit s =>
-          val u = persistence.User.u
-          val gu = persistence.GoogleUser.gu
+      DB localTx { implicit s =>
+        val u = persistence.User.u
+        val gu = persistence.GoogleUser.gu
 
-          withSQL {
-            select(u.result.*)
-              .from(persistence.User as u)
-              .innerJoin(persistence.GoogleUser as gu).on(u.id, gu.userId)
-              .where
-              .eq(gu.googleId, googleUser.getId)
-          }
-          .map(persistence.User(u.resultName)).single().apply
-          .map(x => dsmoq.services.data.User(x))
-      }
+        val coiUser = withSQL {
+          select(u.result.*)
+            .from(persistence.User as u)
+            .innerJoin(persistence.GoogleUser as gu).on(u.id, gu.userId)
+            .where
+            .eq(gu.googleId, googleUser.getId)
+        }
+        .map(persistence.User(u.resultName)).single().apply
+        .map(x => dsmoq.services.data.User(x))
 
-      // ユーザーがなければユーザー作成
-      val user = coiUser match {
-        case Some(x) => x
-        case None => createUser(googleUser)
+        // ユーザーがなければユーザー作成
+        val user = coiUser match {
+          case Some(x) => x
+          case None => createUser(googleUser)
+        }
+        Success(user)
       }
-      Success(user)
     } catch {
       case e: RuntimeException => Failure(e)
     }
   }
 
-  private def createUser(googleUser: Userinfoplus) = {
+  private def createUser(googleUser: Userinfoplus)(implicit s: DBSession) = {
     val username = googleUser.getEmail.split('@')(0)
     val timestamp = DateTime.now()
-    val dbUser = DB localTx { implicit s =>
-      // insert users
-      val u = persistence.User.create(
+
+    val user = persistence.User.create(
+      id = UUID.randomUUID.toString,
+      name = username,
+      fullname = googleUser.getName,
+      organization = "",
+      title = "",
+      description = "Google Apps User",
+      imageId = AppConf.defaultDatasetImageId,
+      createdBy = AppConf.systemUserId,
+      createdAt = timestamp,
+      updatedBy = AppConf.systemUserId,
+      updatedAt = timestamp
+    )
+    // insert mail_addresses
+    persistence.MailAddress.create(
+      id = UUID.randomUUID.toString,
+      userId = user.id,
+      address = googleUser.getEmail,
+      status = 1,
+      createdBy = AppConf.systemUserId,
+      createdAt = timestamp,
+      updatedBy = AppConf.systemUserId,
+      updatedAt = timestamp
+    )
+    // insert google_users
+    persistence.GoogleUser.create(
         id = UUID.randomUUID.toString,
-        name = username,
-        fullname = googleUser.getName,
-        organization = "",
-        title = "",
-        description = "Google Apps User",
-        imageId = AppConf.defaultDatasetImageId,
+        userId = user.id,
+        googleId = googleUser.getId,
         createdBy = AppConf.systemUserId,
         createdAt = timestamp,
         updatedBy = AppConf.systemUserId,
         updatedAt = timestamp
-      )
-      // insert mail_addresses
-      persistence.MailAddress.create(
-        id = UUID.randomUUID.toString,
-        userId = u.id,
-        address = googleUser.getEmail,
-        status = 1,
-        createdBy = AppConf.systemUserId,
-        createdAt = timestamp,
-        updatedBy = AppConf.systemUserId,
-        updatedAt = timestamp
-      )
-      // insert google_users
-      persistence.GoogleUser.create(
-          id = UUID.randomUUID.toString,
-          userId = u.id,
-          googleId = googleUser.getId,
-          createdBy = AppConf.systemUserId,
-          createdAt = timestamp,
-          updatedBy = AppConf.systemUserId,
-          updatedAt = timestamp
-      )
-      // insert groups
-      val g = persistence.Group.create(
-        id = UUID.randomUUID.toString,
-        name = username,
-        description = "",
-        groupType = 1,
-        createdBy = AppConf.systemUserId,
-        createdAt = timestamp,
-        updatedBy = AppConf.systemUserId,
-        updatedAt = timestamp
-      )
-      // insert members
-      persistence.Member.create(
-        id = UUID.randomUUID.toString,
-        groupId = g.id,
-        userId = u.id,
-        role = 1,
-        status = 1,
-        createdBy = AppConf.systemUserId,
-        createdAt = timestamp,
-        updatedBy = AppConf.systemUserId,
-        updatedAt = timestamp
-      )
-      u
-    }
-    dsmoq.services.data.User(dbUser)
+    )
+    // insert groups
+    val group = persistence.Group.create(
+      id = UUID.randomUUID.toString,
+      name = username,
+      description = "",
+      groupType = 1,
+      createdBy = AppConf.systemUserId,
+      createdAt = timestamp,
+      updatedBy = AppConf.systemUserId,
+      updatedAt = timestamp
+    )
+    // insert members
+    persistence.Member.create(
+      id = UUID.randomUUID.toString,
+      groupId = group.id,
+      userId = user.id,
+      role = 1,
+      status = 1,
+      createdBy = AppConf.systemUserId,
+      createdAt = timestamp,
+      updatedBy = AppConf.systemUserId,
+      updatedAt = timestamp
+    )
+
+    dsmoq.services.data.User(user)
   }
 }
