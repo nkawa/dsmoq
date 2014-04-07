@@ -21,6 +21,8 @@ object OAuthService {
   }
   
   def loginWithGoogle(authenticationCode: String) = {
+    // FIXME try~catch
+
     // 認証トークンからアクセストークン取得
     val flow = new GoogleAuthorizationCodeFlow(
       new NetHttpTransport(),
@@ -39,42 +41,25 @@ object OAuthService {
       .setApplicationName(OAuthConf.applicationName).build()
     val googleUser = oauth2.userinfo().get().execute()
 
-    // デバッグ用
-    println("debug:" + googleUser)
-    println("name:" + googleUser.getName)
-    println("email:" + googleUser.getEmail)
-    println("id:" + googleUser.getId)
+    // FIXME try~catch実装含め実装見直し(変数名も)
+    val result = DB readOnly { implicit s =>
+      val u = persistence.User.u
+      val gu = persistence.GoogleUser.gu
 
-    // ユーザーがなければユーザー作成、ユーザー情報を引きセッション作成etc
-    // やっつけ mail_addressesとはjoinしていない また、tryでくくる必要あり
-    val result = DB readOnly { implicit session =>
-      sql"""
-        SELECT
-          users.*
-        FROM
-          users
-        INNER JOIN
-          google_users
-        ON
-          users.id = google_users.user_id
-        WHERE
-          google_users.google_id = ${googleUser.getId}
-      """.map(_.toMap()).single().apply()
-    }
+      withSQL {
+        select(u.result.*)
+          .from(persistence.User as u)
+          .innerJoin(persistence.GoogleUser as gu).on(u.id, gu.userId)
+          .where
+          .eq(gu.googleId, googleUser.getId)
+      }
+      .map(persistence.User(u.resultName)).single.apply
+      .map(x => dsmoq.services.data.User(x))
+  }
 
+    // ユーザーがなければユーザー作成
     val user = result match {
-      case Some(x) =>
-        // FIXME 暫定 あとで↑のSQLとともに直す
-        dsmoq.services.data.User(
-          id = result.get("id").toString,
-          name = result.get("name").toString,
-          fullname = result.get("fullname").toString,
-          organization = result.get("organization").toString,
-          title = result.get("title").toString,
-          image = "",
-          isGuest = false,
-          isDeleted = false
-        )
+      case Some(x) => x
       case None => createUser(googleUser)
     }
     user
@@ -109,13 +94,16 @@ object OAuthService {
         updatedBy = AppConf.systemUserId,
         updatedAt = timestamp
       )
-      // FIXME insert google_users
-      sql"""
-          INSERT INTO
-            google_users(id, user_id, google_id, created_by, created_at, updated_by, updated_at)
-          VALUES
-            (UUID(${UUID.randomUUID.toString}), UUID(${u.id}), ${googleUser.getId}, UUID(${AppConf.systemUserId}), ${timestamp}, UUID(${AppConf.systemUserId}), ${timestamp})
-          """.update().apply()
+      // insert google_users
+      persistence.GoogleUser.create(
+          id = UUID.randomUUID.toString,
+          userId = u.id,
+          googleId = googleUser.getId,
+          createdBy = AppConf.systemUserId,
+          createdAt = timestamp,
+          updatedBy = AppConf.systemUserId,
+          updatedAt = timestamp
+      )
       // insert groups
       val g = persistence.Group.create(
         id = UUID.randomUUID.toString,
