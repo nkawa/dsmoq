@@ -122,42 +122,6 @@ class ApiController extends ScalatraServlet
     setAccessControl(params("datasetId"), AppConf.guestGroupId, 0)
   }
 
-  get("/signin_google") {
-    val location = params("location")
-    redirect(OAuthService.getAuthenticationUrl(location))
-  }
-
-  get ("/callback") {
-    val userRedirectUri = params.get("state") match {
-      case Some(x) => x
-      case None => "/"
-    }
-
-    params.get("code") match {
-      case Some(x) =>
-        val authenticationCode = x
-
-        (for {
-          result <- OAuthService.loginWithGoogle(authenticationCode)
-        } yield {
-          result
-        }) match {
-          case Success(x) =>
-            clearSession()
-            setUserInfoToSession(x)
-            redirect(userRedirectUri)
-          case Failure(e) =>
-            // 処理エラー時
-            clearSession()
-            redirect(userRedirectUri)
-        }
-      case None =>
-        // 連携拒否時処理
-        clearSession()
-        redirect(userRedirectUri)
-    }
-  }
-
   private def setAccessControl(datasetId: String, groupId: String, accessLevel: Int) = {
     val aci = AccessControl(datasetId, groupId, accessLevel)
 
