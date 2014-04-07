@@ -5,14 +5,11 @@ import org.json4s.{DefaultFormats, Formats}
 import org.scalatra.json.JacksonJsonSupport
 import dsmoq.services._
 import scala.util.{Success, Failure}
-import org.scalatra.servlet.{FileUploadSupport}
+import org.scalatra.servlet.FileUploadSupport
 import dsmoq.services.data.LoginData._
 import dsmoq.services.data.DatasetData._
 import dsmoq.forms._
 import dsmoq.AppConf
-
-// FIXME あとで消す
-import scalikejdbc._, SQLInterpolation._
 
 class ApiController extends ScalatraServlet
     with JacksonJsonSupport with SessionTrait with FileUploadSupport {
@@ -131,26 +128,33 @@ class ApiController extends ScalatraServlet
   }
 
   get ("/callback") {
-    // TODO パラメーターチェック(必要ならCSRFチェック)、エラー処理
-    // 認証拒否された時、DB接続エラー時、APIコールでエラー時etc
+    val userRedirectUri = params.get("state") match {
+      case Some(x) => x
+      case None => "/"
+    }
 
-    // TODO 連携拒否時の処理
-    val userRedirectUri = params("state")
-    val authenticationCode = params("code")
+    params.get("code") match {
+      case Some(x) =>
+        val authenticationCode = x
 
-    (for {
-      result <- OAuthService.loginWithGoogle(authenticationCode)
-    } yield {
-      result
-    }) match {
-      case Success(x) =>
+        (for {
+          result <- OAuthService.loginWithGoogle(authenticationCode)
+        } yield {
+          result
+        }) match {
+          case Success(x) =>
+            clearSession()
+            setUserInfoToSession(x)
+            redirect(userRedirectUri)
+          case Failure(e) =>
+            // 処理エラー時
+            clearSession()
+            redirect(userRedirectUri)
+        }
+      case None =>
+        // 連携拒否時処理
         clearSession()
-        setUserInfoToSession(x)
         redirect(userRedirectUri)
-      case Failure(e) =>
-        // エラー時にはトップにredirect
-        clearSession()
-        redirect("/")
     }
   }
 

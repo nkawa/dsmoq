@@ -32,8 +32,9 @@ object OAuthService {
         OAuthConf.scopes)
       val tokenResponse = flow.newTokenRequest(authenticationCode)
         .setRedirectUri(OAuthConf.callbackUrl).execute();
-      val credential = flow.createAndStoreCredential(tokenResponse, null);
+      val credential = flow.createAndStoreCredential(tokenResponse, null)
 
+      // Google APIを使用してユーザー情報取得
       val oauth2 = new Oauth2.Builder(
         credential.getTransport,
         credential.getJsonFactory,
@@ -41,8 +42,7 @@ object OAuthService {
         .setApplicationName(OAuthConf.applicationName).build()
       val googleUser = oauth2.userinfo().get().execute()
 
-      // FIXME try~catch実装含め実装見直し(変数名も)
-      val result = DB readOnly {
+      val coiUser = DB readOnly {
         implicit s =>
           val u = persistence.User.u
           val gu = persistence.GoogleUser.gu
@@ -54,12 +54,12 @@ object OAuthService {
               .where
               .eq(gu.googleId, googleUser.getId)
           }
-            .map(persistence.User(u.resultName)).single.apply
-            .map(x => dsmoq.services.data.User(x))
+          .map(persistence.User(u.resultName)).single.apply
+          .map(x => dsmoq.services.data.User(x))
       }
 
       // ユーザーがなければユーザー作成
-      val user = result match {
+      val user = coiUser match {
         case Some(x) => x
         case None => createUser(googleUser)
       }
