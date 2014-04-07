@@ -123,7 +123,7 @@ class ApiController extends ScalatraServlet
   }
 
   get("/signin_google") {
-    val location = params("path")
+    val location = params("location")
     redirect(OAuthService.getAuthenticationUrl(location))
   }
 
