@@ -19,7 +19,7 @@ class ScalatraBootstrap extends LifeCycle {
     context.mount(new OAuthController, "/oauth/*")
 
     // mock
-    context.mount(new MockController, "/mock")
+//    context.mount(new MockController, "/mock")
   }
 
   override def destroy(context: ServletContext) {
