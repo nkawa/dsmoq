@@ -6,7 +6,7 @@ import js.mocha.Mocha;
 using js.expect.Expect;
 using js.mocha.Mocha;
 
-import framework.helpers.*;
+import dsmoq.framework.helpers.*;
 
 enum TestEnum { A; B; C(x:Int); }
 
