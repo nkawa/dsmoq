@@ -6,6 +6,7 @@ import org.scalatra.json.JacksonJsonSupport
 class ResourceController extends ScalatraServlet {
   object Ext{
     val Js = """.*\.js$""".r
+    val SourceMap = """.*\.map$""".r
     val Json = """.*\.json$""".r
     val Css = """.*\.css$""".r
     val Html = """.*\.html$""".r
@@ -27,7 +28,7 @@ class ResourceController extends ScalatraServlet {
   )
 
   get ("/*") {
-    contentType="text/html"
+    contentType = "text/html"
     resource("index.html")
   }
 
@@ -48,24 +49,31 @@ class ResourceController extends ScalatraServlet {
   }
 
   def returnResource(filename: String) = {
-    contentType = filename match{
-      case Ext.Js() => "application/javascript"
-      case Ext.Json() => "application/json"
-      case Ext.Css() => "text/css"
-      case Ext.Html() => "text/html"
-      case Ext.Ttf() => "application/x-font-ttf"
-      case Ext.Otf() => "application/x-font-opentype"
-      case Ext.Woff() => "application/font-woff"
-      case Ext.Eot() => "application/vnd.ms-fontobject"
-      case Ext.Jpeg() => "image/jpeg"
-      case Ext.Png() => "image/png"
-      case Ext.Gif() => "image/gif"
-      case Ext.Zip() => "application/zip"
-      case Ext.Txt() => "text/plain"
-      case Ext.Csv() => "text/csv"
-      case _ => throw new Exception("hoge-")
+    (filename match {
+      case Ext.Js() => Some("application/javascript")
+      case Ext.SourceMap() => Some("application/json")
+      case Ext.Json() => Some("application/json")
+      case Ext.Css() => Some("text/css")
+      case Ext.Html() => Some("text/html")
+      case Ext.Ttf() => Some("application/x-font-ttf")
+      case Ext.Otf() => Some("application/x-font-opentype")
+      case Ext.Woff() => Some("application/font-woff")
+      case Ext.Eot() => Some("application/vnd.ms-fontobject")
+      case Ext.Jpeg() => Some("image/jpeg")
+      case Ext.Png() => Some("image/png")
+      case Ext.Gif() => Some("image/gif")
+      case Ext.Zip() => Some("application/zip")
+      case Ext.Txt() => Some("text/plain")
+      case Ext.Csv() => Some("text/csv")
+      case _ => None
+    }) match {
+      case Some(x) =>
+        contentType = x
+        resource(filename)
+      case None =>
+        status = 404
+        "not found"
     }
-    resource(filename)
   }
 }
 
