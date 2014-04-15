@@ -12,7 +12,7 @@ typedef PageInfo = {
 }
 
 
-class Effect{
+class Effect {
     public inline static var DEFAULT_FIELD = "query";
     static var NoRendering = {};
 
@@ -23,25 +23,26 @@ class Effect{
 
     var connections: Array<Void -> ConnectionStatus> = null;
 
-    private function new(handler){
+    private function new(handler) {
         PushState.init();
         PushState.addEventListener(onUrlChange);
         this.handler = handler;
         this.connections = [];
     }
 
-    public static function global(){
+    public static function global() {
         return singleton;
     }
 
-    public static function initialize(handler: PageInfo -> Bool -> Void){
-        if(singleton != null){
+    public static function initialize(handler: PageInfo -> Bool -> Void) {
+        if (singleton != null) {
             throw "Already initialized: GlobalEffect";
         }
         singleton = new Effect(handler);
     }
 
-    public function changeUrl(pageInfo: PageInfo, notifyChange = true){
+    public function changeUrl(pageInfo: PageInfo, notifyChange = true) {
+        trace("changeUrl");
         var location = fromPageInfo(pageInfo);
         PushState.push(location, notifyChange ? null: NoRendering);
     }
@@ -50,14 +51,15 @@ class Effect{
         changeAttribute(DEFAULT_FIELD, value);
     }
 
-    public function changeAttribute(key: String, value: Dynamic){
-        var pageInfo= location();
+    public function changeAttribute(key: String, value: Dynamic) {
+        trace("changeAttribute");
+        var pageInfo = location();
         pageInfo.attributes.set(key, value);
         var location = fromPageInfo(pageInfo);
         PushState.push(location, NoRendering);
     }
 
-    public function observeConnection(c: Void -> ConnectionStatus){
+    public function observeConnection(c: Void -> ConnectionStatus) {
         connections.push(c);
     }
 
@@ -65,20 +67,27 @@ class Effect{
         return toPageInfo(PushState.parseUrl(document.location.href));
     }
 
-    private function onUrlChange(location: Location, state: Dynamic){
-        handler(toPageInfo(location), state != NoRendering);
+    private function onUrlChange(location: Location, state: Dynamic) {
+        if (state != null) { // window.onload時に state == null　で強制的に呼び出されるので無視する
+            trace("--");
+            untyped __js__("console.trace()");
+            trace(location);
+            trace(state);
+            handler(toPageInfo(location), state != NoRendering);
+        }
     }
-    private function fromPageInfo(pageInfo: PageInfo): Location{
+    private function fromPageInfo(pageInfo: PageInfo): Location {
         function stringifyHash(map: Map<String, Dynamic>){
             return haxe.Json.stringify(map.get(DEFAULT_FIELD));
         }
+
         return {
             path: pageInfo.path,
             hash: stringifyHash(pageInfo.attributes)
         };
     }
-    private function toPageInfo(location: Location): PageInfo{
-        function parseHash(hash: String){
+    private function toPageInfo(location: Location): PageInfo {
+        function parseHash(hash: String) {
             var map = new Map<String, Dynamic>();
             if(hash != null) try{
                 map.set(DEFAULT_FIELD, haxe.Json.parse(hash));
@@ -87,13 +96,14 @@ class Effect{
             }
             return map;
         }
+
         return {
             path: location.path,
             attributes: parseHash(location.hash)
         };
     }
 
-    public function notifyError(message: String, detail: Dynamic = null){
+    public function notifyError(message: String, detail: Dynamic = null) {
         var msg = switch(message){                   // failed by jQuery ajax-method
             case "timeout": Messages.timeout;
             case "error": Messages.connectionFailure;
@@ -114,22 +124,22 @@ class Effect{
         JQuery.j('#notification').empty().append(html);
     }
 
-    public function connectionError(x: Dynamic){
+    public function connectionError(x: Dynamic) {
         trace(Std.string(x));
         notifyError(Messages.connectionFailure, x.statusText);
     }
 }
 
-class Address{
-    public static function url(s: String, v: Option<Dynamic> = null): PageInfo{
+class Address {
+    public static function url(s: String, v: Option<Dynamic> = null): PageInfo {
         var map = new Map<String, Dynamic>();
-        Core.each(v, function(v){
+        Core.each(v, function(v) {
             map.set(Effect.DEFAULT_FIELD, v);
         });
         return {path: s, attributes: map};
     }
 
-    public static function hash(pageInfo: PageInfo){
+    public static function hash(pageInfo: PageInfo) {
         var v = pageInfo.attributes.get(Effect.DEFAULT_FIELD);
         return Core.option(v);
     }

@@ -22,14 +22,16 @@ typedef Replacable<In, St, Out> = {> Rendered<St, Out>, put: In -> Void}
 typedef PlaceHolder<In, St, Out> = { render: In -> Replacable<In, St, Out> }
 
 typedef Application<Page> = {
+    initialize: Page -> Replacable<Page, Void, Void>,
     toUrl: Page -> PageInfo,
     fromUrl: PageInfo -> Page,
     draw: Page -> Rendered<Void, Page>
 }
+
 enum Unit {}
 enum Signal {Signal;}
 
 typedef Selector = String
 typedef Json = Dynamic
 
-enum Option<A> { Some(x: A); None; }
+typedef Option<A> = haxe.ds.Option<A>;
