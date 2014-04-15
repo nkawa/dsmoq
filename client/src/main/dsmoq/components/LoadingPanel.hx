@@ -9,15 +9,17 @@ import promhx.Promise;
 
 class LoadingPanel {
     private static function ignoreError(x: Dynamic){ trace(x);}
+
     public static function create<A, B, State, Output>(
         waiting: Html -> Void,
         name: String,
         component: Component<B, Void, NextChange<A,Output>>,
         f: A -> {event: Promise<B>, state: Void -> State},
         onError: Dynamic -> Void = null
-    ): PlaceHolder<A, State, Output>{
-        if(onError == null) onError = ignoreError;
-        function render(a){
+    ): PlaceHolder<A, State, Output> {
+        if (onError == null) onError = ignoreError;
+
+        var foldable = Components.toComponent(function (a) {
             var fa = f(a);
             var body = JQuery.div();
             waiting(body);
@@ -28,8 +30,8 @@ class LoadingPanel {
                 return rendered.event;
             });
             return {html: body, state: fa.state, event: p};
-        }
-        var foldable = Components.toComponent(render);
+        });
+
         return PlaceHolders.create(name, foldable);
     }
 }

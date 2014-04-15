@@ -5,7 +5,8 @@ import dsmoq.framework.JQuery.*;
 import promhx.Promise;
 
 class Components{
-    public static function toComponent<Input, State, Output>(render: Input -> Rendered<State, Output>){
+    public static function toComponent<Input, State, Output>(
+            render: Input -> Rendered<State, Output>): Component<Input, State, Output> {
         return { render: render };
     }
 
