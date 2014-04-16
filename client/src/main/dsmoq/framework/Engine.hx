@@ -3,28 +3,28 @@ package dsmoq.framework;
 import dsmoq.framework.Types;
 import dsmoq.framework.Effect;
 
-class Engine<Page> {
-    var application: Application<Page>;
-    var currentPage: Page;
-    var container: Replacable<Page, Void, Page>;
+class Engine<TPage: EnumValue> {
+    var application: Application<TPage>;
+    var container: Replacable<Html, Void, Void>;
 
     public function new(application) {
         this.application = application;
     }
 
-    public function start() {
+    public function start(): Void {
         Effect.initialize(renderPage);
-        currentPage = application.fromUrl(Effect.global().location());
-        container = application.initialize(currentPage);
+        container = application.initialize();
     }
 
-    private function renderPage(location: PageInfo, needRender: Bool) : Void {
-        if (container != null) {
-            var newPage = application.fromUrl(location);
-            if (!Type.enumEq(newPage, currentPage)) {
-                currentPage = newPage;
-                if (needRender) container.put(currentPage);
-            }
+    private function renderPage(location: PageInfo, needRender: Bool): Void {
+        putPage(application.fromUrl(location), needRender);
+    }
+
+    private function putPage(page: TPage, needRender: Bool): Void {
+        if (needRender && container != null) {
+            var content = application.draw(page);
+            content.event.then(function (x) putPage(x, true));
+            container.put(content.html);
         }
     }
 }

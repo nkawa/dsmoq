@@ -66,9 +66,9 @@ class Effect {
     }
 
     private function onUrlChange(location: Location, state: Dynamic) {
-        if (state != null) { // window.onload時に state == null　で強制的に呼び出されるので無視する
+        //if (state != null) { // window.onload時に state == null　で強制的に呼び出されるので無視する
             handler(toPageInfo(location), state != NoRendering);
-        }
+        //}
     }
     private function fromPageInfo(pageInfo: PageInfo): Location {
         function stringifyHash(map: Map<String, Dynamic>){

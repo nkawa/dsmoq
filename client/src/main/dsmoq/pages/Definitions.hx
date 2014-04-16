@@ -72,23 +72,19 @@ class Definitions {
         }
 
         return {
-            initialize: function (page: Page): Replacable<Page, Void, Page> {
+            initialize: function (): Replacable<Html, Void, Void> {
                 var selector = "#main";
 
                 var container = divNamed("page-body").addClass("container");
 
-                function putPage(p: Page) {
-                    var content = draw(p);
-                    content.event.then(putPage);
-                    container.empty().append(content.html);
-                    Effect.global().changeUrl(toUrl(p), false);
+                function putPage(html: Html) {
+                    container.empty().append(html);
                 }
 
                 var mainContent = Components.toComponent(function (status: LoginStatus) {
                     var header = Header.create().render(status);
                     var notification = div().attr("id", "notification");
                     var body = div().append(header.html).append(notification).append(container);
-                    putPage(page);
                     return {html: body, state: Core.nop, event: new Promise() /*content.event*/ };
                 });
 

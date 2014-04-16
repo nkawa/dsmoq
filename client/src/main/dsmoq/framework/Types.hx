@@ -6,27 +6,29 @@ import dsmoq.framework.Effect;
 
 typedef Html = Jq
 
-typedef Rendered<State, Out> = {
-  html: Html,
-  event: Promise<Out>,
-  state: Void -> State
+typedef Application<TPage: EnumValue> = {
+    initialize: Void -> Replacable<Html, Void, Void>,
+    toUrl: TPage -> PageInfo,
+    fromUrl: PageInfo -> TPage,
+    draw: TPage -> Rendered<Void, TPage>
 }
 
-typedef Component<In, State, Out> = {
-  render: In -> Rendered<State, Out>
+typedef Rendered<TState, TEvent> = {
+    html: Html,
+    event: Promise<TEvent>,
+    state: Void -> TState
+}
+
+typedef Component<TIn, TState, TEvent> = {
+    render: TIn -> Rendered<TState, TEvent>
+}
+typedef PlaceHolder<TIn, TState, TEvent> = {
+    render: TIn -> Replacable<TIn, TState, TEvent>
 }
 
 enum NextChange<I,O> { Inner(a: I); Outer(b: O); }
-typedef Foldable<In, St, Out> = Component<In, St, NextChange<In, Out>>
-typedef Replacable<In, St, Out> = {> Rendered<St, Out>, put: In -> Void}
-typedef PlaceHolder<In, St, Out> = { render: In -> Replacable<In, St, Out> }
-
-typedef Application<Page> = {
-    initialize: Page -> Replacable<Page, Void, Page>,
-    toUrl: Page -> PageInfo,
-    fromUrl: PageInfo -> Page,
-    draw: Page -> Rendered<Void, Page>
-}
+typedef Foldable<TIn, TState, Out> = Component<TIn, TState, NextChange<TIn, Out>>
+typedef Replacable<TIn, TState, TEvent> = {> Rendered<TState, TEvent>, put: TIn -> Void}
 
 enum Unit {}
 enum Signal {Signal;}
