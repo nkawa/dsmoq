@@ -1,14 +1,15 @@
 package dsmoq.components;
 
-import dsmoq.framework.JQuery.*;
+
 import promhx.Promise;
+import dsmoq.pages.Models;
+import dsmoq.framework.JQuery.*;
 import dsmoq.framework.Types;
 import dsmoq.components.LoadingPanel;
 
 import dsmoq.framework.helpers.*;
 using dsmoq.framework.helpers.Components;
 
-typedef PagingRequest = {?offset: Int, ?count: Int}
 typedef Paging =        {offset: Int, count: Int, total: Int}
 typedef MassResult<A> = {summary: Paging, results: A}
 
@@ -21,13 +22,13 @@ class Pagination{
         placeForPagination: String,
         placeForResult: String,
         component: Component<Input,Void,Output>,
-        f: PagingRequest -> {event: Promise<MassResult<Input>>, state: Void -> State}
+        f: PagingInfo -> {event: Promise<MassResult<Input>>, state: Void -> State}
     ){
         function extractResult(x:MassResult<Input>){return x.results;}
 
         var pagination = create().outMap(Inner);
         var baseComponent = component.inMap(extractResult).outMap(Outer);
-        var component: Component<MassResult<Input>, Void, NextChange<PagingRequest, Output>> =
+        var component: Component<MassResult<Input>, Void, NextChange<PagingInfo, Output>> =
             Components.put("summary", placeForPagination, baseComponent, pagination)
             .justView(result(), "summary", placeForResult);
 
@@ -46,7 +47,7 @@ class Pagination{
 
     public static function create(){
         function nextPaging(current: Paging){
-            return function(nextPage: Int): PagingRequest{
+            return function(nextPage: Int): PagingInfo{
                 var next = (nextPage - 1) * current.count + 1;
                 return {offset: next, count: current.count};
             };

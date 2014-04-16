@@ -1,5 +1,7 @@
 package dsmoq.pages;
 
+typedef PagingInfo = {?offset: Int, ?count: Int}
+
 typedef User = {userId: String, userName: String}
 typedef GroupId = String
 

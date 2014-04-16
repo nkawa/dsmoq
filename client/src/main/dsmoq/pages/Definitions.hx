@@ -8,7 +8,6 @@ import dsmoq.components.Clickable;
 
 import dsmoq.framework.helpers.*;
 import dsmoq.framework.Effect;
-import dsmoq.components.Pagination;
 
 import dsmoq.framework.Types;
 import js.JQuery.JQueryHelper.*;
@@ -23,11 +22,12 @@ import dsmoq.components.Header;
 
 import dsmoq.pages.Api;
 import dsmoq.pages.Models;
+import dsmoq.components.Pagination;
 
 enum Page {
     DashBoard;
 
-    DatasetList(paging: Option<PagingRequest>);
+    DatasetList(paging: Option<PagingInfo>);
     DatasetNew;
     DatasetRead(id: String);
     DatasetEdit(id: String);

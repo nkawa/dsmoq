@@ -1,9 +1,9 @@
 package dsmoq.pages;
 
-import dsmoq.components.Pagination;
 import dsmoq.framework.helpers.Connection;
 import dsmoq.framework.helpers.*;
 import dsmoq.pages.Models;
+import dsmoq.components.Pagination;
 import dsmoq.framework.Types;
 
 
@@ -14,7 +14,7 @@ class Api{
         params:{}
     };
 
-    public static function datasetsList(req: PagingRequest){
+    public static function datasetsList(req: PagingInfo){
         return {
             url: Settings.api.datasetList,
             method: HttpMethod.Get,
@@ -60,7 +60,7 @@ class Api{
         }
     }
 
-    public static function sendDatasetsList(req: PagingRequest): HttpProcess<MassResult<Array<DatasetSummary>>>{
+    public static function sendDatasetsList(req: PagingInfo): HttpProcess<MassResult<Array<DatasetSummary>>>{
         return send(datasetsList(req));
     }
 
