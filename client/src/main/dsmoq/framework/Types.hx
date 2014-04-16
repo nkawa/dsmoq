@@ -22,7 +22,7 @@ typedef Replacable<In, St, Out> = {> Rendered<St, Out>, put: In -> Void}
 typedef PlaceHolder<In, St, Out> = { render: In -> Replacable<In, St, Out> }
 
 typedef Application<Page> = {
-    initialize: Page -> Replacable<Page, Void, Void>,
+    initialize: Page -> Replacable<Page, Void, Page>,
     toUrl: Page -> PageInfo,
     fromUrl: PageInfo -> Page,
     draw: Page -> Rendered<Void, Page>

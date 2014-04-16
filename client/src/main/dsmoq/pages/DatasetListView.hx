@@ -14,12 +14,12 @@ import dsmoq.framework.helpers.Connection;
 import dsmoq.pages.Api;
 import dsmoq.pages.Models;
 
-class DatasetListView{
-    public static function render(paging: PagingRequest):Rendered<Void, Page>{
-        function toViewPage(dataset: DatasetSummary){
+class DatasetListView {
+    public static function render(paging: PagingRequest): Rendered<Void, Page> {
+        function toViewPage(dataset: DatasetSummary) {
             return DatasetRead(dataset.id);
         }
-        function changeHash(req: PagingRequest){
+        function changeHash(req: PagingRequest) {
             dsmoq.framework.Effect.global().updateHash(req);
         }
         function toViewModel(dataset: DatasetSummary){

@@ -6,7 +6,7 @@ import dsmoq.framework.Effect;
 class Engine<Page> {
     var application: Application<Page>;
     var currentPage: Page;
-    var container: Replacable<Page, Void, Void>;
+    var container: Replacable<Page, Void, Page>;
 
     public function new(application) {
         this.application = application;

@@ -42,7 +42,6 @@ class Effect {
     }
 
     public function changeUrl(pageInfo: PageInfo, notifyChange = true) {
-        trace("changeUrl");
         var location = fromPageInfo(pageInfo);
         PushState.push(location, notifyChange ? null: NoRendering);
     }
@@ -52,7 +51,6 @@ class Effect {
     }
 
     public function changeAttribute(key: String, value: Dynamic) {
-        trace("changeAttribute");
         var pageInfo = location();
         pageInfo.attributes.set(key, value);
         var location = fromPageInfo(pageInfo);
@@ -69,10 +67,6 @@ class Effect {
 
     private function onUrlChange(location: Location, state: Dynamic) {
         if (state != null) { // window.onload時に state == null　で強制的に呼び出されるので無視する
-            trace("--");
-            untyped __js__("console.trace()");
-            trace(location);
-            trace(state);
             handler(toPageInfo(location), state != NoRendering);
         }
     }

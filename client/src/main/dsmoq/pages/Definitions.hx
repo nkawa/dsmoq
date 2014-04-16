@@ -1,6 +1,7 @@
 package dsmoq.pages;
 
 import dsmoq.framework.Types;
+import dsmoq.pages.Definitions.Page;
 import promhx.Promise;
 import dsmoq.framework.JQuery.*;
 import dsmoq.components.Clickable;
@@ -71,47 +72,41 @@ class Definitions {
         }
 
         return {
-            initialize: function (page: Page): Replacable<Page, Void, Void> {
+            initialize: function (page: Page): Replacable<Page, Void, Page> {
                 var selector = "#main";
 
-                var container = null; //微妙なんだけどとりあえず。
+                var container = divNamed("page-body").addClass("container");
 
-                function changePage(page: Page) {
-                    Effect.global().changeUrl(toUrl(page), false);
+                function putPage(p: Page) {
+                    var content = draw(p);
+                    content.event.then(putPage);
+                    container.empty().append(content.html);
+                    Effect.global().changeUrl(toUrl(p), false);
                 }
 
-                function layout() {
-                    function makePageFoldable(f: Page -> Rendered<Void, Page>) {
-                        return Components.toComponent(f).outMap(Inner);
-                    }
+                var mainContent = Components.toComponent(function (status: LoginStatus) {
+                    var header = Header.create().render(status);
+                    var notification = div().attr("id", "notification");
+                    var body = div().append(header.html).append(notification).append(container);
+                    putPage(page);
+                    return {html: body, state: Core.nop, event: new Promise() /*content.event*/ };
+                });
 
-                    function render(login: LoginStatus) {
-                        var header = Header.create().render(login);
-                        container = PlaceHolders.withSideEffect("page-body", makePageFoldable(draw), changePage).render(page);
-            //            header.event.then(pageBody.put)                   // TODO: promise can be called only once
-                        var notification = div().attr("id", "notification");
-                        var body = div().append(header.html).append(notification).append(container.html.addClass("container"));
-                        return {html: body, state: Core.nop, event: Promises.void()};
-                    }
+                var panel = ConnectionPanel.request(
+                    function (jq: Html) { return jq.text("waiting..."); },
+                    "application",
+                    Components.inMap(mainContent, Api.extractProfile),
+                    Effect.global().notifyError.bind(_, null)
+                ).render(Api.profile);
 
+                j(selector).append(panel.html);
 
-                    return Components.toComponent(render);
+                return {
+                    html: panel.html,
+                    event: Promises.void(), //NOTE ReplacableのイベントってPromiseじゃなくてStreamような気がする
+                    state: Core.nop,
+                    put: putPage
                 }
-
-                function login() {
-                    var ret = ConnectionPanel.request(
-                        function (jq: Html) { return jq.text("waiting..."); },
-                        "application",
-                        Components.inMap(layout(), Api.extractProfile),
-                        Effect.global().notifyError.bind(_, null)
-                    ).render(Api.profile);
-
-                    j(selector).append(ret.html);
-                }
-
-                login();
-
-                return container;
             },
 
             toUrl: toUrl,
