@@ -21,10 +21,14 @@ class Engine<TPage: EnumValue> {
     }
 
     private function putPage(page: TPage, needRender: Bool): Void {
-        if (needRender && container != null) {
-            var content = application.draw(page);
-            content.event.then(function (x) putPage(x, true));
-            container.put(content.html);
+        if (needRender) {
+            if (container != null) {
+                var content = application.draw(page);
+                content.event.then(function (x) {
+                    Effect.global().changeUrl(application.toUrl(x), true);
+                });
+                container.put(content.html);
+            }
         }
     }
 }

@@ -43,10 +43,16 @@ class Effect {
 
     public function changeUrl(pageInfo: PageInfo, notifyChange = true) {
         var location = fromPageInfo(pageInfo);
-        PushState.push(location, notifyChange ? null: NoRendering);
+        if (!equalsLocation(location, PushState.currentLocation)) {
+            PushState.push(location, notifyChange ? null: NoRendering);
+        }
     }
 
-    public function updateHash(value: Dynamic){
+    private function equalsLocation(a: Location, b: Location): Bool {
+        return a.path == b.path && a.query == b.query && a.hash == b.hash;
+    }
+
+    public function updateHash(value: Dynamic) {
         changeAttribute(DEFAULT_FIELD, value);
     }
 
@@ -66,9 +72,9 @@ class Effect {
     }
 
     private function onUrlChange(location: Location, state: Dynamic) {
-        //if (state != null) { // window.onload時に state == null　で強制的に呼び出されるので無視する
-            handler(toPageInfo(location), state != NoRendering);
-        //}
+        trace("### onUrlChange, invalidate = " + (state != NoRendering));
+        trace(location);
+        handler(toPageInfo(location), state != NoRendering);
     }
     private function fromPageInfo(pageInfo: PageInfo): Location {
         function stringifyHash(map: Map<String, Dynamic>){

@@ -27,11 +27,11 @@ class Header{
 
             // TODO: force change url
             var links = [
-                    {selector: "[data-link-home]", url: "/"},
-                    {selector: "[data-link-datasets]", url: "/datasets/list/"},
-                    {selector: "[data-link-groups]", url: "/groups/list/"},
-                    {selector: "[data-link-upload]", url: "/datasets/new/"},
-                    {selector: "[data-link-profile]", url: "/profile/" }
+                    {selector: "[data-link-home]", url: ""},
+                    {selector: "[data-link-datasets]", url: "datasets/list/"},
+                    {selector: "[data-link-groups]", url: "groups/list/"},
+                    {selector: "[data-link-upload]", url: "datasets/new/"},
+                    {selector: "[data-link-profile]", url: "profile/" }
                 ];
             Lambda.iter(links, function(t){
                 html.find(t.selector).on("click", function(_){ Effect.global().changeUrl(Address.url(t.url));});
@@ -39,7 +39,7 @@ class Header{
 
             clickToSubmit(html, "[data-submit-login]",  "[data-link-login]",  Settings.api.login, function(_) { html.find('[data-message-login]').text(Messages.loginFailure); } );
             clickToSubmit(html, "[data-submit-logout]", "[data-link-logout]", Settings.api.logout);
-			clickToRedirect(html, "[data-submit-google-login]",  "[data-link-google-login]", "/oauth/signin_google");
+			clickToRedirect(html, "[data-submit-google-login]",  "[data-link-google-login]", "oauth/signin_google");
 
             return html;
         }

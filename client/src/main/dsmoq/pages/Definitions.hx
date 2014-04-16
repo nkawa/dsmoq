@@ -44,15 +44,15 @@ class Definitions {
 
         function toUrl(page: Page): PageInfo {
             return switch(page){
-                case DashBoard:             Address.url("/");
-                case DatasetRead(id):       Address.url('/datasets/read/$id');
-                case DatasetEdit(id):       Address.url('/datasets/edit/$id');
-                case DatasetList(paging):   Address.url('/datasets/list/', paging);
-                case DatasetNew:            Address.url('/datasets/new/');
-                case GroupList:             Address.url('/groups/list/');
-                case GroupRead:             Address.url('/groups/read/');
-                case GroupEdit:             Address.url('/groups/edit/');
-                case Profile:               Address.url('/profile/');
+                case DashBoard:             Address.url("");
+                case DatasetRead(id):       Address.url('datasets/read/$id');
+                case DatasetEdit(id):       Address.url('datasets/edit/$id');
+                case DatasetList(paging):   Address.url('datasets/list/', paging);
+                case DatasetNew:            Address.url('datasets/new/');
+                case GroupList:             Address.url('groups/list/');
+                case GroupRead:             Address.url('groups/read/');
+                case GroupEdit:             Address.url('groups/edit/');
+                case Profile:               Address.url('profile/');
             }
         }
 
