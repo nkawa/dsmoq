@@ -2,11 +2,13 @@ package dsmoq.components;
 
 import dsmoq.pages.Models;
 import dsmoq.framework.helpers.*;
+import promhx.Stream;
 using dsmoq.framework.helpers.Components;
 import dsmoq.framework.Types;
 import dsmoq.framework.JQuery;
 import dsmoq.framework.Effect;
 import js.Browser.document in doc;
+import dsmoq.pages.Definitions;
 
 private typedef HeaderModel = {
     login: Bool,
@@ -14,27 +16,30 @@ private typedef HeaderModel = {
     ?userName: String
 }
 
-class Header{
-    public static function create(): Component<LoginStatus, Void, Void>{
-        function toModel(login:LoginStatus):HeaderModel{
-            return switch(login){
+class Header {
+    public static function create(): Component<LoginStatus, Void, PageEvent<Page>> {
+        var stream = new Stream();
+
+        function toModel(login: LoginStatus): HeaderModel {
+            return switch (login) {
                 case Anonymouse: {login: false};
                 case LogedIn(user): {login: true, userId: user.userId, userName: user.userName};
             };
         }
-        function after(html:Html){
+
+        function after(html: Html) {
             (untyped html.find('.dropdown-toggle')).dropdown();     // drop down menu available by bootstrap.js
 
             // TODO: force change url
             var links = [
-                    {selector: "[data-link-home]", url: ""},
-                    {selector: "[data-link-datasets]", url: "datasets/list/"},
-                    {selector: "[data-link-groups]", url: "groups/list/"},
-                    {selector: "[data-link-upload]", url: "datasets/new/"},
-                    {selector: "[data-link-profile]", url: "profile/" }
+                    {selector: "[data-link-home]", page: Page.DashBoard},
+                    {selector: "[data-link-datasets]", page: DatasetList(None) },
+                    {selector: "[data-link-groups]", page: GroupList },
+                    {selector: "[data-link-upload]", page: DatasetNew },
+                    {selector: "[data-link-profile]", page: Profile }
                 ];
             Lambda.iter(links, function(t){
-                html.find(t.selector).on("click", function(_){ Effect.global().changeUrl(Address.url(t.url));});
+                html.find(t.selector).on("click", function(_) stream.resolve(PageEvent.Navigate(t.page)));
             });
 
             clickToSubmit(html, "[data-submit-login]",  "[data-link-login]",  Settings.api.login, function(_) { html.find('[data-message-login]').text(Messages.loginFailure); } );
@@ -44,11 +49,18 @@ class Header{
             return html;
         }
 
-        return Templates.create("header").inMap(toModel).stateMap(Core.ignore).decorate(after);
+        var cmp = Templates.create("header").inMap(toModel).stateMap(Core.ignore).decorate(after);
+
+        return {
+            render: function (status: LoginStatus) {
+                var rendered = cmp.render(status);
+                return { html: rendered.html, event: stream, state: function () {} }
+            }
+        };
     }
 
-    private static function clickToSubmit(html: Html, formSelector, clickSelector, url, onError = null){
-        JQuery.findAll(html, clickSelector).on("click", function(_){
+    private static function clickToSubmit(html: Html, formSelector, clickSelector, url, onError = null) {
+        JQuery.findAll(html, clickSelector).on("click", function(_) {
             var promise = Connection.ajaxSubmit(JQuery.findAll(html, formSelector), url);
             promise.then(function(response){
                 if(response != null && response.status == "OK"){
@@ -59,7 +71,7 @@ class Header{
             });
         });
     }
-	
+
 	private static function clickToRedirect(html: Html, formSelector, clickSelector, url) {
 		JQuery.findAll(html, clickSelector).on("click", function(_) {
 			var location = StringTools.urlEncode(doc.location.pathname + doc.location.search + doc.location.hash);

@@ -16,12 +16,12 @@ class PlaceHolders{
 
     public static function withConvert<Input, State, Output>(name: String, foldable: Foldable<Input, State, Output>, converter: Input -> Input): PlaceHolder<Input, State, Output>{
         return {
-            render: function(i){
+            render: function(i) {
                 var p = new Stream();
                 var body = divNamed(name);
                 var ret = {html: body, event: p, state: null, put: null};
-                function draw(a){
-                    function step(n){
+                function draw(a) {
+                    function step(n) {
                         switch(n){
                             case Inner(a): draw(a);
                             case Outer(b): p.resolve(b);

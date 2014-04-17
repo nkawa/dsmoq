@@ -10,45 +10,45 @@ import dsmoq.components.LoadingPanel;
 import promhx.Stream.Stream;
 
 class ConnectionPanel {
-    public static function request<Output>(
+    public static function request<TEvent>(
         waiting: Html -> Void,
         name,
-        component: Component<Json, Void, Output>,
+        component: Component<Json, Void, TEvent>,
         onError: Dynamic -> Void
-    ): PlaceHolder<HttpRequest, ConnectionStatus, Output> {
+    ): PlaceHolder<HttpRequest, ConnectionStatus, TEvent> {
         return requestContinually(waiting, name, Components.outMap(component, Outer), onError);
     }
 
-    public static function requestContinually<Output>(
+    public static function requestContinually<TEvent>(
         waiting: Html -> Void,
         name,
-        component: Component<Json, Void, NextChange<HttpRequest, Output>>,
+        component: Component<Json, Void, NextChange<HttpRequest, TEvent>>,
         onError: Dynamic -> Void
-    ): PlaceHolder<HttpRequest, ConnectionStatus, Output> {
+    ): PlaceHolder<HttpRequest, ConnectionStatus, TEvent> {
         return LoadingPanel.create(waiting, name, component, function (request) {
             // TODO エラーがロストする
             var ret = Connection.send(request);
             var stream = new Stream();
-            ret.event.then(function (x) stream.resolve(x));
-            return { event: stream, state: ret.state};
+            ret.event.then(function (x) { stream.resolve(x); } );
+            return { event: stream, state: ret.state };
         }, onError);
     }
 
-    public static function requestByJson<Output>(
+    public static function requestByJson<TEvent>(
         waiting: Html -> Void,
         name,
-        component: Component<Json, Void, Output>,
+        component: Component<Json, Void, TEvent>,
         onError: Dynamic -> Void
-    ): PlaceHolder<HttpJsonRequest, ConnectionStatus, Output> {
+    ): PlaceHolder<HttpJsonRequest, ConnectionStatus, TEvent> {
         return requestByJsonContinually(waiting, name, Components.outMap(component, Outer), onError);
     }
 
-    public static function requestByJsonContinually<Output>(
+    public static function requestByJsonContinually<TEvent>(
         waiting: Html -> Void,
         name,
-        component: Component<Json, Void, NextChange<HttpJsonRequest,Output>>,
+        component: Component<Json, Void, NextChange<HttpJsonRequest,TEvent>>,
         onError: Dynamic -> Void
-    ): PlaceHolder<HttpJsonRequest, ConnectionStatus, Output> {
+    ): PlaceHolder<HttpJsonRequest, ConnectionStatus, TEvent> {
         return LoadingPanel.create(waiting, name, component, function (request) {
             // TODO エラーがロストする
             var ret = Connection.sendJson(request);

@@ -7,7 +7,7 @@ import dsmoq.framework.Effect;
 typedef Html = Jq
 
 typedef Application<TPage: EnumValue> = {
-    initialize: Void -> Replacable<Html, Void, Void>,
+    initialize: Void -> Replacable<Html, Void, PageEvent<TPage>>,
     toUrl: TPage -> PageInfo,
     fromUrl: PageInfo -> TPage,
     render: TPage -> Option<Html> -> Rendered<Void, PageEvent<TPage>>

@@ -5,7 +5,7 @@ import dsmoq.framework.Effect;
 
 class Engine<TPage: EnumValue> {
     var application: Application<TPage>;
-    var container: Replacable<Html, Void, Void>;
+    var container: Replacable<Html, Void, PageEvent<TPage>>;
 
     public function new(application) {
         this.application = application;
@@ -14,8 +14,8 @@ class Engine<TPage: EnumValue> {
     public function start(): Void {
         Effect.initialize(renderPage);
 
-        // TODO コンテナで発生したイベントも拾う（Headerを考慮するため）
         container = application.initialize();
+        container.event.then(handlePageEvent);
     }
 
     // TODO needRender消したい（ここで判断するとろくなことにならない）
@@ -34,21 +34,23 @@ class Engine<TPage: EnumValue> {
             var content = application.render(page, prevHtml);
 
             // Promise->Stream + URL(Hashチェンジ）もイベントで処理を行う
-            content.event.then(function (event) {
-                switch (event) {
-                    case Navigate(p):
-                        Effect.global().changeUrl(application.toUrl(p), true);
-                    case NavigateAsBackword(p):
-                        // TODO historyを消す
-                        Effect.global().changeUrl(application.toUrl(p), true);
-                    case Foward:
-                        // TODO
-                    case Backward:
-                        // TODO
-                }
-            });
+            content.event.then(handlePageEvent);
 
             if (container != null) container.put(content.html);
+        }
+    }
+
+    private function handlePageEvent(event: PageEvent<TPage>) {
+        switch (event) {
+            case Navigate(page):
+                Effect.global().changeUrl(application.toUrl(page), true);
+            case NavigateAsBackword(page):
+                // TODO historyを消す
+                Effect.global().changeUrl(application.toUrl(page), true);
+            case Foward:
+                // TODO
+            case Backward:
+                // TODO
         }
     }
 }
