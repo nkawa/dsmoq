@@ -6,6 +6,7 @@ import dsmoq.pages.Models;
 import dsmoq.framework.JQuery.*;
 import dsmoq.framework.Types;
 import dsmoq.components.LoadingPanel;
+import promhx.Stream.Stream;
 
 import dsmoq.framework.helpers.*;
 using dsmoq.framework.helpers.Components;
@@ -22,7 +23,7 @@ class Pagination{
         placeForPagination: String,
         placeForResult: String,
         component: Component<Input,Void,Output>,
-        f: PagingInfo -> {event: Promise<MassResult<Input>>, state: Void -> State}
+        f: PagingInfo -> {event: Stream<MassResult<Input>>, state: Void -> State}
     ){
         function extractResult(x:MassResult<Input>){return x.results;}
 
@@ -52,8 +53,9 @@ class Pagination{
                 return {offset: next, count: current.count};
             };
         }
-        function render(paging: Paging){
-            var p = new Promise();
+
+        function render(paging: Paging) {
+            var p = new Stream();
             var currentPage = Std.int(paging.offset / paging.count) + 1;
             var totalPage = Std.int((paging.total - 1) / paging.count) + 1;
             var calculateNext = nextPaging(paging);
@@ -72,12 +74,15 @@ class Pagination{
                 }
                 return j('<li>').append(el);
             }
+
             var body = j('<ul class="pagination">')
                 .append(side("&laquo", currentPage > 1, currentPage - 1))
                 .append(Lambda.fold([for (i in 1...(totalPage+1)) i], function(i, acc:Html){return acc.add(each(i));}, j('')))
                 .append(side("&raquo", currentPage < totalPage, currentPage + 1));
+
             return { html: body, event: p, state: function(){return paging;}};
         }
+
         return Components.toComponent(render);
     }
 

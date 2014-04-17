@@ -5,6 +5,7 @@ import dsmoq.pages.Definitions;
 import dsmoq.framework.Types;
 import dsmoq.framework.helpers.*;
 import dsmoq.framework.JQuery.*;
+import promhx.Stream.Stream;
 
 import dsmoq.components.Clickable;
 using dsmoq.framework.helpers.Components;
@@ -22,7 +23,7 @@ class DatasetListView {
         function changeHash(req: PagingInfo) {
             dsmoq.framework.Effect.global().updateHash(req);
         }
-        function toViewModel(dataset: DatasetSummary){
+        function toViewModel(dataset: DatasetSummary) {
             return {
                 name: dataset.name,
                 dataSize: dataset.dataSize,
@@ -38,7 +39,13 @@ class DatasetListView {
             .emitInput()
             .outMap(toViewPage);
         var list = Common.observe(
-                List.withPagination(Common.waiting,"list-sample", summaryComponent, Core.tap(Api.sendDatasetsList, changeHash)));
+                List.withPagination(Common.waiting, "list-sample", summaryComponent, Core.tap(function (req) {
+                    // TODO エラーが欠落する
+                    var stream = new Stream();
+                    var ret = Api.sendDatasetsList(req);
+                    ret.event.then(function (x) stream.resolve(x));
+                    return { event: stream, state: ret.state };
+                }, changeHash)));
         return list.render(paging);
     }
 }

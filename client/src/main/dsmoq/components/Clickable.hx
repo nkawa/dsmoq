@@ -2,6 +2,7 @@ package dsmoq.components;
 
 import promhx.Promise;
 import dsmoq.framework.Types;
+import promhx.Stream.Stream;
 
 import dsmoq.framework.helpers.*;
 using dsmoq.framework.helpers.Components;
@@ -14,10 +15,10 @@ typedef SubmitOption = {
 
 class Clickable{
     public static function create<Input, State, Truncate>(component: Component<Input, State, Truncate>, selector = "*"): Component<Input, State, Signal>{
-        function click(html){
-            return Promises.tap(function(p){
-                JQuery.findAll(html, selector).on("click", function(_){p.resolve(Signal);});
-            });
+        function click(html) {
+            var stream = new Stream();
+            JQuery.findAll(html, selector).on("click", function (_) stream.resolve(Signal));
+            return stream;
         }
         return component.event(click);
     }
@@ -26,15 +27,14 @@ class Clickable{
             clickSelector: String,
             formSelector: String,
             option: SubmitOption){
-        function click(html){
-            return Promises.tap(function(p){
-                JQuery.findAll(html, clickSelector).on("click", function(_){
-                    var jqXHR = (untyped JQuery.findAll(html, formSelector)).ajaxSubmit(option).data('jqxhr');
-                    // TODO: error handling
-                    jqXHR.done(function(x){p.resolve(x);});
-                });
+        return component.event(function click(html) {
+            var stream = new Stream();
+            JQuery.findAll(html, clickSelector).on("click", function(_) {
+                var jqXHR = (untyped JQuery.findAll(html, formSelector)).ajaxSubmit(option).data('jqxhr');
+                // TODO: error handling
+                jqXHR.done(function(x) stream.resolve(x));
             });
-        }
-        return component.event(click);
+            return stream;
+        });
     }
 }

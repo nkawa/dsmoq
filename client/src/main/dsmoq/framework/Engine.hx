@@ -24,6 +24,7 @@ class Engine<TPage: EnumValue> {
         if (needRender) {
             if (container != null) {
                 var content = application.draw(page);
+                // Promise->Stream + URL(Hashチェンジ）もイベントで処理を行う
                 content.event.then(function (x) {
                     Effect.global().changeUrl(application.toUrl(x), true);
                 });

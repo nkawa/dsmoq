@@ -23,7 +23,7 @@ enum ConnectionStatus{
 }
 
 
-class Connection{
+class Connection {
     private static var jq = untyped __js__('$');
 
     public static function then<A, B>(p: HttpProcess<A>, f: A -> B): HttpProcess<B>{

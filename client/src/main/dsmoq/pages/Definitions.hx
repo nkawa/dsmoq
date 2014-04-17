@@ -5,6 +5,7 @@ import dsmoq.pages.Definitions.Page;
 import promhx.Promise;
 import dsmoq.framework.JQuery.*;
 import dsmoq.components.Clickable;
+import promhx.Stream.Stream;
 
 import dsmoq.framework.helpers.*;
 import dsmoq.framework.Effect;
@@ -85,7 +86,7 @@ class Definitions {
                     var header = Header.create().render(status);
                     var notification = div().attr("id", "notification");
                     var body = div().append(header.html).append(notification).append(container);
-                    return {html: body, state: Core.nop, event: new Promise() /*content.event*/ };
+                    return {html: body, state: Core.nop, event: new Stream() };
                 });
 
                 var panel = ConnectionPanel.request(
@@ -99,7 +100,7 @@ class Definitions {
 
                 return {
                     html: panel.html,
-                    event: Promises.void(), //NOTE ReplacableのイベントってPromiseじゃなくてStreamような気がする
+                    event: new Stream(), //NOTE ReplacableのイベントってPromiseじゃなくてStreamような気がする
                     state: Core.nop,
                     put: putPage
                 }

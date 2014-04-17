@@ -159,7 +159,7 @@ class Table{
             return {
                 html: JQuery.wrapBy('<table class="table table-bordered table-condensed"></table>', body),
                 state: Core.toState(rowStates),
-                event: Promises.void()
+                event: new Stream()
             }
         }
         return Components.toComponent(render);

@@ -3,6 +3,7 @@ package dsmoq.framework.helpers;
 import promhx.Promise;
 import dsmoq.framework.Types;
 import dsmoq.framework.JQuery.*;
+import promhx.Stream.Stream;
 
 class PlaceHolders{
     public static function create<Input,State,Output>(name: String, foldable: Foldable<Input, State, Output>): PlaceHolder<Input, State, Output>{
@@ -16,7 +17,7 @@ class PlaceHolders{
     public static function withConvert<Input, State, Output>(name: String, foldable: Foldable<Input, State, Output>, converter: Input -> Input): PlaceHolder<Input, State, Output>{
         return {
             render: function(i){
-                var p = new Promise();
+                var p = new Stream();
                 var body = divNamed(name);
                 var ret = {html: body, event: p, state: null, put: null};
                 function draw(a){

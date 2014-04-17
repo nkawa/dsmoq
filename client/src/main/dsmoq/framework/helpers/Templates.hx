@@ -3,6 +3,7 @@ package dsmoq.framework.helpers;
 import dsmoq.framework.helpers.*;
 import haxe.Resource;
 import dsmoq.framework.Types;
+import promhx.Stream.Stream;
 using Lambda;
 using dsmoq.framework.JQuery;
 
@@ -42,7 +43,7 @@ class Templates{
             return {
                 html: body,
                 state: state,
-                event: Promises.void()
+                event: new Stream()
             };
         }
         return Components.toComponent(render);

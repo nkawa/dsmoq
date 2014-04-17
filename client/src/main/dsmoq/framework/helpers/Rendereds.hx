@@ -3,11 +3,9 @@ package dsmoq.framework.helpers;
 import dsmoq.framework.Types;
 import dsmoq.framework.JQuery.*;
 
-import promhx.Promise;
-
 class Rendereds{
     public static function oneOfEvent(components){
-        return Promises.oneOf(components.map(function(c){return c.event;}));
+        return Streams.oneOf(components.map(function(c){return c.event;}));
     }
 
     public static function stateMap<State, Output, State2>( r: Rendered<State,Output>, f: State -> State2):Rendered<State2, Output> {
@@ -57,6 +55,6 @@ class Rendereds{
         f: Array<Html> -> Html): Rendered<Array<State>, Output>
     {
         var rendered = inputs.map(component.render);
-        return {html: f(htmls(rendered)), state: states(rendered), event:Promises.oneOf(events(rendered))};
+        return {html: f(htmls(rendered)), state: states(rendered), event:Streams.oneOf(events(rendered))};
     }
 }

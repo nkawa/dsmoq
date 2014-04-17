@@ -7,6 +7,7 @@ import dsmoq.framework.helpers.*;
 import dsmoq.framework.JQuery;
 import dsmoq.components.LoadingPanel;
 import dsmoq.pages.Models;
+import promhx.Stream.Stream;
 
 using dsmoq.components.Tab;
 
@@ -51,8 +52,8 @@ class DatasetReadView{
             .justView(files, "files", "[data-component-files]")
             .justView(aclTable, "acls", "[data-component-acl-table]")
             .inMap(toModel)
-            .event(function(html){
-                var promise = new Promise();
+            .event(function (html) {
+                var promise = new Stream();
                 html.find("[data-link-edit]").on("click", function(_){ promise.resolve(Page.DatasetEdit(id));});
                 return promise;
             });

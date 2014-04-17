@@ -100,7 +100,7 @@ class DatasetEditView{
                 [Table.hiddenCell, Common.label, selectACL("access-level")],
                 [Table.hiddenCell, groupCombobox, selectACL("access-level-input")],
                 ["", "","1"],
-                tableActions, true).state(Core.ignore).event(function(_){return Promises.void();});
+                tableActions, true).state(Core.ignore).event(function(_) return new Stream());
 
         var tab:Component<Dynamic, Void, Page> = Tab.base()
             .append({name: TAB_FIELD_UPLOAD, title: "Files",          component: Templates.create("DatasetEditUpload")})
@@ -112,7 +112,7 @@ class DatasetEditView{
                 return JQuery.j('<div class="text-right"><a class="btn btn-primary" data-link-cancel>Back</a></div>').add(html);
             })
             .event(function(html){
-                var promise = new Promise();
+                var promise = new Stream();
                 html.find("[data-link-save-upload]").on("click", function(_){
                     removeUnnecessaryField(html.find("[data-form-upload-files]"));
                     Connection.ajaxSubmit(html.find("[data-form-upload-files]"), Settings.api.datasetNewPost)

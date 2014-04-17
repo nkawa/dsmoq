@@ -1,6 +1,6 @@
 package dsmoq.components;
 
-import promhx.Promise;
+import promhx.Stream;
 import dsmoq.framework.Types;
 import dsmoq.framework.JQuery;
 import dsmoq.pages.Models;
@@ -23,7 +23,7 @@ class List{
         waiting: Html -> Void,
         name: String,
         component: Component<Input,Void,Output>,
-        f: PagingInfo -> {event: Promise<MassResult<Array<Input>>>, state: Void -> State}
+        f: PagingInfo -> {event: Stream<MassResult<Array<Input>>>, state: Void -> State}
     ):PlaceHolder<PagingInfo, State, Output>{
         var list = create(component).decorate(function(html){
             return JQuery.div().addClass(CLASS_TO_PUT_SEARCH_RESULT)

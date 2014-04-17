@@ -1,6 +1,7 @@
 package dsmoq.framework;
 
 import promhx.Promise;
+import promhx.Stream;
 import dsmoq.framework.JQuery;
 import dsmoq.framework.Effect;
 
@@ -15,7 +16,7 @@ typedef Application<TPage: EnumValue> = {
 
 typedef Rendered<TState, TEvent> = {
     html: Html,
-    event: Promise<TEvent>,
+    event: Stream<TEvent>,
     state: Void -> TState
 }
 

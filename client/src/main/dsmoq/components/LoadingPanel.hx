@@ -5,7 +5,7 @@ import dsmoq.framework.helpers.*;
 import dsmoq.framework.helpers.Connection;
 import dsmoq.framework.helpers.Promises;
 import dsmoq.framework.JQuery;
-import promhx.Promise;
+import promhx.Stream;
 
 class LoadingPanel {
     private static function ignoreError(x: Dynamic){ trace(x);}
@@ -14,7 +14,7 @@ class LoadingPanel {
         waiting: Html -> Void,
         name: String,
         component: Component<B, Void, NextChange<A,Output>>,
-        f: A -> {event: Promise<B>, state: Void -> State},
+        f: A -> {event: Stream<B>, state: Void -> State},
         onError: Dynamic -> Void = null
     ): PlaceHolder<A, State, Output> {
         if (onError == null) onError = ignoreError;

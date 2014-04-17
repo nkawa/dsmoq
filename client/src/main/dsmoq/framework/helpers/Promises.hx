@@ -2,7 +2,7 @@ package dsmoq.framework.helpers;
 
 import promhx.Promise;
 
-class Promises{
+class Promises {
     public static function connect<A>(p: Promise<A>, p2: Promise<A>){
         p.then(function(x){p2.resolve(x);});
     }
