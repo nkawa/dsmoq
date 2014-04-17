@@ -16,9 +16,9 @@ import dsmoq.pages.Api;
 import dsmoq.pages.Models;
 
 class DatasetListView {
-    public static function render(paging: PagingInfo): Rendered<Void, Page> {
+    public static function render(paging: PagingInfo): Rendered<Void, PageEvent<Page>> {
         function toViewPage(dataset: DatasetSummary) {
-            return DatasetRead(dataset.id);
+            return PageEvent.Navigate(DatasetRead(dataset.id));
         }
         function changeHash(req: PagingInfo) {
             dsmoq.framework.Effect.global().updateHash(req);

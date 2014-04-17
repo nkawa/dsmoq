@@ -23,7 +23,7 @@ private typedef DatasetViewModel = {
 }
 
 class DatasetReadView{
-    public static function render(id: String):Rendered<Void, Page>{
+    public static function render(id: String):Rendered<Void, PageEvent<Page>>{
         function toModel(input: Dynamic): Dynamic /* DatasetViewModel */{
             var data = Api.extractData(input);
 
@@ -54,7 +54,7 @@ class DatasetReadView{
             .inMap(toModel)
             .event(function (html) {
                 var promise = new Stream();
-                html.find("[data-link-edit]").on("click", function(_){ promise.resolve(Page.DatasetEdit(id));});
+                html.find("[data-link-edit]").on("click", function(_) promise.resolve(PageEvent.Navigate(DatasetEdit(id))));
                 return promise;
             });
 

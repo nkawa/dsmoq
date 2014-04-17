@@ -57,7 +57,7 @@ class Definitions {
             }
         }
 
-        function draw(page: Page) {
+        function render(page: Page, oldHtml: Option<Html>) {
             var body = switch(page){
                 case DashBoard:                 Stub.render("DashBoard");
                 case DatasetRead(id):           DatasetReadView.render(id);
@@ -120,7 +120,7 @@ class Definitions {
                     case _:                         DashBoard;
                 }
             },
-            draw: draw
+            render: render
         };
     }
 }

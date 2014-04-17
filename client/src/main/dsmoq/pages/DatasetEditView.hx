@@ -25,11 +25,11 @@ class DatasetEditView{
     static inline var TAB_FIELD_BASIC  = "datasetEditBasic";
     static inline var TAB_FIELD_ACL    = "datasetEditAcl";
 
-    public static function render(id: Option<String>):Rendered<Void, Page>{
+    public static function render(id: Option<String>):Rendered<Void, PageEvent<Page>> {
         var isNew = Core.isNone(id);
-        var nextPage = switch(id){
-            case Some(id): Page.DatasetRead(id);
-            case None:     Page.DatasetList(None);
+        var nextPage = switch(id) {
+            case Some(id): PageEvent.Navigate(Page.DatasetRead(id));
+            case None:     PageEvent.Navigate(Page.DatasetList(None));
         }
 
         function selectACL(name){
@@ -102,7 +102,7 @@ class DatasetEditView{
                 ["", "","1"],
                 tableActions, true).state(Core.ignore).event(function(_) return new Stream());
 
-        var tab:Component<Dynamic, Void, Page> = Tab.base()
+        var tab:Component<Dynamic, Void, PageEvent<Page>> = Tab.base()
             .append({name: TAB_FIELD_UPLOAD, title: "Files",          component: Templates.create("DatasetEditUpload")})
             .append({name: TAB_FIELD_BASIC,  title: "Metadata",       component: Templates.create("DatasetEditBasic")})
             .append({name: TAB_FIELD_ACL,    title: "Access Control", component: Templates.create("DatasetEditAcl")})
@@ -172,9 +172,9 @@ class DatasetEditView{
                 dsmoq.framework.Effect.global().notifyError(msg, null);
                 stream.resolve(Signal);
             }
-            Common.withRequest(Common.radio("defaultAccessLevel", accessLevel), "click", function(stateStream){
+            Common.withRequest(Common.radio("defaultAccessLevel", accessLevel), "click", function(stateStream) {
                 stateStream.then(function(state){
-                    Api.sendDatasetsDefaultAccess(Core.get(id), toDefaultAccess(state)).event.then(function(_){
+                    Api.sendDatasetsDefaultAccess(Core.get(id), toDefaultAccess(state)).event.then(function(_) {
                         stream.resolve(Signal);
                     }).catchError(errorProcess);
                 });
@@ -187,7 +187,7 @@ class DatasetEditView{
             .justView(files, "files", "[data-component-files]")
             .inMap(toModel);
 
-        return switch(id){
+        return switch(id) {
             case Some(id): Common.connectionPanel("edit-view", comp, Api.datasetDetail(id));
             case None:     comp.render({});
         };

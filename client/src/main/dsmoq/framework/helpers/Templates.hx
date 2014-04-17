@@ -8,8 +8,8 @@ using Lambda;
 using dsmoq.framework.JQuery;
 
 class Templates{
-    public static function create<Input>(resourceName):Component<Input, Input, Void>{
-        function render(x:Dynamic){
+    public static function create<Input>(resourceName): Component<Input, Input, Void> {
+        function render(x: Dynamic) {
             var body = JQuery.j(Resource.getString(resourceName));
             var fields = Reflect.fields(x).map(function(fieldName){
                 var attribute = 'data-$fieldName';

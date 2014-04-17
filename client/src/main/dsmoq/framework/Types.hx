@@ -1,6 +1,5 @@
 package dsmoq.framework;
 
-import promhx.Promise;
 import promhx.Stream;
 import dsmoq.framework.JQuery;
 import dsmoq.framework.Effect;
@@ -11,7 +10,15 @@ typedef Application<TPage: EnumValue> = {
     initialize: Void -> Replacable<Html, Void, Void>,
     toUrl: TPage -> PageInfo,
     fromUrl: PageInfo -> TPage,
-    draw: TPage -> Rendered<Void, TPage>
+    render: TPage -> Option<Html> -> Rendered<Void, PageEvent<TPage>>
+}
+
+enum PageEvent<TPage: EnumValue> {
+    Navigate(page: TPage);
+    NavigateAsBackword(page: TPage);
+    Foward;
+    Backward;
+    //TODO APIレスポンスでログアウト等を検知したときに処理が必要
 }
 
 typedef Rendered<TState, TEvent> = {
