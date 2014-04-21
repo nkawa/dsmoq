@@ -1,22 +1,19 @@
 package dsmoq.pages;
 
-import dsmoq.framework.Types;
-import dsmoq.pages.Definitions.Page;
 import promhx.Promise;
+import promhx.Stream;
+import dsmoq.pages.Definitions.Page;
 import dsmoq.framework.JQuery.*;
-import dsmoq.components.Clickable;
-import promhx.Stream.Stream;
+import dsmoq.framework.types.PageInfo;
+import dsmoq.framework.types.Option;
+import dsmoq.framework.types.Html;
 
+import dsmoq.framework.JQuery.*;
 import dsmoq.framework.helpers.*;
-import dsmoq.framework.Effect;
-
-import dsmoq.framework.Types;
 import js.JQuery.JQueryHelper.*;
-import dsmoq.framework.Effect;
-import dsmoq.framework.JQuery.*;
 
+import dsmoq.framework.Effect;
 using dsmoq.framework.helpers.Components;
-import dsmoq.framework.helpers.*;
 
 import dsmoq.components.ConnectionPanel;
 import dsmoq.components.Header;
@@ -24,6 +21,9 @@ import dsmoq.components.Header;
 import dsmoq.pages.Api;
 import dsmoq.pages.Models;
 import dsmoq.components.Pagination;
+import dsmoq.components.Clickable;
+import dsmoq.framework.types.Replacable;
+import dsmoq.framework.types.PageEvent;
 
 enum Page {
     DashBoard;

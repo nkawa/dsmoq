@@ -1,13 +1,15 @@
 package dsmoq.components;
 
 import promhx.Stream;
-import dsmoq.framework.Types;
 import dsmoq.framework.JQuery;
 import dsmoq.pages.Models;
 import dsmoq.framework.helpers.*;
 using dsmoq.framework.helpers.Components;
 
 import dsmoq.components.Pagination;
+import dsmoq.framework.types.Component;
+import dsmoq.framework.types.PlaceHolder;
+import dsmoq.framework.types.Html;
 
 class List{
     static inline var CLASS_TO_PUT_PLACEHOLDER = "component-placeholder";

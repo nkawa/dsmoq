@@ -1,7 +1,12 @@
 package dsmoq.framework;
 
-import dsmoq.framework.Types;
+import dsmoq.framework.types.Application;
 import dsmoq.framework.Effect;
+import dsmoq.framework.types.Replacable;
+import dsmoq.framework.types.Html;
+import dsmoq.framework.types.PageEvent;
+import dsmoq.framework.types.PageInfo;
+import dsmoq.framework.types.Option;
 
 class Engine<TPage: EnumValue> {
     var application: Application<TPage>;

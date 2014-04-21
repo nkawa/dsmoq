@@ -1,6 +1,5 @@
 package dsmoq.components;
 
-import dsmoq.framework.Types;
 import dsmoq.framework.helpers.Components;
 import dsmoq.framework.helpers.Connection;
 import dsmoq.framework.helpers.Promises;
@@ -8,6 +7,11 @@ import dsmoq.framework.JQuery;
 import promhx.Promise;
 import dsmoq.components.LoadingPanel;
 import promhx.Stream.Stream;
+import dsmoq.framework.types.PlaceHolder;
+import dsmoq.framework.types.Html;
+import dsmoq.framework.types.Component;
+import dsmoq.framework.types.Json;
+import dsmoq.framework.types.NextChange;
 
 class ConnectionPanel {
     public static function request<TEvent>(

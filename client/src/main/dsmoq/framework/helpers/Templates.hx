@@ -2,10 +2,11 @@ package dsmoq.framework.helpers;
 
 import dsmoq.framework.helpers.*;
 import haxe.Resource;
-import dsmoq.framework.Types;
 import promhx.Stream.Stream;
 using Lambda;
 using dsmoq.framework.JQuery;
+import dsmoq.framework.types.Component;
+import dsmoq.framework.types.Html;
 
 class Templates{
     public static function create<Input>(resourceName): Component<Input, Input, Void> {

@@ -1,9 +1,11 @@
 package dsmoq.framework.helpers;
 
 import promhx.Promise;
-import dsmoq.framework.Types;
 import dsmoq.framework.JQuery.*;
 import promhx.Stream.Stream;
+import dsmoq.framework.types.PlaceHolder;
+import dsmoq.framework.types.Foldable;
+import dsmoq.framework.types.NextChange;
 
 class PlaceHolders{
     public static function create<Input,State,Output>(name: String, foldable: Foldable<Input, State, Output>): PlaceHolder<Input, State, Output>{

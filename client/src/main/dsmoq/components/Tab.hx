@@ -1,9 +1,9 @@
 package dsmoq.components;
 
-import dsmoq.framework.Types;
 import dsmoq.framework.JQuery;
 import dsmoq.framework.helpers.*;
 import dsmoq.framework.helpers.Components;
+import dsmoq.framework.types.Component;
 
 typedef TabPane<Output> = {
     name: String,

@@ -2,11 +2,15 @@ package dsmoq.components;
 
 import promhx.Promise;
 import promhx.Stream;
-import dsmoq.framework.Types;
 import dsmoq.framework.JQuery;
 import dsmoq.framework.helpers.*;
 using dsmoq.framework.helpers.Components;
 using dsmoq.framework.helpers.Rendereds;
+
+import dsmoq.framework.types.Option;
+import dsmoq.framework.types.Component;
+import dsmoq.framework.types.Html;
+import dsmoq.framework.types.Signal;
 
 typedef RowStrings = Array<String>
 

@@ -1,8 +1,9 @@
 package dsmoq.framework.helpers;
 
 import promhx.Promise;
-import dsmoq.framework.Types;
+import dsmoq.framework.types.Json;
 import haxe.Json in JsonLib;
+import dsmoq.framework.types.Html;
 
 enum HttpMethod{ Get; Post; Put; Delete;}
 

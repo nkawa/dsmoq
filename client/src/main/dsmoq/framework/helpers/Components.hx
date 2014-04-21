@@ -1,12 +1,15 @@
 package dsmoq.framework.helpers;
 
-import dsmoq.framework.Types;
 import dsmoq.framework.JQuery.*;
 import promhx.Promise;
 import promhx.Stream;
 import dsmoq.framework.helpers.Streams;
+import dsmoq.framework.types.Component;
+import dsmoq.framework.types.Rendered;
+import dsmoq.framework.types.Unit;
+import dsmoq.framework.types.Html;
 
-class Components{
+class Components {
     public static function toComponent<Input, State, Output>(
             render: Input -> Rendered<State, Output>): Component<Input, State, Output> {
         return { render: render };

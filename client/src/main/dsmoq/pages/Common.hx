@@ -1,6 +1,5 @@
 package dsmoq.pages;
 
-import dsmoq.framework.Types;
 import dsmoq.components.ConnectionPanel;
 
 using dsmoq.framework.helpers.Components;
@@ -8,6 +7,12 @@ import dsmoq.framework.JQuery;
 import dsmoq.framework.helpers.Connection;
 import dsmoq.framework.Effect;
 import dsmoq.framework.helpers.Core;
+
+import dsmoq.framework.types.Component;
+import dsmoq.framework.types.PlaceHolder;
+import dsmoq.framework.types.Rendered;
+import dsmoq.framework.types.Signal;
+import dsmoq.framework.types.Html;
 
 import promhx.Stream;
 

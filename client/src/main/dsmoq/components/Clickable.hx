@@ -1,12 +1,13 @@
 package dsmoq.components;
 
 import promhx.Promise;
-import dsmoq.framework.Types;
 import promhx.Stream.Stream;
 
 import dsmoq.framework.helpers.*;
 using dsmoq.framework.helpers.Components;
 import dsmoq.framework.JQuery;
+import dsmoq.framework.types.Component;
+import dsmoq.framework.types.Signal;
 
 typedef SubmitOption = {
     url: String,

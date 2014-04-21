@@ -1,7 +1,9 @@
 package dsmoq.framework.helpers;
 
-import dsmoq.framework.Types;
 import dsmoq.framework.JQuery.*;
+import dsmoq.framework.types.Rendered;
+import dsmoq.framework.types.Html;
+import dsmoq.framework.types.Component;
 
 class Rendereds{
     public static function oneOfEvent(components){

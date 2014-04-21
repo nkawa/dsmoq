@@ -4,13 +4,8 @@ import dsmoq.framework.helpers.Connection;
 import dsmoq.framework.helpers.Core;
 import pushstate.PushState;
 import js.Browser.document;
-import dsmoq.framework.Types;
-
-typedef PageInfo = {
-    path: String,
-    attributes: Map<String, Dynamic>
-}
-
+import dsmoq.framework.types.PageInfo;
+import dsmoq.framework.types.Option;
 
 class Effect {
     public inline static var DEFAULT_FIELD = "query";

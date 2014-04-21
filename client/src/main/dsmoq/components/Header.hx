@@ -4,11 +4,13 @@ import dsmoq.pages.Models;
 import dsmoq.framework.helpers.*;
 import promhx.Stream;
 using dsmoq.framework.helpers.Components;
-import dsmoq.framework.Types;
 import dsmoq.framework.JQuery;
 import dsmoq.framework.Effect;
 import js.Browser.document in doc;
 import dsmoq.pages.Definitions;
+import dsmoq.framework.types.Component;
+import dsmoq.framework.types.PageEvent;
+import dsmoq.framework.types.Html;
 
 private typedef HeaderModel = {
     login: Bool,

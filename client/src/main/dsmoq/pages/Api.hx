@@ -4,8 +4,6 @@ import dsmoq.framework.helpers.Connection;
 import dsmoq.framework.helpers.*;
 import dsmoq.pages.Models;
 import dsmoq.components.Pagination;
-import dsmoq.framework.Types;
-
 
 class Api{
     public static var profile = {

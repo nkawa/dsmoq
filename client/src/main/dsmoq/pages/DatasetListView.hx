@@ -2,7 +2,6 @@ package dsmoq.pages;
 
 import promhx.Promise;
 import dsmoq.pages.Definitions;
-import dsmoq.framework.Types;
 import dsmoq.framework.helpers.*;
 import dsmoq.framework.JQuery.*;
 import promhx.Stream.Stream;
@@ -14,6 +13,9 @@ import dsmoq.components.Pagination;
 import dsmoq.framework.helpers.Connection;
 import dsmoq.pages.Api;
 import dsmoq.pages.Models;
+
+import dsmoq.framework.types.Rendered;
+import dsmoq.framework.types.PageEvent;
 
 class DatasetListView {
     public static function render(paging: PagingInfo): Rendered<Void, PageEvent<Page>> {

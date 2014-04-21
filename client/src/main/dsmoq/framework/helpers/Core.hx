@@ -1,8 +1,8 @@
 package dsmoq.framework.helpers;
 
-import dsmoq.framework.Types;
+import dsmoq.framework.types.Option;
 
-class Core{
+class Core {
     public static function identity<A>(x:A):A{return x;}
     public static function effect<A>(f: A -> Void):A -> A{return function(x:A){f(x); return x;};}
     public static function nop<A>():A{ return null;}

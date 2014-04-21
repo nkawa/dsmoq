@@ -1,22 +1,23 @@
 package dsmoq.components;
 
-
 import promhx.Promise;
 import dsmoq.pages.Models;
 import dsmoq.framework.JQuery.*;
-import dsmoq.framework.Types;
 import dsmoq.components.LoadingPanel;
 import promhx.Stream.Stream;
+import dsmoq.framework.types.Component;
+import dsmoq.framework.types.Html;
 
 import dsmoq.framework.helpers.*;
 using dsmoq.framework.helpers.Components;
+import dsmoq.framework.types.NextChange;
 
 typedef Paging =        {offset: Int, count: Int, total: Int}
 typedef MassResult<A> = {summary: Paging, results: A}
 
 typedef Assign<Input, State, Output> = {selector: String, component: Component<Input, State, Output>}
 
-class Pagination{
+class Pagination {
     public static function injectInto<Input,State,Output>(
         waiting: Html -> Void,
         name: String,
@@ -59,6 +60,7 @@ class Pagination{
             var currentPage = Std.int(paging.offset / paging.count) + 1;
             var totalPage = Std.int((paging.total - 1) / paging.count) + 1;
             var calculateNext = nextPaging(paging);
+
             function each(i){
                 return if(i == currentPage)
                     j('<li class="active"/>').append(
@@ -67,6 +69,7 @@ class Pagination{
                     j('<li/>').append(
                             j('<a>${Std.string(i)}</a>').on("click", function(_){ p.resolve(calculateNext(i));}));
             }
+
             function side(mark, enable, next){
                 var el = j('<a>$mark</a>');
                 if(enable){

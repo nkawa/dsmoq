@@ -1,8 +1,8 @@
 package dsmoq.framework;
 
-import dsmoq.framework.Types;
+import dsmoq.framework.types.Html;
 
-extern class Jq{
+extern class Jq {
     public function append(jq: Jq):Jq;
     public function add(jq: Jq):Jq;
     public function find(selector: String):Jq;

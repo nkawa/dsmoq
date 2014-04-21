@@ -1,11 +1,14 @@
 package dsmoq.components;
 
-import dsmoq.framework.Types;
 import dsmoq.framework.helpers.*;
 import dsmoq.framework.helpers.Connection;
 import dsmoq.framework.helpers.Promises;
 import dsmoq.framework.JQuery;
 import promhx.Stream;
+import dsmoq.framework.types.PlaceHolder;
+import dsmoq.framework.types.Html;
+import dsmoq.framework.types.Component;
+import dsmoq.framework.types.NextChange;
 
 class LoadingPanel {
     private static function ignoreError(x: Dynamic){ trace(x);}

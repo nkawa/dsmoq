@@ -2,7 +2,6 @@ package dsmoq.pages;
 
 import promhx.Promise;
 import dsmoq.pages.Definitions;
-import dsmoq.framework.Types;
 import dsmoq.framework.JQuery;
 
 import dsmoq.components.Clickable;

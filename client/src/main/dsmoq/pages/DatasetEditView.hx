@@ -3,7 +3,6 @@ package dsmoq.pages;
 import promhx.Promise;
 import promhx.Stream;
 import dsmoq.pages.Definitions;
-import dsmoq.framework.Types;
 import dsmoq.framework.helpers.*;
 import dsmoq.framework.JQuery;
 
@@ -13,6 +12,14 @@ import dsmoq.components.Table;
 using dsmoq.framework.helpers.Components;
 import dsmoq.pages.Api;
 import dsmoq.pages.Models;
+
+import dsmoq.framework.types.PageEvent;
+import dsmoq.framework.types.Rendered;
+import dsmoq.framework.types.NextChange;
+import dsmoq.framework.types.Option;
+import dsmoq.framework.types.Signal;
+import dsmoq.framework.types.Html;
+import dsmoq.framework.types.Component;
 
 private typedef DatasetEditViewModel = {
     name: String,
