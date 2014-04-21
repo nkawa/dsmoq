@@ -7,7 +7,7 @@ import dsmoq.framework.JQuery;
 import dsmoq.components.LoadingPanel;
 import dsmoq.pages.Models;
 import promhx.Stream.Stream;
-import dsmoq.framework.types.Rendered;
+import dsmoq.framework.types.Component;
 import dsmoq.framework.types.PageEvent;
 
 using dsmoq.components.Tab;
@@ -24,7 +24,7 @@ private typedef DatasetViewModel = {
 }
 
 class DatasetReadView {
-    public static function render(id: String):Rendered<Void, PageEvent<Page>>{
+    public static function render(id: String):Component<Void, PageEvent<Page>>{
         function toModel(input: Dynamic): Dynamic /* DatasetViewModel */{
             var data = Api.extractData(input);
 

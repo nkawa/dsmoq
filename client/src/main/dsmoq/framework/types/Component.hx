@@ -1,8 +1,12 @@
 package dsmoq.framework.types;
 
+import promhx.Stream;
+
 /**
  * @author terurou
  */
-typedef Component<TIn, TState, TEvent> = {
-    render: TIn -> Rendered<TState, TEvent>
+typedef Component<TState, TEvent> = {
+    html: Html,
+    event: Stream<TEvent>,
+    state: Void -> TState
 }

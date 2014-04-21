@@ -5,7 +5,7 @@ import dsmoq.pages.Models;
 import dsmoq.framework.JQuery.*;
 import dsmoq.components.LoadingPanel;
 import promhx.Stream.Stream;
-import dsmoq.framework.types.Component;
+import dsmoq.framework.types.ComponentFactory;
 import dsmoq.framework.types.Html;
 
 import dsmoq.framework.helpers.*;
@@ -15,7 +15,7 @@ import dsmoq.framework.types.NextChange;
 typedef Paging =        {offset: Int, count: Int, total: Int}
 typedef MassResult<A> = {summary: Paging, results: A}
 
-typedef Assign<Input, State, Output> = {selector: String, component: Component<Input, State, Output>}
+typedef Assign<Input, State, Output> = {selector: String, component: ComponentFactory<Input, State, Output>}
 
 class Pagination {
     public static function injectInto<Input,State,Output>(
@@ -23,14 +23,14 @@ class Pagination {
         name: String,
         placeForPagination: String,
         placeForResult: String,
-        component: Component<Input,Void,Output>,
+        component: ComponentFactory<Input,Void,Output>,
         f: PagingInfo -> {event: Stream<MassResult<Input>>, state: Void -> State}
     ){
         function extractResult(x:MassResult<Input>){return x.results;}
 
         var pagination = create().outMap(Inner);
         var baseComponent = component.inMap(extractResult).outMap(Outer);
-        var component: Component<MassResult<Input>, Void, NextChange<PagingInfo, Output>> =
+        var component: ComponentFactory<MassResult<Input>, Void, NextChange<PagingInfo, Output>> =
             Components.put("summary", placeForPagination, baseComponent, pagination)
             .justView(result(), "summary", placeForResult);
 
@@ -41,7 +41,7 @@ class Pagination {
         return (paging.total < n) ? paging.total : n;
     }
 
-    public static function result():Component<Paging, Void, Void>{
+    public static function result():ComponentFactory<Paging, Void, Void>{
         return Components.fromHtml(function(paging:Paging){
             return j('<strong>Found ${paging.total} records (${paging.offset + 1} - ${end(paging)})</strong>');
         });

@@ -9,7 +9,7 @@ import dsmoq.components.LoadingPanel;
 import promhx.Stream.Stream;
 import dsmoq.framework.types.PlaceHolder;
 import dsmoq.framework.types.Html;
-import dsmoq.framework.types.Component;
+import dsmoq.framework.types.ComponentFactory;
 import dsmoq.framework.types.Json;
 import dsmoq.framework.types.NextChange;
 
@@ -17,7 +17,7 @@ class ConnectionPanel {
     public static function request<TEvent>(
         waiting: Html -> Void,
         name,
-        component: Component<Json, Void, TEvent>,
+        component: ComponentFactory<Json, Void, TEvent>,
         onError: Dynamic -> Void
     ): PlaceHolder<HttpRequest, ConnectionStatus, TEvent> {
         return requestContinually(waiting, name, Components.outMap(component, Outer), onError);
@@ -26,7 +26,7 @@ class ConnectionPanel {
     public static function requestContinually<TEvent>(
         waiting: Html -> Void,
         name,
-        component: Component<Json, Void, NextChange<HttpRequest, TEvent>>,
+        component: ComponentFactory<Json, Void, NextChange<HttpRequest, TEvent>>,
         onError: Dynamic -> Void
     ): PlaceHolder<HttpRequest, ConnectionStatus, TEvent> {
         return LoadingPanel.create(waiting, name, component, function (request) {
@@ -41,7 +41,7 @@ class ConnectionPanel {
     public static function requestByJson<TEvent>(
         waiting: Html -> Void,
         name,
-        component: Component<Json, Void, TEvent>,
+        component: ComponentFactory<Json, Void, TEvent>,
         onError: Dynamic -> Void
     ): PlaceHolder<HttpJsonRequest, ConnectionStatus, TEvent> {
         return requestByJsonContinually(waiting, name, Components.outMap(component, Outer), onError);
@@ -50,7 +50,7 @@ class ConnectionPanel {
     public static function requestByJsonContinually<TEvent>(
         waiting: Html -> Void,
         name,
-        component: Component<Json, Void, NextChange<HttpJsonRequest,TEvent>>,
+        component: ComponentFactory<Json, Void, NextChange<HttpJsonRequest,TEvent>>,
         onError: Dynamic -> Void
     ): PlaceHolder<HttpJsonRequest, ConnectionStatus, TEvent> {
         return LoadingPanel.create(waiting, name, component, function (request) {

@@ -7,7 +7,7 @@ import dsmoq.framework.JQuery;
 import promhx.Stream;
 import dsmoq.framework.types.PlaceHolder;
 import dsmoq.framework.types.Html;
-import dsmoq.framework.types.Component;
+import dsmoq.framework.types.ComponentFactory;
 import dsmoq.framework.types.NextChange;
 
 class LoadingPanel {
@@ -16,7 +16,7 @@ class LoadingPanel {
     public static function create<A, B, State, Output>(
         waiting: Html -> Void,
         name: String,
-        component: Component<B, Void, NextChange<A,Output>>,
+        component: ComponentFactory<B, Void, NextChange<A,Output>>,
         f: A -> {event: Stream<B>, state: Void -> State},
         onError: Dynamic -> Void = null
     ): PlaceHolder<A, State, Output> {

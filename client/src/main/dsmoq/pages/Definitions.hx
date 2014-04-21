@@ -1,5 +1,6 @@
 package dsmoq.pages;
 
+import dsmoq.framework.types.PageContainer;
 import promhx.Promise;
 import promhx.Stream;
 import dsmoq.pages.Definitions.Page;
@@ -24,6 +25,8 @@ import dsmoq.components.Pagination;
 import dsmoq.components.Clickable;
 import dsmoq.framework.types.Replacable;
 import dsmoq.framework.types.PageEvent;
+import dsmoq.framework.types.Component;
+import dsmoq.framework.types.PageComponent;
 
 enum Page {
     DashBoard;
@@ -73,13 +76,13 @@ class Definitions {
         }
 
         return {
-            initialize: function (): Replacable<Html, Void, PageEvent<Page>> {
+            initialize: function (): PageContainer<Page> {
                 var selector = "#main";
 
                 var container = divNamed("page-body").addClass("container");
 
-                function putPage(html: Html) {
-                    container.empty().append(html);
+                function putPage(component: Component<Void, PageEvent<Page>>) {
+                    container.empty().append(component.html);
                 }
 
                 var mainContent = Components.toComponent(function (status: LoginStatus) {

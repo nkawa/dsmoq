@@ -8,7 +8,7 @@ import dsmoq.framework.JQuery;
 import dsmoq.framework.Effect;
 import js.Browser.document in doc;
 import dsmoq.pages.Definitions;
-import dsmoq.framework.types.Component;
+import dsmoq.framework.types.ComponentFactory;
 import dsmoq.framework.types.PageEvent;
 import dsmoq.framework.types.Html;
 
@@ -19,7 +19,7 @@ private typedef HeaderModel = {
 }
 
 class Header {
-    public static function create(): Component<LoginStatus, Void, PageEvent<Page>> {
+    public static function create(): ComponentFactory<LoginStatus, Void, PageEvent<Page>> {
         var stream = new Stream();
 
         function toModel(login: LoginStatus): HeaderModel {

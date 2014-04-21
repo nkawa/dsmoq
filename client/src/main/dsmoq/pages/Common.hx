@@ -8,9 +8,9 @@ import dsmoq.framework.helpers.Connection;
 import dsmoq.framework.Effect;
 import dsmoq.framework.helpers.Core;
 
-import dsmoq.framework.types.Component;
+import dsmoq.framework.types.ComponentFactory;
 import dsmoq.framework.types.PlaceHolder;
-import dsmoq.framework.types.Rendered;
+import dsmoq.framework.types.Component;
 import dsmoq.framework.types.Signal;
 import dsmoq.framework.types.Html;
 
@@ -20,7 +20,7 @@ class Common{
     public static function waiting(html){
         html.text("waiting...");
     }
-    public static function observe<Input, Output>(comp: PlaceHolder<Input, ConnectionStatus, Output>): Component<Input, Void, Output>{
+    public static function observe<Input, Output>(comp: PlaceHolder<Input, ConnectionStatus, Output>): ComponentFactory<Input, Void, Output>{
         function render(x: Input){
             var rendered = comp.render(x);
             Effect.global().observeConnection(rendered.state);
@@ -30,7 +30,7 @@ class Common{
         return Components.toComponent(render);
     }
 
-    public static function connectionPanel<Input, Output>(name: String, comp: Component<Input, Void, Output>, request: HttpRequest): Rendered<Void, Output>{
+    public static function connectionPanel<Input, Output>(name: String, comp: ComponentFactory<Input, Void, Output>, request: HttpRequest): Component<Void, Output>{
         var c: PlaceHolder<HttpRequest, ConnectionStatus, Output> = ConnectionPanel.request(waiting, name, comp, Effect.global().notifyError.bind(_, null));
         return observe(c).render(request);
     }
@@ -69,7 +69,7 @@ class Common{
         }).state(val);
     }
 
-    public static function withRequest<Input, State, Output>(component: Component<Input, State, Output>, eventName: String, f: Stream<State> -> Stream<Signal>, selector = "*"){
+    public static function withRequest<Input, State, Output>(component: ComponentFactory<Input, State, Output>, eventName: String, f: Stream<State> -> Stream<Signal>, selector = "*"){
         return component.decorateWithState(function(html, state: Void -> State){
             var stream = new Stream();
             f(stream).then(function(_){

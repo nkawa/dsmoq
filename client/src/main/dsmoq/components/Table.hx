@@ -8,13 +8,13 @@ using dsmoq.framework.helpers.Components;
 using dsmoq.framework.helpers.Rendereds;
 
 import dsmoq.framework.types.Option;
-import dsmoq.framework.types.Component;
+import dsmoq.framework.types.ComponentFactory;
 import dsmoq.framework.types.Html;
 import dsmoq.framework.types.Signal;
 
 typedef RowStrings = Array<String>
 
-typedef Row = Component<RowStrings, RowStrings, Void>
+typedef Row = ComponentFactory<RowStrings, RowStrings, Void>
 
 typedef TableAction = {
     onDelete: RowStrings -> Promise<Option<RowStrings>>,
@@ -28,11 +28,11 @@ class Table{
 
     static inline var HIDDEN_CELL_CLASS = "component-table-hidden-cell";
 
-    public static var hiddenCell:Component<String, String, Void> = Components.fromHtml(function(s){
+    public static var hiddenCell:ComponentFactory<String, String, Void> = Components.fromHtml(function(s){
         return JQuery.div().attr("class", HIDDEN_CELL_CLASS).text(s);
     }).state(function(html){return html.text();});
 
-    public static function create(name, row: Array<Component<String,String, Void>>, header: Array<String> = null):Component<Array<RowStrings>, Array<RowStrings>, Void>{
+    public static function create(name, row: Array<ComponentFactory<String,String, Void>>, header: Array<String> = null):ComponentFactory<Array<RowStrings>, Array<RowStrings>, Void>{
         var rowComponent = Components.group(row, JQuery.join('<td></td>'))
             .decorate(function(html){
                 return JQuery.j('<td class="col-min-width table-numbering">0</td>').add(html);
@@ -60,8 +60,8 @@ class Table{
     }
 
     public static function editable(name,
-        row:      Array<Component<String, String, Void>>,
-        inputRow: Array<Component<String, String, Void>>,
+        row:      Array<ComponentFactory<String, String, Void>>,
+        inputRow: Array<ComponentFactory<String, String, Void>>,
         defaults: RowStrings,
         actions:TableAction = null,
         atLeastOne = false

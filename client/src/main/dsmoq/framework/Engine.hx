@@ -2,6 +2,8 @@ package dsmoq.framework;
 
 import dsmoq.framework.types.Application;
 import dsmoq.framework.Effect;
+import dsmoq.framework.types.PageComponent;
+import dsmoq.framework.types.PageContainer;
 import dsmoq.framework.types.Replacable;
 import dsmoq.framework.types.Html;
 import dsmoq.framework.types.PageEvent;
@@ -10,7 +12,7 @@ import dsmoq.framework.types.Option;
 
 class Engine<TPage: EnumValue> {
     var application: Application<TPage>;
-    var container: Replacable<Html, Void, PageEvent<TPage>>;
+    var container: PageContainer<TPage>;
 
     public function new(application) {
         this.application = application;
@@ -41,7 +43,7 @@ class Engine<TPage: EnumValue> {
             // Promise->Stream + URL(Hashチェンジ）もイベントで処理を行う
             content.event.then(handlePageEvent);
 
-            if (container != null) container.put(content.html);
+            if (container != null) container.put(content);
         }
     }
 

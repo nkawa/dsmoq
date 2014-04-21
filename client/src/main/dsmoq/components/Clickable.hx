@@ -6,7 +6,7 @@ import promhx.Stream.Stream;
 import dsmoq.framework.helpers.*;
 using dsmoq.framework.helpers.Components;
 import dsmoq.framework.JQuery;
-import dsmoq.framework.types.Component;
+import dsmoq.framework.types.ComponentFactory;
 import dsmoq.framework.types.Signal;
 
 typedef SubmitOption = {
@@ -15,7 +15,7 @@ typedef SubmitOption = {
 }
 
 class Clickable{
-    public static function create<Input, State, Truncate>(component: Component<Input, State, Truncate>, selector = "*"): Component<Input, State, Signal>{
+    public static function create<Input, State, Truncate>(component: ComponentFactory<Input, State, Truncate>, selector = "*"): ComponentFactory<Input, State, Signal>{
         function click(html) {
             var stream = new Stream();
             JQuery.findAll(html, selector).on("click", function (_) stream.resolve(Signal));
@@ -24,7 +24,7 @@ class Clickable{
         return component.event(click);
     }
 
-    public static function withSubmit<Input, State, Truncate>(component: Component<Input, State, Truncate>,
+    public static function withSubmit<Input, State, Truncate>(component: ComponentFactory<Input, State, Truncate>,
             clickSelector: String,
             formSelector: String,
             option: SubmitOption){

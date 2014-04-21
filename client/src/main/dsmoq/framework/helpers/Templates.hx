@@ -5,11 +5,11 @@ import haxe.Resource;
 import promhx.Stream.Stream;
 using Lambda;
 using dsmoq.framework.JQuery;
-import dsmoq.framework.types.Component;
+import dsmoq.framework.types.ComponentFactory;
 import dsmoq.framework.types.Html;
 
 class Templates{
-    public static function create<Input>(resourceName): Component<Input, Input, Void> {
+    public static function create<Input>(resourceName): ComponentFactory<Input, Input, Void> {
         function render(x: Dynamic) {
             var body = JQuery.j(Resource.getString(resourceName));
             var fields = Reflect.fields(x).map(function(fieldName){

@@ -14,12 +14,12 @@ import dsmoq.pages.Api;
 import dsmoq.pages.Models;
 
 import dsmoq.framework.types.PageEvent;
-import dsmoq.framework.types.Rendered;
+import dsmoq.framework.types.Component;
 import dsmoq.framework.types.NextChange;
 import dsmoq.framework.types.Option;
 import dsmoq.framework.types.Signal;
 import dsmoq.framework.types.Html;
-import dsmoq.framework.types.Component;
+import dsmoq.framework.types.ComponentFactory;
 
 private typedef DatasetEditViewModel = {
     name: String,
@@ -32,7 +32,7 @@ class DatasetEditView{
     static inline var TAB_FIELD_BASIC  = "datasetEditBasic";
     static inline var TAB_FIELD_ACL    = "datasetEditAcl";
 
-    public static function render(id: Option<String>):Rendered<Void, PageEvent<Page>> {
+    public static function render(id: Option<String>):Component<Void, PageEvent<Page>> {
         var isNew = Core.isNone(id);
         var nextPage = switch(id) {
             case Some(id): PageEvent.Navigate(Page.DatasetRead(id));
@@ -102,14 +102,14 @@ class DatasetEditView{
             }
         }
 
-        var aclTable:Component<Dynamic, Void, Void> = Table.editable(
+        var aclTable:ComponentFactory<Dynamic, Void, Void> = Table.editable(
                 "acl-table",
                 [Table.hiddenCell, Common.label, selectACL("access-level")],
                 [Table.hiddenCell, groupCombobox, selectACL("access-level-input")],
                 ["", "","1"],
                 tableActions, true).state(Core.ignore).event(function(_) return new Stream());
 
-        var tab:Component<Dynamic, Void, PageEvent<Page>> = Tab.base()
+        var tab:ComponentFactory<Dynamic, Void, PageEvent<Page>> = Tab.base()
             .append({name: TAB_FIELD_UPLOAD, title: "Files",          component: Templates.create("DatasetEditUpload")})
             .append({name: TAB_FIELD_BASIC,  title: "Metadata",       component: Templates.create("DatasetEditBasic")})
             .append({name: TAB_FIELD_ACL,    title: "Access Control", component: Templates.create("DatasetEditAcl")})

@@ -14,11 +14,11 @@ import dsmoq.framework.helpers.Connection;
 import dsmoq.pages.Api;
 import dsmoq.pages.Models;
 
-import dsmoq.framework.types.Rendered;
+import dsmoq.framework.types.Component;
 import dsmoq.framework.types.PageEvent;
 
 class DatasetListView {
-    public static function render(paging: PagingInfo): Rendered<Void, PageEvent<Page>> {
+    public static function render(paging: PagingInfo): Component<Void, PageEvent<Page>> {
         function toViewPage(dataset: DatasetSummary) {
             return PageEvent.Navigate(DatasetRead(dataset.id));
         }

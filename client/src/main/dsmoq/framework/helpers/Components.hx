@@ -4,86 +4,86 @@ import dsmoq.framework.JQuery.*;
 import promhx.Promise;
 import promhx.Stream;
 import dsmoq.framework.helpers.Streams;
+import dsmoq.framework.types.ComponentFactory;
 import dsmoq.framework.types.Component;
-import dsmoq.framework.types.Rendered;
 import dsmoq.framework.types.Unit;
 import dsmoq.framework.types.Html;
 
 class Components {
     public static function toComponent<Input, State, Output>(
-            render: Input -> Rendered<State, Output>): Component<Input, State, Output> {
+            render: Input -> Component<State, Output>): ComponentFactory<Input, State, Output> {
         return { render: render };
     }
 
-    public static function justHtml(html: Void -> Html): Component<Unit, Void, Void> {
+    public static function justHtml(html: Void -> Html): ComponentFactory<Unit, Void, Void> {
         return toComponent(function(_) {
             return {html: html(), state: Core.nop, event: new Stream() };
         });
     }
 
-    public static function fromHtml<Input>(f: Input-> Html): Component<Input, Void, Void> {
+    public static function fromHtml<Input>(f: Input-> Html): ComponentFactory<Input, Void, Void> {
         return toComponent(function (x: Input) {
             return {html: f(x), state: Core.nop, event: new Stream() };
         });
     }
 
-    public static function state<Input, State, Output>(component, f: Html -> State): Component<Input, State, Output>{
+    public static function state<Input, State, Output>(component, f: Html -> State): ComponentFactory<Input, State, Output>{
         return toComponent(function(x: Input){
             var rendered = component.render(x);
             return {html: rendered.html, state: function(){return f(rendered.html);}, event: rendered.event};
         });
     }
 
-    public static function event<Input, State, Output>(component, f: Html -> Stream<Output>): Component<Input, State, Output>{
+    public static function event<Input, State, Output>(component, f: Html -> Stream<Output>): ComponentFactory<Input, State, Output>{
         return toComponent(function(x: Input){
             var rendered = component.render(x);
             return {html: rendered.html, state: rendered.state, event: f(rendered.html)};
         });
     }
 
-    public static function emitInput<Input, State, Trancate>(component: Component<Input,State,Trancate>): Component<Input, State, Input>{
+    public static function emitInput<Input, State, Trancate>(component: ComponentFactory<Input,State,Trancate>): ComponentFactory<Input, State, Input>{
         return toComponent(function(x: Input){
             var rendered = component.render(x);
             return {html: rendered.html, state: rendered.state, event: rendered.event.then(function(_){return x;})};
         });
     }
-    public static function emitState<Input, State, Trancate>(component: Component<Input,State,Trancate>): Component<Input, State, State>{
+    public static function emitState<Input, State, Trancate>(component: ComponentFactory<Input,State,Trancate>): ComponentFactory<Input, State, State>{
         return toComponent(function(x: Input){
             var rendered = component.render(x);
             return {html: rendered.html, state: rendered.state, event: rendered.event.then(function(_){return rendered.state();})};
         });
     }
 
-    public static function decorate<Input,State,Output>( component, f:Html -> Html) :Component<Input,State,Output>{
+    public static function decorate<Input,State,Output>( component, f:Html -> Html) :ComponentFactory<Input,State,Output>{
         return toComponent(function(a){
             return Rendereds.decorate(component.render(a), f);
         });
     }
 
-    public static function decorateWithState<Input,State,Output>( component, f:Html -> (Void -> State) -> Html) :Component<Input,State,Output>{
+    public static function decorateWithState<Input,State,Output>( component, f:Html -> (Void -> State) -> Html) :ComponentFactory<Input,State,Output>{
         return toComponent(function(a){
             return Rendereds.decorateWithState(component.render(a), f);
         });
     }
 
-    public static function decorateWithInput<Input,State,Output>( component, f:Html -> Input -> Html) :Component<Input,State,Output>{
+    public static function decorateWithInput<Input,State,Output>( component, f:Html -> Input -> Html) :ComponentFactory<Input,State,Output>{
         return toComponent(function(a){
             return Rendereds.decorate(component.render(a), f.bind(_, a));
         });
     }
 
-    public static function inMap<Input,State,Output,Input2>(component, f:Input2 -> Input):Component<Input2,State,Output>{
+    public static function inMap<Input,State,Output,Input2>(component, f:Input2 -> Input):ComponentFactory<Input2,State,Output>{
         return toComponent( function(d){
            return component.render(f(d));
         });
     }
-    public static function stateMap<Input,State,Output,State2>(component, f:State -> State2):Component<Input,State2,Output>{
+    public static function stateMap<Input,State,Output,State2>(component, f:State -> State2):ComponentFactory<Input,State2,Output>{
         return toComponent(function(a){
             return Rendereds.stateMap(component.render(a), f);
         });
     }
 
-    public static function outMap<Input,State,Output,Output2>(component, f:Output -> Output2):Component<Input,State,Output2>{
+    public static function outMap<Input,State,Output,Output2>(component, f:Output -> Output2):ComponentFactory<Input,State,Output2>{
         return toComponent( function(i){
             return Rendereds.eventMap(component.render(i), f);
         });
@@ -93,11 +93,11 @@ class Components {
         mapForOutput: Stream<Out1> -> Stream<Out2> -> Stream<Output>,
         fieldName: String,
         selector: String,
-        base:Component<In1, St1, Out1>,
-        component: Component<In2, St2, Out2>
-    ): Component<Input, State, Output>{
+        base:ComponentFactory<In1, St1, Out1>,
+        component: ComponentFactory<In2, St2, Out2>
+    ): ComponentFactory<Input, State, Output>{
         function render(x:Dynamic){
-            var renderedBase:Rendered<St1,Out1>   = base.render(x);
+            var renderedBase:Component<St1,Out1>   = base.render(x);
             var targetValue = Reflect.field(x, fieldName);
             var renderedComponent= component.render(targetValue);
             JQuery.findAll(renderedBase.html, selector).append(renderedComponent.html);
@@ -111,34 +111,34 @@ class Components {
     }
 
     public static function inject<Input, State, In1, St1, Output, In2, St2, Out2>(fieldName: String, selector: String,
-            base:Component<In1, St1, Output>, component: Component<In2, St2, Out2>
-        ): Component<Input, State, Output>{
+            base:ComponentFactory<In1, St1, Output>, component: ComponentFactory<In2, St2, Out2>
+        ): ComponentFactory<Input, State, Output>{
         return merge(injectState(fieldName), useFirst, fieldName, selector, base, component);
     }
 
     public static function put<Input,In1, State, Output, In2, St2>(fieldName: String, selector: String,
-            base:Component<In1, State, Output>, component: Component<In2, St2, Output>
-        ): Component<Input, State, Output>{
+            base:ComponentFactory<In1, State, Output>, component: ComponentFactory<In2, St2, Output>
+        ): ComponentFactory<Input, State, Output>{
         return merge(useFirst, whichever, fieldName, selector, base, component);
     }
 
     public static function justView<Input, In1, State, Output, In2, St2>(                                  // not typesafe
-        base:Component<In1, State, Output>, component: Component<In2, Void, Void>,
+        base:ComponentFactory<In1, State, Output>, component: ComponentFactory<In2, Void, Void>,
         fieldName: String, selector: String
-    ): Component<Input, State, Output>{
+    ): ComponentFactory<Input, State, Output>{
         return merge(useFirst, useFirst, fieldName, selector, base, component);
     }
 
-    public static function list<Input, State, Output>(component, f: Array<Html> -> Html): Component<Array<Input>, Array<State>, Output>{
+    public static function list<Input, State, Output>(component, f: Array<Html> -> Html): ComponentFactory<Array<Input>, Array<State>, Output>{
         return toComponent(function(xs: Array<Input>){
             return Rendereds.renderAll(component, xs, f);
         });
     }
 
     public static function group<Input,State,Output>(
-            components: Array<Component<Input, State, Output>>,
+            components: Array<ComponentFactory<Input, State, Output>>,
             f: Array<Html> -> Html
-        ): Component<Array<Input>, Array<State>, Output>{
+        ): ComponentFactory<Array<Input>, Array<State>, Output>{
         return {
             render: function(xs){
                 if(xs.length != components.length) {

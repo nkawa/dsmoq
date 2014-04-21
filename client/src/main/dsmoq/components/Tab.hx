@@ -3,12 +3,12 @@ package dsmoq.components;
 import dsmoq.framework.JQuery;
 import dsmoq.framework.helpers.*;
 import dsmoq.framework.helpers.Components;
-import dsmoq.framework.types.Component;
+import dsmoq.framework.types.ComponentFactory;
 
 typedef TabPane<Output> = {
     name: String,
     title: String,
-    component: Component<Dynamic, Dynamic, Output>
+    component: ComponentFactory<Dynamic, Dynamic, Output>
 }
 
 typedef TabBuilder<Output> = {
@@ -25,7 +25,7 @@ class Tab{
         return {panes: builder.panes};
     }
 
-    public static function toComponent<Input, State, Output>(builder: TabBuilder<Output>): Component<Input, State, Output>{
+    public static function toComponent<Input, State, Output>(builder: TabBuilder<Output>): ComponentFactory<Input, State, Output>{
         function renderHeader(panes: TabPane<Output>){
             return JQuery.j('<li><a href="#${panes.name}" data-toggle="tab">${panes.title}</a></li>');
         }
