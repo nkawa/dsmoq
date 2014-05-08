@@ -1,11 +1,12 @@
 package dsmoq.framework.types;
+import js.html.Element;
 
 /**
  * @author terurou
  */
 typedef Application<TPage: EnumValue> = {
-    initialize: Void -> PageContainer<TPage>,
-    toUrl: TPage -> PageInfo,
-    fromUrl: PageInfo -> TPage,
-    render: TPage -> Option<Html> -> PageComponent<TPage>
+    function frame(): PageFrame<TPage>;
+    function content(page: TPage): PageContent<TPage>;
+    function toLocation(page: TPage): Location;
+    function fromLocation(location: Location): Option<TPage>;
 }

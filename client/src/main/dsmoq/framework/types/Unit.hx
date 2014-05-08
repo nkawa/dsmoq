@@ -4,4 +4,6 @@ package dsmoq.framework.types;
  * @author terurou
  */
 
-enum Unit {}
+enum Unit {
+    _;
+}

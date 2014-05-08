@@ -10,3 +10,9 @@
 [submodule "client/lib/mocha.js-haxe"]
 	path = client/lib/mocha.js-haxe
 	url = https://github.com/illi-ichi/mocha.js-haxe.git
+[submodule "client/lib/JsViews-Haxe"]
+	path = client/lib/JsViews-Haxe
+	url = https://github.com/terurou/JsViews-Haxe
+[submodule "client/lib/jqhx"]
+	path = client/lib/jqhx
+	url = https://github.com/terurou/jqhx.git

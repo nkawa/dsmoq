@@ -1,5 +1,14 @@
+/*
 body {
   padding-top: 50px;
+}
+*/
+
+.loading {
+    height: "100%";
+    background-image: url("/resources/loading-large.gif");
+    background-repeat: no-repeat;
+    background-position: center center;
 }
 
 .well{
