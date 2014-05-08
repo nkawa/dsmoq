@@ -1,9 +1,10 @@
+-main dsmoq.Main
 -js www/application.js
 -cp src/main/
--main dsmoq.Main
 -cp lib/jqhx/src/
 -cp lib/JsViews-Haxe/src/
 -cp lib/promhx/src/main/
+-D jsviews_enable_jqhx
 -resource templates/Header.html@template/Header
 -resource templates/DatasetSummary.html@template/DatasetSummary
 -resource templates/DatasetEdit/acl.html@template/DatasetEditAcl
