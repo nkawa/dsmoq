@@ -36,8 +36,6 @@ class Template {
     public static function link(name: String, target: Html, ?binding: {}): Void {
         initialize();
 
-        js.Browser.document.body.appendChild(target);
-
         target.toElement().appendChild;
         JsViews.getTemplate(name)
             .getOrThrow(new Error('undefined template: \'$name\''))

@@ -13,55 +13,59 @@
       <ul class="nav navbar-nav">
         <li><a data-link-datasets>Data Sets</a></li>
         <li><a data-link-groups>Groups</a></li>
-        <li data-login="show:true"><a data-link-upload>
-            <span class="glyphicon glyphicon-cloud-upload"></span>
-            Upload Dataset</a>
-        </li>
+        {^{if !isGuest}}
+          <li>
+            <a data-link-upload><span class="glyphicon glyphicon-cloud-upload"></span> Upload Dataset</a>
+          </li>
+        {{/if}}
       </ul>
       <ul class="nav navbar-nav navbar-right">
-        <li class="dropdown login-form" data-login="show:false">
-          <a class="btn dropdown-toggle" data-toggle="dropdown">
-            Login
-            <span class="caret"></span>
-          </a>
-          <div class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu1">
-            <form method="POST" class="form-horizontal" role="form" data-submit-login>
-              <div class="form-group">
-                <label for="form-name" class="col-sm-4 control-label">User Id</label>
-                <div class="col-sm-8"> <input type="text" class="form-control" name="id" > </div>
-              </div>
-              <div class="form-group">
-                <label for="form-description" class="col-sm-4 control-label">Password</label>
-                <div class="col-sm-8"> <input type="password" class="form-control" name="password" >   </div>
-              </div>
-              <div class="form-group">
-                <label class="col-sm-4 control-label"></label>
-                <div class="col-sm-8">
-                  <a class="btn btn-primary btn-sm" data-link-login>Login</a>
-                  <span class="login-failure" data-message-login></span>
+        {^{if isGuest}}
+          <li class="dropdown login-form">
+            <a class="btn dropdown-toggle" data-toggle="dropdown">
+              Login
+              <span class="caret"></span>
+            </a>
+            <div class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu1">
+              <form method="POST" class="form-horizontal" role="form" data-submit-login>
+                <div class="form-group">
+                  <label for="form-name" class="col-sm-4 control-label">User Id</label>
+                  <div class="col-sm-8"> <input type="text" class="form-control" name="id" > </div>
                 </div>
-              </div>
-            </form>
-			<form method="GET" class="form-horizontal" role="form" data-submit-google-login>
-              <div class="form-group">
-                <label class="col-sm-4 control-label"></label>
-                <div class="col-sm-8">
-                  <a class="btn btn-primary btn-sm" data-link-google-login>Login with Google Account</a>
+                <div class="form-group">
+                  <label for="form-description" class="col-sm-4 control-label">Password</label>
+                  <div class="col-sm-8"> <input type="password" class="form-control" name="password" >   </div>
                 </div>
-              </div>
+                <div class="form-group">
+                  <label class="col-sm-4 control-label"></label>
+                  <div class="col-sm-8">
+                    <a class="btn btn-primary btn-sm" data-link-login>Login</a>
+                    <span class="login-failure" data-message-login></span>
+                  </div>
+                </div>
+              </form>
+		  	<form method="GET" class="form-horizontal" role="form" data-submit-google-login>
+                <div class="form-group">
+                  <label class="col-sm-4 control-label"></label>
+                  <div class="col-sm-8">
+                    <a class="btn btn-primary btn-sm" data-link-google-login>Login with Google Account</a>
+                  </div>
+                </div>
+              </form>
+            </div><!--/.nav-collapse -->
+          </li>
+        {{else}}
+          <li>
+            <a data-link-profile>
+              <span class="glyphicon glyphicon-cog"></span>Settings
+            </a>
+          </li>
+          <li>
+             <a class="control-label" data-link-logout> Logout </a>
+            <form data-submit-logout method="POST" style="display:none">
             </form>
-          </div><!--/.nav-collapse -->
-        </li>
-        <li data-login="show:true">
-          <a data-link-profile>
-            <span class="glyphicon glyphicon-cog"></span>Settings
-          </a>
-        </li>
-        <li data-login="show:true">
-           <a class="control-label" data-link-logout> Logout </a>
-          <form data-submit-logout method="POST" style="display:none">
-          </form>
-        </li>
+          </li>
+        {{/if}}
       </ul>
     </div><!--/.nav-collapse -->
   </div>

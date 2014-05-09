@@ -12,6 +12,7 @@ import dsmoq.framework.types.PageFrame;
 import dsmoq.framework.types.Unit;
 import dsmoq.framework.helper.PageHelper;
 import dsmoq.models.Model;
+import haxe.Timer;
 import js.Browser;
 import js.html.Element;
 import js.html.Node;
@@ -40,7 +41,14 @@ class Main {
         JQuery.getJSON("/api/profile").done(function (x) {
             var header = JQuery.find("#header");
 
-            Template.link("Header", header, { });
+            trace(x.data);
+
+            var data = js.jsviews.JsViews.observableObject(x.data);
+            Timer.delay(function () data.setProperty("isGuest", false), 3000);
+
+            var d: Dynamic<Dynamic> = { };
+
+            Template.link("Header", header, x.data);
 
             //header.on("", "", {}, function (e) {
             //});
