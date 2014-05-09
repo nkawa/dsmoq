@@ -34,17 +34,16 @@ class Main {
         var bootstrap = new Deferred();
         var navigation = new DeferredStream();
 
-        var root = Browser.document.documentElement;
         var body = JQuery.wrap(Browser.document.body);
         body.addClass("loading");
 
         JQuery.getJSON("/api/profile").done(function (x) {
-            trace(x);
-
             var header = JQuery.find("#header");
-            header.html(Template.render("Header"));
-            header.on("", "", {}, function (e) {
-            });
+
+            Template.link("Header", header, { });
+
+            //header.on("", "", {}, function (e) {
+            //});
 
             //TODO イベントハンドラ設定
 
