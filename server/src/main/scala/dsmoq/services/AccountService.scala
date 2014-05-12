@@ -3,13 +3,15 @@ package dsmoq.services
 import scala.util.{Try, Failure, Success}
 import scalikejdbc._, SQLInterpolation._
 import java.security.MessageDigest
-import dsmoq.persistence
+import dsmoq.{AppConf, persistence}
 import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.services.data._
 import dsmoq.exceptions.NotAuthorizedException
 import org.joda.time.DateTime
 import dsmoq.services.data.ProfileData.UpdateProfileParams
 import dsmoq.controllers.SessionTrait
+import java.nio.file.Paths
+import java.util.UUID
 
 object AccountService extends SessionTrait {
 
@@ -142,7 +144,7 @@ object AccountService extends SessionTrait {
     try {
       if (user.isGuest) throw new NotAuthorizedException
 
-      DB localTx {implicit s =>
+      DB localTx { implicit s =>
         withSQL {
           val u = persistence.User.column
           update(persistence.User)
@@ -152,6 +154,36 @@ object AccountService extends SessionTrait {
             .where
             .eq(u.id, sqls.uuid(user.id))
         }.update().apply
+
+        // iconがある場合、画像保存処理
+        // TODO サムネイル画像の保存もやる
+        // TODO メソッド分割できれば
+        params.icon match {
+          case Some(x) =>
+            val imageId = UUID.randomUUID().toString
+            x.write(Paths.get(AppConf.imageDir).resolve(imageId).toFile)
+
+            val bufferedImage = javax.imageio.ImageIO.read(x.getInputStream)
+            persistence.Image(
+              id = imageId,
+              name = x.getName,
+              width = bufferedImage.getWidth,
+              height = bufferedImage.getHeight,
+              createdBy =user.id,
+              createdAt =DateTime.now,
+              updatedBy = user.id,
+              updatedAt = DateTime.now
+            ).save()
+
+            withSQL {
+              val u = persistence.User.column
+              update(persistence.User)
+                .set(u.imageId -> sqls.uuid(imageId))
+                .where
+                .eq(u.id, sqls.uuid(user.id))
+            }.update().apply
+          case None => // do nothing
+        }
 
         // 新しいユーザー情報を取得
         val u = persistence.User.u
