@@ -35,7 +35,7 @@ class Engine<TPage: EnumValue> {
 
         Browser.document.addEventListener("click", function (event: Event) {
             function getAnchor(elem: Element) {
-                return if (elem.tagName.toUpperCase() == "BODY") {
+                return if (elem.tagName == null) {
                     None;
                 } else if (elem.tagName.toUpperCase() == "A") {
                     Some(cast(elem, AnchorElement));
@@ -45,7 +45,8 @@ class Engine<TPage: EnumValue> {
             }
 
             getAnchor(cast event.target).bind(function (a: AnchorElement) {
-                return if (!~/^javascript:/.match(StringTools.trim(a.href))) {
+                return if (!~/^javascript:/.match(StringTools.trim(a.href))
+                        && a.host == Browser.location.host && a.protocol == Browser.location.protocol) {
                     Some(LocationHelper.toLocation(a));
                 } else {
                     None;
