@@ -8,8 +8,10 @@ import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.services.data._
 import dsmoq.exceptions.NotAuthorizedException
 import org.joda.time.DateTime
+import dsmoq.services.data.ProfileData.UpdateProfileParams
+import dsmoq.controllers.SessionTrait
 
-object AccountService {
+object AccountService extends SessionTrait {
 
   def getAuthenticatedUser(params: LoginData.SigninParams): Try[Option[User]] = {
     // TODO dbアクセス時エラーでFailure返す try~catch
@@ -131,6 +133,41 @@ object AccountService {
       // 引数不足の場合Noneが返る
       if (result.isEmpty) throw new RuntimeException("parameter error.")
       Success(result)
+    } catch {
+      case e: Exception => Failure(e)
+    }
+  }
+
+  def updateUserProfile(user: User, params: UpdateProfileParams): Try[User]  = {
+    try {
+      if (user.isGuest) throw new NotAuthorizedException
+
+      DB localTx {implicit s =>
+        withSQL {
+          val u = persistence.User.column
+          update(persistence.User)
+            .set(u.name -> params.name, u.fullname -> params.fullname, u.organization -> params.organization,
+              u.title -> params.title, u.description -> params.description,
+              u.updatedAt -> DateTime.now, u.updatedBy -> sqls.uuid(user.id))
+            .where
+            .eq(u.id, sqls.uuid(user.id))
+        }.update().apply
+
+        // 新しいユーザー情報を取得
+        val u = persistence.User.u
+        val newUser = withSQL {
+          select(u.result.*)
+            .from(persistence.User as u)
+            .where
+            .eq(u.id, sqls.uuid(user.id))
+        }.map(persistence.User(u.resultName)).single().apply
+        .map(x => User(x))
+
+        newUser match {
+          case Some(x) => Success(x)
+          case None => throw new RuntimeException("user data not found.")
+        }
+      }
     } catch {
       case e: Exception => Failure(e)
     }

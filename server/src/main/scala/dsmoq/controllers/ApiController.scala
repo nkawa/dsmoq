@@ -10,6 +10,7 @@ import dsmoq.services.data.LoginData._
 import dsmoq.services.data.DatasetData._
 import dsmoq.forms._
 import dsmoq.AppConf
+import dsmoq.services.data.ProfileData.UpdateProfileParams
 
 class ApiController extends ScalatraServlet
     with JacksonJsonSupport with SessionTrait with FileUploadSupport {
@@ -27,6 +28,28 @@ class ApiController extends ScalatraServlet
   get("/profile") {
     getUserInfoFromSession() match {
       case Success(x) => AjaxResponse("OK", x)
+      case Failure(e) => AjaxResponse("NG")
+    }
+  }
+
+  put("/profile") {
+    val name = params("name")
+    val fullname = params("fullname")
+    val organization = params("organization")
+    val title = params("title")
+    val description = params("description")
+    // TODO icon(optional)
+
+    val response = for {
+      userInfo <- getUserInfoFromSession()
+      facadeParams = UpdateProfileParams(name, fullname, organization, title, description)
+      user <- AccountService.updateUserProfile(userInfo, facadeParams)
+    } yield {
+      setUserInfoToSession(user)
+      AjaxResponse("OK", user)
+    }
+    response match {
+      case Success(x) => x
       case Failure(e) => AjaxResponse("NG")
     }
   }
