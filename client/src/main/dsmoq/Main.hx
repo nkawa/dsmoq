@@ -95,7 +95,9 @@ class Main {
     }
 
     public function toLocation(page: Page): Location {
-        return null;
+        return switch (page) {
+            case Dashboard: {path: "/"};
+        };
     }
 }
 
