@@ -31,6 +31,19 @@ class ApiController extends ScalatraServlet
     }
   }
 
+  post("/profile/email_change_requests") {
+    val email = params.get("email")
+    (for {
+      userInfo <- getUserInfoFromSession()
+      result <- AccountService.changeUserEmail(userInfo, email)
+    } yield {
+      result
+    }) match {
+      case Success(x) => AjaxResponse("OK")
+      case Failure(e) => AjaxResponse("NG")
+    }
+  }
+
   post("/signin") {
     val id = params("id")
     val facadeParams = SigninParams(id, params("password"))
