@@ -44,6 +44,21 @@ class ApiController extends ScalatraServlet
     }
   }
 
+  put("/profile/password") {
+    val currentPassword = params.get("current_password")
+    val newPassword = params.get("new_password")
+    val response = for {
+      userInfo <- getUserInfoFromSession()
+      result <- AccountService.changeUserPassword(userInfo, currentPassword, newPassword)
+    } yield {
+      result
+    }
+    response match {
+      case Success(x) => AjaxResponse("OK")
+      case Failure(e) => AjaxResponse("NG")
+    }
+  }
+
   post("/signin") {
     val id = params("id")
     val facadeParams = SigninParams(id, params("password"))
