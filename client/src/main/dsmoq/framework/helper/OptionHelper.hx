@@ -25,6 +25,13 @@ class OptionHelper {
         }
     }
 
+    public static inline function each<T>(x: Option<T>, f: T -> Void): Void {
+        switch (x) {
+            case Some(a): f(a);
+            case None:
+        }
+    }
+
     public static inline function map<A, B>(x: Option<A>, f: A -> B) : Option<B> {
         return switch (x) {
             case Some(a): Some(f(a));

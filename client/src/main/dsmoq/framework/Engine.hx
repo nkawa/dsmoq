@@ -8,12 +8,16 @@ import dsmoq.framework.types.PageNavigation;
 import dsmoq.framework.types.PageFrame;
 import dsmoq.framework.types.Option;
 import js.Browser;
+import js.html.AnchorElement;
 import js.html.Element;
+import js.html.Event;
 import js.html.EventTarget;
 import js.html.Node;
 import js.html.PopStateEvent;
+import dsmoq.framework.types.Option;
 
 using Lambda;
+using dsmoq.framework.helper.OptionHelper;
 
 /**
  * ...
@@ -28,6 +32,31 @@ class Engine<TPage: EnumValue> {
     function new(app) {
         this.app = app;
         History.Adapter.bind(Browser.window, "statechange", onStateChange);
+
+        Browser.document.addEventListener("click", function (event: Event) {
+            function getAnchor(elem: Element) {
+                return if (elem.tagName.toUpperCase() == "BODY") {
+                    None;
+                } else if (elem.tagName.toUpperCase() == "A") {
+                    Some(cast(elem, AnchorElement));
+                } else {
+                    getAnchor(elem.parentElement);
+                }
+            }
+
+            getAnchor(cast event.target).bind(function (a: AnchorElement) {
+                return if (!~/^javascript:/.match(StringTools.trim(a.href))) {
+                    Some(LocationHelper.toLocation(a));
+                } else {
+                    None;
+                }
+            })
+            .bind(app.fromLocation)
+            .each(function (x) {
+                event.preventDefault();
+                changePage(x);
+            });
+        }, false);
     }
 
     function run() {
@@ -37,7 +66,7 @@ class Engine<TPage: EnumValue> {
     }
 
     function onStateChange() {
-        switch (app.fromLocation(LocationHelper.location())) {
+        switch (app.fromLocation(LocationHelper.toLocation(Browser.location))) {
             case Some(x): changePage(x);
             case None: throw new Error("cannot resolve page");
         }
@@ -50,6 +79,8 @@ class Engine<TPage: EnumValue> {
     }
 
     function changePage(page: TPage) {
+        trace(page);
+
         if (content != null) content.dispose();
 
         content = app.content(page);
@@ -73,7 +104,7 @@ private extern class History {
 }
 
 private class LocationHelper {
-    public static function location(): Location {
+    public static function toLocation(x: {pathname: String, search: String, hash: String}): Location {
         function toQueryMap(search: String) {
             var map = new Map();
             return map;
