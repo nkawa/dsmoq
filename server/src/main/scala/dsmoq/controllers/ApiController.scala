@@ -192,6 +192,23 @@ class ApiController extends ScalatraServlet
     }
   }
 
+  delete("/datasets/:datasetId/files/:fileId") {
+    val datasetId = params("datasetId")
+    val fileId = params("fileId")
+
+    val response = for {
+      userInfo <- getUserInfoFromSession()
+      facadeParams = DeleteDatasetFileParams(userInfo, datasetId, fileId)
+      result <- DatasetService.deleteDatasetFile(facadeParams)
+    } yield {
+      result
+    }
+    response match {
+      case Success(x) => AjaxResponse("OK")
+      case Failure(e) => AjaxResponse("NG")
+    }
+  }
+
   put("/datasets/:datasetId/acl/:groupId") {
     setAccessControl(params("datasetId"), params("groupId"), params("accessLevel").toInt)
   }

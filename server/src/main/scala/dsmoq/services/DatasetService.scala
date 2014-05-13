@@ -13,7 +13,6 @@ import org.joda.time.DateTime
 import org.scalatra.servlet.FileItem
 import dsmoq.forms.{AccessCrontolItem, AccessControl}
 import dsmoq.persistence.{AccessLevel, GroupMemberRole}
-import dsmoq.services.data.DatasetData.ModifyDatasetFilenameParams
 
 object DatasetService {
   /**
@@ -374,7 +373,7 @@ object DatasetService {
     }
   }
 
-  def modifyFilename(params: ModifyDatasetFilenameParams): Try[String] = {
+  def modifyFilename(params: DatasetData.ModifyDatasetFilenameParams): Try[String] = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
 
     try {
@@ -395,6 +394,35 @@ object DatasetService {
         }.update().apply
       }
       Success(params.filename)
+    } catch {
+      case e: Exception => Failure(e)
+    }
+  }
+
+  def deleteDatasetFile(params: DatasetData.DeleteDatasetFileParams): Try[String] = {
+    if (params.userInfo.isGuest) throw new NotAuthorizedException
+
+    try {
+      DB localTx { implicit s =>
+        if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+
+        val myself = persistence.User.find(params.userInfo.id).get
+        val timestamp = DateTime.now()
+
+        val f = persistence.File.column
+        withSQL {
+          update(persistence.File)
+            .set(f.deletedBy -> sqls.uuid(myself.id), f.deletedAt -> timestamp,
+              f.updatedBy -> sqls.uuid(myself.id), f.updatedAt -> timestamp)
+            .where
+            .eq(f.id, sqls.uuid(params.fileId))
+            .and
+            .eq(f.datasetId, sqls.uuid(params.datasetId))
+            .and
+            .isNull(f.deletedAt)
+        }.update().apply
+        Success(params.fileId)
+      }
     } catch {
       case e: Exception => Failure(e)
     }

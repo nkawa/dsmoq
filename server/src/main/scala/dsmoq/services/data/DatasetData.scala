@@ -39,6 +39,11 @@ object DatasetData {
                                           fileId: String,
                                           filename: String
                                           )
+  case class DeleteDatasetFileParams(
+                                      userInfo: User,
+                                      datasetId: String,
+                                      fileId: String
+                                      )
 
   // response
   case class DatasetsSummary(
