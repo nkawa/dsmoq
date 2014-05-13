@@ -297,6 +297,82 @@ object DatasetService {
     }
   }
 
+  def addFiles(params: DatasetData.AddFilesToDatasetParams): Try[DatasetData.DatasetAddFiles] = {
+    if (params.userInfo.isGuest) throw new NotAuthorizedException
+    if (params.files.getOrElse(Seq.empty).isEmpty) throw new ValidationException
+
+    DB localTx { implicit s =>
+      if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+
+      val myself = persistence.User.find(params.userInfo.id).get
+      val timestamp = DateTime.now()
+      val files = params.files.getOrElse(Seq.empty).map(f => {
+        // FIXME ファイルサイズ=0のデータ時の措置(現状何も回避していない)
+        val file = persistence.File.create(
+          id = UUID.randomUUID.toString,
+          datasetId = params.datasetId,
+          name = f.name,
+          description = "",
+          fileType = 0,
+          fileMime = "application/octet-stream",
+          fileSize = f.size,
+          createdBy = myself.id,
+          createdAt = timestamp,
+          updatedBy = myself.id,
+          updatedAt = timestamp
+        )
+        val history = persistence.FileHistory.create(
+          id = UUID.randomUUID.toString,
+          fileId = file.id,
+          fileType = 0,
+          fileMime = "application/octet-stream",
+          fileSize = f.size,
+          createdBy = myself.id,
+          createdAt = timestamp,
+          updatedBy = myself.id,
+          updatedAt = timestamp
+        )
+        writeFile(params.datasetId, file.id, history.id, f)
+        (file, history)
+      })
+
+      // datasetsのfiles_size, files_countの更新
+      val f = persistence.File.f
+      val allFiles = withSQL {
+        select(f.result.*)
+          .from(persistence.File as f)
+          .where
+          .eq(f.datasetId, sqls.uuid(params.datasetId))
+          .and
+          .isNull(f.deletedAt)
+      }.map(persistence.File(f.resultName)).list().apply
+      val totalFileSize = allFiles.foldLeft(0L)((a: Long, b: persistence.File) => a + b.fileSize)
+
+      withSQL {
+        val d = persistence.Dataset.column
+        update(persistence.Dataset)
+          .set(d.filesCount -> allFiles.size, d.filesSize -> totalFileSize,
+            d.updatedBy -> sqls.uuid(myself.id), d.updatedAt -> timestamp)
+          .where
+          .eq(d.id, sqls.uuid(params.datasetId))
+      }.update().apply
+
+      Success(DatasetData.DatasetAddFiles(
+        files = files.map(x => DatasetData.DatasetFile(
+          id = x._1.id,
+          name = x._1.name,
+          description = x._1.description,
+          size = x._2.fileSize,
+          url = "", //TODO
+          createdBy = params.userInfo,
+          createdAt = timestamp.toString(),
+          updatedBy = params.userInfo,
+          updatedAt = timestamp.toString()
+        ))
+      ))
+    }
+  }
+
   private def hasAllowAllPermission(userId: String, datasetId: String)(implicit s: DBSession) = {
     val o = persistence.Ownership.o
     val g = persistence.Group.g

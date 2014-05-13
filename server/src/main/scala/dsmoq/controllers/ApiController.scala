@@ -157,6 +157,22 @@ class ApiController extends ScalatraServlet
     }
   }
 
+  post("/datasets/:datasetId/files") {
+    val files = fileMultiParams.get("file[]")
+    val datasetId = params("datasetId")
+
+    val response = for {
+      userInfo <- getUserInfoFromSession()
+      facadeParams = AddFilesToDatasetParams(userInfo, datasetId, files)
+      files <- DatasetService.addFiles(facadeParams)
+    } yield {
+      AjaxResponse("OK", files)
+    }
+    response match {
+      case Success(x) => x
+      case Failure(e) => AjaxResponse("NG")
+    }
+  }
 
   put("/datasets/:datasetId/acl/:groupId") {
     setAccessControl(params("datasetId"), params("groupId"), params("accessLevel").toInt)

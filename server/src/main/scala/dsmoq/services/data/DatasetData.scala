@@ -28,6 +28,12 @@ object DatasetData {
                                   files: Option[Seq[FileItem]]
                                   )
 
+  case class AddFilesToDatasetParams(
+                                      userInfo: User,
+                                      datasetId: String,
+                                      files: Option[Seq[FileItem]]
+                                      )
+
   // response
   case class DatasetsSummary(
     id: String,
@@ -67,6 +73,10 @@ object DatasetData {
                                name: String,
                                value: String
                                )
+
+  case class DatasetAddFiles(
+                              files: Seq[DatasetFile]
+                              )
 
   case class DatasetFile(
     id: String,
