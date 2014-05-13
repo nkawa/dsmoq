@@ -337,25 +337,7 @@ object DatasetService {
       })
 
       // datasetsのfiles_size, files_countの更新
-      val f = persistence.File.f
-      val allFiles = withSQL {
-        select(f.result.*)
-          .from(persistence.File as f)
-          .where
-          .eq(f.datasetId, sqls.uuid(params.datasetId))
-          .and
-          .isNull(f.deletedAt)
-      }.map(persistence.File(f.resultName)).list().apply
-      val totalFileSize = allFiles.foldLeft(0L)((a: Long, b: persistence.File) => a + b.fileSize)
-
-      withSQL {
-        val d = persistence.Dataset.column
-        update(persistence.Dataset)
-          .set(d.filesCount -> allFiles.size, d.filesSize -> totalFileSize,
-            d.updatedBy -> sqls.uuid(myself.id), d.updatedAt -> timestamp)
-          .where
-          .eq(d.id, sqls.uuid(params.datasetId))
-      }.update().apply
+      updateDatasetFileStatus(params.datasetId, myself.id, timestamp)
 
       Success(DatasetData.DatasetAddFiles(
         files = files.map(x => DatasetData.DatasetFile(
@@ -409,8 +391,8 @@ object DatasetService {
         val myself = persistence.User.find(params.userInfo.id).get
         val timestamp = DateTime.now()
 
-        val f = persistence.File.column
         withSQL {
+          val f = persistence.File.column
           update(persistence.File)
             .set(f.deletedBy -> sqls.uuid(myself.id), f.deletedAt -> timestamp,
               f.updatedBy -> sqls.uuid(myself.id), f.updatedAt -> timestamp)
@@ -421,6 +403,10 @@ object DatasetService {
             .and
             .isNull(f.deletedAt)
         }.update().apply
+
+        // datasetsのfiles_size, files_countの更新
+        updateDatasetFileStatus(params.datasetId, myself.id, timestamp)
+
         Success(params.fileId)
       }
     } catch {
@@ -764,5 +750,27 @@ object DatasetService {
 
   private def getFiles(datasetIds: Seq[String])(implicit s: DBSession) = {
     Map.empty
+  }
+
+  private def updateDatasetFileStatus(datasetId: String, userId:String, timestamp: DateTime)(implicit s: DBSession) = {
+    val f = persistence.File.f
+    val allFiles = withSQL {
+      select(f.result.*)
+        .from(persistence.File as f)
+        .where
+        .eq(f.datasetId, sqls.uuid(datasetId))
+        .and
+        .isNull(f.deletedAt)
+    }.map(persistence.File(f.resultName)).list().apply
+    val totalFileSize = allFiles.foldLeft(0L)((a: Long, b: persistence.File) => a + b.fileSize)
+
+    withSQL {
+      val d = persistence.Dataset.column
+      update(persistence.Dataset)
+        .set(d.filesCount -> allFiles.size, d.filesSize -> totalFileSize,
+          d.updatedBy -> sqls.uuid(userId), d.updatedAt -> timestamp)
+        .where
+        .eq(d.id, sqls.uuid(datasetId))
+    }.update().apply
   }
 }
