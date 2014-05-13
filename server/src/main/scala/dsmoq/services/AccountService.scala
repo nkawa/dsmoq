@@ -12,6 +12,8 @@ import dsmoq.services.data.ProfileData.UpdateProfileParams
 import dsmoq.controllers.SessionTrait
 import java.nio.file.Paths
 import java.util.UUID
+import java.awt.image.BufferedImage
+import org.scalatra.servlet.FileItem
 
 object AccountService extends SessionTrait {
 
@@ -156,29 +158,48 @@ object AccountService extends SessionTrait {
         }.update().apply
 
         // iconがある場合、画像保存処理
-        // TODO サムネイル画像の保存もやる
-        // TODO メソッド分割できれば
         params.icon match {
           case Some(x) =>
+            // FIXME 拡張子チェックはしていない
+
+            // save image file
             val imageId = UUID.randomUUID().toString
             x.write(Paths.get(AppConf.imageDir).resolve(imageId).toFile)
 
+            // save thumbnail
+            val thumbImageId = UUID.randomUUID().toString
+            val (thumbWidth, thumbHeight) = saveThumbnailImage(thumbImageId, x)
+
             val bufferedImage = javax.imageio.ImageIO.read(x.getInputStream)
-            persistence.Image(
+            persistence.Image.create(
               id = imageId,
               name = x.getName,
               width = bufferedImage.getWidth,
-              height = bufferedImage.getHeight,
-              createdBy =user.id,
-              createdAt =DateTime.now,
+              height = bufferedImage.getWidth,
+              createdBy = user.id,
+              createdAt = DateTime.now,
               updatedBy = user.id,
               updatedAt = DateTime.now
-            ).save()
+            )
+            println("save image:" + imageId)
+
+            // save thumbnail
+            persistence.Image.create(
+              id = thumbImageId,
+              name = x.getName,
+              width = thumbWidth,
+              height = thumbHeight,
+              createdBy = user.id,
+              createdAt = DateTime.now,
+              updatedBy = user.id,
+              updatedAt = DateTime.now
+            )
+            println("save thumb image:" + thumbImageId)
 
             withSQL {
               val u = persistence.User.column
               update(persistence.User)
-                .set(u.imageId -> sqls.uuid(imageId))
+                .set(u.imageId -> sqls.uuid(thumbImageId))
                 .where
                 .eq(u.id, sqls.uuid(user.id))
             }.update().apply
@@ -201,11 +222,27 @@ object AccountService extends SessionTrait {
         }
       }
     } catch {
-      case e: Exception => Failure(e)
+      case e: Exception =>
+        println(e)
+        Failure(e)
     }
   }
 
   private def createPasswordHash(password: String) = {
     MessageDigest.getInstance("SHA-256").digest(password.getBytes("UTF-8")).map("%02x".format(_)).mkString
+  }
+
+  private def saveThumbnailImage(thumbImageId: String, f: FileItem) = {
+    // FIXME 画像のアス比は計算せず固定(100x100)にしている
+    val picSize = 100
+    val bufferedImage = javax.imageio.ImageIO.read(f.getInputStream)
+    val thumbBufferedImage = new BufferedImage(picSize, picSize, bufferedImage.getType)
+    thumbBufferedImage.getGraphics.drawImage(bufferedImage.getScaledInstance(picSize, picSize,
+      java.awt.Image.SCALE_AREA_AVERAGING), 0, 0, 100, 100, null)
+
+    // save thumbnail file
+    val fileType = f.name.split('.').last
+    javax.imageio.ImageIO.write(thumbBufferedImage, fileType, (Paths.get(AppConf.imageDir).resolve(thumbImageId).toFile))
+    (picSize, picSize)
   }
 }
