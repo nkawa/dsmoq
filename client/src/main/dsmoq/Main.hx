@@ -2,7 +2,7 @@ package dsmoq;
 
 import dsmoq.framework.Engine;
 import dsmoq.framework.Template;
-import dsmoq.framework.types.Deferred;
+import dsmoq.framework.types.Promise;
 import dsmoq.framework.types.DeferredStream;
 import dsmoq.framework.types.Location;
 import dsmoq.framework.types.Option;
@@ -12,9 +12,12 @@ import dsmoq.framework.types.PageFrame;
 import dsmoq.framework.types.Unit;
 import dsmoq.framework.helper.PageHelper;
 import dsmoq.models.Model;
+import dsmoq.models.Service;
 import haxe.Timer;
 import js.Browser;
+import js.html.AnchorElement;
 import js.html.Element;
+import js.html.Event;
 import js.html.Node;
 import js.jqhx.JQuery;
 import js.jqhx.JqHtml;
@@ -32,36 +35,69 @@ class Main {
     }
 
     public function frame(): PageFrame<Page> {
-        var bootstrap = new Deferred();
         var navigation = new DeferredStream();
 
         var body = JQuery.wrap(Browser.document.body);
         body.addClass("loading");
 
-        JQuery.getJSON("/api/profile").done(function (x) {
-            var header = JQuery.find("#header");
+        //Service.bootstrap.then(
 
-            trace(x.data);
+        //Service.event;
 
-            var data = js.jsviews.JsViews.observableObject(x.data);
-            Timer.delay(function () data.setProperty("isGuest", false), 3000);
+        var bootstrap = new Promise(function (resolve, reject) {
+            JQuery.getJSON("/api/profile").done(function (x) {
+                var header = JQuery.find("#header");
+                Template.link("Header", header, x.data);
 
-            var d: Dynamic<Dynamic> = { };
+                header.on("submit", "#signin-form", function (event: Event) {
+                    event.preventDefault();
+                    trace(event);
+                    // ログインAPI呼び出し
+                });
 
-            Template.link("Header", header, x.data);
+                header.on("click", "#signin-with-google-button", function (event: Event) {
+                    event.preventDefault();
+                    trace(event);
+                    // ログインAPI呼び出し
+                });
 
-            //header.on("", "", {}, function (e) {
-            //});
+                header.on("click", "#settings-button", function (event: Event) {
+                    event.preventDefault();
+                    trace(event);
+                });
 
-            //TODO イベントハンドラ設定
+                header.on("click", "#signout-button", function (event: Event) {
+                    event.preventDefault();
+                    trace(event);
+                });
 
-            body.removeClass("loading");
-            bootstrap.resolve(Unit._);
+                //TODO jqueryイベントをPromiseStream変換
+
+
+
+                trace(x.data);
+
+                var data = js.jsviews.JsViews.observableObject(x.data);
+                Timer.delay(function () data.setProperty("isGuest", false), 300);
+
+                //js.jsviews.JsViews.l(JQuery.find("body"));
+
+                var d: Dynamic<Dynamic> = { };
+
+
+                //header.on("", "", {}, function (e) {
+                //});
+
+                //TODO イベントハンドラ設定
+
+                body.removeClass("loading");
+                resolve(Unit._);
+            });
         });
 
         return PageHelper.toFrame({
             html: cast JQuery.find("#main")[0],
-            bootstrap: bootstrap.toPromise(),
+            bootstrap: bootstrap,
             navigation: navigation.toPromiseStream()
         });
     }

@@ -4,7 +4,7 @@ import dsmoq.framework.types.DeferredStream;
 import dsmoq.framework.types.PageContent;
 import dsmoq.framework.types.PageNavigation;
 import dsmoq.framework.types.PageFrame;
-import dsmoq.framework.types.Deferred;
+import dsmoq.framework.types.Promise;
 import dsmoq.framework.types.Promise;
 import dsmoq.framework.types.PromiseStream;
 import dsmoq.framework.types.Unit;
@@ -23,7 +23,7 @@ class PageHelper {
         data: { html: Element, ?bootstrap: Promise<Unit>, ?navigation: PromiseStream<PageNavigation<TPage>> }
     ): PageFrame<TPage> {
         var html = data.html;
-        var bootstrap = data.bootstrap.orElse(Deferred.resolved(Unit._).toPromise());
+        var bootstrap = data.bootstrap.orElse(Promise.resolved(Unit._));
         var navigation = data.navigation.orElse(new DeferredStream().toPromiseStream());
 
         return {
