@@ -442,6 +442,58 @@ object DatasetService {
     }
   }
 
+  def addImages(params: DatasetData.AddImagesToDatasetParams): Try[DatasetData.DatasetAddImages] = {
+    if (params.userInfo.isGuest) throw new NotAuthorizedException
+    if (params.images.getOrElse(Seq.empty).isEmpty) throw new ValidationException
+
+    DB localTx { implicit s =>
+      if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+
+      val myself = persistence.User.find(params.userInfo.id).get
+      val timestamp = DateTime.now()
+      val images = params.images.getOrElse(Seq.empty).map(i => {
+        // FIXME ファイルサイズ=0のデータ時の措置(現状何も回避していない)
+        val imageId = UUID.randomUUID().toString
+        val bufferedImage = javax.imageio.ImageIO.read(i.getInputStream)
+
+        val image = persistence.Image.create(
+          id = imageId,
+          name = i.getName,
+          width = bufferedImage.getWidth,
+          height = bufferedImage.getWidth,
+          createdBy = myself.id,
+          createdAt = DateTime.now,
+          updatedBy = myself.id,
+          updatedAt = DateTime.now
+        )
+        val datasetImage = persistence.DatasetImage.create(
+          id = UUID.randomUUID.toString,
+          datasetId = params.datasetId,
+          imageId = imageId,
+          isPrimary = false,  // FIXME primaryImage
+          displayOrder = 999, // FIXME
+          createdBy = myself.id,
+          createdAt = timestamp,
+          updatedBy = myself.id,
+          updatedAt = timestamp
+        )
+        // write image
+        // FIXME datasetのディレクトリを作成し、そこに出力すべきか
+        i.write(Paths.get(AppConf.imageDir).resolve(imageId).toFile)
+        image
+      })
+
+      // FIXME primaryImageの取得
+      Success(DatasetData.DatasetAddImages(
+          images = images.map(x => Image(
+            id = x.id,
+            url = "" //TODO
+          )),
+      primaryImage = ""
+      ))
+    }
+  }
+
   private def hasAllowAllPermission(userId: String, datasetId: String)(implicit s: DBSession) = {
     val o = persistence.Ownership.o
     val g = persistence.Group.g

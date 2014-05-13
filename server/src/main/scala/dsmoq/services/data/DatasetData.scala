@@ -53,6 +53,12 @@ object DatasetData {
                                       attributes: Map[String, Seq[String]]
                                       )
 
+  case class AddImagesToDatasetParams(
+                                       userInfo: User,
+                                       datasetId: String,
+                                       images: Option[Seq[FileItem]]
+                                       )
+
   // response
   case class DatasetsSummary(
     id: String,
@@ -95,6 +101,11 @@ object DatasetData {
 
   case class DatasetAddFiles(
                               files: Seq[DatasetFile]
+                              )
+
+  case class DatasetAddImages(
+                              images: Seq[Image],
+                              primaryImage: String
                               )
 
   case class DatasetFile(
