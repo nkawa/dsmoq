@@ -44,6 +44,14 @@ object DatasetData {
                                       datasetId: String,
                                       fileId: String
                                       )
+  case class ModifyDatasetMetaParams(
+                                      userInfo: User,
+                                      datasetId: String,
+                                      name: String,
+                                      description: String,
+                                      license: Int,
+                                      attributes: Map[String, Seq[String]]
+                                      )
 
   // response
   case class DatasetsSummary(

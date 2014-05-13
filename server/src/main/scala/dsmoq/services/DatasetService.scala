@@ -413,6 +413,34 @@ object DatasetService {
       case e: Exception => Failure(e)
     }
   }
+  
+  def modifyDatasetMeta(params: DatasetData.ModifyDatasetMetaParams): Try[String] = {
+    if (params.userInfo.isGuest) throw new NotAuthorizedException
+
+    try {
+      DB localTx { implicit s =>
+        if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+
+        val myself = persistence.User.find(params.userInfo.id).get
+        val timestamp = DateTime.now()
+
+        // TODO licenseの更新
+        withSQL {
+          val d = persistence.Dataset.column
+          update(persistence.Dataset)
+            .set(d.name -> params.name, d.description -> params.description,
+              d.updatedBy -> sqls.uuid(myself.id), d.updatedAt -> timestamp)
+            .where
+            .eq(d.id, sqls.uuid(params.datasetId))
+        }.update().apply
+
+        // TODO attributesの更新
+      }
+      Success(params.datasetId)
+    } catch {
+      case e: Exception => Failure(e)
+    }
+  }
 
   private def hasAllowAllPermission(userId: String, datasetId: String)(implicit s: DBSession) = {
     val o = persistence.Ownership.o
