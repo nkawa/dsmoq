@@ -33,6 +33,12 @@ object DatasetData {
                                       datasetId: String,
                                       files: Option[Seq[FileItem]]
                                       )
+  case class ModifyDatasetFilenameParams(
+                                          userInfo: User,
+                                          datasetId: String,
+                                          fileId: String,
+                                          filename: String
+                                          )
 
   // response
   case class DatasetsSummary(
