@@ -13,6 +13,13 @@ object GroupData {
                              groupId: String
                              )
 
+  case class GetGroupMembersParams(
+                                    userInfo: User,
+                                    groupId: String,
+                                    limit: Option[String],
+                                    offset: Option[String]
+                                    )
+
   // response
   case class GroupsSummary(
                               id: String,
@@ -30,4 +37,13 @@ object GroupData {
                     images: Seq[Image],
                     primaryImage: String
                     )
+
+  case class MemberSummary(
+                            id: String,
+                            name: String,
+                            organization: String,
+                            title: String,
+                            image: String,
+                            role: Int
+                            )
 }

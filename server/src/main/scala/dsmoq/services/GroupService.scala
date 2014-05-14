@@ -71,6 +71,37 @@ object GroupService {
     }
   }
 
+  def getGroupMembers(params: GroupData.GetGroupMembersParams) = {
+    try {
+      val offset = params.offset.getOrElse("0").toInt
+      val limit = params.limit.getOrElse("20").toInt
+
+      DB readOnly { implicit s =>
+        val members = getMembers(params.userInfo, params.groupId, offset, limit)
+        val count = members.size
+
+        val summary = RangeSliceSummary(count, limit, offset)
+        val results = if (count > offset) {
+          members.map(x => {
+            GroupData.MemberSummary(
+              id = x._1.id,
+              name = x._1.name,
+              organization = x._1.organization,
+              title = x._1.title,
+              image = "",
+              role = x._2
+            )
+          })
+        } else {
+          List.empty
+        }
+        Success(RangeSlice(summary, results))
+      }
+    } catch {
+      case e: Exception => Failure(e)
+    }
+  }
+
   private def getGroups(user: User, offset: Int, limit: Int)(implicit s: DBSession): Seq[persistence.Group] = {
     if (user.isGuest) {
       Seq.empty
@@ -154,5 +185,26 @@ object GroupService {
         .and
         .isNull(gi.deletedAt)
     }.map(_.string("id")).single().apply()
+  }
+
+  private def getMembers(user: User, groupId: String, offset: Int, limit: Int)(implicit s: DBSession): Seq[(persistence.User, Int)] = {
+    if (user.isGuest) {
+      Seq.empty
+    } else {
+      val m = persistence.Member.syntax("m")
+      val u = persistence.User.syntax("u")
+      withSQL {
+        select(u.result.*, m.role)
+          .from(persistence.User as u)
+          .innerJoin(persistence.Member as m).on(m.userId, u.id)
+          .where
+          .eq(m.groupId, sqls.uuid(groupId))
+          .and
+          .isNull(m.deletedAt)
+          .orderBy(m.updatedAt).desc
+          .offset(offset)
+          .limit(limit)
+      }.map(rs => (persistence.User(u.resultName)(rs), rs.int(persistence.Member.column.role))).list().apply()
+    }
   }
 }
