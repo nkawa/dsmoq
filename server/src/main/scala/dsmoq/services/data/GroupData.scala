@@ -14,6 +14,15 @@ object GroupData {
                              )
 
   // response
+  case class GroupsSummary(
+                              id: String,
+                              name: String,
+                              description: String,
+                              image: String,
+                              members: Int,
+                              datasets: Int
+                              )
+
   case class Group(
                     id: String,
                     name: String,

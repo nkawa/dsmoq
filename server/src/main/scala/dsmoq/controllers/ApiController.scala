@@ -273,7 +273,6 @@ class ApiController extends ScalatraServlet
     setAccessControl(params("datasetId"), AppConf.guestGroupId, 0)
   }
 
-  // FIXME
   get("/groups") {
     val query = params.get("query")
     val limit = params.get("limit")
@@ -281,20 +280,19 @@ class ApiController extends ScalatraServlet
 
     AjaxResponse("OK")
 
-//    val response = for {
-//      userInfo <- getUserInfoFromSession()
-//      facadeParams = SearchGroupsParams(userInfo, query, limit, offset)
-//      groups <- GroupService.search(facadeParams)
-//    } yield {
-//      AjaxResponse("OK", groups)
-//    }
-//    response match {
-//      case Success(x) => x
-//      case Failure(e) => AjaxResponse("NG")
-//    }
+    val response = for {
+      userInfo <- getUserInfoFromSession()
+      facadeParams = SearchGroupsParams(userInfo, query, limit, offset)
+      groups <- GroupService.search(facadeParams)
+    } yield {
+      AjaxResponse("OK", groups)
+    }
+    response match {
+      case Success(x) => x
+      case Failure(e) => AjaxResponse("NG")
+    }
   }
 
-  // FIXME
   get("/groups/:groupId") {
     val groupId = params("groupId")
     val response = for {

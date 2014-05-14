@@ -7,57 +7,44 @@ import dsmoq.{AppConf, persistence}
 import scalikejdbc.SQLInterpolation._
 import scala.util.Failure
 import dsmoq.services.data.RangeSliceSummary
-import scala.Some
 import scala.util.Success
 import dsmoq.services.data.RangeSlice
 import dsmoq.persistence.PostgresqlHelper._
 
 object GroupService {
-//  def search(params: GroupData.SearchGroupsParams): Try[RangeSlice[GroupData.GroupsSummary]] = {
-//    // FIXME
-//    try {
-//      val offset = params.offset.getOrElse("0").toInt
-//      val limit = params.limit.getOrElse("20").toInt
-//
-//      DB readOnly { implicit s =>
-//        val groups = getJoinedGroups(params.userInfo)
-//        val count = countGroups(groups)
-//
-//        val summary = RangeSliceSummary(count, limit, offset)
-//        val results = if (count > offset) {
-//          val datasets = findDatasets(groups, limit, offset)
-//          val datasetIds = datasets.map(_._1.id)
-//
-//          val owners = getOwnerGroups(datasetIds)
-//          val guestAccessLevels = getGuestAccessLevel(datasetIds)
-//          val attributes = getAttributes(datasetIds)
-//          val files = getFiles(datasetIds)
-//
-//          datasets.map(x => {
-//            val ds = x._1
-//            val permission = x._2
-//            DatasetData.DatasetsSummary(
-//              id = ds.id,
-//              name = ds.name,
-//              description = ds.description,
-//              image = "http://xxx",
-//              attributes = List.empty, //TODO
-//              ownerships = owners.get(ds.id).getOrElse(Seq.empty),
-//              files = ds.filesCount,
-//              dataSize = ds.filesSize,
-//              defaultAccessLevel = guestAccessLevels.get(ds.id).getOrElse(0),
-//              permission = permission
-//            )
-//          })
-//        } else {
-//          List.empty
-//        }
-//        Success(RangeSlice(summary, results))
-//      }
-//    } catch {
-//      case e: Exception => Failure(e)
-//    }
-//  }
+  def search(params: GroupData.SearchGroupsParams): Try[RangeSlice[GroupData.GroupsSummary]] = {
+    try {
+      val offset = params.offset.getOrElse("0").toInt
+      val limit = params.limit.getOrElse("20").toInt
+
+      DB readOnly { implicit s =>
+        val groups = getGroups(params.userInfo, offset, limit)
+        val count = groups.size
+        val groupIds = groups.map(_.id)
+        val datasetsCount = countDatasets(groupIds)
+        val membersCount = countMembers(groupIds)
+
+        val summary = RangeSliceSummary(count, limit, offset)
+        val results = if (count > offset) {
+          groups.map(x => {
+            GroupData.GroupsSummary(
+              id = x.id,
+              name = x.name,
+              description = x.description,
+              image = "http://xxx",
+              members = membersCount.get(x.id).getOrElse(0),
+              datasets = datasetsCount.get(x.id).getOrElse(0)
+            )
+          })
+        } else {
+          List.empty
+        }
+        Success(RangeSlice(summary, results))
+      }
+    } catch {
+      case e: Exception => Failure(e)
+    }
+  }
 
   def get(params: GroupData.GetGroupParams): Try[GroupData.Group] = {
     try {
@@ -84,6 +71,61 @@ object GroupService {
     }
   }
 
+  private def getGroups(user: User, offset: Int, limit: Int)(implicit s: DBSession): Seq[persistence.Group] = {
+    if (user.isGuest) {
+      Seq.empty
+    } else {
+      val g = persistence.Group.syntax("g")
+      val m = persistence.Member.syntax("m")
+      withSQL {
+        select(g.result.*)
+          .from(persistence.Group as g)
+          .innerJoin(persistence.Member as m).on(m.groupId, g.id)
+          .where
+          .eq(m.userId, sqls.uuid(user.id))
+          .and
+          .isNull(g.deletedAt)
+          .and
+          .isNull(m.deletedAt)
+          .orderBy(m.updatedAt).desc
+          .offset(offset)
+          .limit(limit)
+      }.map(rs => persistence.Group(g.resultName)(rs)).list().apply
+    }
+  }
+
+  private def countDatasets(groups : Seq[String])(implicit s: DBSession) = {
+    val ds = persistence.Dataset.syntax("ds")
+    val o = persistence.Ownership.syntax("o")
+    withSQL {
+      select(o.groupId, sqls.count(sqls.distinct(ds.id)).append(sqls"count"))
+        .from(persistence.Dataset as ds)
+        .innerJoin(persistence.Ownership as o).on(o.datasetId, ds.id)
+        .where
+        .inByUuid(o.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
+        .and
+        .gt(o.accessLevel, 0)
+        .and
+        .isNull(ds.deletedAt)
+        .and
+        .isNull(o.deletedAt)
+        .groupBy(o.groupId)
+    }.map(rs => (rs.string(persistence.Ownership.column.groupId), rs.int("count"))).list().apply.toMap
+  }
+
+  private def countMembers(groups: Seq[String])(implicit s: DBSession) = {
+    val m = persistence.Member.syntax("m")
+    withSQL {
+      select(m.groupId, sqls.count(sqls.distinct(m.id)).append(sqls"count"))
+        .from(persistence.Member as m)
+        .where
+        .inByUuid(m.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
+        .and
+        .isNull(m.deletedAt)
+        .groupBy(m.groupId)
+    }.map(rs => (rs.string(persistence.Member.column.groupId), rs.int("count"))).list().apply.toMap
+  }
+
   private def getGroupImage(groupId: String)(implicit s: DBSession) = {
     val gi = persistence.GroupImage.syntax("gi")
     val i = persistence.Image.syntax("i")
@@ -97,7 +139,7 @@ object GroupService {
         .isNull(gi.deletedAt)
         .and
         .isNull(i.deletedAt)
-    }.map(rs => (persistence.Image(i.resultName)(rs))).list().apply()
+    }.map(rs => persistence.Image(i.resultName)(rs)).list().apply()
   }
 
   private def getGroupPrimaryImageId(groupId: String)(implicit s: DBSession) = {
