@@ -248,12 +248,24 @@ class ApiController extends ScalatraServlet
     }
   }
 
-  put("/datasets/:datasetId/images/:fileId") {
-    // TODO
-    AjaxResponse("OK")
+  put("/datasets/:datasetId/images/primary") {
+    val datasetId = params("datasetId")
+    val imageId = params("imageId")
+
+    val response = for {
+      userInfo <- getUserInfoFromSession()
+      facadeParams = ChangePrimaryImageParams(userInfo, imageId, datasetId)
+      result <- DatasetService.changePrimaryImage(facadeParams)
+    } yield {
+      result
+    }
+    response match {
+      case Success(x) => AjaxResponse("OK")
+      case Failure(e) => AjaxResponse("NG")
+    }
   }
 
-  delete("/datasets/:datasetId/images/:fileId") {
+  delete("/datasets/:datasetId/images/:imageId") {
     // TODO
     AjaxResponse("OK")
   }

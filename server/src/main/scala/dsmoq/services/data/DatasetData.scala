@@ -59,6 +59,12 @@ object DatasetData {
                                        images: Option[Seq[FileItem]]
                                        )
 
+  case class ChangePrimaryImageParams(
+                                       userInfo: User,
+                                       imageId: String,
+                                       datasetId: String
+                                       )
+
   // response
   case class DatasetsSummary(
     id: String,

@@ -540,6 +540,42 @@ object DatasetService {
     }
   }
 
+  def changePrimaryImage(params: DatasetData.ChangePrimaryImageParams) = {
+    if (params.userInfo.isGuest) throw new NotAuthorizedException
+
+    DB localTx { implicit s =>
+      if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+
+      val myself = persistence.User.find(params.userInfo.id).get
+      val timestamp = DateTime.now()
+      withSQL {
+        val di = persistence.DatasetImage.column
+        update(persistence.DatasetImage)
+          .set(di.isPrimary -> true, di.updatedBy -> sqls.uuid(myself.id), di.updatedAt -> timestamp)
+          .where
+          .eq(di.imageId, sqls.uuid(params.imageId))
+          .and
+          .eq(di.datasetId, sqls.uuid(params.datasetId))
+          .and
+          .isNull(di.deletedAt)
+      }.update().apply
+
+      withSQL{
+        val di = persistence.DatasetImage.column
+        update(persistence.DatasetImage)
+          .set(di.isPrimary -> false, di.updatedBy -> sqls.uuid(myself.id), di.updatedAt -> timestamp)
+          .where
+          .ne(di.imageId, sqls.uuid(params.imageId))
+          .and
+          .eq(di.datasetId, sqls.uuid(params.datasetId))
+          .and
+          .isNull(di.deletedAt)
+      }.update().apply
+
+      Success(params.imageId)
+    }
+  }
+
   private def hasAllowAllPermission(userId: String, datasetId: String)(implicit s: DBSession) = {
     val o = persistence.Ownership.o
     val g = persistence.Group.g
