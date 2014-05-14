@@ -194,6 +194,45 @@ object GroupService {
     }
   }
 
+  def modifyGroup(params: GroupData.ModifyGroupParams) = {
+    if (params.userInfo.isGuest) throw new NotAuthorizedException
+
+    try {
+      val result = DB localTx { implicit s =>
+        val myself = persistence.User.find(params.userInfo.id).get
+        val timestamp = DateTime.now()
+
+        withSQL {
+          val g = persistence.Group.column
+          update(persistence.Group)
+            .set(g.name -> params.name, g.description -> params.description,
+            g.updatedBy -> sqls.uuid(myself.id), g.updatedAt -> timestamp)
+            .where
+            .eq(g.id, sqls.uuid(params.groupId))
+            .and
+            .isNull(g.deletedAt)
+        }.update().apply
+
+        val group = persistence.Group.find(params.groupId)
+        val images = getGroupImage(params.groupId)
+        val primaryImage = getGroupPrimaryImageId(params.groupId)
+        (group, images, primaryImage)
+      }
+      Success(GroupData.Group(
+        id = result._1.get.id,
+        name = result._1.get.name,
+        description = result._1.get.description,
+        images = result._2.map(x => Image(
+          id = x.id,
+          url = "" //TODO
+        )),
+        primaryImage = result._3.getOrElse("")
+      ))
+    } catch {
+      case e: Exception => Failure(e)
+    }
+  }
+
   private def getGroups(user: User, offset: Int, limit: Int)(implicit s: DBSession): Seq[persistence.Group] = {
     if (user.isGuest) {
       Seq.empty

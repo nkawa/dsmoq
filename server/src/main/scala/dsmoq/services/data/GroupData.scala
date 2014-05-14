@@ -33,6 +33,13 @@ object GroupData {
                                 description: String
                                 )
 
+  case class ModifyGroupParams(
+                                userInfo: User,
+                                groupId: String,
+                                name: String,
+                                description: String
+                                )
+
   // response
   case class GroupsSummary(
                               id: String,
