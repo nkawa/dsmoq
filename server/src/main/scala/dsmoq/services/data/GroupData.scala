@@ -27,6 +27,12 @@ object GroupData {
                                     offset: Option[String]
                                     )
 
+  case class CreateGroupParams(
+                                userInfo: User,
+                                name: String,
+                                description: String
+                                )
+
   // response
   case class GroupsSummary(
                               id: String,

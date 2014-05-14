@@ -11,6 +11,9 @@ import scala.util.Success
 import dsmoq.services.data.RangeSlice
 import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.persistence.AccessLevel
+import org.joda.time.DateTime
+import dsmoq.exceptions.NotAuthorizedException
+import java.util.UUID
 
 object GroupService {
   def search(params: GroupData.SearchGroupsParams): Try[RangeSlice[GroupData.GroupsSummary]] = {
@@ -142,6 +145,50 @@ object GroupService {
         }
         Success(RangeSlice(summary, results))
       }
+    } catch {
+      case e: Exception => Failure(e)
+    }
+  }
+
+  def createGroup(params: GroupData.CreateGroupParams) = {
+    if (params.userInfo.isGuest) throw new NotAuthorizedException
+
+    try {
+      val group = DB localTx { implicit s =>
+        val myself = persistence.User.find(params.userInfo.id).get
+        val timestamp = DateTime.now()
+        val groupId = UUID.randomUUID.toString
+
+        val group = persistence.Group.create(
+          id = groupId,
+          name = params.name,
+          description = params.description,
+          groupType = 1,
+          createdBy = myself.id,
+          createdAt = timestamp,
+          updatedBy = myself.id,
+          updatedAt = timestamp
+        )
+        persistence.Member.create(
+          id = UUID.randomUUID.toString,
+          groupId = groupId,
+          userId = myself.id,
+          role = 1,
+          status = 1,
+          createdBy = myself.id,
+          createdAt = timestamp,
+          updatedBy = myself.id,
+          updatedAt = timestamp
+        )
+        group
+      }
+      Success(GroupData.Group(
+        id = group.id,
+        name = group.name,
+        description = group.description,
+        images = Seq.empty,
+        primaryImage = null
+      ))
     } catch {
       case e: Exception => Failure(e)
     }
