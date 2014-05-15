@@ -415,6 +415,23 @@ class ApiController extends ScalatraServlet
     }
   }
 
+  delete("/groups/:groupId/members/:memberId") {
+    val groupId = params("groupId")
+    val memberId = params("memberId")
+
+    val response = for {
+      userInfo <- getUserInfoFromSession()
+      facadeParams = DeleteMemberParams(userInfo, groupId, memberId)
+      result <- GroupService.deleteMember(facadeParams)
+    } yield {
+      result
+    }
+    response match {
+      case Success(x) => AjaxResponse("OK")
+      case Failure(e) => AjaxResponse("NG")
+    }
+  }
+
   private def setAccessControl(datasetId: String, groupId: String, accessLevel: Int) = {
     val aci = AccessControl(datasetId, groupId, accessLevel)
 

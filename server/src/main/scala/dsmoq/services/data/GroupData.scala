@@ -53,6 +53,12 @@ object GroupData {
                                      memberId: String,
                                      role: Int
                                      )
+
+  case class DeleteMemberParams(
+                                 userInfo: User,
+                                 groupId: String,
+                                 memberId: String
+                                 )
   // response
   case class GroupsSummary(
                               id: String,
