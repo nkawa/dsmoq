@@ -495,6 +495,9 @@ object DatasetService {
 
       val myself = persistence.User.find(params.userInfo.id).get
       val timestamp = DateTime.now()
+
+      val primaryImage = getPrimaryImageId(params.datasetId)
+      var isFirst = true
       val images = params.images.getOrElse(Seq.empty).map(i => {
         // FIXME ファイルサイズ=0のデータ時の措置(現状何も回避していない)
         val imageId = UUID.randomUUID().toString
@@ -514,26 +517,25 @@ object DatasetService {
           id = UUID.randomUUID.toString,
           datasetId = params.datasetId,
           imageId = imageId,
-          isPrimary = false,  // FIXME primaryImage
-          displayOrder = 999, // FIXME
+          isPrimary = if (isFirst && primaryImage.isEmpty) true else false,
+          displayOrder = 999, // 廃止予定値
           createdBy = myself.id,
           createdAt = timestamp,
           updatedBy = myself.id,
           updatedAt = timestamp
         )
+        isFirst = false
         // write image
-        // FIXME datasetのディレクトリを作成し、そこに出力すべきか
         i.write(Paths.get(AppConf.imageDir).resolve(imageId).toFile)
         image
       })
 
-      // FIXME primaryImageの取得
       Success(DatasetData.DatasetAddImages(
           images = images.map(x => Image(
             id = x.id,
             url = "" //TODO
           )),
-      primaryImage = ""
+      primaryImage = getPrimaryImageId(params.datasetId).getOrElse("")
       ))
     }
   }
@@ -896,5 +898,23 @@ object DatasetService {
         .where
         .eq(d.id, sqls.uuid(datasetId))
     }.update().apply
+  }
+
+  private def getPrimaryImageId(datasetId: String)(implicit s: DBSession) = {
+    val di = persistence.DatasetImage.syntax("di")
+    val i = persistence.Image.syntax("i")
+    withSQL {
+      select(i.result.id)
+        .from(persistence.Image as i)
+        .innerJoin(persistence.DatasetImage as di).on(i.id, di.imageId)
+        .where
+        .eq(di.datasetId, sqls.uuid(datasetId))
+        .and
+        .eq(di.isPrimary, true)
+        .and
+        .isNull(di.deletedAt)
+        .and
+        .isNull(i.deletedAt)
+    }.map(rs => rs.string(i.resultName.id)).single().apply
   }
 }
