@@ -40,6 +40,12 @@ object GroupData {
                                 description: String
                                 )
 
+  case class AddUserToGroupParams(
+                                   userInfo: User,
+                                   groupId: String,
+                                   userId: String,
+                                   role: Int
+                                   )
   // response
   case class GroupsSummary(
                               id: String,
@@ -66,4 +72,11 @@ object GroupData {
                             image: String,
                             role: Int
                             )
+
+  case class AddMember(
+                        id: String,
+                        name: String,
+                        organization: String,
+                        role: Int
+                        )
 }
