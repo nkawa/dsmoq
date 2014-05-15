@@ -266,6 +266,33 @@ object GroupService {
     }
   }
 
+  def modifyMemberRole(params: GroupData.ModifyMemberRoleParams) = {
+    if (params.userInfo.isGuest) throw new NotAuthorizedException
+
+    try {
+      val result = DB localTx { implicit s =>
+        val myself = persistence.User.find(params.userInfo.id).get
+        val timestamp = DateTime.now()
+
+        withSQL {
+          val m = persistence.Member.column
+          update(persistence.Member)
+            .set(m.role -> params.role,
+              m.updatedBy -> sqls.uuid(myself.id), m.updatedAt -> timestamp)
+            .where
+            .eq(m.id, sqls.uuid(params.memberId))
+            .and
+            .eq(m.groupId, sqls.uuid(params.groupId))
+            .and
+            .isNull(m.deletedAt)
+        }.update().apply
+      }
+      Success(result)
+    } catch {
+      case e: Exception => Failure(e)
+    }
+  }
+
   private def getGroups(user: User, offset: Int, limit: Int)(implicit s: DBSession): Seq[persistence.Group] = {
     if (user.isGuest) {
       Seq.empty

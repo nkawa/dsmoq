@@ -397,6 +397,24 @@ class ApiController extends ScalatraServlet
     }
   }
 
+  put("/groups/:groupId/members/:memberId/role") {
+    val groupId = params("groupId")
+    val memberId = params("memberId")
+    val role = params("role").toInt
+
+    val response = for {
+      userInfo <- getUserInfoFromSession()
+      facadeParams = ModifyMemberRoleParams(userInfo, groupId, memberId, role)
+      result <- GroupService.modifyMemberRole(facadeParams)
+    } yield {
+      result
+    }
+    response match {
+      case Success(x) => AjaxResponse("OK")
+      case Failure(e) => AjaxResponse("NG")
+    }
+  }
+
   private def setAccessControl(datasetId: String, groupId: String, accessLevel: Int) = {
     val aci = AccessControl(datasetId, groupId, accessLevel)
 

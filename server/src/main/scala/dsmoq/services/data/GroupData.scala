@@ -46,6 +46,13 @@ object GroupData {
                                    userId: String,
                                    role: Int
                                    )
+
+  case class ModifyMemberRoleParams(
+                                     userInfo: User,
+                                     groupId: String,
+                                     memberId: String,
+                                     role: Int
+                                     )
   // response
   case class GroupsSummary(
                               id: String,
