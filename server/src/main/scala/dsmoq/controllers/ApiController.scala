@@ -214,8 +214,8 @@ class ApiController extends ScalatraServlet
     val datasetId = params("datasetId")
     val name = params("name")
     val description = params("description")
-    val license = params("license").toInt
-    val attributes = multiParams.toMap
+    val license = params("license")
+    val attributes = multiParams("attributes[][name]").zip(multiParams("attributes[][value]"))
 
     val response = for {
       userInfo <- getUserInfoFromSession()

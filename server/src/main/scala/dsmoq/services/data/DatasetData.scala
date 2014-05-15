@@ -49,8 +49,8 @@ object DatasetData {
                                       datasetId: String,
                                       name: String,
                                       description: String,
-                                      license: Int,
-                                      attributes: Map[String, Seq[String]]
+                                      licenseId: String,
+                                      attributes: Seq[(String, String)]
                                       )
 
   case class AddImagesToDatasetParams(

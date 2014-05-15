@@ -424,17 +424,61 @@ object DatasetService {
         val myself = persistence.User.find(params.userInfo.id).get
         val timestamp = DateTime.now()
 
-        // TODO licenseの更新
         withSQL {
           val d = persistence.Dataset.column
           update(persistence.Dataset)
-            .set(d.name -> params.name, d.description -> params.description,
+            .set(d.name -> params.name, d.description -> params.description, d.licenseId -> sqls.uuid(params.licenseId),
               d.updatedBy -> sqls.uuid(myself.id), d.updatedAt -> timestamp)
             .where
             .eq(d.id, sqls.uuid(params.datasetId))
         }.update().apply
 
-        // TODO attributesの更新
+        // attributesデータ削除(物理削除)
+        val da = persistence.DatasetAnnotation.syntax("da")
+        val a = persistence.Annotation.syntax("a")
+        val annotationIdList = withSQL {
+          select(da.result.annotationId)
+            .from(persistence.DatasetAnnotation as da)
+            .where
+            .eq(da.datasetId, sqls.uuid(params.datasetId))
+            .and
+            .isNull(da.deletedAt)
+        }.map(rs => rs.string(da.resultName.annotationId)).list().apply
+        withSQL {
+          delete.from(persistence.DatasetAnnotation as da)
+            .where
+            .eq(da.datasetId, sqls.uuid(params.datasetId))
+        }.update().apply
+        if (annotationIdList.nonEmpty) {
+          withSQL {
+            delete.from(persistence.Annotation as a)
+              .where
+              .inByUuid(a.id, annotationIdList)
+          }.update().apply
+        }
+
+        // attributesデータ作成
+        params.attributes.foreach { x =>
+          val annotationId = UUID.randomUUID().toString
+          persistence.Annotation.create(
+            id = annotationId,
+            name = x._1,
+            createdBy =  myself.id,
+            createdAt =  timestamp,
+            updatedBy =  myself.id,
+            updatedAt =  timestamp
+          )
+          persistence.DatasetAnnotation.create(
+            id = UUID.randomUUID().toString,
+            datasetId = params.datasetId,
+            annotationId = annotationId,
+            data = x._2,
+            createdBy = myself.id,
+            createdAt = timestamp,
+            updatedBy = myself.id,
+            updatedAt = timestamp
+          )
+        }
       }
       Success(params.datasetId)
     } catch {
