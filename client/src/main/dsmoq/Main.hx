@@ -59,11 +59,8 @@ class Main {
 
         var header = JQuery.find("#header");
         View.link("Header", header, data);
-        trace(data);
-
 
         context.location.then(function (location) {
-            trace(LocationTools.toUrl(location));
             ref.setProperty("location", url(location));
         });
 
@@ -77,15 +74,6 @@ class Main {
             trace(event);
             // ログインAPI呼び出し
         });
-
-        //header.on("click", "#signin-with-google-button", function (event: Event) {
-            //event.preventDefault();
-            //trace(event);
-            //// ログインAPI呼び出し
-////"oauth/signin_google
-////var location = StringTools.urlEncode(doc.location.pathname + doc.location.search + doc.location.hash);
-////doc.location.href = url + "?location=" + location;
-        //});
 
         header.on("click", "#settings-button", function (event: Event) {
             event.preventDefault();
