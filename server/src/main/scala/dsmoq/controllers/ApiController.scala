@@ -175,6 +175,24 @@ class ApiController extends ScalatraServlet
     }
   }
 
+  post("/datasets/:datasetId/files/:fileId") {
+    val datasetId = params("datasetId")
+    val fileId = params("fileId")
+    val file = fileParams.get("file")
+
+    val response = for {
+      userInfo <- getUserInfoFromSession()
+      facadeParams = UpdateFileParams(userInfo, datasetId, fileId, file)
+      file <- DatasetService.updateFile(facadeParams)
+    } yield {
+      AjaxResponse("OK", file)
+    }
+    response match {
+      case Success(x) => AjaxResponse("OK")
+      case Failure(e) => AjaxResponse("NG")
+    }
+  }
+
   put("/datasets/:datasetId/files/:fileId") {
     val datasetId = params("datasetId")
     val fileId = params("fileId")

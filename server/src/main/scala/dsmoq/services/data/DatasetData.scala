@@ -44,6 +44,14 @@ object DatasetData {
                                       datasetId: String,
                                       fileId: String
                                       )
+
+  case class UpdateFileParams(
+                               userInfo: User,
+                               datasetId: String,
+                               fileId: String,
+                               file: Option[FileItem]
+                               )
+
   case class ModifyDatasetMetaParams(
                                       userInfo: User,
                                       datasetId: String,

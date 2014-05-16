@@ -13,6 +13,7 @@ import org.joda.time.DateTime
 import org.scalatra.servlet.FileItem
 import dsmoq.forms.{AccessCrontolItem, AccessControl}
 import dsmoq.persistence.{AccessLevel, GroupMemberRole}
+import scala.collection.mutable.ArrayBuffer
 
 object DatasetService {
   /**
@@ -345,6 +346,61 @@ object DatasetService {
           name = x._1.name,
           description = x._1.description,
           size = x._2.fileSize,
+          url = "", //TODO
+          createdBy = params.userInfo,
+          createdAt = timestamp.toString(),
+          updatedBy = params.userInfo,
+          updatedAt = timestamp.toString()
+        ))
+      ))
+    }
+  }
+
+  def updateFile(params: DatasetData.UpdateFileParams) = {
+    if (params.userInfo.isGuest) throw new NotAuthorizedException
+    // FIXME 変数名全体的に見直し
+    val fff = params.file match {
+      case Some(x) => x
+      case None => throw new ValidationException
+    }
+
+    DB localTx { implicit s =>
+      if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+
+      val myself = persistence.User.find(params.userInfo.id).get
+      val timestamp = DateTime.now()
+
+      withSQL {
+        val f = persistence.File.column
+        update(persistence.File)
+          .set(f.fileSize -> fff.size, f.updatedBy -> sqls.uuid(myself.id), f.updatedAt -> timestamp)
+          .where
+          .eq(f.id, sqls.uuid(params.fileId))
+      }.update().apply
+
+      val history = persistence.FileHistory.create(
+        id = UUID.randomUUID.toString,
+        fileId = params.fileId,
+        fileType = 0,
+        fileMime = "application/octet-stream",
+        fileSize = fff.size,
+        createdBy = myself.id,
+        createdAt = timestamp,
+        updatedBy = myself.id,
+        updatedAt = timestamp
+      )
+      writeFile(params.datasetId, params.fileId, history.id, fff)
+
+      // datasetsのfiles_size, files_countの更新
+      updateDatasetFileStatus(params.datasetId, myself.id, timestamp)
+
+      val result = persistence.File.find(params.fileId).get
+      Success(DatasetData.DatasetAddFiles(
+        files = ArrayBuffer(DatasetData.DatasetFile(
+          id = result.id,
+          name = result.name,
+          description = result.description,
+          size = result.fileSize,
           url = "", //TODO
           createdBy = params.userInfo,
           createdAt = timestamp.toString(),
