@@ -64,7 +64,7 @@ class Engine<TPage: EnumValue> {
     function run() {
         frame = app.frame();
         frame.bootstrap.then(function (_) onStateChange());
-        frame.navigation.then(onPageEvent);
+        //frame.navigation.then(onPageEvent);
     }
 
     function onStateChange() {

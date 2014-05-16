@@ -11,6 +11,7 @@ class PromiseTools {
     public static function toPromise(x: JqPromise): Promise<Dynamic> {
         return new Promise(function (resolve, reject) {
             x.then(resolve, reject);
+            return function () { };
         });
     }
 

@@ -1,23 +1,83 @@
 package dsmoq.framework.types;
 
-import haxe.Timer;
+import dsmoq.framework.types.internal.Async;
+import js.Error;
 
 /**
  * @author terurou
  */
-class Promise<T> {
-    @:allow(dsmoq.framework.types)
-    var _state: _PromiseState<T>;
-    @:allow(dsmoq.framework.types)
-    var _resolvedHandlers: Array<T -> Void>;
-    @:allow(dsmoq.framework.types)
+class Promise<A> {
+    @:allow(dsmoq.framework.types) @:noCompletion
+    var _state: _PromiseState<A>;
+    @:allow(dsmoq.framework.types) @:noCompletion
+    var _resolvedHandlers: Array<A -> Void>;
+    @:allow(dsmoq.framework.types) @:noCompletion
     var _rejectedHandlers: Array<Dynamic -> Void>;
+    @:allow(dsmoq.framework.types) @:noCompletion
+    var _abort: Void -> Void;
 
-    public function new(executor: (T -> Void) -> (Dynamic -> Void) -> Void) {
-        this._state = Pending;
-        this._resolvedHandlers = [];
-        this._rejectedHandlers = [];
-        executor(resolve, reject);
+    public function new(executor: (A -> Void) -> (Dynamic -> Void) -> (Void -> Void)) {
+        _clear();
+        _state = Pending;
+
+        try {
+            _abort = executor(resolve, reject);
+        } catch (e: Dynamic) {
+            _state = Rejected(e);
+        }
+    }
+
+    @:allow(dsmoq.framework.types) @:noCompletion
+    inline function _clear(): Void {
+        _resolvedHandlers = [];
+        _rejectedHandlers = [];
+        _abort = function () { };
+    }
+
+    @:allow(dsmoq.framework.types) @:noCompletion
+    function _invokeResolved(value: A): Void {
+        Async.dispatch(function () {
+            try {
+                for (f in _resolvedHandlers) f(value);
+                _clear();
+                _state = Resolved(value);
+            } catch (e: Dynamic) {
+                _invokeRejected(e);
+            }
+        });
+    }
+
+    @:allow(dsmoq.framework.types) @:noCompletion
+    function _invokeRejected(error: Dynamic): Void {
+        Async.dispatch(function () {
+            for (f in _rejectedHandlers)
+                try f(error) catch (e: Dynamic) trace(e); //TODO エラーダンプ
+            _clear();
+            _state = Rejected(error);
+        });
+    }
+
+    function resolve(x: A): Void {
+        if (Type.enumEq(_state, Pending)) {
+            _state = Sealed;
+            _invokeResolved(x);
+        }
+    }
+
+    function reject(x: Dynamic): Void {
+        if (Type.enumEq(_state, Pending)) {
+            _state = Sealed;
+            _invokeRejected((x == null) ? new Error("Rejected") : x);
+        }
+    }
+
+    public function cancel(): Promise<A> {
+        if (Type.enumEq(_state, Pending)) {
+            _state = Sealed;
+            _abort();
+            _invokeRejected(new Error("Canceled"));
+        }
+        return this;
     }
 
     public function state(): PromiseState {
@@ -28,89 +88,54 @@ class Promise<T> {
         }
     }
 
-    public function then(resolved: T -> Void, ?rejected: Dynamic -> Void): Promise<T> {
+    public function then(resolved: A -> Void, ?rejected: Dynamic -> Void): Promise<A> {
         switch (_state) {
             case Pending, Sealed:
-                _resolvedHandlers.push(resolved);
+                if (resolved != null) _resolvedHandlers.push(resolved);
                 if (rejected != null) _rejectedHandlers.push(rejected);
             case Resolved(v):
-                Timer.delay(_invokeResolved.bind(v), 0);
+                if (resolved != null) Async.dispatch(resolved.bind(v));
             case Rejected(e):
-                Timer.delay(_invokeRejected.bind(e), 0);
+                if (rejected != null) Async.dispatch(rejected.bind(e));
         }
         return this;
     }
 
-    public function thenError(rejected: Dynamic -> Void): Promise<T> {
-        switch (_state) {
-            case Pending, Sealed:
-                _resolvedHandlers.push(rejected);
-                if (rejected != null) _rejectedHandlers.push(rejected);
-            case Resolved(v):
-                // nop
-            case Rejected(e):
-                Timer.delay(_invokeRejected.bind(e), 0);
-        }
-        return this;
+    public function thenError(rejected: Dynamic -> Void): Promise<A> {
+        return then(null, rejected);
     }
 
-    public function catchError(rejected: T -> Void): Promise<T> {
-        switch (_state) {
-            case Pending, Sealed:
-                _rejectedHandlers.push(rejected);
-            case Resolved(v):
-            case Rejected(e):
-                Timer.delay(_invokeRejected.bind(e), 0);
-        }
-        return this;
+    public function map<B>(f: A -> B): Promise<B> {
+        return new Promise(function mapExecutor(resolve, reject) {
+            then(function (a) resolve(f(a)), reject);
+            return function () { };
+        });
     }
 
-    function resolve(x: T): Void {
-        switch (_state) {
-            case Pending:
-                _state = Sealed;
-                Timer.delay(_invokeResolved.bind(x), 0);
-            default:
-        }
+    public function bind<B>(f: A -> Promise<B>): Promise<B> {
+        return new Promise(function bindExecutor(resolve, reject) {
+            then(function (a) f(a).then(resolve, reject), reject);
+            return function () { };
+        });
     }
 
-    function reject(x: Dynamic): Void {
-        switch (_state) {
-            case Pending:
-                _state = Sealed;
-                var error = (x == null) ? "rejected" : x;
-                Timer.delay(_invokeRejected.bind(error), 0);
-            default:
-        }
-    }
 
-    @:allow(dsmoq.framework.types)
-    function _invokeResolved(value: T): Void {
-        try {
-            for (f in _resolvedHandlers) f(value);
-            _state = Resolved(value);
-        } catch (e: Dynamic) {
-            _invokeRejected(e);
-        }
-    }
-
-    @:allow(dsmoq.framework.types)
-    function _invokeRejected(error: Dynamic): Void {
-        for (f in _rejectedHandlers)
-            try f(error) catch (e: Dynamic) trace(e);
-        _state = Rejected(error);
-    }
-
-    public static function resolved<T>(value: T): Promise<T> {
+    public static function resolved<A>(value: A): Promise<A> {
         return new Promise(function (resolve, _) {
             resolve(value);
+            return function () { };
         });
     }
 
-    public static function rejected<T>(error: Dynamic): Promise<T> {
+    public static function rejected<A>(error: Dynamic): Promise<A> {
         return new Promise(function (_, reject) {
             reject(error);
+            return function () { };
         });
+    }
+
+    public static function all<A>(promises: Array<Promise<A>>): Promise<Array<A>> {
+        throw new Error("not implemented");
     }
 
     //public static function when<T>(iter: Iterable<Promise<T>>): Promise<T> {

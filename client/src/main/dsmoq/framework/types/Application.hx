@@ -1,5 +1,4 @@
 package dsmoq.framework.types;
-import js.html.Element;
 
 /**
  * @author terurou

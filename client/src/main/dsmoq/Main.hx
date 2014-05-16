@@ -3,7 +3,7 @@ package dsmoq;
 import dsmoq.framework.Engine;
 import dsmoq.framework.Template;
 import dsmoq.framework.types.Promise;
-import dsmoq.framework.types.DeferredStream;
+import dsmoq.framework.types.Stream;
 import dsmoq.framework.types.Location;
 import dsmoq.framework.types.Option;
 import dsmoq.framework.types.PageContent;
@@ -11,8 +11,10 @@ import dsmoq.framework.types.PageNavigation;
 import dsmoq.framework.types.PageFrame;
 import dsmoq.framework.types.Unit;
 import dsmoq.framework.helper.PageHelper;
-import dsmoq.models.Model;
 import dsmoq.models.Service;
+import haxe.macro.Compiler;
+import haxe.macro.Context;
+import haxe.macro.Expr;
 import haxe.Timer;
 import js.Browser;
 import js.html.AnchorElement;
@@ -35,17 +37,29 @@ class Main {
     }
 
     public function frame(): PageFrame<Page> {
-        var navigation = new DeferredStream();
+        var navigation = new Stream(function (update, _, _) {
+
+
+            return function () {};
+        });
 
         var body = JQuery.wrap(Browser.document.body);
         body.addClass("loading");
 
-        //Service.bootstrap.then(
+        //var i = foo(1, 2, 3);
+
+
+
+
+        Service.instance.bootstrap.map(function (x) {
+            return "boot";
+        }).then(function (x) trace(x));
 
         //Service.event;
 
         var bootstrap = new Promise(function (resolve, reject) {
-            JQuery.getJSON("/api/profile").done(function (x) {
+            var xhr = JQuery.getJSON("/api/profile");
+            xhr.done(function (x) {
                 var header = JQuery.find("#header");
                 Template.link("Header", header, x.data);
 
@@ -93,12 +107,13 @@ class Main {
                 body.removeClass("loading");
                 resolve(Unit._);
             });
+            return xhr.abort;
         });
 
         return PageHelper.toFrame({
             html: cast JQuery.find("#main")[0],
             bootstrap: bootstrap,
-            navigation: navigation.toPromiseStream()
+            navigation: navigation
         });
     }
 

@@ -7,7 +7,7 @@ import js.html.Node;
  */
 typedef PageFrame<TPage: EnumValue> = {
     var bootstrap(default, null): Promise<Unit>;
-    var navigation(default, null): PromiseStream<PageNavigation<TPage>>;
+    var navigation(default, null): Stream<PageNavigation<TPage>>;
 
     function notify(message: Node): Void;
 }

@@ -4,10 +4,11 @@ package dsmoq.models;
  * ...
  * @author terurou
  */
-class HeaderModel{
+class HeaderModel {
 
     public function new() {
-        
+
     }
-    
+
+
 }
