@@ -14,11 +14,10 @@ class LocationTools {
             var map = new Map();
             return map;
         }
-
         return {
-            path: Browser.location.pathname,
-            query: toQueryMap(Browser.location.search),
-            hash: Browser.location.hash
+            path: x.pathname,
+            query: toQueryMap(x.search),
+            hash: x.hash
         };
     }
 
