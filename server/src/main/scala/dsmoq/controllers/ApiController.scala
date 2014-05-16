@@ -540,6 +540,20 @@ class ApiController extends ScalatraServlet
     }
   }
 
+  get("/system/is_valid_email") {
+    val value = params.get("value")
+    val response = for {
+      userInfo <- getUserInfoFromSession()
+      result <- AccountService.isValidEmail(userInfo, value)
+    } yield {
+      result
+    }
+    response match {
+      case Success(x) => AjaxResponse("OK")
+      case Failure(e) => AjaxResponse("NG")
+    }
+  }
+
   private def setAccessControl(datasetId: String, groupId: String, accessLevel: Int) = {
     val aci = AccessControl(datasetId, groupId, accessLevel)
 

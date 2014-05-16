@@ -6,7 +6,7 @@ import java.security.MessageDigest
 import dsmoq.{AppConf, persistence}
 import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.services.data._
-import dsmoq.exceptions.NotAuthorizedException
+import dsmoq.exceptions.{ValidationException, NotAuthorizedException}
 import org.joda.time.DateTime
 import dsmoq.services.data.ProfileData.UpdateProfileParams
 import dsmoq.controllers.SessionTrait
@@ -226,6 +226,33 @@ object AccountService extends SessionTrait {
         println(e)
         Failure(e)
     }
+  }
+
+  def isValidEmail(user: User, value: Option[String]) = {
+    val email = value match {
+      case Some(x) =>
+        // メールアドレスバリデーションはHTHML5準拠(RFC5322には違反)
+        val pattern = "\\A[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\\.[a-zA-Z0-9-]+)*\\z".r
+        x match {
+          case pattern() => x
+          case _ => throw new ValidationException
+        }
+      case None => throw new RuntimeException("email is empty")
+    }
+
+    DB readOnly { implicit s =>
+      val ma = persistence.MailAddress.syntax("ma")
+      withSQL {
+        select(ma.result.id)
+          .from(persistence.MailAddress as ma)
+          .where
+          .eq(ma.address, email)
+      }.map(rs => rs.string(ma.resultName.id)).single().apply match {
+        case Some(x) => throw new RuntimeException("email already exists")
+        case None => // do nothing
+      }
+    }
+    Success(email)
   }
 
   private def createPasswordHash(password: String) = {
