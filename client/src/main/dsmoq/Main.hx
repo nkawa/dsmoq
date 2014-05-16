@@ -2,7 +2,7 @@ package dsmoq;
 
 import dsmoq.framework.ApplicationContext;
 import dsmoq.framework.Engine;
-import dsmoq.framework.Template;
+import dsmoq.framework.View;
 import dsmoq.framework.types.ControllableStream;
 import dsmoq.framework.types.Promise;
 import dsmoq.framework.types.Stream;
@@ -26,6 +26,9 @@ import js.html.Event;
 import js.html.Node;
 import js.jqhx.JQuery;
 import js.jqhx.JqHtml;
+import dsmoq.framework.LocationTools;
+import js.jsviews.JsViews;
+using StringTools;
 
 /**
  * EntryPoint
@@ -47,16 +50,27 @@ class Main {
     public function frame(context: ApplicationContext): PageFrame<Page> {
         var body = JQuery.wrap(Browser.document.body);
 
+        function url(location) {
+            return "/oauth/signin_google?location=" + LocationTools.toUrl(location).urlEncode();
+        }
+
+        var data = { location: url(LocationTools.currentLocation()) };
+        var ref = JsViews.observable(data);
+
+        var header = JQuery.find("#header");
+        View.link("Header", header, data);
+        trace(data);
+
+
         context.location.then(function (location) {
-            trace("head");
+            trace(LocationTools.toUrl(location));
+            ref.setProperty("location", url(location));
         });
 
 
 
 
 
-        var header = JQuery.find("#header");
-        Template.link("Header", header, {});
 
         header.on("submit", "#signin-form", function (event: Event) {
             event.preventDefault();
@@ -64,14 +78,14 @@ class Main {
             // ログインAPI呼び出し
         });
 
-        header.on("click", "#signin-with-google-button", function (event: Event) {
-            event.preventDefault();
-            trace(event);
-            // ログインAPI呼び出し
-//"oauth/signin_google
-//var location = StringTools.urlEncode(doc.location.pathname + doc.location.search + doc.location.hash);
-//doc.location.href = url + "?location=" + location;
-        });
+        //header.on("click", "#signin-with-google-button", function (event: Event) {
+            //event.preventDefault();
+            //trace(event);
+            //// ログインAPI呼び出し
+////"oauth/signin_google
+////var location = StringTools.urlEncode(doc.location.pathname + doc.location.search + doc.location.hash);
+////doc.location.href = url + "?location=" + location;
+        //});
 
         header.on("click", "#settings-button", function (event: Event) {
             event.preventDefault();

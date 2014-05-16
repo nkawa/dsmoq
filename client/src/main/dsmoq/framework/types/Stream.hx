@@ -77,6 +77,7 @@ class Stream<A> {
     }
 
     function update(value: A): Void {
+trace(_state);
         switch (_state) {
             case Pending, Opened:
                 _state = Opened;

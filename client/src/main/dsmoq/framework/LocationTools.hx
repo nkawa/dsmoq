@@ -9,6 +9,14 @@ using Lambda;
  * @author terurou
  */
 class LocationTools {
+    public static function currentLocation(): Location {
+        return toLocation(Browser.location);
+    }
+
+    public static function currentUrl(): String {
+        return toUrl(toLocation(Browser.location));
+    }
+
     public static function toLocation(x: {pathname: String, search: String, hash: String}): Location {
         function toQueryMap(search: String) {
             var map = new Map();

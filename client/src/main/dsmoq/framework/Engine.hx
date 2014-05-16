@@ -44,8 +44,9 @@ class Engine<TPage: EnumValue> {
 
             var location = new Stream(function (update, _, _) {
                 inited.then(function (_) {
-                    History.Adapter.bind(Browser.window, "statechange",
-                        update.bind(LocationTools.toLocation(Browser.location)));
+                    History.Adapter.bind(Browser.window, "statechange", function () {
+                        update(LocationTools.toLocation(Browser.location));
+                    });
                 });
                 return function () {};
             })

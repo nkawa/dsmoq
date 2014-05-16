@@ -15,7 +15,7 @@ using dsmoq.framework.helper.OptionHelper;
  * ...
  * @author terurou
  */
-class Template {
+class View {
     static var uninitialized = true;
     static inline function initialize(): Void {
         if (uninitialized) {
