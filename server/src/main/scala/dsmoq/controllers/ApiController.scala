@@ -436,6 +436,23 @@ class ApiController extends ScalatraServlet
     }
   }
 
+  delete("/groups/:groupId/images/:imageId") {
+    val groupId = params("groupId")
+    val imageId = params("imageId")
+
+    val response = for {
+      userInfo <- getUserInfoFromSession()
+      facadeParams = DeleteGroupImageParams(userInfo, imageId, groupId)
+      primaryImage <- GroupService.deleteImage(facadeParams)
+    } yield {
+      AjaxResponse("OK", primaryImage)
+    }
+    response match {
+      case Success(x) => x
+      case Failure(e) => AjaxResponse("NG")
+    }
+  }
+
   post("/groups/:groupId/members") {
     val groupId = params("groupId")
     val userId = params("id")

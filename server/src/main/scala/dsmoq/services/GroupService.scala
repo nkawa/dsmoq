@@ -432,6 +432,67 @@ object GroupService {
     }
   }
 
+  def deleteImage(params: GroupData.DeleteGroupImageParams) = {
+    if (params.userInfo.isGuest) throw new NotAuthorizedException
+
+    val primaryImage = DB localTx { implicit s =>
+      val myself = persistence.User.find(params.userInfo.id).get
+      val timestamp = DateTime.now()
+      withSQL {
+        val gi = persistence.GroupImage.column
+        update(persistence.GroupImage)
+          .set(gi.deletedBy -> sqls.uuid(myself.id), gi.deletedAt -> timestamp, gi.isPrimary -> 0,
+            gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
+          .where
+          .eq(gi.groupId, sqls.uuid(params.groupId))
+          .and
+          .eq(gi.imageId, sqls.uuid(params.imageId))
+          .and
+          .isNull(gi.deletedAt)
+      }.update().apply
+
+      getPrimaryImageId(params.groupId) match {
+        case Some(x) => x
+        case None =>
+          // primaryImageの差し替え
+          val gi = persistence.GroupImage.syntax("di")
+          val i = persistence.Image.syntax("i")
+
+          // primaryImageとなるImageを取得
+          val primaryImage = withSQL {
+            select(gi.result.id, i.result.id)
+              .from(persistence.Image as i)
+              .innerJoin(persistence.GroupImage as gi).on(i.id, gi.imageId)
+              .where
+              .eq(gi.groupId, sqls.uuid(params.groupId))
+              .and
+              .isNull(gi.deletedAt)
+              .and
+              .isNull(i.deletedAt)
+              .orderBy(gi.createdAt).asc
+              .limit(1)
+          }.map(rs => (rs.string(gi.resultName.id), rs.string(i.resultName.id))).single().apply
+
+          primaryImage match {
+            case Some(x) =>
+              val gi = persistence.GroupImage.column
+              withSQL {
+                update(persistence.GroupImage)
+                  .set(gi.isPrimary -> 1, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
+                  .where
+                  .eq(gi.id, sqls.uuid(x._1))
+              }.update().apply
+              x._2
+            case None => ""
+          }
+      }
+    }
+
+    Success(GroupData.GroupDeleteImage(
+      primaryImage = primaryImage
+    ))
+  }
+
   private def getGroups(user: User, offset: Int, limit: Int)(implicit s: DBSession): Seq[persistence.Group] = {
     if (user.isGuest) {
       Seq.empty

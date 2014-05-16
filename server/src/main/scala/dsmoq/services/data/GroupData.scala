@@ -78,6 +78,12 @@ object GroupData {
                                             imageId: String,
                                             groupId: String
                                             )
+
+  case class DeleteGroupImageParams(
+                                     userInfo: User,
+                                     imageId: String,
+                                     groupId: String
+                                     )
   // response
   case class GroupsSummary(
                               id: String,
@@ -111,8 +117,13 @@ object GroupData {
                         organization: String,
                         role: Int
                         )
+
   case class GroupAddImages(
                              images: Seq[Image],
                              primaryImage: String
                              )
+
+  case class GroupDeleteImage(
+                               primaryImage: String
+                               )
 }
