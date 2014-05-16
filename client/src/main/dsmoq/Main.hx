@@ -46,70 +46,66 @@ class Main {
     // これ自体がViewModelだよね…
     public function frame(context: ApplicationContext): PageFrame<Page> {
         var body = JQuery.wrap(Browser.document.body);
-        body.addClass("loading");
+
+        context.location.then(function (location) {
+            trace("head");
+        });
 
 
 
 
 
+        var header = JQuery.find("#header");
+        Template.link("Header", header, {});
 
+        header.on("submit", "#signin-form", function (event: Event) {
+            event.preventDefault();
+            trace(event);
+            // ログインAPI呼び出し
+        });
 
-        var model = new HeaderModel();
-
-        var bootstrap = Service.instance.bootstrap.then(function (_) {
-            var header = JQuery.find("#header");
-            Template.link("Header", header, {});
-
-            header.on("submit", "#signin-form", function (event: Event) {
-                event.preventDefault();
-                trace(event);
-                // ログインAPI呼び出し
-            });
-
-            header.on("click", "#signin-with-google-button", function (event: Event) {
-                event.preventDefault();
-                trace(event);
-                // ログインAPI呼び出し
+        header.on("click", "#signin-with-google-button", function (event: Event) {
+            event.preventDefault();
+            trace(event);
+            // ログインAPI呼び出し
 //"oauth/signin_google
 //var location = StringTools.urlEncode(doc.location.pathname + doc.location.search + doc.location.hash);
 //doc.location.href = url + "?location=" + location;
-            });
-
-            header.on("click", "#settings-button", function (event: Event) {
-                event.preventDefault();
-                trace(event);
-            });
-
-            header.on("click", "#signout-button", function (event: Event) {
-                event.preventDefault();
-                trace(event);
-            });
-
-            //TODO jqueryイベントをPromiseStream変換
-
-            // navigation.update(Navigate(Dashboard));
-
-
-
-            //var data = js.jsviews.JsViews.observableObject(x.data);
-            //Timer.delay(function () data.setProperty("isGuest", false), 300);
-
-            //js.jsviews.JsViews.l(JQuery.find("body"));
-
-            var d: Dynamic<Dynamic> = { };
-
-
-            //header.on("", "", {}, function (e) {
-            //});
-
-            //TODO イベントハンドラ設定
-
-            body.removeClass("loading");
         });
+
+        header.on("click", "#settings-button", function (event: Event) {
+            event.preventDefault();
+            trace(event);
+        });
+
+        header.on("click", "#signout-button", function (event: Event) {
+            event.preventDefault();
+            trace(event);
+        });
+
+        //TODO jqueryイベントをPromiseStream変換
+
+        // navigation.update(Navigate(Dashboard));
+
+
+
+        //var data = js.jsviews.JsViews.observableObject(x.data);
+        //Timer.delay(function () data.setProperty("isGuest", false), 300);
+
+        //js.jsviews.JsViews.l(JQuery.find("body"));
+
+        var d: Dynamic<Dynamic> = { };
+
+
+        //header.on("", "", {}, function (e) {
+        //});
+
+        //TODO イベントハンドラ設定
+
+        body.removeClass("loading");
 
         return PageHelper.toFrame({
             html: cast JQuery.find("#main")[0],
-            bootstrap: bootstrap,
             navigation: new ControllableStream() //<a href="">をハンドルするようにしたので、無くてもよい？
         });
     }
@@ -133,22 +129,55 @@ class Main {
 
                     }
                 }
+            case DatasetList:
+                {
+                    html: function () {
+                        var div = Browser.document.createElement("div");
+                        div.innerHTML = "datasets";
+                        return div ;
+                    },
+                    then: function (fn) {
+                    },
+                    dispose: function () {
 
+                    }
+                }
+            case GroupList:
+                {
+                    html: function () {
+                        var div = Browser.document.createElement("div");
+                        div.innerHTML = "groups";
+                        return div;
+                    },
+                    then: function (fn) {
+                    },
+                    dispose: function () {
 
+                    }
+                }
         };
     }
 
     public function fromLocation(location: Location): Option<Page> {
-        return Some(Dashboard);
+        return switch (location.path) {
+            case "/": Some(Dashboard);
+            case "/datasets": Some(DatasetList);
+            case "/groups": Some(GroupList);
+            default: None;
+        }
     }
 
     public function toLocation(page: Page): Location {
         return switch (page) {
-            case Dashboard: {path: "/"};
+            case Dashboard: { path: "/" };
+            case DatasetList: { path: "/datasets" };
+            case GroupList: { path: "/groups" };
         };
     }
 }
 
 enum Page {
     Dashboard;
+    DatasetList;
+    GroupList;
 }

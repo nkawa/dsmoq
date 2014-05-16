@@ -80,7 +80,6 @@ class Engine<TPage: EnumValue> {
                 .bind(app.fromLocation)
                 .each(function (x) {
                     event.preventDefault();
-                    trace(LocationTools.toUrl(app.toLocation(x)));
                     History.pushState(null, null, LocationTools.toUrl(app.toLocation(x)));
                 });
             }, false);
@@ -103,8 +102,6 @@ class Engine<TPage: EnumValue> {
     }
 
     function changePage(page: TPage) {
-        trace(page);
-
         if (content != null) content.dispose();
 
         content = app.content(page);
