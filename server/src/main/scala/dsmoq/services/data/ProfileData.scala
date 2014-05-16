@@ -9,6 +9,6 @@ object ProfileData {
     organization: String,
     title: String,
     description: String,
-    icon: Option[FileItem]
+    image: Option[FileItem]
   )
 }

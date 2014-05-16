@@ -39,11 +39,11 @@ class ApiController extends ScalatraServlet
     val organization = params("organization")
     val title = params("title")
     val description = params("description")
-    val icon = fileParams.get("icon")
+    val image = fileParams.get("image")
 
     val response = for {
       userInfo <- getUserInfoFromSession()
-      facadeParams = UpdateProfileParams(name, fullname, organization, title, description, icon)
+      facadeParams = UpdateProfileParams(name, fullname, organization, title, description, image)
       user <- AccountService.updateUserProfile(userInfo, facadeParams)
     } yield {
       setUserInfoToSession(user)

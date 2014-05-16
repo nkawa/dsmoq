@@ -157,8 +157,8 @@ object AccountService extends SessionTrait {
             .eq(u.id, sqls.uuid(user.id))
         }.update().apply
 
-        // iconがある場合、画像保存処理
-        params.icon match {
+        // imageがある場合、画像保存処理
+        params.image match {
           case Some(x) =>
             // FIXME 拡張子チェックはしていない
 
