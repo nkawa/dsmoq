@@ -29,7 +29,6 @@ class PageHelper {
         }));
 
         return {
-            bootstrap: bootstrap,
             navigation: navigation,
             notify: function notify (pageHtml: Node) {
                 html.innerHTML = "";

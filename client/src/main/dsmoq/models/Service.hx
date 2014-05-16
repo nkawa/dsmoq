@@ -15,7 +15,7 @@ class Service extends Stream<ServiceEvent> {
     public static var instance(default, null) = new Service();
 
     public var bootstrap(default, null): Promise<Unit>;
-    public var profile(default, null): Option<Profile>;
+    public var profile(default, null): Profile;
 
     function new() {
         super(function (_, _, _) {
@@ -26,7 +26,7 @@ class Service extends Stream<ServiceEvent> {
 
         bootstrap = send(Get, "/api/profile")
                         .then(function (x) {
-                            profile = Some(x);
+                            profile = x; //TODO
                             update(Initialized);
                         })
                         .map(function (_) return Unit._);
@@ -34,13 +34,13 @@ class Service extends Stream<ServiceEvent> {
 
     public function signin(id: String, password: String): Promise<Unit> {
         return send(Post, "/api/signin", {id: String, password: password})
-                .then(function (x) profile = Some(x))
+                .then(function (x) profile = x)  //TODO
                 .map(function (_) return Unit._);
     }
 
     public function signout(): Promise<Unit> {
         return send(Post, "/api/signout")
-                .then(function (x) profile = None)
+                .then(function (x) profile = null) //TODO
                 .map(function (_) return Unit._);
     }
 
@@ -71,7 +71,7 @@ class Service extends Stream<ServiceEvent> {
                     case ApiStatus.BadRequest:
                         Promise.rejected(new Error(""));
                     case ApiStatus.Unauthorized:
-                        profile = None;
+                        profile = null; //TODO
                         update(SignedOut);
                         Promise.rejected(new Error(""));
                     default:

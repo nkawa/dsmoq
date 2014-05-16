@@ -1,7 +1,9 @@
 package dsmoq;
 
+import dsmoq.framework.ApplicationContext;
 import dsmoq.framework.Engine;
 import dsmoq.framework.Template;
+import dsmoq.framework.types.ControllableStream;
 import dsmoq.framework.types.Promise;
 import dsmoq.framework.types.Stream;
 import dsmoq.framework.types.Location;
@@ -11,6 +13,7 @@ import dsmoq.framework.types.PageNavigation;
 import dsmoq.framework.types.PageFrame;
 import dsmoq.framework.types.Unit;
 import dsmoq.framework.helper.PageHelper;
+import dsmoq.models.HeaderModel;
 import dsmoq.models.Service;
 import haxe.macro.Compiler;
 import haxe.macro.Context;
@@ -36,84 +39,78 @@ class Main {
     public function new() : Void {
     }
 
-    public function frame(): PageFrame<Page> {
-        var navigation = new Stream(function (update, _, _) {
+    public function bootstrap(): Promise<Unit> {
+        return Service.instance.bootstrap;
+    }
 
-
-            return function () {};
-        });
-
+    // これ自体がViewModelだよね…
+    public function frame(context: ApplicationContext): PageFrame<Page> {
         var body = JQuery.wrap(Browser.document.body);
         body.addClass("loading");
 
-        //var i = foo(1, 2, 3);
 
 
 
 
-        Service.instance.bootstrap.map(function (x) {
-            return "boot";
-        }).then(function (x) trace(x));
-
-        //Service.event;
-
-        var bootstrap = new Promise(function (resolve, reject) {
-            var xhr = JQuery.getJSON("/api/profile");
-            xhr.done(function (x) {
-                var header = JQuery.find("#header");
-                Template.link("Header", header, x.data);
-
-                header.on("submit", "#signin-form", function (event: Event) {
-                    event.preventDefault();
-                    trace(event);
-                    // ログインAPI呼び出し
-                });
-
-                header.on("click", "#signin-with-google-button", function (event: Event) {
-                    event.preventDefault();
-                    trace(event);
-                    // ログインAPI呼び出し
-                });
-
-                header.on("click", "#settings-button", function (event: Event) {
-                    event.preventDefault();
-                    trace(event);
-                });
-
-                header.on("click", "#signout-button", function (event: Event) {
-                    event.preventDefault();
-                    trace(event);
-                });
-
-                //TODO jqueryイベントをPromiseStream変換
 
 
+        var model = new HeaderModel();
 
-                trace(x.data);
+        var bootstrap = Service.instance.bootstrap.then(function (_) {
+            var header = JQuery.find("#header");
+            Template.link("Header", header, {});
 
-                var data = js.jsviews.JsViews.observableObject(x.data);
-                Timer.delay(function () data.setProperty("isGuest", false), 300);
-
-                //js.jsviews.JsViews.l(JQuery.find("body"));
-
-                var d: Dynamic<Dynamic> = { };
-
-
-                //header.on("", "", {}, function (e) {
-                //});
-
-                //TODO イベントハンドラ設定
-
-                body.removeClass("loading");
-                resolve(Unit._);
+            header.on("submit", "#signin-form", function (event: Event) {
+                event.preventDefault();
+                trace(event);
+                // ログインAPI呼び出し
             });
-            return xhr.abort;
+
+            header.on("click", "#signin-with-google-button", function (event: Event) {
+                event.preventDefault();
+                trace(event);
+                // ログインAPI呼び出し
+//"oauth/signin_google
+//var location = StringTools.urlEncode(doc.location.pathname + doc.location.search + doc.location.hash);
+//doc.location.href = url + "?location=" + location;
+            });
+
+            header.on("click", "#settings-button", function (event: Event) {
+                event.preventDefault();
+                trace(event);
+            });
+
+            header.on("click", "#signout-button", function (event: Event) {
+                event.preventDefault();
+                trace(event);
+            });
+
+            //TODO jqueryイベントをPromiseStream変換
+
+            // navigation.update(Navigate(Dashboard));
+
+
+
+            //var data = js.jsviews.JsViews.observableObject(x.data);
+            //Timer.delay(function () data.setProperty("isGuest", false), 300);
+
+            //js.jsviews.JsViews.l(JQuery.find("body"));
+
+            var d: Dynamic<Dynamic> = { };
+
+
+            //header.on("", "", {}, function (e) {
+            //});
+
+            //TODO イベントハンドラ設定
+
+            body.removeClass("loading");
         });
 
         return PageHelper.toFrame({
             html: cast JQuery.find("#main")[0],
             bootstrap: bootstrap,
-            navigation: navigation
+            navigation: new ControllableStream() //<a href="">をハンドルするようにしたので、無くてもよい？
         });
     }
 
