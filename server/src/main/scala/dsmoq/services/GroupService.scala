@@ -396,7 +396,40 @@ object GroupService {
         primaryImage = getPrimaryImageId(params.groupId).getOrElse("")
       ))
     }
+  }
+  
+  def changePrimaryImage(params: GroupData.ChangeGroupPrimaryImageParams) = {
+    if (params.userInfo.isGuest) throw new NotAuthorizedException
 
+    DB localTx { implicit s =>
+      val myself = persistence.User.find(params.userInfo.id).get
+      val timestamp = DateTime.now()
+      withSQL {
+        val gi = persistence.GroupImage.column
+        update(persistence.GroupImage)
+          .set(gi.isPrimary -> 1, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
+          .where
+          .eq(gi.imageId, sqls.uuid(params.imageId))
+          .and
+          .eq(gi.groupId, sqls.uuid(params.groupId))
+          .and
+          .isNull(gi.deletedAt)
+      }.update().apply
+
+      withSQL{
+        val gi = persistence.GroupImage.column
+        update(persistence.GroupImage)
+          .set(gi.isPrimary -> 0, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
+          .where
+          .ne(gi.imageId, sqls.uuid(params.imageId))
+          .and
+          .eq(gi.groupId, sqls.uuid(params.groupId))
+          .and
+          .isNull(gi.deletedAt)
+      }.update().apply
+
+      Success(params.imageId)
+    }
   }
 
   private def getGroups(user: User, offset: Int, limit: Int)(implicit s: DBSession): Seq[persistence.Group] = {

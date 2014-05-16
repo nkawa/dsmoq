@@ -419,6 +419,23 @@ class ApiController extends ScalatraServlet
     }
   }
 
+  put("/groups/:groupId/images/primary") {
+    val imageId = params("imageId")
+    val groupId = params("groupId")
+
+    val response = for {
+      userInfo <- getUserInfoFromSession()
+      facadeParams = ChangeGroupPrimaryImageParams(userInfo, imageId, groupId)
+      result <- GroupService.changePrimaryImage(facadeParams)
+    } yield {
+      result
+    }
+    response match {
+      case Success(x) => AjaxResponse("OK")
+      case Failure(e) => AjaxResponse("NG")
+    }
+  }
+
   post("/groups/:groupId/members") {
     val groupId = params("groupId")
     val userId = params("id")

@@ -66,11 +66,18 @@ object GroupData {
                                 userInfo: User,
                                 groupId: String
                                 )
+
   case class AddImagesToGroupParams(
                                      userInfo: User,
                                      groupId: String,
                                      images: Option[Seq[FileItem]]
                                      )
+
+  case class ChangeGroupPrimaryImageParams(
+                                            userInfo: User,
+                                            imageId: String,
+                                            groupId: String
+                                            )
   // response
   case class GroupsSummary(
                               id: String,
