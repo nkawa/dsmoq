@@ -46,7 +46,6 @@ class Stream<A> {
             try {
                 for (handler in _updatedHandlers) handler.f(value);
                 _updatedHandlers = filter();
-                _clear();
                 _state = Opened;
             } catch (e: Dynamic) {
                 _invokeFailed(e);
