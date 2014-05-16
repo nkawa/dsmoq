@@ -33,14 +33,20 @@ class Service extends Stream<ServiceEvent> {
     }
 
     public function signin(id: String, password: String): Promise<Unit> {
-        return send(Post, "/api/signin", {id: String, password: password})
-                .then(function (x) profile = x)  //TODO
+        return send(Post, "/api/signin", {id: id, password: password})
+                .then(function (x) {
+                    profile = x;
+                    update(SignedIn);
+                })
                 .map(function (_) return Unit._);
     }
 
     public function signout(): Promise<Unit> {
         return send(Post, "/api/signout")
-                .then(function (x) profile = null) //TODO
+                .then(function (x) {
+                    profile = null; //TODO
+                    update(SignedOut);
+                })
                 .map(function (_) return Unit._);
     }
 
@@ -56,14 +62,14 @@ class Service extends Stream<ServiceEvent> {
         // /profile/password
     }
 
-    public function findDatasets(page: UInt) : Void {
+    public function findDatasets(page: UInt): Void {
 
     }
 
 
 
-    function send(mathod: RequestMethod, url: String, ?data: Dynamic): Promise<Dynamic> {
-        return JQuery.ajax(url, {dataType: "json", cache: false, data: data}).toPromise()
+    function send(method: RequestMethod, url: String, ?data: Dynamic): Promise<Dynamic> {
+        return JQuery.ajax(url, {type: method, dataType: "json", cache: false, data: data}).toPromise()
             .bind(function (response: ApiResponse) {
                 return switch (response.status) {
                     case ApiStatus.OK:

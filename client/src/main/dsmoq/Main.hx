@@ -54,7 +54,12 @@ class Main {
             return "/oauth/signin_google?location=" + LocationTools.toUrl(location).urlEncode();
         }
 
-        var data = { location: url(LocationTools.currentLocation()) };
+        var data = {
+            id: "",
+            password: "",
+            location: url(LocationTools.currentLocation())
+        };
+
         var ref = JsViews.observable(data);
 
         var header = JQuery.find("#header");
@@ -71,7 +76,7 @@ class Main {
 
         header.on("submit", "#signin-form", function (event: Event) {
             event.preventDefault();
-            trace(event);
+            Service.instance.signin(data.id, data.password);
             // ログインAPI呼び出し
         });
 
