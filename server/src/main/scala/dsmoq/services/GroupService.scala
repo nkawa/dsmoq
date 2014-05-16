@@ -12,8 +12,9 @@ import dsmoq.services.data.RangeSlice
 import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.persistence.AccessLevel
 import org.joda.time.DateTime
-import dsmoq.exceptions.NotAuthorizedException
+import dsmoq.exceptions.{ValidationException, NotAuthorizedException}
 import java.util.UUID
+import java.nio.file.Paths
 
 object GroupService {
   def search(params: GroupData.SearchGroupsParams): Try[RangeSlice[GroupData.GroupsSummary]] = {
@@ -345,6 +346,59 @@ object GroupService {
     }
   }
 
+  def addImages(params: GroupData.AddImagesToGroupParams) = {
+    if (params.userInfo.isGuest) throw new NotAuthorizedException
+    if (params.images.getOrElse(Seq.empty).isEmpty) throw new ValidationException
+
+    DB localTx { implicit s =>
+      val myself = persistence.User.find(params.userInfo.id).get
+      val timestamp = DateTime.now()
+
+      val primaryImage = getPrimaryImageId(params.groupId)
+      var isFirst = true
+      val images = params.images.getOrElse(Seq.empty).map(i => {
+        // FIXME ファイルサイズ=0のデータ時の措置(現状何も回避していない)
+        val imageId = UUID.randomUUID().toString
+        val bufferedImage = javax.imageio.ImageIO.read(i.getInputStream)
+
+        val image = persistence.Image.create(
+          id = imageId,
+          name = i.getName,
+          width = bufferedImage.getWidth,
+          height = bufferedImage.getWidth,
+          createdBy = myself.id,
+          createdAt = DateTime.now,
+          updatedBy = myself.id,
+          updatedAt = DateTime.now
+        )
+        val groupImage = persistence.GroupImage.create(
+          id = UUID.randomUUID.toString,
+          groupId = params.groupId,
+          imageId = imageId,
+          isPrimary = if (isFirst && primaryImage.isEmpty) 1 else 0,
+          displayOrder = 999, // 廃止予定値
+          createdBy = myself.id,
+          createdAt = timestamp,
+          updatedBy = myself.id,
+          updatedAt = timestamp
+        )
+        isFirst = false
+        // write image
+        i.write(Paths.get(AppConf.imageDir).resolve(imageId).toFile)
+        image
+      })
+
+      Success(GroupData.GroupAddImages(
+        images = images.map(x => Image(
+          id = x.id,
+          url = "" //TODO
+        )),
+        primaryImage = getPrimaryImageId(params.groupId).getOrElse("")
+      ))
+    }
+
+  }
+
   private def getGroups(user: User, offset: Int, limit: Int)(implicit s: DBSession): Seq[persistence.Group] = {
     if (user.isGuest) {
       Seq.empty
@@ -475,6 +529,24 @@ object GroupService {
           .limit(limit)
       }.map(rs => (persistence.Dataset(ds.resultName)(rs), rs.int("access_level"))).list().apply()
     }
+  }
+
+  private def getPrimaryImageId(groupId: String)(implicit s: DBSession) = {
+    val gi = persistence.GroupImage.syntax("gi")
+    val i = persistence.Image.syntax("i")
+    withSQL {
+      select(i.result.id)
+        .from(persistence.Image as i)
+        .innerJoin(persistence.GroupImage as gi).on(i.id, gi.imageId)
+        .where
+        .eq(gi.groupId, sqls.uuid(groupId))
+        .and
+        .eq(gi.isPrimary, 1)
+        .and
+        .isNull(gi.deletedAt)
+        .and
+        .isNull(i.deletedAt)
+    }.map(rs => rs.string(i.resultName.id)).single().apply
   }
 
   // FIXME DatasetServiceからのコピペ

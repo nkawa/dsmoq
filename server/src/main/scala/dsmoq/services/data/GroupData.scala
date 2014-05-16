@@ -1,5 +1,7 @@
 package dsmoq.services.data
 
+import org.scalatra.servlet.FileItem
+
 object GroupData {
   // request
   case class SearchGroupsParams(
@@ -64,7 +66,11 @@ object GroupData {
                                 userInfo: User,
                                 groupId: String
                                 )
-
+  case class AddImagesToGroupParams(
+                                     userInfo: User,
+                                     groupId: String,
+                                     images: Option[Seq[FileItem]]
+                                     )
   // response
   case class GroupsSummary(
                               id: String,
@@ -98,4 +104,8 @@ object GroupData {
                         organization: String,
                         role: Int
                         )
+  case class GroupAddImages(
+                             images: Seq[Image],
+                             primaryImage: String
+                             )
 }

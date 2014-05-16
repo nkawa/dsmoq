@@ -51,6 +51,13 @@ class MockController extends ScalatraServlet with SessionTrait {
           <p>File to upload: <input type="file" name="image" /></p>
           <p><input type="submit" value="Upload" /></p>
         </form>
+
+        <h2>Image Upload(Group Image Add)</h2>
+        <form action="../api/groups/c78aabf4-d08e-4508-a25f-f1acfd6ae074/images" method="post" enctype="multipart/form-data">
+          <p>File to upload: <input type="file" name="image" /></p>
+          <p>File to upload: <input type="file" name="image" /></p>
+          <p><input type="submit" value="Upload" /></p>
+        </form>
       </body>
     </html>
   }

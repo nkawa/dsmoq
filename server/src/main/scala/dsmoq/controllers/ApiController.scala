@@ -232,7 +232,6 @@ class ApiController extends ScalatraServlet
 
   post("/datasets/:datasetId/images") {
     val images = fileMultiParams.get("image")
-    println(images)
     val datasetId = params("datasetId")
 
     val response = for {
@@ -396,6 +395,23 @@ class ApiController extends ScalatraServlet
       group <- GroupService.modifyGroup(facadeParams)
     } yield {
       AjaxResponse("OK", group)
+    }
+    response match {
+      case Success(x) => x
+      case Failure(e) => AjaxResponse("NG")
+    }
+  }
+
+  post("/groups/:groupId/images") {
+    val groupId = params("groupId")
+    val images = fileMultiParams.get("image")
+
+    val response = for {
+      userInfo <- getUserInfoFromSession()
+      facadeParams = AddImagesToGroupParams(userInfo, groupId, images)
+      files <- GroupService.addImages(facadeParams)
+    } yield {
+      AjaxResponse("OK", files)
     }
     response match {
       case Success(x) => x
