@@ -576,6 +576,70 @@ object DatasetService {
     }
   }
 
+  def deleteImage(params: DatasetData.DeleteImageParams) = {
+    if (params.userInfo.isGuest) throw new NotAuthorizedException
+
+    val primaryImage = DB localTx { implicit s =>
+      if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+
+      val myself = persistence.User.find(params.userInfo.id).get
+      val timestamp = DateTime.now()
+      withSQL {
+        // FIXME dataset_imageだけじゃなくimagesも削除する？
+        val di = persistence.DatasetImage.column
+        update(persistence.DatasetImage)
+          .set(di.deletedBy -> sqls.uuid(myself.id), di.deletedAt -> timestamp, di.isPrimary -> false,
+            di.updatedBy -> sqls.uuid(myself.id), di.updatedAt -> timestamp)
+          .where
+          .eq(di.datasetId, sqls.uuid(params.datasetId))
+          .and
+          .eq(di.imageId, sqls.uuid(params.imageId))
+          .and
+          .isNull(di.deletedAt)
+      }.update().apply
+
+      getPrimaryImageId(params.datasetId) match {
+        case Some(x) => x
+        case None =>
+          // primaryImageの差し替え
+          val di = persistence.DatasetImage.syntax("di")
+          val i = persistence.Image.syntax("i")
+
+          // primaryImageとなるImageを取得
+          val primaryImage = withSQL {
+            select(di.result.id, i.result.id)
+              .from(persistence.Image as i)
+              .innerJoin(persistence.DatasetImage as di).on(i.id, di.imageId)
+              .where
+              .eq(di.datasetId, sqls.uuid(params.datasetId))
+              .and
+              .isNull(di.deletedAt)
+              .and
+              .isNull(i.deletedAt)
+              .orderBy(di.createdAt).asc
+              .limit(1)
+          }.map(rs => (rs.string(di.resultName.id), rs.string(i.resultName.id))).single().apply
+
+        primaryImage match {
+          case Some(x) =>
+            val di = persistence.DatasetImage.column
+            withSQL {
+              update(persistence.DatasetImage)
+                .set(di.isPrimary -> true, di.updatedBy -> sqls.uuid(myself.id), di.updatedAt -> timestamp)
+                .where
+                .eq(di.id, sqls.uuid(x._1))
+            }.update().apply
+            x._2
+          case None => ""
+        }
+      }
+    }
+
+    Success(DatasetData.DatasetDeleteImage(
+      primaryImage = primaryImage
+    ))
+  }
+
   private def hasAllowAllPermission(userId: String, datasetId: String)(implicit s: DBSession) = {
     val o = persistence.Ownership.o
     val g = persistence.Group.g

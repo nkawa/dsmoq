@@ -65,6 +65,12 @@ object DatasetData {
                                        datasetId: String
                                        )
 
+  case class DeleteImageParams(
+                                userInfo: User,
+                                imageId: String,
+                                datasetId: String
+                                )
+
   // response
   case class DatasetsSummary(
     id: String,
@@ -112,7 +118,11 @@ object DatasetData {
   case class DatasetAddImages(
                               images: Seq[Image],
                               primaryImage: String
-                              )
+                               )
+
+  case class DatasetDeleteImage(
+                                 primaryImage: String
+                                 )
 
   case class DatasetFile(
     id: String,

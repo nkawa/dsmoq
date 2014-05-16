@@ -266,8 +266,20 @@ class ApiController extends ScalatraServlet
   }
 
   delete("/datasets/:datasetId/images/:imageId") {
-    // TODO
-    AjaxResponse("OK")
+    val datasetId = params("datasetId")
+    val imageId = params("imageId")
+
+    val response = for {
+      userInfo <- getUserInfoFromSession()
+      facadeParams = DeleteImageParams(userInfo, imageId, datasetId)
+      primaryImage <- DatasetService.deleteImage(facadeParams)
+    } yield {
+      AjaxResponse("OK", primaryImage)
+    }
+    response match {
+      case Success(x) => x
+      case Failure(e) => AjaxResponse("NG")
+    }
   }
 
   put("/datasets/:datasetId/acl/:groupId") {
