@@ -55,6 +55,7 @@ class Main {
         }
 
         var data = {
+            profile: Service.instance.profile,
             id: "",
             password: "",
             location: url(LocationTools.currentLocation())
@@ -64,9 +65,18 @@ class Main {
 
         var header = JQuery.find("#header");
         View.link("Header", header, data);
+        trace(header);
 
         context.location.then(function (location) {
             ref.setProperty("location", url(location));
+        });
+
+        Service.instance.then(function (event) {
+            switch (event) {
+                case SignedIn, SignedOut:
+                    trace("change");
+                    ref.setProperty("profile.isGuest", Service.instance.profile);
+            }
         });
 
 
@@ -88,6 +98,7 @@ class Main {
         header.on("click", "#signout-button", function (event: Event) {
             event.preventDefault();
             trace(event);
+            Service.instance.signout();
         });
 
         //TODO jqueryイベントをPromiseStream変換
@@ -120,6 +131,9 @@ class Main {
     public function content(page: Page): PageContent<Page> {
         return switch (page) {
             case Dashboard:
+                //JsViews.unlink();
+
+                //View.getTemplate("DashBoard").link
                 var div = Browser.document.createElement("div");
                 div.innerHTML = "test";
 
@@ -127,21 +141,18 @@ class Main {
 
                 //div.innerHTML = "<img src='/resources/loading-large.gif'>";
                 {
-                    html: function () {
-                        return div;
+                    render: function (container: Element) {
+                        View.getTemplate("DashBoard").link(container, {});
                     },
                     then: function (fn) {
                     },
                     dispose: function () {
-
                     }
                 }
             case DatasetList:
                 {
-                    html: function () {
-                        var div = Browser.document.createElement("div");
-                        div.innerHTML = "datasets";
-                        return div ;
+                    render: function (container: Element) {
+                        View.getTemplate("dataset/list").link(container, {});
                     },
                     then: function (fn) {
                     },
@@ -151,10 +162,8 @@ class Main {
                 }
             case GroupList:
                 {
-                    html: function () {
-                        var div = Browser.document.createElement("div");
-                        div.innerHTML = "groups";
-                        return div;
+                    render: function (container: Element) {
+                        View.getTemplate("group/list").link(container, { } );
                     },
                     then: function (fn) {
                     },

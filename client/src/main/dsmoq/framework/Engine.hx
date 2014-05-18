@@ -2,22 +2,18 @@ package dsmoq.framework;
 
 import dsmoq.framework.types.Application;
 import dsmoq.framework.types.ControllablePromise;
-import js.Error;
-import dsmoq.framework.types.Location;
 import dsmoq.framework.types.PageContent;
-import dsmoq.framework.types.PageNavigation;
 import dsmoq.framework.types.PageFrame;
+import dsmoq.framework.types.PageNavigation;
+import dsmoq.framework.types.Stream;
+import dsmoq.framework.types.Unit;
 import dsmoq.framework.types.Option;
 import js.Browser;
+import js.Error;
 import js.html.AnchorElement;
 import js.html.Element;
 import js.html.Event;
 import js.html.EventTarget;
-import js.html.Node;
-import js.html.PopStateEvent;
-import dsmoq.framework.types.Option;
-import dsmoq.framework.types.Stream;
-import dsmoq.framework.types.Unit;
 
 using Lambda;
 using dsmoq.framework.helper.OptionHelper;
@@ -55,6 +51,8 @@ class Engine<TPage: EnumValue> {
                     case Some(x): changePage(x);
                     case None: throw new Error("cannot resolve page");
                 }
+            }, function (err) {
+                untyped __js__("console.error(err)");
             });
 
             var context = { location: location };
@@ -93,6 +91,8 @@ class Engine<TPage: EnumValue> {
             }
 
             inited.resolve(Unit._);
+        }, function (e) {
+            untyped __js__("console.error(arguments[0])");
         });
     }
 
@@ -107,7 +107,7 @@ class Engine<TPage: EnumValue> {
 
         content = app.content(page);
         content.then(onPageEvent);
-        frame.notify(content.html());
+        frame.render(content);
     }
 
     public static function start<TPage: EnumValue>(app: Application<TPage>): Void {

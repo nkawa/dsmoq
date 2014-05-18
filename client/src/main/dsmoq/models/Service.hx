@@ -6,6 +6,7 @@ import dsmoq.framework.types.Promise;
 import dsmoq.framework.types.Stream;
 import dsmoq.framework.types.Stream;
 import dsmoq.framework.types.Unit;
+import js.Cookie;
 import js.Error;
 import js.jqhx.JqHtml;
 import js.jqhx.JQuery;
@@ -22,12 +23,10 @@ class Service extends Stream<ServiceEvent> {
             return function () {};
         });
 
-
-
+        profile = guest();
         bootstrap = send(Get, "/api/profile")
                         .then(function (x) {
-                            profile = x; //TODO
-                            update(Initialized);
+                            profile = x;
                         })
                         .map(function (_) return Unit._);
     }
@@ -44,7 +43,8 @@ class Service extends Stream<ServiceEvent> {
     public function signout(): Promise<Unit> {
         return send(Post, "/api/signout")
                 .then(function (x) {
-                    profile = null; //TODO
+                    Cookie.remove("JSESSIONID");
+                    profile = guest();
                     update(SignedOut);
                 })
                 .map(function (_) return Unit._);
@@ -67,6 +67,17 @@ class Service extends Stream<ServiceEvent> {
     }
 
 
+    inline function guest(): Profile {
+        return {
+            id: "",
+            name: "",
+            fullname: "",
+            organization: "",
+            title: "",
+            image: "",
+            isGuest: true
+        }
+    }
 
     function send(method: RequestMethod, url: String, ?data: Dynamic): Promise<Dynamic> {
         return JQuery.ajax(url, {type: method, dataType: "json", cache: false, data: data}).toPromise()
@@ -77,7 +88,7 @@ class Service extends Stream<ServiceEvent> {
                     case ApiStatus.BadRequest:
                         Promise.rejected(new Error(""));
                     case ApiStatus.Unauthorized:
-                        profile = null; //TODO
+                        profile = guest();
                         update(SignedOut);
                         Promise.rejected(new Error(""));
                     default:
@@ -88,7 +99,6 @@ class Service extends Stream<ServiceEvent> {
 }
 
 enum ServiceEvent {
-    Initialized;
     SignedIn;
     SignedOut;
 }

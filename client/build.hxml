@@ -6,17 +6,23 @@
 -cp lib/promhx/src/main/
 -D jsviews_enable_jqhx
 -resource assets/Header.html@template/Header
--resource assets/DatasetSummary.html@template/DatasetSummary
+-resource assets/DashBoard.html@template/DashBoard
+
+-resource assets/dataset/list.html@template/dataset/list
+-resource assets/dataset/show.html@template/dataset/show
 -resource assets/DatasetEdit/acl.html@template/DatasetEditAcl
 -resource assets/DatasetEdit/basic_tab.html@template/DatasetEditBasic
 -resource assets/DatasetEdit/upload_file.html@template/DatasetEditUpload
 -resource assets/DatasetRead/main.html@template/DatasetReadMain
 -resource assets/DatasetEdit/UploadFile.html@template/UploadFileEdit
 -resource assets/DatasetRead/UploadFile.html@template/UploadFileRead
+
+-resource assets/group/list.html@template/group/list
+-resource assets/group/show.html@template/group/show
+-resource assets/group/edit.html@template/group/edit
+
 -resource assets/Notification.html@template/NotificationPanel
--resource assets/DashBoard.html@template/DashBoard
+
 -resource assets/Profile.html@template/Profile
--resource assets/GroupList.html@template/GroupList
--resource assets/GroupEdit.html@template/GroupEdit
--resource assets/GroupRead.html@template/GroupRead
+
 -debug

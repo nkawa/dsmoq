@@ -1,13 +1,13 @@
 package dsmoq.framework.types;
 
-import js.html.Node;
+import js.html.Element;
 
 /**
  * ...
  * @author terurou
  */
 typedef PageContent<TPage: EnumValue> = {
-    function html(): Node;
+    function render(container: Element): Void;
     function then(handler: PageNavigation<TPage> -> Void): Void;
     function dispose(): Void;
 }

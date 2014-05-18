@@ -1,10 +1,8 @@
 package dsmoq.framework.helper;
 
-import dsmoq.framework.types.Stream;
 import dsmoq.framework.types.PageContent;
-import dsmoq.framework.types.PageNavigation;
 import dsmoq.framework.types.PageFrame;
-import dsmoq.framework.types.Promise;
+import dsmoq.framework.types.PageNavigation;
 import dsmoq.framework.types.Promise;
 import dsmoq.framework.types.Stream;
 import dsmoq.framework.types.Unit;
@@ -30,9 +28,9 @@ class PageHelper {
 
         return {
             navigation: navigation,
-            notify: function notify (pageHtml: Node) {
+            render: function render(page: PageContent<TPage>) {
                 html.innerHTML = "";
-                html.appendChild(pageHtml);
+                page.render(html);
             }
         };
     }
@@ -42,3 +40,12 @@ class PageHelper {
     //}
 
 }
+
+
+
+
+
+
+
+
+

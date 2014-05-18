@@ -7,5 +7,5 @@ import js.html.Node;
  */
 typedef PageFrame<TPage: EnumValue> = {
     var navigation(default, null): Stream<PageNavigation<TPage>>;
-    function notify(message: Node): Void;
+    function render(page: PageContent<TPage>): Void;
 }

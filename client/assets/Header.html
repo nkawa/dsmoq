@@ -13,14 +13,14 @@
       <ul class="nav navbar-nav">
         <li><a href="/datasets">Datasets</a></li>
        　<li><a href="/groups">Groups</a></li>
-        {^{if isGuest === false}}
+        {^{if profile.isGuest === false}}
           <li>
             <a data-link-upload><span class="glyphicon glyphicon-cloud-upload"></span> Upload Dataset</a>
           </li>
         {{/if}}
       </ul>
       <ul class="nav navbar-nav navbar-right">
-        {^{if isGuest !== false}}
+        {^{if profile.isGuest !== false}}
           <li class="dropdown login-form">
             <a class="btn dropdown-toggle" data-toggle="dropdown">
               Login
