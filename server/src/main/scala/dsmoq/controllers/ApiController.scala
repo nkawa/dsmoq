@@ -597,6 +597,11 @@ class ApiController extends ScalatraServlet
     }
   }
 
+  get("/licenses") {
+    val licenses = AccountService.getLicenses();
+    AjaxResponse("OK", licenses)
+  }
+
   private def setAccessControl(datasetId: String, groupId: String, accessLevel: Int) = {
     val aci = AccessControl(datasetId, groupId, accessLevel)
 
