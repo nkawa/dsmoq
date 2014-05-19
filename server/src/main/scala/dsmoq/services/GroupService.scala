@@ -409,7 +409,7 @@ object GroupService {
         update(persistence.GroupImage)
           .set(gi.isPrimary -> 1, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
           .where
-          .eq(gi.imageId, sqls.uuid(params.imageId))
+          .eq(gi.imageId, sqls.uuid(params.id))
           .and
           .eq(gi.groupId, sqls.uuid(params.groupId))
           .and
@@ -421,14 +421,14 @@ object GroupService {
         update(persistence.GroupImage)
           .set(gi.isPrimary -> 0, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
           .where
-          .ne(gi.imageId, sqls.uuid(params.imageId))
+          .ne(gi.imageId, sqls.uuid(params.id))
           .and
           .eq(gi.groupId, sqls.uuid(params.groupId))
           .and
           .isNull(gi.deletedAt)
       }.update().apply
 
-      Success(params.imageId)
+      Success(params.id)
     }
   }
 

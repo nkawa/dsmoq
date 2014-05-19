@@ -267,11 +267,11 @@ class ApiController extends ScalatraServlet
 
   put("/datasets/:datasetId/images/primary") {
     val datasetId = params("datasetId")
-    val imageId = params("imageId")
+    val id = params("id")
 
     val response = for {
       userInfo <- getUserInfoFromSession()
-      facadeParams = ChangePrimaryImageParams(userInfo, imageId, datasetId)
+      facadeParams = ChangePrimaryImageParams(userInfo, id, datasetId)
       result <- DatasetService.changePrimaryImage(facadeParams)
     } yield {
       result
@@ -436,12 +436,12 @@ class ApiController extends ScalatraServlet
   }
 
   put("/groups/:groupId/images/primary") {
-    val imageId = params("imageId")
     val groupId = params("groupId")
+    val id = params("id")
 
     val response = for {
       userInfo <- getUserInfoFromSession()
-      facadeParams = ChangeGroupPrimaryImageParams(userInfo, imageId, groupId)
+      facadeParams = ChangeGroupPrimaryImageParams(userInfo, id, groupId)
       result <- GroupService.changePrimaryImage(facadeParams)
     } yield {
       result

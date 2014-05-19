@@ -609,7 +609,7 @@ object DatasetService {
         update(persistence.DatasetImage)
           .set(di.isPrimary -> true, di.updatedBy -> sqls.uuid(myself.id), di.updatedAt -> timestamp)
           .where
-          .eq(di.imageId, sqls.uuid(params.imageId))
+          .eq(di.imageId, sqls.uuid(params.id))
           .and
           .eq(di.datasetId, sqls.uuid(params.datasetId))
           .and
@@ -621,14 +621,14 @@ object DatasetService {
         update(persistence.DatasetImage)
           .set(di.isPrimary -> false, di.updatedBy -> sqls.uuid(myself.id), di.updatedAt -> timestamp)
           .where
-          .ne(di.imageId, sqls.uuid(params.imageId))
+          .ne(di.imageId, sqls.uuid(params.id))
           .and
           .eq(di.datasetId, sqls.uuid(params.datasetId))
           .and
           .isNull(di.deletedAt)
       }.update().apply
 
-      Success(params.imageId)
+      Success(params.id)
     }
   }
 

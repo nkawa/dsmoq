@@ -69,7 +69,7 @@ object DatasetData {
 
   case class ChangePrimaryImageParams(
                                        userInfo: User,
-                                       imageId: String,
+                                       id: String,
                                        datasetId: String
                                        )
 

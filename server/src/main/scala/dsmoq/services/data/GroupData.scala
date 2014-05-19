@@ -75,7 +75,7 @@ object GroupData {
 
   case class ChangeGroupPrimaryImageParams(
                                             userInfo: User,
-                                            imageId: String,
+                                            id: String,
                                             groupId: String
                                             )
 
