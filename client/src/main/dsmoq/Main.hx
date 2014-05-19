@@ -65,7 +65,6 @@ class Main {
 
         var header = JQuery.find("#header");
         View.link("Header", header, data);
-        trace(header);
 
         context.location.then(function (location) {
             ref.setProperty("location", url(location));
@@ -74,8 +73,8 @@ class Main {
         Service.instance.then(function (event) {
             switch (event) {
                 case SignedIn, SignedOut:
-                    trace("change");
-                    ref.setProperty("profile.isGuest", Service.instance.profile);
+                    // TODO 子オブジェクトのはNotifyできない
+                    ref.setProperty("profile.isGuest", Service.instance.profile.isGuest);
             }
         });
 
