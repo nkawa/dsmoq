@@ -106,7 +106,7 @@ class Engine<TPage: EnumValue> {
         if (content != null) content.dispose();
 
         content = app.content(page);
-        content.then(onPageEvent);
+        content.navigation.then(onPageEvent);
         frame.render(content);
     }
 

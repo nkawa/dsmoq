@@ -131,30 +131,20 @@ class Main {
     public function content(page: Page): PageContent<Page> {
         return switch (page) {
             case Dashboard:
-                //JsViews.unlink();
-
                 //View.getTemplate("DashBoard").link
-                var div = Browser.document.createElement("div");
-                div.innerHTML = "test";
-
-                //div.innerHTML = "<div style='width: 10px; height: 2000px; background-color: #eee;'></div>";
-
-                //div.innerHTML = "<img src='/resources/loading-large.gif'>";
                 {
+                    navigation: new ControllableStream(),
                     render: function (container: Element) {
                         View.getTemplate("DashBoard").link(container, {});
-                    },
-                    then: function (fn) {
                     },
                     dispose: function () {
                     }
                 }
             case DatasetList:
                 {
+                    navigation: new ControllableStream(),
                     render: function (container: Element) {
                         View.getTemplate("dataset/list").link(container, {});
-                    },
-                    then: function (fn) {
                     },
                     dispose: function () {
 
@@ -162,10 +152,9 @@ class Main {
                 }
             case GroupList:
                 {
+                    navigation: new ControllableStream(),
                     render: function (container: Element) {
                         View.getTemplate("group/list").link(container, { } );
-                    },
-                    then: function (fn) {
                     },
                     dispose: function () {
 
