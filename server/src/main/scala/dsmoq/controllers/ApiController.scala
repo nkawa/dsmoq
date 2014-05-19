@@ -41,6 +41,8 @@ class ApiController extends ScalatraServlet
     val description = params("description")
     val image = fileParams.get("image")
 
+    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
+
     val response = for {
       userInfo <- getUserInfoFromSession()
       facadeParams = UpdateProfileParams(name, fullname, organization, title, description, image)
@@ -57,6 +59,9 @@ class ApiController extends ScalatraServlet
 
   post("/profile/email_change_requests") {
     val email = params.get("email")
+
+    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
+
     (for {
       userInfo <- getUserInfoFromSession()
       result <- AccountService.changeUserEmail(userInfo, email)
@@ -71,6 +76,9 @@ class ApiController extends ScalatraServlet
   put("/profile/password") {
     val currentPassword = params.get("current_password")
     val newPassword = params.get("new_password")
+
+    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
+
     val response = for {
       userInfo <- getUserInfoFromSession()
       result <- AccountService.changeUserPassword(userInfo, currentPassword, newPassword)
@@ -110,6 +118,9 @@ class ApiController extends ScalatraServlet
   // dataset JSON API
   post("/datasets") {
     val files = fileMultiParams.get("file[]")
+
+    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
+
     val response = for {
       userInfo <- getUserInfoFromSession()
       facadeParams = CreateDatasetParams(userInfo, files)
@@ -162,6 +173,8 @@ class ApiController extends ScalatraServlet
     val files = fileMultiParams.get("file[]")
     val datasetId = params("datasetId")
 
+    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
+
     val response = for {
       userInfo <- getUserInfoFromSession()
       facadeParams = AddFilesToDatasetParams(userInfo, datasetId, files)
@@ -179,6 +192,8 @@ class ApiController extends ScalatraServlet
     val datasetId = params("datasetId")
     val fileId = params("fileId")
     val file = fileParams.get("file")
+
+    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
 
     val response = for {
       userInfo <- getUserInfoFromSession()
@@ -198,6 +213,8 @@ class ApiController extends ScalatraServlet
     val fileId = params("fileId")
     val filename = params("name")
 
+    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
+
     val response = for {
       userInfo <- getUserInfoFromSession()
       facadeParams = ModifyDatasetFilenameParams(userInfo, datasetId, fileId, filename)
@@ -214,6 +231,8 @@ class ApiController extends ScalatraServlet
   delete("/datasets/:datasetId/files/:fileId") {
     val datasetId = params("datasetId")
     val fileId = params("fileId")
+
+    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
 
     val response = for {
       userInfo <- getUserInfoFromSession()
@@ -235,6 +254,8 @@ class ApiController extends ScalatraServlet
     val license = params("license")
     val attributes = multiParams("attributes[][name]").zip(multiParams("attributes[][value]"))
 
+    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
+
     val response = for {
       userInfo <- getUserInfoFromSession()
       facadeParams = ModifyDatasetMetaParams(userInfo, datasetId, name, description, license, attributes)
@@ -251,6 +272,8 @@ class ApiController extends ScalatraServlet
   post("/datasets/:datasetId/images") {
     val images = fileMultiParams.get("image")
     val datasetId = params("datasetId")
+
+    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
 
     val response = for {
       userInfo <- getUserInfoFromSession()
@@ -269,6 +292,8 @@ class ApiController extends ScalatraServlet
     val datasetId = params("datasetId")
     val id = params("id")
 
+    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
+
     val response = for {
       userInfo <- getUserInfoFromSession()
       facadeParams = ChangePrimaryImageParams(userInfo, id, datasetId)
@@ -285,6 +310,8 @@ class ApiController extends ScalatraServlet
   delete("/datasets/:datasetId/images/:imageId") {
     val datasetId = params("datasetId")
     val imageId = params("imageId")
+
+    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
 
     val response = for {
       userInfo <- getUserInfoFromSession()
@@ -387,6 +414,8 @@ class ApiController extends ScalatraServlet
     val name = params("name")
     val description = params("description")
 
+    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
+
     val response = for {
       userInfo <- getUserInfoFromSession()
       facadeParams = CreateGroupParams(userInfo, name, description)
@@ -405,6 +434,8 @@ class ApiController extends ScalatraServlet
     val name = params("name")
     val description = params("description")
 
+    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
+
     val response = for {
       userInfo <- getUserInfoFromSession()
       facadeParams = ModifyGroupParams(userInfo, groupId, name, description)
@@ -421,6 +452,8 @@ class ApiController extends ScalatraServlet
   post("/groups/:groupId/images") {
     val groupId = params("groupId")
     val images = fileMultiParams.get("image")
+
+    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
 
     val response = for {
       userInfo <- getUserInfoFromSession()
@@ -439,6 +472,8 @@ class ApiController extends ScalatraServlet
     val groupId = params("groupId")
     val id = params("id")
 
+    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
+
     val response = for {
       userInfo <- getUserInfoFromSession()
       facadeParams = ChangeGroupPrimaryImageParams(userInfo, id, groupId)
@@ -455,6 +490,8 @@ class ApiController extends ScalatraServlet
   delete("/groups/:groupId/images/:imageId") {
     val groupId = params("groupId")
     val imageId = params("imageId")
+
+    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
 
     val response = for {
       userInfo <- getUserInfoFromSession()
@@ -474,6 +511,8 @@ class ApiController extends ScalatraServlet
     val userId = params("id")
     val role = params("role").toInt
 
+    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
+
     val response = for {
       userInfo <- getUserInfoFromSession()
       facadeParams = AddUserToGroupParams(userInfo, groupId, userId, role)
@@ -492,6 +531,8 @@ class ApiController extends ScalatraServlet
     val memberId = params("memberId")
     val role = params("role").toInt
 
+    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
+
     val response = for {
       userInfo <- getUserInfoFromSession()
       facadeParams = ModifyMemberRoleParams(userInfo, groupId, memberId, role)
@@ -509,6 +550,8 @@ class ApiController extends ScalatraServlet
     val groupId = params("groupId")
     val memberId = params("memberId")
 
+    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
+
     val response = for {
       userInfo <- getUserInfoFromSession()
       facadeParams = DeleteMemberParams(userInfo, groupId, memberId)
@@ -524,6 +567,8 @@ class ApiController extends ScalatraServlet
 
   delete("/groups/:groupId") {
     val groupId = params("groupId")
+
+    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
 
     val response = for {
       userInfo <- getUserInfoFromSession()
@@ -554,6 +599,8 @@ class ApiController extends ScalatraServlet
 
   private def setAccessControl(datasetId: String, groupId: String, accessLevel: Int) = {
     val aci = AccessControl(datasetId, groupId, accessLevel)
+
+    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
 
     (for {
       userInfo <- getUserInfoFromSession()

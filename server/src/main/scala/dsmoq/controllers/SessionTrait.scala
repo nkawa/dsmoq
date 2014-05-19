@@ -30,6 +30,13 @@ trait SessionTrait extends ScalatraServlet {
       case None => // do nothing
     }
   }
+
+  def isValidSession() = {
+    sessionOption match {
+      case Some(_) => true
+      case None => false
+    }
+  }
 }
 
 trait SessionUserInfo {
