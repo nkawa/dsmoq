@@ -91,7 +91,7 @@ class ApiController extends ScalatraServlet
         x match {
           case Some(y) =>
             setUserInfoToSession(y)
-            AjaxResponse("OK")
+            AjaxResponse("OK", getUserInfoFromSession())
           case None =>
             clearSession()
             AjaxResponse("NG")
@@ -104,7 +104,7 @@ class ApiController extends ScalatraServlet
 
   post("/signout") {
     clearSession()
-    AjaxResponse("OK")
+    AjaxResponse("OK", getUserInfoFromSession())
   }
 
   // dataset JSON API
