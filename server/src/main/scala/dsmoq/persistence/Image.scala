@@ -127,7 +127,7 @@ object Image extends SQLSyntaxSupport[Image] {
     withSQL { 
       update(Image).set(
         column.id -> sqls.uuid(entity.id),
-        column.name -> sqls.uuid(entity.name),
+        column.name -> entity.name,
         column.width -> entity.width,
         column.height -> entity.height,
         column.createdBy -> sqls.uuid(entity.createdBy),

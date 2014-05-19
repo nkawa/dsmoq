@@ -28,6 +28,57 @@ object DatasetData {
                                   files: Option[Seq[FileItem]]
                                   )
 
+  case class AddFilesToDatasetParams(
+                                      userInfo: User,
+                                      datasetId: String,
+                                      files: Option[Seq[FileItem]]
+                                      )
+  case class ModifyDatasetFilenameParams(
+                                          userInfo: User,
+                                          datasetId: String,
+                                          fileId: String,
+                                          filename: String
+                                          )
+  case class DeleteDatasetFileParams(
+                                      userInfo: User,
+                                      datasetId: String,
+                                      fileId: String
+                                      )
+
+  case class UpdateFileParams(
+                               userInfo: User,
+                               datasetId: String,
+                               fileId: String,
+                               file: Option[FileItem]
+                               )
+
+  case class ModifyDatasetMetaParams(
+                                      userInfo: User,
+                                      datasetId: String,
+                                      name: String,
+                                      description: String,
+                                      licenseId: String,
+                                      attributes: Seq[(String, String)]
+                                      )
+
+  case class AddImagesToDatasetParams(
+                                       userInfo: User,
+                                       datasetId: String,
+                                       images: Option[Seq[FileItem]]
+                                       )
+
+  case class ChangePrimaryImageParams(
+                                       userInfo: User,
+                                       id: String,
+                                       datasetId: String
+                                       )
+
+  case class DeleteImageParams(
+                                userInfo: User,
+                                imageId: String,
+                                datasetId: String
+                                )
+
   // response
   case class DatasetsSummary(
     id: String,
@@ -67,6 +118,19 @@ object DatasetData {
                                name: String,
                                value: String
                                )
+
+  case class DatasetAddFiles(
+                              files: Seq[DatasetFile]
+                              )
+
+  case class DatasetAddImages(
+                              images: Seq[Image],
+                              primaryImage: String
+                               )
+
+  case class DatasetDeleteImage(
+                                 primaryImage: String
+                                 )
 
   case class DatasetFile(
     id: String,
