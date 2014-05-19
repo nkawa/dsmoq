@@ -3,10 +3,19 @@ package dsmoq.services
 import scala.util.{Try, Failure, Success}
 import scalikejdbc._, SQLInterpolation._
 import java.security.MessageDigest
-import dsmoq.persistence
+import dsmoq.{AppConf, persistence}
+import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.services.data._
+import dsmoq.exceptions.{ValidationException, NotAuthorizedException}
+import org.joda.time.DateTime
+import dsmoq.services.data.ProfileData.UpdateProfileParams
+import dsmoq.controllers.SessionTrait
+import java.nio.file.Paths
+import java.util.UUID
+import java.awt.image.BufferedImage
+import org.scalatra.servlet.FileItem
 
-object AccountService {
+object AccountService extends SessionTrait {
 
   def getAuthenticatedUser(params: LoginData.SigninParams): Try[Option[User]] = {
     // TODO dbアクセス時エラーでFailure返す try~catch
@@ -43,4 +52,224 @@ object AccountService {
     }
   }
 
+  def changeUserEmail(user: User, email: Option[String]): Try[String] = {
+    try {
+      if (user.isGuest) throw new NotAuthorizedException
+
+      // FIXME Eメールアドレスのフォーマットチェックはしていない
+      val mail = email match {
+        case Some(x) => x
+        case None => throw new RuntimeException("email is empty")
+      }
+
+      DB localTx {implicit s =>
+        val u = persistence.User.u
+        val ma = persistence.MailAddress.ma
+        val userAddress = withSQL {
+          select(ma.result.*)
+            .from(persistence.MailAddress as ma)
+            .innerJoin(persistence.User as u).on(u.id, ma.userId)
+            .where
+            .eq(u.id, sqls.uuid(user.id))
+            .and
+            .isNull(ma.deletedAt)
+        }.map(persistence.MailAddress(ma.resultName)).single.apply
+
+        // FIXME メールアドレス変更確認メールを送り、変更を待つようにはしていない(≒データを直接変更している)
+        userAddress match {
+          case Some(x) =>
+            withSQL {
+              val ma = persistence.MailAddress.column
+              update(persistence.MailAddress)
+                .set(ma.address -> mail, ma.updatedAt -> DateTime.now, ma.updatedBy -> sqls.uuid(user.id))
+                .where
+                .eq(ma.id, sqls.uuid(x.id))
+            }.update.apply
+          case None => throw new RuntimeException("user mail address is not found.")
+        }
+      }
+      Success(mail)
+    } catch {
+      case e: Exception => Failure(e)
+    }
+  }
+
+  def changeUserPassword(user: User, currentPassword: Option[String], newPassword: Option[String]): Try[Option[String]] = {
+    try {
+      if (user.isGuest) throw new NotAuthorizedException
+
+      // 値があるかチェック
+      val result = for {
+        c <- currentPassword
+        n <- newPassword
+      } yield {
+        val oldPasswordHash = createPasswordHash(c)
+        DB localTx { implicit s =>
+          val u = persistence.User.u
+          val p = persistence.Password.p
+          val pwd = withSQL {
+            select(p.result.*)
+              .from(persistence.Password as p)
+              .innerJoin(persistence.User as u).on(u.id, p.userId)
+              .where
+              .eq(u.id, sqls.uuid(user.id))
+              .and
+              .eq(p.hash, oldPasswordHash)
+              .and
+              .isNull(p.deletedAt)
+          }.map(persistence.Password(p.resultName)).single().apply
+
+          val newPasswordHash = createPasswordHash(n)
+          pwd match {
+            case Some(x) =>
+              withSQL {
+                val p = persistence.Password.column
+                update(persistence.Password)
+                  .set(p.hash -> newPasswordHash, p.updatedAt -> DateTime.now, p.updatedBy -> sqls.uuid(user.id))
+                  .where
+                  .eq(p.id, sqls.uuid(x.id))
+              }.update().apply
+            case None => throw new RuntimeException("password data is not found.")
+          }
+        }
+        n
+      }
+      // 引数不足の場合Noneが返る
+      if (result.isEmpty) throw new RuntimeException("parameter error.")
+      Success(result)
+    } catch {
+      case e: Exception => Failure(e)
+    }
+  }
+
+  def updateUserProfile(user: User, params: UpdateProfileParams): Try[User]  = {
+    try {
+      if (user.isGuest) throw new NotAuthorizedException
+
+      DB localTx { implicit s =>
+        withSQL {
+          val u = persistence.User.column
+          update(persistence.User)
+            .set(u.name -> params.name, u.fullname -> params.fullname, u.organization -> params.organization,
+              u.title -> params.title, u.description -> params.description,
+              u.updatedAt -> DateTime.now, u.updatedBy -> sqls.uuid(user.id))
+            .where
+            .eq(u.id, sqls.uuid(user.id))
+        }.update().apply
+
+        // imageがある場合、画像保存処理
+        params.image match {
+          case Some(x) =>
+            // FIXME 拡張子チェックはしていない
+
+            // save image file
+            val imageId = UUID.randomUUID().toString
+            x.write(Paths.get(AppConf.imageDir).resolve(imageId).toFile)
+
+            // save thumbnail
+            val thumbImageId = UUID.randomUUID().toString
+            val (thumbWidth, thumbHeight) = saveThumbnailImage(thumbImageId, x)
+
+            val bufferedImage = javax.imageio.ImageIO.read(x.getInputStream)
+            persistence.Image.create(
+              id = imageId,
+              name = x.getName,
+              width = bufferedImage.getWidth,
+              height = bufferedImage.getWidth,
+              createdBy = user.id,
+              createdAt = DateTime.now,
+              updatedBy = user.id,
+              updatedAt = DateTime.now
+            )
+            println("save image:" + imageId)
+
+            // save thumbnail
+            persistence.Image.create(
+              id = thumbImageId,
+              name = x.getName,
+              width = thumbWidth,
+              height = thumbHeight,
+              createdBy = user.id,
+              createdAt = DateTime.now,
+              updatedBy = user.id,
+              updatedAt = DateTime.now
+            )
+            println("save thumb image:" + thumbImageId)
+
+            withSQL {
+              val u = persistence.User.column
+              update(persistence.User)
+                .set(u.imageId -> sqls.uuid(thumbImageId))
+                .where
+                .eq(u.id, sqls.uuid(user.id))
+            }.update().apply
+          case None => // do nothing
+        }
+
+        // 新しいユーザー情報を取得
+        val u = persistence.User.u
+        val newUser = withSQL {
+          select(u.result.*)
+            .from(persistence.User as u)
+            .where
+            .eq(u.id, sqls.uuid(user.id))
+        }.map(persistence.User(u.resultName)).single().apply
+        .map(x => User(x))
+
+        newUser match {
+          case Some(x) => Success(x)
+          case None => throw new RuntimeException("user data not found.")
+        }
+      }
+    } catch {
+      case e: Exception =>
+        println(e)
+        Failure(e)
+    }
+  }
+
+  def isValidEmail(user: User, value: Option[String]) = {
+    val email = value match {
+      case Some(x) =>
+        // メールアドレスバリデーションはHTHML5準拠(RFC5322には違反)
+        val pattern = "\\A[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\\.[a-zA-Z0-9-]+)*\\z".r
+        x match {
+          case pattern() => x
+          case _ => throw new ValidationException
+        }
+      case None => throw new RuntimeException("email is empty")
+    }
+
+    DB readOnly { implicit s =>
+      val ma = persistence.MailAddress.syntax("ma")
+      withSQL {
+        select(ma.result.id)
+          .from(persistence.MailAddress as ma)
+          .where
+          .eq(ma.address, email)
+      }.map(rs => rs.string(ma.resultName.id)).single().apply match {
+        case Some(x) => throw new RuntimeException("email already exists")
+        case None => // do nothing
+      }
+    }
+    Success(email)
+  }
+
+  private def createPasswordHash(password: String) = {
+    MessageDigest.getInstance("SHA-256").digest(password.getBytes("UTF-8")).map("%02x".format(_)).mkString
+  }
+
+  private def saveThumbnailImage(thumbImageId: String, f: FileItem) = {
+    // FIXME 画像のアス比は計算せず固定(100x100)にしている
+    val picSize = 100
+    val bufferedImage = javax.imageio.ImageIO.read(f.getInputStream)
+    val thumbBufferedImage = new BufferedImage(picSize, picSize, bufferedImage.getType)
+    thumbBufferedImage.getGraphics.drawImage(bufferedImage.getScaledInstance(picSize, picSize,
+      java.awt.Image.SCALE_AREA_AVERAGING), 0, 0, 100, 100, null)
+
+    // save thumbnail file
+    val fileType = f.name.split('.').last
+    javax.imageio.ImageIO.write(thumbBufferedImage, fileType, (Paths.get(AppConf.imageDir).resolve(thumbImageId).toFile))
+    (picSize, picSize)
+  }
 }

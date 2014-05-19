@@ -37,6 +37,33 @@ class MockController extends ScalatraServlet with SessionTrait {
           <input type="hidden" name="path" value="/mock" />
           <p><input type="submit" value="Login" /></p>
         </form>
+
+        <h2>File Upload(Dataset File Add)</h2>
+        <form action="../api/datasets/564eb87b-5c97-49d1-b3c6-4a1f83ae179e/files" method="post" enctype="multipart/form-data">
+          <p>File to upload: <input type="file" name="file[]" /></p>
+          <p>File to upload: <input type="file" name="file[]" /></p>
+          <p><input type="submit" value="Upload" /></p>
+        </form>
+
+        <h2>File Upload(Dataset File Modify)</h2>
+        <form action="../api/datasets/564eb87b-5c97-49d1-b3c6-4a1f83ae179e/files/e167cc73-f702-4a95-8c64-5b93f79c39ed" method="post" enctype="multipart/form-data">
+          <p>File to upload: <input type="file" name="file" /></p>
+          <p><input type="submit" value="Upload" /></p>
+        </form>
+
+        <h2>Image Upload(Dataset Image Add)</h2>
+        <form action="../api/datasets/564eb87b-5c97-49d1-b3c6-4a1f83ae179e/images" method="post" enctype="multipart/form-data">
+          <p>File to upload: <input type="file" name="image" /></p>
+          <p>File to upload: <input type="file" name="image" /></p>
+          <p><input type="submit" value="Upload" /></p>
+        </form>
+
+        <h2>Image Upload(Group Image Add)</h2>
+        <form action="../api/groups/c78aabf4-d08e-4508-a25f-f1acfd6ae074/images" method="post" enctype="multipart/form-data">
+          <p>File to upload: <input type="file" name="image" /></p>
+          <p>File to upload: <input type="file" name="image" /></p>
+          <p><input type="submit" value="Upload" /></p>
+        </form>
       </body>
     </html>
   }
