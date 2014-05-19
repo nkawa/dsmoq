@@ -319,8 +319,6 @@ class ApiController extends ScalatraServlet
     val limit = params.get("limit")
     val offset = params.get("offset")
 
-    AjaxResponse("OK")
-
     val response = for {
       userInfo <- getUserInfoFromSession()
       facadeParams = SearchGroupsParams(userInfo, query, limit, offset)
