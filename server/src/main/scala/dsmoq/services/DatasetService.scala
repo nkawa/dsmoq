@@ -158,30 +158,7 @@ object DatasetService {
 
         val summary = RangeSliceSummary(count, limit, offset)
         val results = if (count > offset) {
-          val datasets = findDatasets(groups, limit, offset)
-          val datasetIds = datasets.map(_._1.id)
-
-          val owners = getOwnerGroups(datasetIds)
-          val guestAccessLevels = getGuestAccessLevel(datasetIds)
-          val attributes = getAttributes(datasetIds)
-          val files = getFiles(datasetIds)
-
-          datasets.map(x => {
-            val ds = x._1
-            val permission = x._2
-            DatasetData.DatasetsSummary(
-              id = ds.id,
-              name = ds.name,
-              description = ds.description,
-              image = "http://xxx",
-              attributes = List.empty, //TODO
-              ownerships = owners.get(ds.id).getOrElse(Seq.empty),
-              files = ds.filesCount,
-              dataSize = ds.filesSize,
-              defaultAccessLevel = guestAccessLevels.get(ds.id).getOrElse(0),
-              permission = permission
-            )
-          })
+          getDatasetSummary(groups, limit, offset)
         } else {
           List.empty
         }
@@ -190,6 +167,30 @@ object DatasetService {
     } catch {
       case e: Exception => Failure(e)
     }
+  }
+
+  def getDatasetSummary(groups: Seq[String], limit: Int, offset: Int)(implicit s: DBSession) = {
+    val datasets = findDatasets(groups, limit, offset)
+    val datasetIds = datasets.map(_._1.id)
+
+    val owners = getOwnerGroups(datasetIds)
+    val guestAccessLevels = getGuestAccessLevel(datasetIds)
+
+    datasets.map(x => {
+      val ds = x._1
+      val permission = x._2
+      DatasetData.DatasetsSummary(
+        id = ds.id,
+        name = ds.name,
+        description = ds.description,
+        image = "http://xxx",
+        ownerships = owners.get(ds.id).getOrElse(Seq.empty),
+        files = ds.filesCount,
+        dataSize = ds.filesSize,
+        defaultAccessLevel = guestAccessLevels.get(ds.id).getOrElse(0),
+        permission = permission
+      )
+    })
   }
 
   /**

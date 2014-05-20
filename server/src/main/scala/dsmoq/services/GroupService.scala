@@ -15,6 +15,7 @@ import org.joda.time.DateTime
 import dsmoq.exceptions.{ValidationException, NotAuthorizedException}
 import java.util.UUID
 import java.nio.file.Paths
+import scala.collection.mutable.ArrayBuffer
 
 object GroupService {
   def search(params: GroupData.SearchGroupsParams): Try[RangeSlice[GroupData.GroupsSummary]] = {
@@ -118,29 +119,7 @@ object GroupService {
 
         val summary = RangeSliceSummary(count, limit, offset)
         val results = if (count > offset) {
-          val datasetIds = datasets.map(_._1.id)
-
-          val owners = getOwnerGroups(datasetIds)
-          val guestAccessLevels = getGuestAccessLevel(datasetIds)
-          val attributes = getAttributes(datasetIds)
-          val files = getFiles(datasetIds)
-
-          datasets.map(x => {
-            val ds = x._1
-            val permission = x._2
-            DatasetData.DatasetsSummary(
-              id = ds.id,
-              name = ds.name,
-              description = ds.description,
-              image = "http://xxx",
-              attributes = List.empty, //TODO
-              ownerships = owners.get(ds.id).getOrElse(Seq.empty),
-              files = ds.filesCount,
-              dataSize = ds.filesSize,
-              defaultAccessLevel = guestAccessLevels.get(ds.id).getOrElse(0),
-              permission = permission
-            )
-          })
+          DatasetService.getDatasetSummary(ArrayBuffer(params.groupId), limit, offset)
         } else {
           List.empty
         }
@@ -612,7 +591,7 @@ object GroupService {
           .where
           .eq(o.groupId, sqls.uuid(groupId))
           .and
-          .gt(o.accessLevel, 0)
+          .eq(o.accessLevel, persistence.AccessLevel.AllowAll)
           .and
           .isNull(ds.deletedAt)
           .and
@@ -641,104 +620,5 @@ object GroupService {
         .and
         .isNull(i.deletedAt)
     }.map(rs => rs.string(i.resultName.id)).single().apply
-  }
-
-  // FIXME DatasetServiceからのコピペ
-  private def getOwnerGroups(datasetIds: Seq[String])(implicit s: DBSession):Map[String, Seq[DatasetData.DatasetOwnership]] = {
-    if (datasetIds.nonEmpty) {
-      val o = persistence.Ownership.o
-      val g = persistence.Group.g
-      val m = persistence.Member.m
-      val u = persistence.User.u
-      withSQL {
-        select(o.result.*, g.result.*, u.result.*)
-          .from(persistence.Ownership as o)
-          .innerJoin(persistence.Group as g)
-          .on(sqls.eq(g.id, o.groupId).and.isNull(g.deletedAt))
-          .leftJoin(persistence.Member as m)
-          .on(sqls.eq(g.id, m.groupId)
-          .and.eq(g.groupType, persistence.GroupType.Personal)
-          .and.eq(m.role, persistence.GroupMemberRole.Administrator)
-          .and.isNull(m.deletedAt))
-          .innerJoin(persistence.User as u)
-          .on(sqls.eq(m.userId, u.id).and.isNull(u.deletedAt))
-          .where
-          .inByUuid(o.datasetId, datasetIds)
-          .and
-          .eq(o.accessLevel, AccessLevel.AllowAll)
-          .and
-          .isNull(o.deletedAt)
-      }.map(rs =>
-        (
-          rs.string(o.resultName.datasetId),
-          DatasetData.DatasetOwnership(
-            id = rs.string(g.resultName.id),
-            name = rs.stringOpt(u.resultName.name).getOrElse(rs.string(g.resultName.name)),
-            fullname = rs.stringOpt(u.resultName.fullname).getOrElse(""),
-            organization = rs.stringOpt(u.resultName.organization).getOrElse(""),
-            title = rs.stringOpt(u.resultName.title).getOrElse(""),
-            image = "", //TODO
-            accessLevel = rs.int(o.resultName.accessLevel)
-          )
-          )
-        ).list().apply()
-        .groupBy(_._1)
-        .map(x => (x._1, x._2.map(_._2)))
-    } else {
-      Map.empty
-    }
-  }
-
-  // FIXME DatasetServiceからのコピペ
-  private def getGuestAccessLevel(datasetIds: Seq[String])(implicit s: DBSession): Map[String, Int] = {
-    if (datasetIds.nonEmpty) {
-      val o = persistence.Ownership.syntax("o")
-      withSQL {
-        select(o.result.datasetId, o.result.accessLevel)
-          .from(persistence.Ownership as o)
-          .where
-          .inByUuid(o.datasetId, datasetIds)
-          .and
-          .eq(o.groupId, sqls.uuid(AppConf.guestGroupId))
-          .and
-          .isNull(o.deletedAt)
-      }.map(x => (x.string(o.resultName.datasetId), x.int(o.resultName.accessLevel)) ).list().apply().toMap
-    } else {
-      Map.empty
-    }
-  }
-
-  // FIXME DatasetServiceからのコピペ
-  private def getAttributes(datasetIds: Seq[String])(implicit s: DBSession) = {
-    if (datasetIds.nonEmpty) {
-      //val k = ds
-      //      withSQL {
-      //        select()
-      //      }.map(_.toMap()).list().apply()
-      Map.empty
-    } else {
-      Map.empty
-    }
-
-    //          // attributes
-    //          val attrs = sql"""
-    //            SELECT
-    //              v.*,
-    //              k.name
-    //            FROM
-    //              attribute_values AS v
-    //              INNER JOIN attribute_keys AS k ON v.attribute_key_id = k.id
-    //            WHERE
-    //              v.dataset_id IN (${datasetIdSqls})
-    //            """
-    //            .map {x => (x.string(""), DatasetAttribute(name=x.string("name"), value=x.string("value"))) }
-    //            .list().apply()
-    //            .groupBy {x => x._1 }
-
-  }
-
-  // FIXME DatasetServiceからのコピペ
-  private def getFiles(datasetIds: Seq[String])(implicit s: DBSession) = {
-    Map.empty
   }
 }
