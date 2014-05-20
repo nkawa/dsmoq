@@ -1076,7 +1076,7 @@ object DatasetService {
         id = x._1.id,
         name = x._1.name,
         description = x._1.description,
-        url = "", //TODO
+        url = AppConf.fileDownloadRoot + datasetId + "/" + x._1.id,
         size = x._1.fileSize,
         createdBy = User(x._2),
         createdAt = x._1.createdAt.toString(),

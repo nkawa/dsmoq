@@ -17,6 +17,7 @@ object AppConf {
   val defaultDatasetImageId = conf.getString("dsmoq.default_dataset_image_uuid")
 
   val imageDownloadRoot = conf.getString("dsmoq.image_url_root")
+  val fileDownloadRoot = conf.getString("dsmoq.file_url_root")
 
   val clientId = conf.getString("oauth.client_id")
   val clientSecret = conf.getString("oauth.client_secret")
