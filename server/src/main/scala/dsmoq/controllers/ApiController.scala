@@ -16,9 +16,23 @@ import dsmoq.services.data.ProfileData.UpdateProfileParams
 class ApiController extends ScalatraServlet
     with JacksonJsonSupport with SessionTrait with FileUploadSupport {
   protected implicit val jsonFormats: Formats = DefaultFormats
+  final val sessionId = "JSESSIONID"
 
   before() {
     contentType = formats("json")
+  }
+
+  before("/*") {
+    if (isValidSession()) {
+      // TODO ユーザー権限判定(必要に応じて)
+    } else {
+      cookies.get(sessionId) match {
+        case Some(x) =>
+          // cookie削除？
+          halt(body = AjaxResponse("Unauthorized"))
+        case None => // TODO ゲスト権限判定(必要に応じて)
+      }
+    }
   }
 
   get("/*") {
@@ -112,6 +126,8 @@ class ApiController extends ScalatraServlet
 
   post("/signout") {
     clearSession()
+    // delete cookie
+    cookies.delete(sessionId)
     AjaxResponse("OK", getUserInfoFromSession().get)
   }
 
