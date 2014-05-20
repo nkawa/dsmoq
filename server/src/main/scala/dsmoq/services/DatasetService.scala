@@ -999,7 +999,27 @@ object DatasetService {
   }
 
   private def getAttributes(datasetId: String)(implicit s: DBSession) = {
-    Seq.empty
+    val da = persistence.DatasetAnnotation.syntax("da")
+    val a = persistence.Annotation.syntax("d")
+    withSQL {
+      select(da.result.*, a.result.*)
+      .from(persistence.DatasetAnnotation as da)
+      .innerJoin(persistence.Annotation as a).on(sqls.eq(da.annotationId, a.id).and.isNull(a.deletedAt))
+      .where
+      .eq(da.datasetId, sqls.uuid(datasetId))
+      .and
+      .isNull(da.deletedAt)
+    }.map(rs =>
+      (
+        persistence.DatasetAnnotation(da.resultName)(rs),
+        persistence.Annotation(a.resultName)(rs)
+        )
+      ).list.apply.map(x =>
+        DatasetData.DatasetAttribute(
+          name = x._2.name,
+          value = x._1.data
+        )
+      )
   }
 
   private def getImages(datasetId: String)(implicit s: DBSession) = {
