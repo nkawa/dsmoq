@@ -5,7 +5,9 @@ import scalikejdbc._
 import scala.util.{Success, Failure}
 
 object ImageService {
-  def getFile(imageId: String) = {
+  def getFile(imageId: String, size: Option[String]) = {
+    // FIXME ファイルサイズが指定されてきた時の処理および値のチェック
+
     // FIXME imageIdがperset_imageの時の処理
     try {
       val f = DB readOnly { implicit s =>

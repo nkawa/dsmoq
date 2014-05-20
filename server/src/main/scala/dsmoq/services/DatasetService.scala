@@ -181,7 +181,7 @@ object DatasetService {
       val ds = x._1
       val permission = x._2
       val imageUrl = imageIds.get(ds.id) match {
-        case Some(x) => AppConf.imageDownloadRoot + x
+        case Some(x) => AppConf.imageDownloadRoot + x + "/48"
         case None => ""
       }
       DatasetData.DatasetsSummary(
