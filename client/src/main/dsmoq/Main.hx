@@ -36,6 +36,12 @@ using StringTools;
  */
 class Main {
     public static function main() {
+        JsViews.views.tags("a", function (opt) {
+            var ctx = JsViewsTools.tagCtx();
+            var href = ctx.props.
+            trace(JsViewsTools.tagCtx().props["href"]);
+            return "<a>hoge</a>";
+        });
         Engine.start(new Main());
     }
 
