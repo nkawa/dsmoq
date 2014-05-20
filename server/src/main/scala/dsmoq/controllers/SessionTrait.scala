@@ -6,6 +6,7 @@ import scala.util.{Try, Failure, Success}
 
 trait SessionTrait extends ScalatraServlet {
   private val SessionKey = "user"
+  val sessionId = "JSESSIONID"
 
   def getUserInfoFromSession(): Try[User] = {
     sessionOption match {
@@ -13,9 +14,12 @@ trait SessionTrait extends ScalatraServlet {
         case Some(x) => Success(x.asInstanceOf[User])
         case None =>
           clearSession()
+          clearSessionCookie()
           Success(User("", "", "", "", "", "http://xxxx", true, false))
       }
-      case None => Success(User("", "", "", "", "", "http://xxxx", true, false))
+      case None =>
+        clearSessionCookie()
+        Success(User("", "", "", "", "", "http://xxxx", true, false))
     }
   }
 
@@ -36,6 +40,10 @@ trait SessionTrait extends ScalatraServlet {
       case Some(_) => true
       case None => false
     }
+  }
+
+  def clearSessionCookie() {
+    cookies.delete(sessionId)
   }
 }
 
