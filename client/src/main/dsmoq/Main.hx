@@ -61,7 +61,7 @@ class Main {
             location: url(LocationTools.currentLocation())
         };
 
-        var ref = JsViews.observable(data);
+        var ref = JsViews.observableObject(data);
 
         var header = JQuery.find("#header");
         View.link("Header", header, data);
@@ -73,20 +73,14 @@ class Main {
         Service.instance.then(function (event) {
             switch (event) {
                 case SignedIn, SignedOut:
-                    // TODO 子オブジェクトのはNotifyできない
-                    ref.setProperty("profile.isGuest", Service.instance.profile.isGuest);
+                    ref.setProperty("profile", Service.instance.profile);
             }
         });
-
-
-
-
 
 
         header.on("submit", "#signin-form", function (event: Event) {
             event.preventDefault();
             Service.instance.signin(data.id, data.password);
-            // ログインAPI呼び出し
         });
 
         header.on("click", "#settings-button", function (event: Event) {
@@ -96,28 +90,8 @@ class Main {
 
         header.on("click", "#signout-button", function (event: Event) {
             event.preventDefault();
-            trace(event);
             Service.instance.signout();
         });
-
-        //TODO jqueryイベントをPromiseStream変換
-
-        // navigation.update(Navigate(Dashboard));
-
-
-
-        //var data = js.jsviews.JsViews.observableObject(x.data);
-        //Timer.delay(function () data.setProperty("isGuest", false), 300);
-
-        //js.jsviews.JsViews.l(JQuery.find("body"));
-
-        var d: Dynamic<Dynamic> = { };
-
-
-        //header.on("", "", {}, function (e) {
-        //});
-
-        //TODO イベントハンドラ設定
 
         body.removeClass("loading");
 
@@ -130,7 +104,6 @@ class Main {
     public function content(page: Page): PageContent<Page> {
         return switch (page) {
             case Dashboard:
-                //View.getTemplate("DashBoard").link
                 {
                     navigation: new ControllableStream(),
                     render: function (container: Element) {
@@ -143,6 +116,9 @@ class Main {
                 {
                     navigation: new ControllableStream(),
                     render: function (container: Element) {
+
+
+
                         View.getTemplate("dataset/list").link(container, {});
                     },
                     dispose: function () {

@@ -62,8 +62,8 @@ class Service extends Stream<ServiceEvent> {
         // /profile/password
     }
 
-    public function findDatasets(page: UInt): Void {
-
+    public function findDatasets(?params: {?query: String, ?group: String, ?attributes: {}, ?page: UInt}): Promise<Unit> {
+        return null;
     }
 
 
