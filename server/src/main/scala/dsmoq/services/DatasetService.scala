@@ -214,6 +214,8 @@ object DatasetService {
           owners <- Some(getAllOwnerships(params.id))
           files <- Some(getFiles(params.id))
           attributes <- Some(getAttributes(params.id))
+          images <- Some(getImages(params.id))
+          primaryImage <- getPrimaryImageId(params.id)
         } yield {
           DatasetData.Dataset(
             id = dataset.id,
@@ -226,8 +228,8 @@ object DatasetService {
               license = None,
               attributes = attributes
             ),
-            images = Seq.empty, //TODO
-            primaryImage = "", //TODO
+            images = images,
+            primaryImage = primaryImage,
             ownerships = owners,
             defaultAccessLevel = guestAccessLevel,
             permission = permission
@@ -1015,7 +1017,17 @@ object DatasetService {
           .and
           .isNull(i.deletedAt)
         .orderBy(di.displayOrder)
-    }
+    }.map(rs =>
+      (
+        persistence.DatasetImage(di.resultName)(rs),
+        persistence.Image(i.resultName)(rs)
+        )
+      ).list.apply.map(x =>
+        Image(
+          id = x._2.id,
+          url = AppConf.imageDownloadRoot + x._2.id + "/48"
+        )
+      )
   }
 
   private def getFiles(datasetId: String)(implicit s: DBSession) = {
