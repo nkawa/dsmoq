@@ -175,15 +175,20 @@ object DatasetService {
 
     val owners = getOwnerGroups(datasetIds)
     val guestAccessLevels = getGuestAccessLevel(datasetIds)
+    val imageIds = getImageId(datasetIds)
 
     datasets.map(x => {
       val ds = x._1
       val permission = x._2
+      val imageUrl = imageIds.get(ds.id) match {
+        case Some(x) => AppConf.imageDownloadRoot + x
+        case None => ""
+      }
       DatasetData.DatasetsSummary(
         id = ds.id,
         name = ds.name,
         description = ds.description,
-        image = "http://xxx",
+        image = imageUrl,
         ownerships = owners.get(ds.id).getOrElse(Seq.empty),
         files = ds.filesCount,
         dataSize = ds.filesSize,
@@ -858,6 +863,24 @@ object DatasetService {
             .and
             .isNull(o.deletedAt)
       }.map(x => (x.string(o.resultName.datasetId), x.int(o.resultName.accessLevel)) ).list().apply().toMap
+    } else {
+      Map.empty
+    }
+  }
+
+  private def getImageId(datasetIds: Seq[String])(implicit s: DBSession): Map[String, String] = {
+    if (datasetIds.nonEmpty) {
+      val di = persistence.DatasetImage.syntax("di")
+      withSQL {
+        select(di.result.datasetId, di.result.imageId)
+          .from(persistence.DatasetImage as di)
+          .where
+          .inByUuid(di.datasetId, datasetIds)
+          .and
+          .eq(di.isPrimary, true)
+          .and
+          .isNull(di.deletedAt)
+      }.map(x => (x.string(di.resultName.datasetId), x.string(di.resultName.imageId))).list().apply().toMap
     } else {
       Map.empty
     }

@@ -6,6 +6,7 @@ import scala.util.{Success, Failure}
 
 object ImageService {
   def getFile(imageId: String) = {
+    // FIXME imageIdがperset_imageの時の処理
     try {
       val f = DB readOnly { implicit s =>
         persistence.Image.find(imageId)
