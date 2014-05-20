@@ -255,6 +255,17 @@ object AccountService extends SessionTrait {
     Success(email)
   }
 
+  def getLicenses()  = {
+    val licenses = DB readOnly { implicit s =>
+      persistence.License.findAll()
+    }
+    licenses.map(x =>
+      dsmoq.services.data.License(
+        id = x.id,
+        name = x.name
+    ))
+  }
+
   private def createPasswordHash(password: String) = {
     MessageDigest.getInstance("SHA-256").digest(password.getBytes("UTF-8")).map("%02x".format(_)).mkString
   }

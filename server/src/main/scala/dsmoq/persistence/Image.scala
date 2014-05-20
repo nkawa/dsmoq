@@ -49,7 +49,7 @@ object Image extends SQLSyntaxSupport[Image] {
 
   def find(id: String)(implicit session: DBSession = autoSession): Option[Image] = {
     withSQL { 
-      select.from(Image as i).where.eq(i.id, id)
+      select.from(Image as i).where.eq(i.id, sqls.uuid(id))
     }.map(Image(i.resultName)).single.apply()
   }
           

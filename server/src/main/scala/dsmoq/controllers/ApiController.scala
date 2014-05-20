@@ -21,6 +21,19 @@ class ApiController extends ScalatraServlet
     contentType = formats("json")
   }
 
+  before("/*") {
+    if (!isValidSession()) {
+      if (!(request.getRequestURI == "/api/profile" && request.getMethod == "GET")) {
+        cookies.get(sessionId) match {
+          case Some(x) =>
+            clearSessionCookie()
+            halt(body = AjaxResponse("Unauthorized"))
+          case None => // do nothing
+        }
+      }
+    }
+  }
+
   get("/*") {
     throw new Exception("err")
   }
@@ -102,16 +115,19 @@ class ApiController extends ScalatraServlet
             AjaxResponse("OK", getUserInfoFromSession().get)
           case None =>
             clearSession()
+            clearSessionCookie()
             AjaxResponse("NG")
         }
       case Failure(e) =>
         clearSession()
+        clearSessionCookie()
         AjaxResponse("NG")
     }
   }
 
   post("/signout") {
     clearSession()
+    clearSessionCookie()
     AjaxResponse("OK", getUserInfoFromSession().get)
   }
 
@@ -595,6 +611,11 @@ class ApiController extends ScalatraServlet
       case Success(x) => AjaxResponse("OK")
       case Failure(e) => AjaxResponse("NG")
     }
+  }
+
+  get("/licenses") {
+    val licenses = AccountService.getLicenses();
+    AjaxResponse("OK", licenses)
   }
 
   private def setAccessControl(datasetId: String, groupId: String, accessLevel: Int) = {
