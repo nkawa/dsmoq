@@ -62,8 +62,8 @@ class Service extends Stream<ServiceEvent> {
         // /profile/password
     }
 
-    public function findDatasets(?params: {?query: String, ?group: String, ?attributes: {}, ?page: UInt}): Promise<Unit> {
-        return null;
+    public function findDatasets(?params: {?query: String, ?group: String, ?attributes: {}, ?page: UInt}): Promise<RangeSlice<{}>> {
+        return send(Get, "/api/datasets", { } );
     }
 
 
@@ -79,12 +79,12 @@ class Service extends Stream<ServiceEvent> {
         }
     }
 
-    function send(method: RequestMethod, url: String, ?data: Dynamic): Promise<Dynamic> {
+    function send<T>(method: RequestMethod, url: String, ?data: Dynamic): Promise<T> {
         return JQuery.ajax(url, {type: method, dataType: "json", cache: false, data: data}).toPromise()
             .bind(function (response: ApiResponse) {
                 return switch (response.status) {
                     case ApiStatus.OK:
-                        Promise.resolved(response.data);
+                        Promise.resolved(cast response.data);
                     case ApiStatus.BadRequest:
                         Promise.rejected(new Error(""));
                     case ApiStatus.Unauthorized:
@@ -92,7 +92,7 @@ class Service extends Stream<ServiceEvent> {
                         update(SignedOut);
                         Promise.rejected(new Error(""));
                     default:
-                        Promise.resolved(new Error("response error"));
+                        Promise.rejected(new Error("response error"));
                 }
             });
     }

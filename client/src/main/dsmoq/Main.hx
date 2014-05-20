@@ -61,7 +61,7 @@ class Main {
             location: url(LocationTools.currentLocation())
         };
 
-        var ref = JsViews.observableObject(data);
+        var ref = JsViews.objectObservable(data);
 
         var header = JQuery.find("#header");
         View.link("Header", header, data);
@@ -107,6 +107,7 @@ class Main {
                 {
                     navigation: new ControllableStream(),
                     render: function (container: Element) {
+
                         View.getTemplate("DashBoard").link(container, {});
                     },
                     dispose: function () {
@@ -116,10 +117,12 @@ class Main {
                 {
                     navigation: new ControllableStream(),
                     render: function (container: Element) {
-
-
-
-                        View.getTemplate("dataset/list").link(container, {});
+                        var x = { condition: { }, result: { } };
+                        var binding = JsViews.objectObservable(x);
+                        Service.instance.findDatasets().then(function (x) {
+                            binding.setProperty("result", x);
+                            View.getTemplate("dataset/list").link(container, binding.data());
+                        }).thenError(function (e) trace(e));
                     },
                     dispose: function () {
 
