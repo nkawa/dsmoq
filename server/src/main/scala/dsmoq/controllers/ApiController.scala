@@ -23,11 +23,13 @@ class ApiController extends ScalatraServlet
 
   before("/*") {
     if (!isValidSession()) {
-      cookies.get(sessionId) match {
-        case Some(x) =>
-          clearSessionCookie()
-          halt(body = AjaxResponse("Unauthorized"))
-        case None => // do nothing
+      if (!(request.getRequestURI == "/api/profile" && request.getMethod == "GET")) {
+        cookies.get(sessionId) match {
+          case Some(x) =>
+            clearSessionCookie()
+            halt(body = AjaxResponse("Unauthorized"))
+          case None => // do nothing
+        }
       }
     }
   }
