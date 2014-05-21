@@ -66,7 +66,7 @@ object GroupService {
             description = group.description,
             images = images.map(x => Image(
               id = x.id,
-              url = "" //TODO
+              url = AppConf.imageDownloadRoot + x.id
             )),
             primaryImage = primaryImage.getOrElse("")
           )
