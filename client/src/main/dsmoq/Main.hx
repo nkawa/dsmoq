@@ -15,6 +15,7 @@ import dsmoq.framework.types.Unit;
 import dsmoq.framework.helper.PageHelper;
 import dsmoq.models.HeaderModel;
 import dsmoq.models.Service;
+import haxe.Json;
 import haxe.macro.Compiler;
 import haxe.macro.Context;
 import haxe.macro.Expr;
@@ -28,6 +29,7 @@ import js.jqhx.JQuery;
 import js.jqhx.JqHtml;
 import dsmoq.framework.LocationTools;
 import js.jsviews.JsViews;
+import dsmoq.framework.helper.JsHelper;
 using StringTools;
 
 /**
@@ -36,12 +38,18 @@ using StringTools;
  */
 class Main {
     public static function main() {
-        JsViews.views.tags("a", function (opt) {
+        JsViews.views.tags("a", function (val) {
             var ctx = JsViewsTools.tagCtx();
-            var href = ctx.props.
-            trace(JsViewsTools.tagCtx().props["href"]);
-            return "<a>hoge</a>";
+            var props = ctx.props;
+
+            var buf = [];
+            for (k in Reflect.fields(props)) {
+                var v = Reflect.field(props, k);
+                buf.push('${StringTools.urlEncode(k)}="${JsHelper.encodeURI(v)}"');
+            }
+            return '<a ${buf.join(" ")}>${ctx.render()}</a>';
         });
+
         Engine.start(new Main());
     }
 

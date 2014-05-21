@@ -46,17 +46,18 @@
     <li class="dataset-item">
       <div class="row">
         <div class="pull-left">
-          <image src="images/nagoya.jpg" class="img-thumbnail"></image>
+          {{a href="/datasets/"+id}}<img src="images/nagoya.jpg" class="img-thumbnail">{{/a}}
         </div>
         <div class="result-list-body">
-          <h3>{{a href=id }}{{/a}} <a href="/datasets/{^{:id}}">{^{>name}}</a> <span>3 files(121 k)</span></h3>
+          <h3>{{a href="/datasets/"+id}}{{>name}}{{/a}} <span>3 files(121 k)</span></h3>
+          <p>{{>description}}</p>
           <p>
-            愛知県名古屋市の色々な施設のデータが登録されています。
-          </p>
-          <p>
-            Group: <strong>オープンデータ東海</strong>
+            Owner:
+            {{for ownerships}}
+              <strong>{{>name}}</strong>
+            {{/for}}
             <span class="meta-data text-muted">
-              <span>AUTHOR:y.maeda</span> <span>VERSION:1.0.0</span>
+              <span>VERSION:1.0.0</span>
             </span>
           </p>
         </div>
