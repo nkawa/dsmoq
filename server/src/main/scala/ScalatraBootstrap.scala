@@ -18,6 +18,7 @@ class ScalatraBootstrap extends LifeCycle {
     context.mount(new ApiController, "/api/*")
     context.mount(new OAuthController, "/oauth/*")
     context.mount(new ImageController, "/images/*")
+    context.mount(new FileController, "/files/*")
 
     // mock
     context.mount(new MockController, "/mock")

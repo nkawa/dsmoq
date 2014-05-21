@@ -106,14 +106,17 @@ object DatasetService {
             name = x._1.name,
             description = x._1.description,
             size = x._2.fileSize,
-            url = "", //TODO
+            url = AppConf.fileDownloadRoot + datasetId + "/" + x._1.id,
             createdBy = params.userInfo,
             createdAt = timestamp.toString(),
             updatedBy = params.userInfo,
             updatedAt = timestamp.toString()
           )),
-          images = Seq(Image(id = datasetImage.id, url = "")), //TODO
-          primaryImage =  datasetImage.id,
+          images = Seq(Image(
+            id = AppConf.defaultDatasetImageId,
+            url = AppConf.imageDownloadRoot + AppConf.defaultDatasetImageId
+          )),
+          primaryImage =  AppConf.defaultDatasetImageId,
           ownerships = Seq(DatasetData.DatasetOwnership(
             id = myself.id,
             name = myself.name,
@@ -1076,7 +1079,7 @@ object DatasetService {
         id = x._1.id,
         name = x._1.name,
         description = x._1.description,
-        url = "", //TODO
+        url = AppConf.fileDownloadRoot + datasetId + "/" + x._1.id,
         size = x._1.fileSize,
         createdBy = User(x._2),
         createdAt = x._1.createdAt.toString(),
