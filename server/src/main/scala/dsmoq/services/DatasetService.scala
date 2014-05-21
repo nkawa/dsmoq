@@ -357,7 +357,7 @@ object DatasetService {
           name = x._1.name,
           description = x._1.description,
           size = x._2.fileSize,
-          url = "", //TODO
+          url = AppConf.fileDownloadRoot + params.datasetId + "/" + x._1.id,
           createdBy = params.userInfo,
           createdAt = timestamp.toString(),
           updatedBy = params.userInfo,
@@ -369,8 +369,8 @@ object DatasetService {
 
   def updateFile(params: DatasetData.UpdateFileParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
-    // FIXME 変数名全体的に見直し
-    val fff = params.file match {
+
+    val file = params.file match {
       case Some(x) => x
       case None => throw new ValidationException
     }
@@ -384,7 +384,7 @@ object DatasetService {
       withSQL {
         val f = persistence.File.column
         update(persistence.File)
-          .set(f.fileSize -> fff.size, f.updatedBy -> sqls.uuid(myself.id), f.updatedAt -> timestamp)
+          .set(f.fileSize -> file.size, f.updatedBy -> sqls.uuid(myself.id), f.updatedAt -> timestamp)
           .where
           .eq(f.id, sqls.uuid(params.fileId))
       }.update().apply
@@ -394,13 +394,13 @@ object DatasetService {
         fileId = params.fileId,
         fileType = 0,
         fileMime = "application/octet-stream",
-        fileSize = fff.size,
+        fileSize = file.size,
         createdBy = myself.id,
         createdAt = timestamp,
         updatedBy = myself.id,
         updatedAt = timestamp
       )
-      writeFile(params.datasetId, params.fileId, history.id, fff)
+      writeFile(params.datasetId, params.fileId, history.id, file)
 
       // datasetsのfiles_size, files_countの更新
       updateDatasetFileStatus(params.datasetId, myself.id, timestamp)
@@ -412,7 +412,7 @@ object DatasetService {
           name = result.name,
           description = result.description,
           size = result.fileSize,
-          url = "", //TODO
+          url = AppConf.fileDownloadRoot + params.datasetId + "/" + result.id,
           createdBy = params.userInfo,
           createdAt = timestamp.toString(),
           updatedBy = params.userInfo,
