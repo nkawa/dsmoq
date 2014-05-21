@@ -38,7 +38,7 @@ using StringTools;
  */
 class Main {
     public static function main() {
-        JsViews.views.tags("a", function (val) {
+        JsViews.views.tags("a", function (_) {
             var ctx = JsViewsTools.tagCtx();
             var props = ctx.props;
 
@@ -48,6 +48,32 @@ class Main {
                 buf.push('${StringTools.urlEncode(k)}="${JsHelper.encodeURI(v)}"');
             }
             return '<a ${buf.join(" ")}>${ctx.render()}</a>';
+        });
+
+        JsViews.views.tags("datasize", function (size) {
+            function round(x: Float) {
+                return Math.fround(x * 10.0) / 10;
+            }
+
+            return if (Std.is(size, Float)) {
+                if (size < 1024) {
+                    size + "B";
+                } else if (size < 1048576) {
+                    round(size / 1024) + "KB";
+                } else if (size < 1073741824) {
+                    round(size / 1048576) + "MB";
+                } else if (size < 1099511627776) {
+                    round(size / 1073741824) + "GB";
+                } else {
+                    round(size / 1099511627776) + "TB";
+                }
+            } else {
+                Std.string(size) + " is not number";
+            }
+        });
+
+        JsViews.views.tags("pagination", function (_) {
+            var ctx = JsViewsTools.
         });
 
         Engine.start(new Main());
