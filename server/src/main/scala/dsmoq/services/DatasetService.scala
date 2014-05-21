@@ -600,7 +600,7 @@ object DatasetService {
       Success(DatasetData.DatasetAddImages(
           images = images.map(x => Image(
             id = x.id,
-            url = "" //TODO
+            url = AppConf.imageDownloadRoot + x.id
           )),
       primaryImage = getPrimaryImageId(params.datasetId).getOrElse("")
       ))
