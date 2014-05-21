@@ -64,6 +64,7 @@ object GroupService {
           group <- persistence.Group.find(params.groupId)
           images = getGroupImage(group.id)
           primaryImage = getGroupPrimaryImageId(group.id)
+          groupRole = getGroupRole(params.userInfo, group.id)
         } yield {
           GroupData.Group(
             id = group.id,
@@ -73,7 +74,12 @@ object GroupService {
               id = x.id,
               url = AppConf.imageDownloadRoot + x.id
             )),
-            primaryImage = primaryImage.getOrElse("")
+            primaryImage = primaryImage.getOrElse(""),
+            isMember = groupRole match {
+              case Some(x) => true
+              case None => false
+            },
+            role = groupRole.getOrElse(0)
           )
         }).map(x => Success(x)).getOrElse(Failure(new RuntimeException()))
       }
@@ -172,7 +178,9 @@ object GroupService {
         name = group.name,
         description = group.description,
         images = Seq.empty,
-        primaryImage = null
+        primaryImage = null,
+        isMember = true,
+        role = 1
       ))
     } catch {
       case e: Exception => Failure(e)
@@ -211,7 +219,9 @@ object GroupService {
           id = x.id,
           url = AppConf.imageDownloadRoot + x.id
         )),
-        primaryImage = result._3.getOrElse("")
+        primaryImage = result._3.getOrElse(""),
+        isMember = true,
+        role = 1
       ))
     } catch {
       case e: Exception => Failure(e)
@@ -638,5 +648,19 @@ object GroupService {
         .and
         .isNull(i.deletedAt)
     }.map(rs => rs.string(i.resultName.id)).single().apply
+  }
+
+  private def getGroupRole(user: User, groupId: String)(implicit s: DBSession) = {
+    val m = persistence.Member.syntax("m")
+    withSQL {
+      select(m.result.*)
+      .from(persistence.Member as m)
+      .where
+      .eq(m.groupId, sqls.uuid(groupId))
+      .and
+      .eq(m.userId, sqls.uuid(user.id))
+      .and
+      .isNull(m.deletedAt)
+    }.map(_.int(m.resultName.role)).single().apply
   }
 }

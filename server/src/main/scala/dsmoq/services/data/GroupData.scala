@@ -99,7 +99,9 @@ object GroupData {
                     name: String,
                     description: String,
                     images: Seq[Image],
-                    primaryImage: String
+                    primaryImage: String,
+                    isMember: Boolean,
+                    role: Int
                     )
 
   case class MemberSummary(
