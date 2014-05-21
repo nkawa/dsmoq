@@ -29,6 +29,7 @@ object GroupService {
         val groupIds = groups.map(_.id)
         val datasetsCount = countDatasets(groupIds)
         val membersCount = countMembers(groupIds)
+        val groupImages = getGroupImageIds(groups.map(_.id))
 
         val summary = RangeSliceSummary(count, limit, offset)
         val results = if (count > offset) {
@@ -37,7 +38,10 @@ object GroupService {
               id = x.id,
               name = x.name,
               description = x.description,
-              image = "http://xxx",
+              image = groupImages.get(x.id) match {
+                case Some(x) => AppConf.imageDownloadRoot + x
+                case None => ""
+              },
               members = membersCount.get(x.id).getOrElse(0),
               datasets = datasetsCount.get(x.id).getOrElse(0)
             )
@@ -477,18 +481,14 @@ object GroupService {
       Seq.empty
     } else {
       val g = persistence.Group.syntax("g")
-      val m = persistence.Member.syntax("m")
       withSQL {
         select(g.result.*)
           .from(persistence.Group as g)
-          .innerJoin(persistence.Member as m).on(m.groupId, g.id)
           .where
-          .eq(m.userId, sqls.uuid(user.id))
+          .eq(g.groupType, persistence.GroupType.Public)
           .and
           .isNull(g.deletedAt)
-          .and
-          .isNull(m.deletedAt)
-          .orderBy(m.updatedAt).desc
+          .orderBy(g.updatedAt).desc
           .offset(offset)
           .limit(limit)
       }.map(rs => persistence.Group(g.resultName)(rs)).list().apply
@@ -541,6 +541,20 @@ object GroupService {
         .and
         .isNull(i.deletedAt)
     }.map(rs => persistence.Image(i.resultName)(rs)).list().apply()
+  }
+
+  private def getGroupImageIds(groupIds: Seq[String])(implicit s: DBSession) = {
+    val gi = persistence.GroupImage.syntax("gi")
+    withSQL {
+      select(gi.result.*)
+      .from(persistence.GroupImage as gi)
+      .where
+      .inByUuid(gi.groupId, groupIds)
+      .and
+      .eq(gi.isPrimary, 1)
+      .and
+      .isNull(gi.deletedAt)
+    }.map(rs => (rs.string(gi.resultName.groupId), rs.string(gi.resultName.imageId))).list().apply().toMap
   }
 
   private def getGroupPrimaryImageId(groupId: String)(implicit s: DBSession) = {
