@@ -1,5 +1,6 @@
 package dsmoq.models;
 
+import dsmoq.framework.types.ControllablePromise;
 import dsmoq.framework.types.Option;
 import dsmoq.framework.types.Promise;
 import dsmoq.framework.types.Promise;
@@ -62,6 +63,11 @@ class Service extends Stream<ServiceEvent> {
         // /profile/password
     }
 
+
+    public function createDataset(form: JqHtml): Promise<{id: String}> {
+        return sendForm("/api/datasets", form);
+    }
+
     public function findDatasets(?params: {?query: String, ?group: String, ?attributes: {}, ?page: UInt}): Promise<RangeSlice<{}>> {
         return send(Get, "/api/datasets", { } );
     }
@@ -86,15 +92,40 @@ class Service extends Stream<ServiceEvent> {
                     case ApiStatus.OK:
                         Promise.resolved(cast response.data);
                     case ApiStatus.BadRequest:
-                        Promise.rejected(new Error(""));
+                        Promise.rejected(new Error("TODO error message"));
                     case ApiStatus.Unauthorized:
                         profile = guest();
                         update(SignedOut);
-                        Promise.rejected(new Error(""));
-                    default:
+                        Promise.rejected(new Error("TODO error message"));
+                    case _:
                         Promise.rejected(new Error("response error"));
                 }
             });
+    }
+
+    function sendForm<T>(url: String, form: JqHtml): Promise<T> {
+        var promise = new ControllablePromise();
+        untyped form.ajaxSubmit({
+            url: url,
+            type: "post",
+            dataType: "json",
+            success: function (response) {
+                switch (response.status) {
+                    case ApiStatus.OK:
+                        promise.resolve(cast response.data);
+                    case ApiStatus.BadRequest:
+                        promise.rejecte(new Error("TODO error message"));
+                    case ApiStatus.Unauthorized:
+                        profile = guest();
+                        update(SignedOut);
+                        promise.reject(new Error("TODO error message"));
+                    case _:
+                        promise.reject(new Error("response error"));
+                }
+            },
+            error: promise.reject
+        });
+        return promise;
     }
 }
 

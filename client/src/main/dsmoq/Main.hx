@@ -53,6 +53,19 @@ class Main {
             return '<a ${buf.join(" ")}>${ctx.render()}</a>';
         });
 
+        JsViews.views.tags("img", function (_) {
+            var ctx = JsViewsTools.tagCtx();
+            var props = ctx.props;
+
+            var buf = [];
+            for (k in Reflect.fields(props)) {
+                var v = Reflect.field(props, k);
+                buf.push('${StringTools.urlEncode(k)}="${JsHelper.encodeURI(v)}"');
+            }
+            return '<img ${buf.join(" ")}>';
+        });
+
+
         JsViews.views.tags("datasize", function (size) {
             function round(x: Float) {
                 return Math.fround(x * 10.0) / 10;
@@ -113,6 +126,8 @@ class Main {
 
     // これ自体がViewModelだよね…
     public function frame(context: ApplicationContext): PageFrame<Page> {
+        var navigation = new ControllableStream();
+
         var body = JQuery.wrap(Browser.document.body);
 
         function url(location) {
@@ -158,11 +173,19 @@ class Main {
             Service.instance.signout();
         });
 
+        JQuery.find("#new-dataset-dialog-submit").on("click", function (event: Event) {
+            event.preventDefault();
+            Service.instance.createDataset(JQuery.find("#new-dataset-dialog form")).then(function (data) {
+                untyped JQuery.find("#new-dataset-dialog").modal("hide");
+                navigation.update(PageNavigation.Navigate(DatasetShow(data.id)));
+            });
+        });
+
         body.removeClass("loading");
 
         return PageHelper.toFrame({
             html: cast JQuery.find("#main")[0],
-            navigation: new ControllableStream() //<a href="">をハンドルするようにしたので、無くてもよい？
+            navigation: navigation
         });
     }
 
@@ -172,7 +195,6 @@ class Main {
                 {
                     navigation: new ControllableStream(),
                     render: function (container: Element) {
-
                         View.getTemplate("DashBoard").link(container, {});
                     },
                     dispose: function () {
@@ -292,7 +314,7 @@ class Main {
             case GroupList(page):
                 { path: "/groups" };
             case GroupShow(id), GroupEdit(id):
-                { path: "/groups" + id };
+                { path: "/groups/" + id };
 
             case Profile:
                 { path: "/profile" };

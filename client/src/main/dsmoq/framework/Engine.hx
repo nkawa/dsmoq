@@ -73,6 +73,16 @@ class Engine<TPage: EnumValue> {
             }, false);
 
             this.frame = app.frame(context);
+            frame.navigation.then(function (navi) {
+                trace(navi);
+                switch (navi) {
+                    case Navigate(page):
+                        History.pushState(null, null, LocationTools.toUrl(app.toLocation(page)));
+                }
+            }, function (e) {
+                trace("TODO error handling");
+                trace(e);
+            });
 
             switch (app.fromLocation(LocationTools.toLocation(Browser.location))) {
                 case Some(x): changePage(x);
