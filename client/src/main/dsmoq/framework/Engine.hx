@@ -73,13 +73,7 @@ class Engine<TPage: EnumValue> {
             }, false);
 
             this.frame = app.frame(context);
-            frame.navigation.then(function (navi) {
-                trace(navi);
-                switch (navi) {
-                    case Navigate(page):
-                        History.pushState(null, null, LocationTools.toUrl(app.toLocation(page)));
-                }
-            }, function (e) {
+            frame.navigation.then(onPageEvent, function (e) {
                 trace("TODO error handling");
                 trace(e);
             });
@@ -97,7 +91,14 @@ class Engine<TPage: EnumValue> {
 
     function onPageEvent(event: PageNavigation<TPage>) {
         switch (event) {
-            case Navigate(x): History.pushState("data", null, LocationTools.toUrl(app.toLocation(x)));
+            case Navigate(x):
+                History.pushState("data", null, LocationTools.toUrl(app.toLocation(x)));
+            case Reload:
+                Browser.location.reload();
+            case Foward:
+                Browser.window.history.forward();
+            case Back:
+                Browser.window.history.back();
         }
     }
 
