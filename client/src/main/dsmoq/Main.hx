@@ -72,8 +72,31 @@ class Main {
             }
         });
 
-        JsViews.views.tags("pagination", function (_) {
-            var ctx = JsViewsTools.
+        JsViews.views.tags("pagination", {
+            template: "_share/panination",
+            init: function (tag, link) {
+                trace("init");
+                trace(tag);
+                trace(link);
+            },
+            onBeforeLink: function() {
+                trace("onBeforeLink");
+                return true;
+            },
+            onAfterLink: function(tag, link) {
+                trace("onAfterLink");
+            },
+            onUpdate: function(ev, eventArgs, tag) {
+                trace("onUpdate");
+                return true;
+            },
+            onBeforeChange: function(ev, eventArgs) {
+                trace("onBeforeChange");
+                return true;
+            },
+            onDispose: function() {
+                trace("onDispose");
+            }
         });
 
         Engine.start(new Main());
