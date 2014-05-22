@@ -16,6 +16,7 @@ import dsmoq.exceptions.{ValidationException, NotAuthorizedException}
 import java.util.UUID
 import java.nio.file.Paths
 import scala.collection.mutable.ArrayBuffer
+import dsmoq.logic.ImageSaveLogic
 
 object GroupService {
   def search(params: GroupData.SearchGroupsParams): Try[RangeSlice[GroupData.GroupsSummary]] = {
@@ -63,6 +64,7 @@ object GroupService {
           group <- persistence.Group.find(params.groupId)
           images = getGroupImage(group.id)
           primaryImage = getGroupPrimaryImageId(group.id)
+          groupRole = getGroupRole(params.userInfo, group.id)
         } yield {
           GroupData.Group(
             id = group.id,
@@ -72,7 +74,12 @@ object GroupService {
               id = x.id,
               url = AppConf.imageDownloadRoot + x.id
             )),
-            primaryImage = primaryImage.getOrElse("")
+            primaryImage = primaryImage.getOrElse(""),
+            isMember = groupRole match {
+              case Some(x) => true
+              case None => false
+            },
+            role = groupRole.getOrElse(0)
           )
         }).map(x => Success(x)).getOrElse(Failure(new RuntimeException()))
       }
@@ -171,7 +178,9 @@ object GroupService {
         name = group.name,
         description = group.description,
         images = Seq.empty,
-        primaryImage = null
+        primaryImage = null,
+        isMember = true,
+        role = 1
       ))
     } catch {
       case e: Exception => Failure(e)
@@ -210,7 +219,9 @@ object GroupService {
           id = x.id,
           url = AppConf.imageDownloadRoot + x.id
         )),
-        primaryImage = result._3.getOrElse("")
+        primaryImage = result._3.getOrElse(""),
+        isMember = true,
+        role = 1
       ))
     } catch {
       case e: Exception => Failure(e)
@@ -336,14 +347,16 @@ object GroupService {
     DB localTx { implicit s =>
       val myself = persistence.User.find(params.userInfo.id).get
       val timestamp = DateTime.now()
-
       val primaryImage = getPrimaryImageId(params.groupId)
       var isFirst = true
-      val images = params.images.getOrElse(Seq.empty).map(i => {
-        // FIXME ファイルサイズ=0のデータ時の措置(現状何も回避していない)
+      val inputImages = params.images match {
+        case Some(x) => x.filter(_.size > 0)
+        case None => Seq.empty
+      }
+
+      val images = inputImages.map(i => {
         val imageId = UUID.randomUUID().toString
         val bufferedImage = javax.imageio.ImageIO.read(i.getInputStream)
-
         val image = persistence.Image.create(
           id = imageId,
           name = i.getName,
@@ -368,7 +381,7 @@ object GroupService {
         )
         isFirst = false
         // write image
-        i.write(Paths.get(AppConf.imageDir).resolve(imageId).toFile)
+        ImageSaveLogic.writeImageFile(imageId, i)
         image
       })
 
@@ -635,5 +648,19 @@ object GroupService {
         .and
         .isNull(i.deletedAt)
     }.map(rs => rs.string(i.resultName.id)).single().apply
+  }
+
+  private def getGroupRole(user: User, groupId: String)(implicit s: DBSession) = {
+    val m = persistence.Member.syntax("m")
+    withSQL {
+      select(m.result.*)
+      .from(persistence.Member as m)
+      .where
+      .eq(m.groupId, sqls.uuid(groupId))
+      .and
+      .eq(m.userId, sqls.uuid(user.id))
+      .and
+      .isNull(m.deletedAt)
+    }.map(_.int(m.resultName.role)).single().apply
   }
 }

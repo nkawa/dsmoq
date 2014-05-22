@@ -14,6 +14,7 @@ import org.scalatra.servlet.FileItem
 import dsmoq.forms.{AccessCrontolItem, AccessControl}
 import dsmoq.persistence.{AccessLevel, GroupMemberRole}
 import scala.collection.mutable.ArrayBuffer
+import dsmoq.logic.ImageSaveLogic
 
 object DatasetService {
   /**
@@ -569,11 +570,14 @@ object DatasetService {
 
       val myself = persistence.User.find(params.userInfo.id).get
       val timestamp = DateTime.now()
-
       val primaryImage = getPrimaryImageId(params.datasetId)
       var isFirst = true
-      val images = params.images.getOrElse(Seq.empty).map(i => {
-        // FIXME ファイルサイズ=0のデータ時の措置(現状何も回避していない)
+      val inputImages = params.images match {
+        case Some(x) => x.filter(_.size > 0)
+        case None => Seq.empty
+      }
+
+      val images = inputImages.map(i => {
         val imageId = UUID.randomUUID().toString
         val bufferedImage = javax.imageio.ImageIO.read(i.getInputStream)
 
@@ -601,7 +605,7 @@ object DatasetService {
         )
         isFirst = false
         // write image
-        i.write(Paths.get(AppConf.imageDir).resolve(imageId).toFile)
+        ImageSaveLogic.writeImageFile(imageId, i)
         image
       })
 

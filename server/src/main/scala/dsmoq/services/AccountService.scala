@@ -14,6 +14,7 @@ import java.nio.file.Paths
 import java.util.UUID
 import java.awt.image.BufferedImage
 import org.scalatra.servlet.FileItem
+import dsmoq.logic.ImageSaveLogic
 
 object AccountService extends SessionTrait {
 
@@ -160,51 +161,32 @@ object AccountService extends SessionTrait {
         // imageがある場合、画像保存処理
         params.image match {
           case Some(x) =>
-            // FIXME 拡張子チェックはしていない
+            if (x.size > 0) {
+              // save image file
+              val imageId = UUID.randomUUID().toString
+              ImageSaveLogic.writeImageFile(imageId, x)
 
-            // save image file
-            val imageId = UUID.randomUUID().toString
-            x.write(Paths.get(AppConf.imageDir).resolve(imageId).toFile)
+              val bufferedImage = javax.imageio.ImageIO.read(x.getInputStream)
+              persistence.Image.create(
+                id = imageId,
+                name = x.getName,
+                width = bufferedImage.getWidth,
+                height = bufferedImage.getWidth,
+                filePath = "/" + imageId,
+                createdBy = user.id,
+                createdAt = DateTime.now,
+                updatedBy = user.id,
+                updatedAt = DateTime.now
+              )
 
-            // save thumbnail
-            val thumbImageId = UUID.randomUUID().toString
-            val (thumbWidth, thumbHeight) = saveThumbnailImage(thumbImageId, x)
-
-            val bufferedImage = javax.imageio.ImageIO.read(x.getInputStream)
-            persistence.Image.create(
-              id = imageId,
-              name = x.getName,
-              width = bufferedImage.getWidth,
-              height = bufferedImage.getWidth,
-              filePath = "/" + imageId,
-              createdBy = user.id,
-              createdAt = DateTime.now,
-              updatedBy = user.id,
-              updatedAt = DateTime.now
-            )
-            println("save image:" + imageId)
-
-            // save thumbnail
-            persistence.Image.create(
-              id = thumbImageId,
-              name = x.getName,
-              width = thumbWidth,
-              height = thumbHeight,
-              filePath = "/" + imageId,
-              createdBy = user.id,
-              createdAt = DateTime.now,
-              updatedBy = user.id,
-              updatedAt = DateTime.now
-            )
-            println("save thumb image:" + thumbImageId)
-
-            withSQL {
-              val u = persistence.User.column
-              update(persistence.User)
-                .set(u.imageId -> sqls.uuid(thumbImageId))
-                .where
-                .eq(u.id, sqls.uuid(user.id))
-            }.update().apply
+              withSQL {
+                val u = persistence.User.column
+                update(persistence.User)
+                  .set(u.imageId -> sqls.uuid(imageId))
+                  .where
+                  .eq(u.id, sqls.uuid(user.id))
+              }.update().apply
+            }
           case None => // do nothing
         }
 
@@ -259,7 +241,7 @@ object AccountService extends SessionTrait {
 
   def getLicenses()  = {
     val licenses = DB readOnly { implicit s =>
-      persistence.License.findAll()
+      persistence.License.findAllNameOrder()
     }
     licenses.map(x =>
       dsmoq.services.data.License(
