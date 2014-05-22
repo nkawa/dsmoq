@@ -6,15 +6,16 @@ import org.joda.time.{DateTime}
 import PostgresqlHelper._
 
 case class Image(
-  id: String,
+  id: String, 
   name: String, 
   width: Int, 
   height: Int, 
+  filePath: String, 
   createdBy: String,
   createdAt: DateTime, 
-  updatedBy: String,
+  updatedBy: String, 
   updatedAt: DateTime, 
-  deletedBy: Option[String] = None,
+  deletedBy: Option[String] = None, 
   deletedAt: Option[DateTime] = None) {
 
   def save()(implicit session: DBSession = Image.autoSession): Image = Image.save(this)(session)
@@ -28,13 +29,14 @@ object Image extends SQLSyntaxSupport[Image] {
 
   override val tableName = "images"
 
-  override val columns = Seq("id", "name", "width", "height", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
+  override val columns = Seq("id", "name", "width", "height", "file_path", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
 
   def apply(i: ResultName[Image])(rs: WrappedResultSet): Image = new Image(
     id = rs.string(i.id),
     name = rs.string(i.name),
     width = rs.int(i.width),
     height = rs.int(i.height),
+    filePath = rs.string(i.filePath),
     createdBy = rs.string(i.createdBy),
     createdAt = rs.timestamp(i.createdAt).toDateTime,
     updatedBy = rs.string(i.updatedBy),
@@ -78,6 +80,7 @@ object Image extends SQLSyntaxSupport[Image] {
     name: String,
     width: Int,
     height: Int,
+    filePath: String,
     createdBy: String,
     createdAt: DateTime,
     updatedBy: String,
@@ -90,6 +93,7 @@ object Image extends SQLSyntaxSupport[Image] {
         column.name,
         column.width,
         column.height,
+        column.filePath,
         column.createdBy,
         column.createdAt,
         column.updatedBy,
@@ -101,6 +105,7 @@ object Image extends SQLSyntaxSupport[Image] {
         name,
         width,
         height,
+        filePath,
         sqls.uuid(createdBy),
         createdAt,
         sqls.uuid(updatedBy),
@@ -115,6 +120,7 @@ object Image extends SQLSyntaxSupport[Image] {
       name = name,
       width = width,
       height = height,
+      filePath = filePath,
       createdBy = createdBy,
       createdAt = createdAt,
       updatedBy = updatedBy,
@@ -130,6 +136,7 @@ object Image extends SQLSyntaxSupport[Image] {
         column.name -> entity.name,
         column.width -> entity.width,
         column.height -> entity.height,
+        column.filePath -> entity.filePath,
         column.createdBy -> sqls.uuid(entity.createdBy),
         column.createdAt -> entity.createdAt,
         column.updatedBy -> sqls.uuid(entity.updatedBy),

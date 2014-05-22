@@ -30,7 +30,7 @@ class ImageSpec extends Specification {
       count should be_>(0L)
     }
     "create new record" in new AutoRollback {
-      val created = Image.create(id = null, name = "MyString", width = 123, height = 123, createdBy = null, createdAt = DateTime.now, updatedBy = null, updatedAt = DateTime.now)
+      val created = Image.create(id = null, name = "MyString", width = 123, height = 123, filePath = "MyString", createdBy = null, createdAt = DateTime.now, updatedBy = null, updatedAt = DateTime.now)
       created should not beNull
     }
     "save a record" in new AutoRollback {

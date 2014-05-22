@@ -581,6 +581,7 @@ object DatasetService {
           name = i.getName,
           width = bufferedImage.getWidth,
           height = bufferedImage.getWidth,
+          filePath = "/" + imageId,
           createdBy = myself.id,
           createdAt = DateTime.now,
           updatedBy = myself.id,
