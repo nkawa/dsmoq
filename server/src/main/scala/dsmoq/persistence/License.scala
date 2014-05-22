@@ -52,6 +52,10 @@ object License extends SQLSyntaxSupport[License] {
   def findAll()(implicit session: DBSession = autoSession): List[License] = {
     withSQL(select.from(License as l)).map(License(l.resultName)).list.apply()
   }
+
+  def findAllNameOrder()(implicit session: DBSession = autoSession): List[License] = {
+    withSQL(select.from(License as l).orderBy(l.name)).map(License(l.resultName)).list.apply()
+  }
           
   def countAll()(implicit session: DBSession = autoSession): Long = {
     withSQL(select(sqls"count(1)").from(License as l)).map(rs => rs.long(1)).single.apply().get
