@@ -47,11 +47,13 @@ object DatasetService {
             updatedBy = myself.id,
             updatedAt = timestamp
           )
+          val historyId = UUID.randomUUID.toString
           val histroy = persistence.FileHistory.create(
             id = UUID.randomUUID.toString,
             fileId = file.id,
             fileType = 0,
             fileMime = "application/octet-stream",
+            filePath = "/" + datasetId + "/" + file.id + "/" + historyId,
             fileSize = f.size,
             createdBy = myself.id,
             createdAt = timestamp,
@@ -333,11 +335,13 @@ object DatasetService {
           updatedBy = myself.id,
           updatedAt = timestamp
         )
+        val historyId = UUID.randomUUID.toString
         val history = persistence.FileHistory.create(
-          id = UUID.randomUUID.toString,
+          id = historyId,
           fileId = file.id,
           fileType = 0,
           fileMime = "application/octet-stream",
+          filePath = "/" + params.datasetId + "/" + file.id + "/" + historyId,
           fileSize = f.size,
           createdBy = myself.id,
           createdAt = timestamp,
@@ -389,11 +393,13 @@ object DatasetService {
           .eq(f.id, sqls.uuid(params.fileId))
       }.update().apply
 
+      val historyId = UUID.randomUUID.toString
       val history = persistence.FileHistory.create(
         id = UUID.randomUUID.toString,
         fileId = params.fileId,
         fileType = 0,
         fileMime = "application/octet-stream",
+        filePath = "/" + params.datasetId + "/" + params.fileId + "/" + historyId,
         fileSize = file.size,
         createdBy = myself.id,
         createdAt = timestamp,
