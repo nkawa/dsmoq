@@ -16,6 +16,7 @@ import dsmoq.exceptions.{ValidationException, NotAuthorizedException}
 import java.util.UUID
 import java.nio.file.Paths
 import scala.collection.mutable.ArrayBuffer
+import dsmoq.logic.ImageSaveLogic
 
 object GroupService {
   def search(params: GroupData.SearchGroupsParams): Try[RangeSlice[GroupData.GroupsSummary]] = {
@@ -336,14 +337,16 @@ object GroupService {
     DB localTx { implicit s =>
       val myself = persistence.User.find(params.userInfo.id).get
       val timestamp = DateTime.now()
-
       val primaryImage = getPrimaryImageId(params.groupId)
       var isFirst = true
-      val images = params.images.getOrElse(Seq.empty).map(i => {
-        // FIXME ファイルサイズ=0のデータ時の措置(現状何も回避していない)
+      val inputImages = params.images match {
+        case Some(x) => x.filter(_.size > 0)
+        case None => Seq.empty
+      }
+
+      val images = inputImages.map(i => {
         val imageId = UUID.randomUUID().toString
         val bufferedImage = javax.imageio.ImageIO.read(i.getInputStream)
-
         val image = persistence.Image.create(
           id = imageId,
           name = i.getName,
@@ -368,7 +371,7 @@ object GroupService {
         )
         isFirst = false
         // write image
-        i.write(Paths.get(AppConf.imageDir).resolve(imageId).toFile)
+        ImageSaveLogic.writeImageFile(imageId, i)
         image
       })
 
