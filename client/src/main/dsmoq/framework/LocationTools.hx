@@ -20,6 +20,14 @@ class LocationTools {
     public static function toLocation(x: {pathname: String, search: String, hash: String}): Location {
         function toQueryMap(search: String) {
             var map = new Map();
+            if (search.length > 0) {
+                for (item in search.substring(1).split("&")) {
+                    var tokens = item.split("=");
+                    var key = StringTools.urlDecode(tokens[0]);
+                    var val = (tokens[1] == null) ? "" : StringTools.urlDecode(tokens[1]);
+                    map[key] = val;
+                }
+            }
             return map;
         }
         return {

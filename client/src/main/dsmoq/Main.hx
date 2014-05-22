@@ -19,6 +19,7 @@ import haxe.Json;
 import haxe.macro.Compiler;
 import haxe.macro.Context;
 import haxe.macro.Expr;
+import haxe.Resource;
 import haxe.Timer;
 import js.Browser;
 import js.html.AnchorElement;
@@ -73,11 +74,10 @@ class Main {
         });
 
         JsViews.views.tags("pagination", {
-            template: "_share/panination",
+            template: Resource.getString("share/panination"),
+            dataBoundOnly: true,
             init: function (tag, link) {
                 trace("init");
-                trace(tag);
-                trace(link);
             },
             onBeforeLink: function() {
                 trace("onBeforeLink");
@@ -176,7 +176,7 @@ class Main {
                     dispose: function () {
                     }
                 }
-            case DatasetList:
+            case DatasetList(page):
                 {
                     navigation: new ControllableStream(),
                     render: function (container: Element) {
@@ -206,17 +206,25 @@ class Main {
 
     public function fromLocation(location: Location): Option<Page> {
         return switch (location.path) {
-            case "/": Some(Dashboard);
-            case "/datasets": Some(DatasetList);
-            case "/groups": Some(GroupList);
-            default: None;
+            case "/":
+                Some(Dashboard);
+            case "/datasets":
+                var page = Std.parseInt(location.query["page"]);
+                Some(DatasetList((page == null || page < 1) ? 1 : page));
+            case "/groups":
+                Some(GroupList);
+            default:
+                None;
         }
     }
 
     public function toLocation(page: Page): Location {
         return switch (page) {
             case Dashboard: { path: "/" };
-            case DatasetList: { path: "/datasets" };
+            case DatasetList(page):
+                var query = new Map();
+                query["page"] = Std.string(page);
+                { path: "/datasets", query: query };
             case GroupList: { path: "/groups" };
         };
     }
@@ -224,6 +232,6 @@ class Main {
 
 enum Page {
     Dashboard;
-    DatasetList;
+    DatasetList(page: UInt);
     GroupList;
 }

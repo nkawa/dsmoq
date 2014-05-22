@@ -5,7 +5,7 @@
 -cp lib/JsViews-Haxe/src/
 -cp lib/promhx/src/main/
 -D jsviews_enable_jqhx
--resource assets/_share/panination.html@template/_share/panination
+-resource assets/_share/panination.html@share/panination
 
 -resource assets/Header.html@template/Header
 -resource assets/DashBoard.html@template/DashBoard
