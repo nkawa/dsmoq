@@ -194,6 +194,7 @@ object DatasetService {
         name = ds.name,
         description = ds.description,
         image = imageUrl,
+        attributes = Seq.empty, // TODO
         ownerships = owners.get(ds.id).getOrElse(Seq.empty),
         files = ds.filesCount,
         dataSize = ds.filesSize,
@@ -581,6 +582,7 @@ object DatasetService {
           name = i.getName,
           width = bufferedImage.getWidth,
           height = bufferedImage.getWidth,
+          filePath = "/" + imageId,
           createdBy = myself.id,
           createdAt = DateTime.now,
           updatedBy = myself.id,

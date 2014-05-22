@@ -23,21 +23,22 @@ object FileService {
 
         val file = persistence.File.find(fileId)
         val fh = persistence.FileHistory.syntax("fi")
-        val fileHistory = withSQL {
-          select(fh.result.id)
+        val filePath = withSQL {
+          select(fh.result.filePath)
             .from(persistence.FileHistory as fh)
             .where
             .eq(fh.fileId, sqls.uuid(fileId))
             .and
             .isNull(fh.deletedAt)
-        }.map(rs => rs.string(fh.resultName.id)).single().apply
+        }.map(rs => rs.string(fh.resultName.filePath)).single().apply
         file match {
-          case Some(f) => (f, fileHistory.get)
+          case Some(f) => (f, filePath.get)
           case None => throw new RuntimeException("data not found.")
         }
       }
 
-      val filePath = Paths.get(AppConf.fileDir, datasetId, fileId, fileInfo._2).toFile
+      val filePath = Paths.get(fileInfo._2).toFile
+      println(filePath)
       if (!filePath.exists()) throw new RuntimeException("file not found")
 
       val file = new java.io.File(filePath.toString)

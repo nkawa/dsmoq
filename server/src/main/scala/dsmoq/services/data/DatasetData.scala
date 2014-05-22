@@ -86,6 +86,7 @@ object DatasetData {
     description: String,
     image: String,
     license: Option[String] = None,
+    attributes: Seq[DatasetAttribute],
     ownerships: Seq[DatasetOwnership],
     files: Long,
     dataSize: Long,
