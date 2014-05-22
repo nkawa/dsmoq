@@ -8,6 +8,7 @@ import dsmoq.framework.types.PageNavigation;
 import dsmoq.framework.types.Stream;
 import dsmoq.framework.types.Unit;
 import dsmoq.framework.types.Option;
+import dsmoq.Main.Page;
 import js.Browser;
 import js.Error;
 import js.html.AnchorElement;
@@ -23,6 +24,7 @@ class Engine<TPage: EnumValue> {
     var app: Application<TPage>;
     var frame: PageFrame<TPage>;
     var content: PageContent<TPage>;
+    var page: TPage;
 
     // TODO 要リファクタリング
     function new(app) {
@@ -94,7 +96,7 @@ class Engine<TPage: EnumValue> {
             case Navigate(x):
                 History.pushState("data", null, LocationTools.toUrl(app.toLocation(x)));
             case Reload:
-                Browser.location.reload();
+                if (page != null) changePage(page);
             case Foward:
                 Browser.window.history.forward();
             case Back:
@@ -105,6 +107,7 @@ class Engine<TPage: EnumValue> {
     function changePage(page: TPage) {
         if (content != null) content.dispose();
 
+        this.page = page;
         content = app.content(page);
         content.navigation.then(onPageEvent);
         frame.render(content);

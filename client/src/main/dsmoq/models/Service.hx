@@ -72,6 +72,10 @@ class Service extends Stream<ServiceEvent> {
         return send(Get, "/api/datasets", { } );
     }
 
+    public function getDataset(id: String): Promise<Dataset> {
+        return send(Get, '/api/datasets/$id');
+    }
+
 
     inline function guest(): Profile {
         return {
@@ -92,11 +96,11 @@ class Service extends Stream<ServiceEvent> {
                     case ApiStatus.OK:
                         Promise.resolved(cast response.data);
                     case ApiStatus.BadRequest:
-                        Promise.rejected(new Error("TODO error message"));
+                        Promise.rejected(new BadRequestError("TODO error message"));
                     case ApiStatus.Unauthorized:
                         profile = guest();
                         update(SignedOut);
-                        Promise.rejected(new Error("TODO error message"));
+                        Promise.rejected(new UnauthorizedError("TODO error message"));
                     case _:
                         Promise.rejected(new Error("response error"));
                 }
@@ -114,11 +118,11 @@ class Service extends Stream<ServiceEvent> {
                     case ApiStatus.OK:
                         promise.resolve(cast response.data);
                     case ApiStatus.BadRequest:
-                        promise.rejecte(new Error("TODO error message"));
+                        promise.reject(new BadRequestError("TODO error message"));
                     case ApiStatus.Unauthorized:
                         profile = guest();
                         update(SignedOut);
-                        promise.reject(new Error("TODO error message"));
+                        promise.reject(new UnauthorizedError("TODO error message"));
                     case _:
                         promise.reject(new Error("response error"));
                 }
@@ -132,6 +136,25 @@ class Service extends Stream<ServiceEvent> {
 enum ServiceEvent {
     SignedIn;
     SignedOut;
+}
+
+@:enum abstract ErrorType(String) to String {
+    var BadRequest = "BadRequestError";
+    var Unauthorized = "UnauthorizedError";
+}
+
+class BadRequestError extends Error {
+    public function new(?message: String) {
+        super(message);
+        name = ErrorType.BadRequest;
+    }
+}
+
+class UnauthorizedError extends Error {
+    public function new(?message: String) {
+        super(message);
+        name = ErrorType.Unauthorized;
+    }
 }
 
 @:enum

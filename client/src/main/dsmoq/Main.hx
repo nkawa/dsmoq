@@ -17,12 +17,10 @@ import dsmoq.framework.helper.PageHelper;
 import dsmoq.models.HeaderModel;
 import dsmoq.models.Service;
 import haxe.Json;
-import haxe.macro.Compiler;
-import haxe.macro.Context;
-import haxe.macro.Expr;
 import haxe.Resource;
 import haxe.Timer;
 import js.Browser;
+import js.Error;
 import js.html.AnchorElement;
 import js.html.Element;
 import js.html.Event;
@@ -154,6 +152,7 @@ class Main {
             switch (event) {
                 case SignedIn, SignedOut:
                     ref.setProperty("profile", Service.instance.profile);
+                    navigation.update(PageNavigation.Reload);
             }
         });
 
@@ -194,7 +193,7 @@ class Main {
             case Dashboard:
                 {
                     navigation: new ControllableStream(),
-                    render: function (container: Element) {
+                    invalidate: function (container: Element) {
                         View.getTemplate("DashBoard").link(container, {});
                     },
                     dispose: function () {
@@ -203,13 +202,18 @@ class Main {
             case DatasetList(page):
                 {
                     navigation: new ControllableStream(),
-                    render: function (container: Element) {
+                    invalidate: function (container: Element) {
                         var x = { condition: { }, result: { } };
                         var binding = JsViews.objectObservable(x);
                         Service.instance.findDatasets().then(function (x) {
                             binding.setProperty("result", x);
                             View.getTemplate("dataset/list").link(container, binding.data());
-                        }).thenError(function (e) trace(e));
+                        }, function (err) {
+                            switch (err) {
+                                case UnauthorizedError: trace("UnauthorizedError");
+                                case _: trace("xxx");
+                            }
+                        });
                     },
                     dispose: function () {
 
@@ -218,8 +222,21 @@ class Main {
             case DatasetShow(id):
                 {
                     navigation: new ControllableStream(),
-                    render: function (container: Element) {
-                        container.innerHTML = 'dataset ${id}';
+                    invalidate: function (container: Element) {
+                        Service.instance.getDataset(id).then(function (data) {
+                            var binding = JsViews.objectObservable(data);
+                            View.getTemplate("dataset/show").link(container, binding.data());
+                        }, function (err) {
+                            switch (err.name) {
+                                case ErrorType.Unauthorized:
+                                    container.innerHTML = "Permission denied";
+                                    trace("UnauthorizedError");
+                                case _:
+                                    // TODO 通信エラーが発生しましたメッセージと手動リロードボタンを表示
+                                    container.innerHTML = "network error";
+                                    trace(err);
+                            }
+                        });
                     },
                     dispose: function () {
 
@@ -228,7 +245,7 @@ class Main {
             case DatasetEdit(id):
                 {
                     navigation: new ControllableStream(),
-                    render: function (container: Element) {
+                    invalidate: function (container: Element) {
                         container.innerHTML = 'dataset edit ${id}';
                     },
                     dispose: function () {
@@ -239,7 +256,7 @@ class Main {
             case GroupList(page):
                 {
                     navigation: new ControllableStream(),
-                    render: function (container: Element) {
+                    invalidate: function (container: Element) {
                         View.getTemplate("group/list").link(container, { } );
                     },
                     dispose: function () {
@@ -249,7 +266,7 @@ class Main {
             case GroupShow(id):
                 {
                     navigation: new ControllableStream(),
-                    render: function (container: Element) {
+                    invalidate: function (container: Element) {
                         container.innerHTML = 'group ${id}';
                     },
                     dispose: function () {
@@ -259,7 +276,7 @@ class Main {
             case GroupEdit(id):
                 {
                     navigation: new ControllableStream(),
-                    render: function (container: Element) {
+                    invalidate: function (container: Element) {
                         container.innerHTML = 'group edit ${id}';
                     },
                     dispose: function () {

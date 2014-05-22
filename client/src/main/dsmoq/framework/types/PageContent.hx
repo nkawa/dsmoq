@@ -8,6 +8,6 @@ import js.html.Element;
  */
 typedef PageContent<TPage: EnumValue> = {
     var navigation(default, null): Stream<PageNavigation<TPage>>;
-    function render(container: Element): Void;
+    function invalidate(container: Element): Void;
     function dispose(): Void;
 }

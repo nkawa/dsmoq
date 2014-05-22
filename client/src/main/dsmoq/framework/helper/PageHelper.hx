@@ -30,7 +30,7 @@ class PageHelper {
             navigation: navigation,
             render: function render(page: PageContent<TPage>) {
                 html.innerHTML = "";
-                page.render(html);
+                page.invalidate(html);
             }
         };
     }
