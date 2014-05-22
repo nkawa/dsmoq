@@ -224,8 +224,14 @@ class Main {
                     navigation: new ControllableStream(),
                     invalidate: function (container: Element) {
                         Service.instance.getDataset(id).then(function (data) {
+                            trace(data);
                             var binding = JsViews.objectObservable(data);
                             View.getTemplate("dataset/show").link(container, binding.data());
+
+                            new JqHtml(container).find("#dataset-delete").on("click", function (_) {
+                                Service.instance.deleteDeataset(id);
+                                trace("click");
+                            });
                         }, function (err) {
                             switch (err.name) {
                                 case ErrorType.Unauthorized:

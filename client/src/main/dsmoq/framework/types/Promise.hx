@@ -135,6 +135,30 @@ class Promise<A> {
     }
 
     public static function all<A>(promises: Array<Promise<A>>): Promise<Array<A>> {
+        return new Promise(function (resolve, reject) {
+            function cancelAll() {
+                for (p in promises) p.cancel();
+            }
+
+            var length = promises.length;
+            var results = [];
+            var unrejected = true;
+            for (p in promises) {
+                p.then(function (x) {
+                    results.push(x);
+                    if (results.length >= length) resolve(results);
+                }, function (e) {
+                    if (!unrejected) {
+                        unrejected = false;
+                        reject(e);
+                        cancelAll();
+                    }
+                });
+            }
+
+            return cancelAll;
+        });
+
         throw new Error("not implemented");
     }
 

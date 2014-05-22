@@ -18,6 +18,7 @@ class Service extends Stream<ServiceEvent> {
 
     public var bootstrap(default, null): Promise<Unit>;
     public var profile(default, null): Profile;
+    public var licenses(default, null): Array<License>;
 
     function new() {
         super(function (_, _, _) {
@@ -25,11 +26,12 @@ class Service extends Stream<ServiceEvent> {
         });
 
         profile = guest();
-        bootstrap = send(Get, "/api/profile")
-                        .then(function (x) {
-                            profile = x;
-                        })
-                        .map(function (_) return Unit._);
+        licenses = [];
+
+        bootstrap = Promise.all([
+            send(Get, "/api/profile").then(function (x) profile = x).map(function (_) return Unit._),
+            send(Get, "/api/licenses").then(function (x) licenses = x).map(function (_) return Unit._)
+        ]).map(function (_) return Unit._);
     }
 
     public function signin(id: String, password: String): Promise<Unit> {
@@ -74,6 +76,10 @@ class Service extends Stream<ServiceEvent> {
 
     public function getDataset(id: String): Promise<Dataset> {
         return send(Get, '/api/datasets/$id');
+    }
+
+    public function deleteDeataset(id: String): Promise<Unit> {
+        return send(Delete, '/api/datasets/$id');
     }
 
 
