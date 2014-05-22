@@ -19,11 +19,6 @@ using Lambda;
 using dsmoq.framework.helper.OptionHelper;
 
 
-
-/**
- * ...
- * @author terurou
- */
 class Engine<TPage: EnumValue> {
     var app: Application<TPage>;
     var frame: PageFrame<TPage>;
@@ -68,18 +63,12 @@ class Engine<TPage: EnumValue> {
                     }
                 }
 
-                getAnchor(cast event.target).bind(function (a: AnchorElement) {
-                    return if (!~/^javascript:/.match(StringTools.trim(a.href))
+                getAnchor(cast event.target).each(function (a: AnchorElement) {
+                    if (!~/^javascript:/.match(StringTools.trim(a.href))
                             && a.host == Browser.location.host && a.protocol == Browser.location.protocol) {
-                        Some(LocationTools.toLocation(a));
-                    } else {
-                        None;
+                        event.preventDefault();
+                        History.pushState(null, null, a.href);
                     }
-                })
-                .bind(app.fromLocation)
-                .each(function (x) {
-                    event.preventDefault();
-                    History.pushState(null, null, LocationTools.toUrl(app.toLocation(x)));
                 });
             }, false);
 

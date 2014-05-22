@@ -2,6 +2,7 @@ package dsmoq;
 
 import dsmoq.framework.ApplicationContext;
 import dsmoq.framework.Engine;
+import dsmoq.framework.types.PositiveInt;
 import dsmoq.framework.View;
 import dsmoq.framework.types.ControllableStream;
 import dsmoq.framework.types.Promise;
@@ -32,6 +33,7 @@ import dsmoq.framework.LocationTools;
 import js.jsviews.JsViews;
 import dsmoq.framework.helper.JsHelper;
 using StringTools;
+using dsmoq.framework.helper.OptionHelper;
 
 /**
  * EntryPoint
@@ -191,7 +193,28 @@ class Main {
 
                     }
                 }
-            case GroupList:
+            case DatasetShow(id):
+                {
+                    navigation: new ControllableStream(),
+                    render: function (container: Element) {
+                        container.innerHTML = 'dataset ${id}';
+                    },
+                    dispose: function () {
+
+                    }
+                }
+            case DatasetEdit(id):
+                {
+                    navigation: new ControllableStream(),
+                    render: function (container: Element) {
+                        container.innerHTML = 'dataset edit ${id}';
+                    },
+                    dispose: function () {
+
+                    }
+                }
+
+            case GroupList(page):
                 {
                     navigation: new ControllableStream(),
                     render: function (container: Element) {
@@ -201,37 +224,94 @@ class Main {
 
                     }
                 }
+            case GroupShow(id):
+                {
+                    navigation: new ControllableStream(),
+                    render: function (container: Element) {
+                        container.innerHTML = 'group ${id}';
+                    },
+                    dispose: function () {
+
+                    }
+                }
+            case GroupEdit(id):
+                {
+                    navigation: new ControllableStream(),
+                    render: function (container: Element) {
+                        container.innerHTML = 'group edit ${id}';
+                    },
+                    dispose: function () {
+
+                    }
+                }
+
+            case Profile:
+                null;
         };
     }
 
     public function fromLocation(location: Location): Option<Page> {
-        return switch (location.path) {
-            case "/":
+        var path = location.path.split("/");
+        path.shift();
+
+        function parsePositiveInt(x: String) {
+            var i = Std.parseInt(x);
+            return (i == null) ? None : Some(cast(i, PositiveInt));
+        }
+
+        return switch (path) {
+            case [""]:
                 Some(Dashboard);
-            case "/datasets":
-                var page = Std.parseInt(location.query["page"]);
-                Some(DatasetList((page == null || page < 1) ? 1 : page));
-            case "/groups":
-                Some(GroupList);
-            default:
+            case ["datasets"]:
+                Some(DatasetList(parsePositiveInt(location.query["page"]).getOrElse(1)));
+            case ["datasets", id]:
+                Some(DatasetShow(id));
+            case ["groups"]:
+                Some(GroupList(parsePositiveInt(location.query["page"]).getOrElse(1)));
+            case ["groups", id]:
+                Some(GroupShow(id));
+            case ["profile"]:
+                Some(Profile);
+            case _:
                 None;
         }
     }
 
     public function toLocation(page: Page): Location {
         return switch (page) {
-            case Dashboard: { path: "/" };
+            case Dashboard:
+                { path: "/" };
+
             case DatasetList(page):
                 var query = new Map();
                 query["page"] = Std.string(page);
                 { path: "/datasets", query: query };
-            case GroupList: { path: "/groups" };
+            case DatasetShow(id), DatasetEdit(id):
+                { path: "/datasets/" + id };
+
+            case GroupList(page):
+                { path: "/groups" };
+            case GroupShow(id), GroupEdit(id):
+                { path: "/groups" + id };
+
+            case Profile:
+                { path: "/profile" };
         };
     }
 }
 
 enum Page {
     Dashboard;
-    DatasetList(page: UInt);
-    GroupList;
+
+    //DatasetNew;
+    DatasetList(page: PositiveInt);
+    DatasetShow(id: String);
+    DatasetEdit(id: String);
+
+    //GroupNew;
+    GroupList(page: PositiveInt);
+    GroupShow(id: String);
+    GroupEdit(id: String);
+
+    Profile;
 }
