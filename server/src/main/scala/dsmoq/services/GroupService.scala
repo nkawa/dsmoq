@@ -208,7 +208,7 @@ object GroupService {
         description = result._1.get.description,
         images = result._2.map(x => Image(
           id = x.id,
-          url = "" //TODO
+          url = AppConf.imageDownloadRoot + x.id
         )),
         primaryImage = result._3.getOrElse("")
       ))
@@ -374,7 +374,7 @@ object GroupService {
       Success(GroupData.GroupAddImages(
         images = images.map(x => Image(
           id = x.id,
-          url = "" //TODO
+          url = AppConf.imageDownloadRoot + x.id
         )),
         primaryImage = getPrimaryImageId(params.groupId).getOrElse("")
       ))

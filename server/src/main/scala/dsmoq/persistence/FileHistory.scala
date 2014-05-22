@@ -10,7 +10,8 @@ case class FileHistory(
   fileId: String,
   fileType: Int, 
   fileMime: String, 
-  fileSize: Long,
+  filePath: String, 
+  fileSize: Long, 
   createdBy: String,
   createdAt: DateTime, 
   updatedBy: String,
@@ -29,13 +30,14 @@ object FileHistory extends SQLSyntaxSupport[FileHistory] {
 
   override val tableName = "file_histories"
 
-  override val columns = Seq("id", "file_id", "file_type", "file_mime", "file_size", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
+  override val columns = Seq("id", "file_id", "file_type", "file_mime", "file_path", "file_size", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
 
   def apply(fh: ResultName[FileHistory])(rs: WrappedResultSet): FileHistory = new FileHistory(
     id = rs.string(fh.id),
     fileId = rs.string(fh.fileId),
     fileType = rs.int(fh.fileType),
     fileMime = rs.string(fh.fileMime),
+    filePath = rs.string(fh.filePath),
     fileSize = rs.long(fh.fileSize),
     createdBy = rs.string(fh.createdBy),
     createdAt = rs.timestamp(fh.createdAt).toDateTime,
@@ -80,6 +82,7 @@ object FileHistory extends SQLSyntaxSupport[FileHistory] {
     fileId: String,
     fileType: Int,
     fileMime: String,
+    filePath: String,
     fileSize: Long,
     createdBy: String,
     createdAt: DateTime,
@@ -93,6 +96,7 @@ object FileHistory extends SQLSyntaxSupport[FileHistory] {
         column.fileId,
         column.fileType,
         column.fileMime,
+        column.filePath,
         column.fileSize,
         column.createdBy,
         column.createdAt,
@@ -105,6 +109,7 @@ object FileHistory extends SQLSyntaxSupport[FileHistory] {
         sqls.uuid(fileId),
         fileType,
         fileMime,
+        filePath,
         fileSize,
         sqls.uuid(createdBy),
         createdAt,
@@ -120,6 +125,7 @@ object FileHistory extends SQLSyntaxSupport[FileHistory] {
       fileId = fileId,
       fileType = fileType,
       fileMime = fileMime,
+      filePath = filePath,
       fileSize = fileSize,
       createdBy = createdBy,
       createdAt = createdAt,
@@ -136,6 +142,7 @@ object FileHistory extends SQLSyntaxSupport[FileHistory] {
         fh.fileId -> entity.fileId,
         fh.fileType -> entity.fileType,
         fh.fileMime -> entity.fileMime,
+        fh.filePath -> entity.filePath,
         fh.fileSize -> entity.fileSize,
         fh.createdBy -> entity.createdBy,
         fh.createdAt -> entity.createdAt,
