@@ -194,6 +194,7 @@ object DatasetService {
         name = ds.name,
         description = ds.description,
         image = imageUrl,
+        attributes = Seq.empty, // TODO
         ownerships = owners.get(ds.id).getOrElse(Seq.empty),
         files = ds.filesCount,
         dataSize = ds.filesSize,
