@@ -24,7 +24,7 @@ class ApiController extends ScalatraServlet
   before("/*") {
     if (!isValidSession()) {
       if (!((request.getRequestURI == "/api/profile" && request.getMethod == "GET") ||
-          request.getRequestURI == "/api/licenses")) {
+          request.getRequestURI == "/api/licenses" && request.getMethod == "GET")) {
         cookies.get(sessionId) match {
           case Some(x) =>
             clearSessionCookie()
