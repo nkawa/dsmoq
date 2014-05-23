@@ -727,6 +727,23 @@ object DatasetService {
     ))
   }
 
+  def deleteDataset(user: User, datasetId: String) = {
+    if (user.isGuest) throw new NotAuthorizedException
+
+    val timestamp = DateTime.now()
+    DB localTx { implicit s =>
+      if (!hasAllowAllPermission(user.id, datasetId)) throw new NotAuthorizedException
+      val d = persistence.Dataset.column
+      withSQL {
+        update(persistence.Dataset)
+          .set(d.deletedAt -> timestamp, d.deletedBy -> sqls.uuid(user.id))
+          .where
+          .eq(d.id, sqls.uuid(datasetId))
+      }.update().apply
+    }
+    datasetId
+  }
+
   private def hasAllowAllPermission(userId: String, datasetId: String)(implicit s: DBSession) = {
     val o = persistence.Ownership.o
     val g = persistence.Group.g

@@ -359,6 +359,23 @@ class ApiController extends ScalatraServlet
     setAccessControl(params("datasetId"), AppConf.guestGroupId, 0)
   }
 
+  delete("/datasets/:datasetId") {
+    val datasetId = params("datasetId")
+
+    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
+
+    val response = for {
+      userInfo <- getUserInfoFromSession()
+      result = DatasetService.deleteDataset(userInfo, datasetId)
+     } yield {
+      result
+    }
+    response match {
+      case Success(x) => AjaxResponse("OK")
+      case Failure(e) => AjaxResponse("NG")
+    }
+  }
+
   get("/groups") {
     val query = params.get("query")
     val limit = params.get("limit")
