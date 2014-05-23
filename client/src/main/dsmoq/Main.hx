@@ -317,6 +317,8 @@ class Main {
                 Some(DatasetList(parsePositiveInt(location.query["page"]).getOrElse(1)));
             case ["datasets", id]:
                 Some(DatasetShow(id));
+            case ["datasets", id, "edit"]:
+                Some(DatasetEdit(id));
             case ["groups"]:
                 Some(GroupList(parsePositiveInt(location.query["page"]).getOrElse(1)));
             case ["groups", id]:
@@ -337,13 +339,15 @@ class Main {
                 var query = new Map();
                 query["page"] = Std.string(page);
                 { path: "/datasets", query: query };
-            case DatasetShow(id), DatasetEdit(id):
-                { path: "/datasets/" + id };
+            case DatasetShow(id):
+                { path: '/datasets/$id' };
+            case DatasetEdit(id):
+                { path: '/datasets/$id/edit' };
 
             case GroupList(page):
                 { path: "/groups" };
             case GroupShow(id), GroupEdit(id):
-                { path: "/groups/" + id };
+                { path: '/groups/$id' };
 
             case Profile:
                 { path: "/profile" };
