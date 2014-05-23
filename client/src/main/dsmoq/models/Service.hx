@@ -180,6 +180,7 @@ private typedef ApiResponse = {
 @:enum
 private abstract ApiStatus(String) {
     var OK = "OK";
+    var NotFound = "NotFound";
     var BadRequest = "BadRequest";
     var Unauthorized = "Unauthorized";
     var Error = "Error";
