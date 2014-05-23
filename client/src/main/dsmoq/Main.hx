@@ -4,6 +4,7 @@ import dsmoq.framework.ApplicationContext;
 import dsmoq.framework.Engine;
 import dsmoq.framework.types.PositiveInt;
 import dsmoq.framework.View;
+import js.support.ControllablePromise;
 import js.support.ControllableStream;
 import js.support.Promise;
 import js.support.Stream;
@@ -223,21 +224,26 @@ class Main {
                     }
                 }
             case DatasetShow(id):
+                var navigation = new ControllableStream();
                 {
-                    navigation: new ControllableStream(),
+                    navigation: navigation,
                     invalidate: function (container: Element) {
                         Service.instance.getDataset(id).then(function (data) {
                             var binding = JsViews.objectObservable(data);
                             View.getTemplate("dataset/show").link(container, binding.data());
 
-                            //JQueryTools.createEventStream(new JqHtml(container), "click").then(function (_) trace("c"));
-
-                            function f(_) trace("one");
-                            new JqHtml(container).one("click", f);
-                            new JqHtml(container).unbind("click", f);
-
-                            new JqHtml(container).find("#dataset-delete").on("click", function (_) {
-                                Service.instance.deleteDeataset(id);
+                            new JqHtml(container).find("#dataset-delete").createEventStream("click").chain(function (_) {
+                                // TODO ダイアログ
+                                return if (Browser.window.confirm("ok?")) {
+                                    Promise.resolved(Unit._);
+                                } else {
+                                    Promise.rejected(Unit._);
+                                }
+                            }, function (_) return None).chain(function (_) {
+                                return Service.instance.deleteDeataset(id);
+                            }).then(function (_) {
+                                // TODO 削除対象データセット閲覧履歴（このページ）をHistoryから消す
+                                navigation.update(PageNavigation.Navigate(DatasetList(1)));
                             });
                         }, function (err) {
                             switch (err.name) {

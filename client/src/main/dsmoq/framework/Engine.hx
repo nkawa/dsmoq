@@ -19,7 +19,6 @@ import js.html.EventTarget;
 using Lambda;
 using js.support.OptionTools;
 
-
 class Engine<TPage: EnumValue> {
     var app: Application<TPage>;
     var frame: PageFrame<TPage>;

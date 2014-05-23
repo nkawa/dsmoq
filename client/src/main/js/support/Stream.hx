@@ -196,6 +196,35 @@ class Stream<A> {
                 Promise.rejected(e);
         }
     }
+
+    public function map<B>(f: A -> B): Stream<B> {
+        return new Stream(function (update, close, fail) {
+            this.then(function (a) update(f(a)), close, fail);
+            return this.cancel;
+        });
+    }
+
+    public function chain<B>(f: A -> Promise<B>, ?onErrorResume: Dynamic -> Option<B>): Stream<B> {
+        return new Stream(function (update, close, fail) {
+            var promise;
+            this.then(function (a) {
+                promise = if (onErrorResume == null) {
+                    f(a).then(function (b) { trace(b);  update(b); } , fail);
+                } else {
+                    f(a).then(update, function (e) {
+                        switch (onErrorResume(e)) {
+                            case Some(b): update(b);
+                            case None:
+                        }
+                    });
+                }
+            }, close, fail);
+            return function () {
+                if (promise != null) promise.cancel();
+                this.cancel();
+            }
+        });
+    }
 }
 
 private enum _StreamState<T> {
