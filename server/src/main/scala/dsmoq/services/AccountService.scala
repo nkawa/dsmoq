@@ -250,6 +250,23 @@ object AccountService extends SessionTrait {
     ))
   }
 
+  def getAccounts() = {
+    val accounts = DB readOnly { implicit s =>
+      persistence.User.findAllOrderByName()
+    }
+    accounts.map(x =>
+      dsmoq.services.data.ProfileData.Account(
+        id = x.id,
+        name = x.name,
+        image = if (x.imageId.length > 0) {
+          AppConf.imageDownloadRoot + x.imageId
+        } else {
+          ""
+        }
+      )
+    )
+  }
+
   private def createPasswordHash(password: String) = {
     MessageDigest.getInstance("SHA-256").digest(password.getBytes("UTF-8")).map("%02x".format(_)).mkString
   }
