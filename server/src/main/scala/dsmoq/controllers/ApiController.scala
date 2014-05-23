@@ -118,7 +118,7 @@ class ApiController extends ScalatraServlet
           case None =>
             clearSession()
             clearSessionCookie()
-            AjaxResponse("NG")
+            AjaxResponse("BadRequest")
         }
       case Failure(e) =>
         clearSession()
