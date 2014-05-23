@@ -65,7 +65,7 @@ class Service extends Stream<ServiceEvent> {
         // /profile/password
     }
 
-
+    // ---
     public function createDataset(form: JqHtml): Promise<{id: String}> {
         return sendForm("/api/datasets", form);
     }
@@ -80,6 +80,13 @@ class Service extends Stream<ServiceEvent> {
 
     public function deleteDeataset(id: String): Promise<Unit> {
         return send(Delete, '/api/datasets/$id');
+    }
+
+    // ---
+    public function createGroup(name: String): Promise<{id: String}> {
+        // TODO descriptionをAPIパラメータから削除
+        trace( { name: name, description: "" } );
+        return send(Post, "/api/groups", { name: name, description: "" });
     }
 
 

@@ -15,15 +15,13 @@
        　<li>{{a href="/groups"}}Groups{{/a}}</li>
         {^{if profile == null || profile.isGuest === false}}
           <li><a data-toggle="modal" data-target="#new-dataset-dialog"><span class="glyphicon glyphicon-cloud-upload"></span> Upload Dataset</a></li>
+          <li><a data-toggle="modal" data-target="#new-group-dialog">Create Group</a></li>
         {{/if}}
       </ul>
       <ul class="nav navbar-nav navbar-right">
         {^{if profile != null && profile.isGuest !== false}}
           <li class="dropdown login-form">
-            <a class="btn dropdown-toggle" data-toggle="dropdown">
-              Login
-              <span class="caret"></span>
-            </a>
+            <a class="btn dropdown-toggle" data-toggle="dropdown">Login <span class="caret"></span></a>
             <div class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu1">
               <form method="POST" class="form-horizontal" role="form" id="signin-form">
                 <div class="form-group">
@@ -54,9 +52,7 @@
           </li>
         {{else}}
           <li>
-            <a class="control-label" href="javascript:void 0;" id="settings-button">
-              <span class="glyphicon glyphicon-cog"></span>Settings
-            </a>
+            {{a class="control-label" href="/profile"}}<span class="glyphicon glyphicon-cog"></span> Settings{{/a}}
           </li>
           <li>
             <a class="control-label" href="javascript:void 0;" id="signout-button">Logout</a>
@@ -83,5 +79,23 @@
   <div class="modal-footer">
     <button type="button" data-dismiss="modal" class="btn btn-default">Cancel</button>
     <button type="button" class="btn btn-primary" id="new-dataset-dialog-submit">Upload</button>
+  </div>
+</div>
+
+<div id="new-group-dialog" class="modal fade" tabindex="-1" data-width="760" style="display: none;">
+  <div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+    <h4 class="modal-title">Create Group</h4>
+  </div>
+  <div class="modal-body">
+    <div class="row">
+      <form>
+        name: <input type="text" name="name">
+      </form>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button type="button" data-dismiss="modal" class="btn btn-default">Cancel</button>
+    <button type="button" class="btn btn-primary" id="new-group-dialog-submit">Create</button>
   </div>
 </div>

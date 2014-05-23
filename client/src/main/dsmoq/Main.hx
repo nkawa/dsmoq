@@ -149,19 +149,19 @@ class Main {
             location: url(LocationTools.currentLocation())
         };
 
-        var ref = JsViews.objectObservable(data);
+        var binding = JsViews.objectObservable(data);
 
         var header = JQuery.find("#header");
         View.link("header", header, data);
 
         context.location.then(function (location) {
-            ref.setProperty("location", url(location));
+            binding.setProperty("location", url(location));
         });
 
         Service.instance.then(function (event) {
             switch (event) {
                 case SignedIn, SignedOut:
-                    ref.setProperty("profile", Service.instance.profile);
+                    binding.setProperty("profile", Service.instance.profile);
                     navigation.update(PageNavigation.Reload);
             }
         });
@@ -183,10 +183,20 @@ class Main {
         });
 
         JQuery.find("#new-dataset-dialog-submit").on("click", function (event: Event) {
-            event.preventDefault();
+            // TODO ui block
             Service.instance.createDataset(JQuery.find("#new-dataset-dialog form")).then(function (data) {
                 untyped JQuery.find("#new-dataset-dialog").modal("hide");
                 navigation.update(PageNavigation.Navigate(DatasetShow(data.id)));
+            });
+        });
+
+        JQuery.find("#new-group-dialog-submit").on("click", function (event: Event) {
+            // TODO ui block
+            var name = JQuery.find("#new-group-dialog input[name=name]").val();
+            Service.instance.createGroup(name).then(function (data) {
+                untyped JQuery.find("#new-group-dialog").modal("hide");
+                navigation.update(PageNavigation.Navigate(GroupShow(data.id)));
+                // TODO form clear
             });
         });
 
@@ -289,7 +299,8 @@ class Main {
                 {
                     navigation: new ControllableStream(),
                     invalidate: function (container: Element) {
-                        View.getTemplate("group/list").link(container, { } );
+                        var binding = JsViews.objectObservable({});
+                        View.getTemplate("group/list").link(container, binding.data());
                     },
                     dispose: function () {
 
@@ -299,7 +310,8 @@ class Main {
                 {
                     navigation: new ControllableStream(),
                     invalidate: function (container: Element) {
-                        container.innerHTML = 'group ${id}';
+                        var binding = JsViews.objectObservable({});
+                        View.getTemplate("group/show").link(container, binding.data());
                     },
                     dispose: function () {
 
@@ -309,7 +321,8 @@ class Main {
                 {
                     navigation: new ControllableStream(),
                     invalidate: function (container: Element) {
-                        container.innerHTML = 'group edit ${id}';
+                        var binding = JsViews.objectObservable({});
+                        View.getTemplate("group/edit").link(container, binding.data());
                     },
                     dispose: function () {
 
@@ -317,7 +330,16 @@ class Main {
                 }
 
             case Profile:
-                null;
+                {
+                    navigation: new ControllableStream(),
+                    invalidate: function (container: Element) {
+                        var binding = JsViews.objectObservable({});
+                        View.getTemplate("profile/edit").link(container, binding.data());
+                    },
+                    dispose: function () {
+
+                    }
+                }
         };
     }
 
@@ -343,6 +365,8 @@ class Main {
                 Some(GroupList(parsePositiveInt(location.query["page"]).getOrElse(1)));
             case ["groups", id]:
                 Some(GroupShow(id));
+            case ["groups", id, "edit"]:
+                Some(GroupEdit(id));
             case ["profile"]:
                 Some(Profile);
             case _:
