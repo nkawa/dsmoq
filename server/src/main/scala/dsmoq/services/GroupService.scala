@@ -338,6 +338,15 @@ object GroupService {
 
     try {
       val result = DB localTx { implicit s =>
+        try {
+          getGroup(params.groupId) match {
+            case Some(x) => // do nothing
+            case None => throw new NotFoundException
+          }
+        } catch {
+          case e: Exception => throw new NotFoundException
+        }
+
         // 権限チェック
         if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
 

@@ -646,7 +646,6 @@ class ApiController extends ScalatraServlet
   delete("/groups/:groupId") {
     val groupId = params("groupId")
 
-
     val response = for {
       userInfo <- getUserInfoFromSession()
       facadeParams = DeleteGroupParams(userInfo, groupId)
@@ -659,6 +658,7 @@ class ApiController extends ScalatraServlet
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case e: NotFoundException => AjaxResponse("NotFound")
           case _ => AjaxResponse("NG")
         }
     }
