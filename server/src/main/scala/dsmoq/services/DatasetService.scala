@@ -747,6 +747,15 @@ object DatasetService {
 
     val timestamp = DateTime.now()
     DB localTx { implicit s =>
+      try {
+        getDataset(datasetId) match {
+          case Some(x) => // do nothing
+          case None => throw new NotFoundException
+        }
+      } catch {
+        case e: Exception => throw new NotFoundException
+      }
+
       if (!hasAllowAllPermission(user.id, datasetId)) throw new NotAuthorizedException
       val d = persistence.Dataset.column
       withSQL {
