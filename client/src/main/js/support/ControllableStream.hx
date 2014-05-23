@@ -1,4 +1,4 @@
-package dsmoq.framework.types;
+package js.support;
 
 class ControllableStream<A> extends Stream<A> {
     public function new(?canceled: Void -> Void) {

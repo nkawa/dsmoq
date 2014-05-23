@@ -1,5 +1,8 @@
 package dsmoq.framework.types;
 
+import js.support.Promise;
+import js.support.Unit;
+import js.support.Option;
 import dsmoq.framework.ApplicationContext;
 
 /**

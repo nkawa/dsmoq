@@ -1,6 +1,6 @@
-package dsmoq.framework.helper;
-import dsmoq.framework.types.Error;
-import dsmoq.framework.types.Result;
+package js.support;
+
+import js.Error;
 
 /**
  * ...
@@ -32,6 +32,5 @@ class ResultTools {
                 Failure(e);
         }
     }
-
 
 }

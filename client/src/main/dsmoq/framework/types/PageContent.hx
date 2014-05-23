@@ -1,6 +1,7 @@
 package dsmoq.framework.types;
 
 import js.html.Element;
+import js.support.Stream;
 
 /**
  * ...

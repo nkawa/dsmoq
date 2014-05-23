@@ -1,7 +1,7 @@
-package dsmoq.framework.types;
+package js.support;
 
 import js.Error;
-import dsmoq.framework.types.internal.Async;
+import js.support.Promise;
 
 class Stream<A> {
     @:allow(dsmoq.framework.types) @:noCompletion
@@ -42,7 +42,7 @@ class Stream<A> {
             return array;
         }
 
-        Async.dispatch(function () {
+        JsTools.setImmediate(function () {
             try {
                 for (handler in _updatedHandlers) handler.f(value);
                 _updatedHandlers = filter();
@@ -55,7 +55,7 @@ class Stream<A> {
 
     @:allow(dsmoq.framework.types) @:noCompletion
     function _invokeClosed(): Void {
-        Async.dispatch(function () {
+        JsTools.setImmediate(function () {
             try {
                 for (f in _closedHandlers) f();
                 _clear();
@@ -68,7 +68,7 @@ class Stream<A> {
 
     @:allow(dsmoq.framework.types) @:noCompletion
     function _invokeFailed(error: Dynamic): Void {
-        Async.dispatch(function () {
+        JsTools.setImmediate(function () {
             for (f in _failedHandlers)
                 try f(error) catch (e: Dynamic) trace(e); //TODO エラーダンプ
             _clear();
@@ -120,9 +120,9 @@ class Stream<A> {
                 if (closed != null) _closedHandlers.push(closed);
                 if (failed != null) _failedHandlers.push(failed);
             case Closed:
-                if (closed != null) Async.dispatch(closed);
+                if (closed != null) JsTools.setImmediate(closed);
             case Failed(e):
-                if (failed != null) Async.dispatch(failed.bind(e));
+                if (failed != null) JsTools.setImmediate(failed.bind(e));
         }
         return this;
     }

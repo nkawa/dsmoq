@@ -2,7 +2,7 @@ package dsmoq.framework.helper;
 
 import haxe.macro.Expr;
 import dsmoq.framework.types.Error;
-import dsmoq.framework.types.Result;
+import js.support.Result;
 import haxe.macro.ExprTools;
 
 

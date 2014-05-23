@@ -1,17 +1,17 @@
 package dsmoq.models;
 
-import dsmoq.framework.types.ControllablePromise;
-import dsmoq.framework.types.Option;
-import dsmoq.framework.types.Promise;
-import dsmoq.framework.types.Promise;
-import dsmoq.framework.types.Stream;
-import dsmoq.framework.types.Stream;
-import dsmoq.framework.types.Unit;
+import js.support.ControllablePromise;
+import js.support.Option;
+import js.support.Promise;
+import js.support.Promise;
+import js.support.Stream;
+import js.support.Stream;
+import js.support.Unit;
 import js.Cookie;
 import js.Error;
 import js.jqhx.JqHtml;
 import js.jqhx.JQuery;
-using dsmoq.framework.helper.PromiseTools;
+using dsmoq.framework.helper.JQueryTools;
 
 class Service extends Stream<ServiceEvent> {
     public static var instance(default, null) = new Service();

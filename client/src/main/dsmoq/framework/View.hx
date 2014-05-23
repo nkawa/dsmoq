@@ -1,15 +1,15 @@
 package dsmoq.framework;
 
 import dsmoq.framework.types.Error;
-import dsmoq.framework.types.Result;
-import dsmoq.framework.types.Unit;
+import js.support.Result;
+import js.support.Unit;
 import js.html.Element;
 import js.jsviews.JsViews;
 import js.jsviews.JsViews.Template in JsTemplate;
 import js.jqhx.JQuery;
 import haxe.Resource;
-using dsmoq.framework.helper.ResultTools;
-using dsmoq.framework.helper.OptionHelper;
+using js.support.ResultTools;
+using js.support.OptionTools;
 
 /**
  * ...

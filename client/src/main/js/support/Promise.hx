@@ -1,6 +1,5 @@
-package dsmoq.framework.types;
+package js.support;
 
-import dsmoq.framework.types.internal.Async;
 import js.Error;
 
 /**
@@ -36,7 +35,7 @@ class Promise<A> {
 
     @:allow(dsmoq.framework.types) @:noCompletion
     function _invokeResolved(value: A): Void {
-        Async.dispatch(function () {
+        JsTools.setImmediate(function () {
             try {
                 for (f in _resolvedHandlers) f(value);
                 _clear();
@@ -49,7 +48,7 @@ class Promise<A> {
 
     @:allow(dsmoq.framework.types) @:noCompletion
     function _invokeRejected(error: Dynamic): Void {
-        Async.dispatch(function () {
+        JsTools.setImmediate(function () {
             for (f in _rejectedHandlers)
                 try f(error) catch (e: Dynamic) trace(e); //TODO エラーダンプ
             _clear();
@@ -94,9 +93,9 @@ class Promise<A> {
                 if (resolved != null) _resolvedHandlers.push(resolved);
                 if (rejected != null) _rejectedHandlers.push(rejected);
             case Resolved(v):
-                if (resolved != null) Async.dispatch(resolved.bind(v));
+                if (resolved != null) JsTools.setImmediate(resolved.bind(v));
             case Rejected(e):
-                if (rejected != null) Async.dispatch(rejected.bind(e));
+                if (rejected != null) JsTools.setImmediate(rejected.bind(e));
         }
         return this;
     }

@@ -1,4 +1,4 @@
-package dsmoq.framework.types;
+package js.support;
 
 class ControllablePromise<A> extends Promise<A> {
     public function new(?canceled: Void -> Void) {

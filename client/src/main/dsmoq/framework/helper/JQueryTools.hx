@@ -1,10 +1,19 @@
 package dsmoq.framework.helper;
-import dsmoq.framework.types.Promise;
-import dsmoq.framework.types.Stream;
+
+import js.support.Promise;
+import js.support.Stream;
 import js.html.Event;
 import js.jqhx.JqHtml;
+import js.jqhx.JqPromise;
 
 class JQueryTools {
+
+    public static function toPromise(x: JqPromise): Promise<Dynamic> {
+        return new Promise(function (resolve, reject) {
+            x.then(resolve, reject);
+            return function () { };
+        });
+    }
 
     public static function createEventPromise(jq: JqHtml, eventName: String, ?selector: String): Promise<Event> {
         return new Promise(function (resolve, reject) {

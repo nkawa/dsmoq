@@ -1,6 +1,7 @@
 package dsmoq.framework.types;
 
 import js.html.Node;
+import js.support.Stream;
 
 /**
  * @author terurou

@@ -1,4 +1,4 @@
-package dsmoq.framework.types;
+package js.support;
 
 /**
  * @author terurou

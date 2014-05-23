@@ -1,13 +1,13 @@
 package dsmoq.framework;
 
 import dsmoq.framework.types.Application;
-import dsmoq.framework.types.ControllablePromise;
+import js.support.ControllablePromise;
 import dsmoq.framework.types.PageContent;
 import dsmoq.framework.types.PageFrame;
 import dsmoq.framework.types.PageNavigation;
-import dsmoq.framework.types.Stream;
-import dsmoq.framework.types.Unit;
-import dsmoq.framework.types.Option;
+import js.support.Stream;
+import js.support.Unit;
+import js.support.Option;
 import dsmoq.Main.Page;
 import js.Browser;
 import js.Error;
@@ -17,7 +17,7 @@ import js.html.Event;
 import js.html.EventTarget;
 
 using Lambda;
-using dsmoq.framework.helper.OptionHelper;
+using js.support.OptionTools;
 
 
 class Engine<TPage: EnumValue> {

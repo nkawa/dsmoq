@@ -1,12 +1,8 @@
-package dsmoq.framework.helper;
+package js.support;
 
-import dsmoq.framework.types.Option;
+import js.support.Option;
 
-/**
- * ...
- * @author terurou
- */
-class OptionHelper {
+class OptionTools {
     public static inline function toOption<T>(x: T) : Option<T> {
         return (x == null) ? None: Some(x);
     }

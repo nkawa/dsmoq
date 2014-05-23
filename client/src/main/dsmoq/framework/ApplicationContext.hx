@@ -1,6 +1,6 @@
 package dsmoq.framework;
 
-import dsmoq.framework.types.Stream;
+import js.support.Stream;
 import dsmoq.framework.types.Location;
 
 typedef ApplicationContext = {

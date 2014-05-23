@@ -3,9 +3,9 @@ package dsmoq.framework.helper;
 import dsmoq.framework.types.PageContent;
 import dsmoq.framework.types.PageFrame;
 import dsmoq.framework.types.PageNavigation;
-import dsmoq.framework.types.Promise;
-import dsmoq.framework.types.Stream;
-import dsmoq.framework.types.Unit;
+import js.support.Promise;
+import js.support.Stream;
+import js.support.Unit;
 import js.html.Element;
 import js.html.Node;
 
