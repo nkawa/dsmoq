@@ -12,7 +12,7 @@ import dsmoq.services.data.GroupData._
 import dsmoq.forms._
 import dsmoq.AppConf
 import dsmoq.services.data.ProfileData.UpdateProfileParams
-import dsmoq.exceptions.NotAuthorizedException
+import dsmoq.exceptions.{NotFoundException, NotAuthorizedException}
 
 class ApiController extends ScalatraServlet
     with JacksonJsonSupport with SessionTrait with FileUploadSupport {
@@ -187,6 +187,7 @@ class ApiController extends ScalatraServlet
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case e: NotFoundException=> AjaxResponse("NotFound")
           case _ => AjaxResponse("NG")
         }
     }
