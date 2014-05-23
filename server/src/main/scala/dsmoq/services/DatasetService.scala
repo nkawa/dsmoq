@@ -8,7 +8,7 @@ import dsmoq.AppConf
 import dsmoq.services.data._
 import dsmoq.persistence
 import dsmoq.persistence.PostgresqlHelper._
-import dsmoq.exceptions.{ValidationException, NotAuthorizedException}
+import dsmoq.exceptions.{NotFoundException, ValidationException, NotAuthorizedException}
 import org.joda.time.DateTime
 import org.scalatra.servlet.FileItem
 import dsmoq.forms.{AccessCrontolItem, AccessControl}
@@ -221,8 +221,17 @@ object DatasetService {
   def get(params: DatasetData.GetDatasetParams): Try[DatasetData.Dataset] = {
     try {
       DB readOnly { implicit s =>
+        // データセットが存在しない場合例外
+        val dataset = try {
+          getDataset(params.id) match {
+            case Some(x) => x
+            case None => throw new NotFoundException
+          }
+        } catch {
+          case e: Exception =>
+            throw new NotFoundException
+        }
         (for {
-          dataset <- getDataset(params.id)
           groups <- Some(getJoinedGroups(params.userInfo))
           permission <- getPermission(params.id, groups)
           guestAccessLevel <- Some(getGuestAccessLevel(params.id))
@@ -232,6 +241,12 @@ object DatasetService {
           images <- Some(getImages(params.id))
           primaryImage <- getPrimaryImageId(params.id)
         } yield {
+          println(dataset)
+          // 権限チェック
+          if ((params.userInfo.isGuest && guestAccessLevel == AccessLevel.Deny) ||
+              (!params.userInfo.isGuest && permission == AccessLevel.Deny)) {
+            throw new NotAuthorizedException
+          }
           DatasetData.Dataset(
             id = dataset.id,
             files = files,
@@ -240,7 +255,7 @@ object DatasetService {
             meta = DatasetData.DatasetMetaData(
               name = dataset.name,
               description = dataset.description,
-              license = None,
+              license = dataset.licenseId,
               attributes = attributes
             ),
             images = images,
@@ -863,7 +878,15 @@ object DatasetService {
   }
 
   private def getDataset(id: String)(implicit s: DBSession) = {
-    persistence.Dataset.find(id)
+    val d = persistence.Dataset.syntax("d")
+    withSQL {
+      select(d.result.*)
+        .from(persistence.Dataset as d)
+        .where
+        .eq(d.id, sqls.uuid(id))
+        .and
+        .isNull(d.deletedAt)
+    }.map(persistence.Dataset(d.resultName)).single.apply()
   }
 
   private def getPermission(id: String, groups: Seq[String])(implicit s: DBSession) = {

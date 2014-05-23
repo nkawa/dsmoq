@@ -12,7 +12,7 @@ import dsmoq.services.data.RangeSlice
 import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.persistence.AccessLevel
 import org.joda.time.DateTime
-import dsmoq.exceptions.{ValidationException, NotAuthorizedException}
+import dsmoq.exceptions.{NotFoundException, ValidationException, NotAuthorizedException}
 import java.util.UUID
 import java.nio.file.Paths
 import scala.collection.mutable.ArrayBuffer
@@ -60,28 +60,34 @@ object GroupService {
   def get(params: GroupData.GetGroupParams): Try[GroupData.Group] = {
     try {
       DB readOnly { implicit s =>
-        (for {
-          group <- persistence.Group.find(params.groupId)
-          images = getGroupImage(group.id)
-          primaryImage = getGroupPrimaryImageId(group.id)
-          groupRole = getGroupRole(params.userInfo, group.id)
-        } yield {
-          GroupData.Group(
-            id = group.id,
-            name = group.name,
-            description = group.description,
-            images = images.map(x => Image(
-              id = x.id,
-              url = AppConf.imageDownloadRoot + x.id
-            )),
-            primaryImage = primaryImage.getOrElse(""),
-            isMember = groupRole match {
-              case Some(x) => true
-              case None => false
-            },
-            role = groupRole.getOrElse(0)
-          )
-        }).map(x => Success(x)).getOrElse(Failure(new RuntimeException()))
+        val group = try {
+          getGroup(params.groupId) match {
+            case Some(x) => x
+            case None => throw new NotFoundException
+          }
+        } catch {
+          case e: Exception => throw new NotFoundException
+        }
+
+        val images = getGroupImage(group.id)
+        val primaryImage = getGroupPrimaryImageId(group.id)
+        val groupRole = getGroupRole(params.userInfo, group.id)
+
+        Success(GroupData.Group(
+          id = group.id,
+          name = group.name,
+          description = group.description,
+          images = images.map(x => Image(
+            id = x.id,
+            url = AppConf.imageDownloadRoot + x.id
+          )),
+          primaryImage = primaryImage.getOrElse(""),
+          isMember = groupRole match {
+            case Some(x) => true
+            case None => false
+          },
+          role = groupRole.getOrElse(0)
+        ))
       }
     } catch {
       case e: Exception => Failure(e)
@@ -192,6 +198,9 @@ object GroupService {
 
     try {
       val result = DB localTx { implicit s =>
+        // 権限チェック
+        if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+
         val myself = persistence.User.find(params.userInfo.id).get
         val timestamp = DateTime.now()
 
@@ -233,6 +242,9 @@ object GroupService {
 
     try {
       val result = DB localTx { implicit s =>
+        // 権限チェック
+        if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+
         val myself = persistence.User.find(params.userInfo.id).get
         val addUser = persistence.User.find(params.userId).get
         val timestamp = DateTime.now()
@@ -266,6 +278,9 @@ object GroupService {
 
     try {
       val result = DB localTx { implicit s =>
+        // 権限チェック
+        if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+
         val myself = persistence.User.find(params.userInfo.id).get
         val timestamp = DateTime.now()
 
@@ -293,6 +308,9 @@ object GroupService {
 
     try {
       val result = DB localTx { implicit s =>
+        // 権限チェック
+        if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+
         val myself = persistence.User.find(params.userInfo.id).get
         val timestamp = DateTime.now()
 
@@ -320,6 +338,9 @@ object GroupService {
 
     try {
       val result = DB localTx { implicit s =>
+        // 権限チェック
+        if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+
         val myself = persistence.User.find(params.userInfo.id).get
         val timestamp = DateTime.now()
 
@@ -345,6 +366,9 @@ object GroupService {
     if (params.images.getOrElse(Seq.empty).isEmpty) throw new ValidationException
 
     DB localTx { implicit s =>
+      // 権限チェック
+      if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+
       val myself = persistence.User.find(params.userInfo.id).get
       val timestamp = DateTime.now()
       val primaryImage = getPrimaryImageId(params.groupId)
@@ -399,6 +423,9 @@ object GroupService {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
 
     DB localTx { implicit s =>
+      // 権限チェック
+      if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+
       val myself = persistence.User.find(params.userInfo.id).get
       val timestamp = DateTime.now()
       withSQL {
@@ -433,6 +460,9 @@ object GroupService {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
 
     val primaryImage = DB localTx { implicit s =>
+      // 権限チェック
+      if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+
       val myself = persistence.User.find(params.userInfo.id).get
       val timestamp = DateTime.now()
       withSQL {
@@ -489,6 +519,21 @@ object GroupService {
       primaryImage = primaryImage
     ))
   }
+  private def getGroup(groupId: String)(implicit s: DBSession) = {
+//    persistence.Group.find(groupId)
+val g = persistence.Group.syntax("g")
+    withSQL {
+      select(g.result.*)
+        .from(persistence.Group as g)
+        .where
+        .eq(g.id, sqls.uuid(groupId))
+        .and
+        .eq(g.groupType, persistence.GroupType.Public)
+        .and
+        .isNull(g.deletedAt)
+    }.map(persistence.Group(g.resultName)).single().apply
+  }
+
 
   private def getGroups(user: User, offset: Int, limit: Int)(implicit s: DBSession): Seq[persistence.Group] = {
     val g = persistence.Group.syntax("g")
@@ -586,24 +631,22 @@ object GroupService {
   }
 
   private def getMembers(user: User, groupId: String, offset: Int, limit: Int)(implicit s: DBSession): Seq[(persistence.User, Int)] = {
-    if (user.isGuest) {
-      Seq.empty
-    } else {
-      val m = persistence.Member.syntax("m")
-      val u = persistence.User.syntax("u")
-      withSQL {
-        select(u.result.*, m.role)
-          .from(persistence.User as u)
-          .innerJoin(persistence.Member as m).on(m.userId, u.id)
-          .where
-          .eq(m.groupId, sqls.uuid(groupId))
-          .and
-          .isNull(m.deletedAt)
-          .orderBy(m.updatedAt).desc
-          .offset(offset)
-          .limit(limit)
-      }.map(rs => (persistence.User(u.resultName)(rs), rs.int(persistence.Member.column.role))).list().apply()
-    }
+    val m = persistence.Member.syntax("m")
+    val u = persistence.User.syntax("u")
+    val g = persistence.Group.syntax("g")
+    withSQL {
+      select(u.result.*, m.role)
+        .from(persistence.User as u)
+        .innerJoin(persistence.Member as m).on(sqls.eq(m.userId, u.id).and.isNull(m.deletedAt))
+        .innerJoin(persistence.Group as g).on(sqls.eq(g.id, m.groupId).and.isNull(g.deletedAt))
+        .where
+        .eq(m.groupId, sqls.uuid(groupId))
+        .and
+        .isNull(m.deletedAt)
+        .orderBy(m.updatedAt).desc
+        .offset(offset)
+        .limit(limit)
+    }.map(rs => (persistence.User(u.resultName)(rs), rs.int(persistence.Member.column.role))).list().apply()
   }
 
   private def getDatasets(user: User, groupId: String, offset: Int, limit: Int)(implicit s: DBSession): Seq[(persistence.Dataset, Int)] = {
@@ -612,10 +655,12 @@ object GroupService {
     } else {
       val ds = persistence.Dataset.syntax("ds")
       val o = persistence.Ownership.syntax("o")
+      val g = persistence.Group.syntax("g")
       withSQL {
         select(ds.result.*, sqls.max(o.accessLevel).append(sqls"access_level"))
           .from(persistence.Dataset as ds)
-          .innerJoin(persistence.Ownership as o).on(ds.id, o.datasetId)
+          .innerJoin(persistence.Ownership as o).on(sqls.eq(ds.id, o.datasetId).and.isNull(o.deletedAt))
+          .innerJoin(persistence.Group as g).on(sqls.eq(g.id, o.groupId).and.isNull(g.deletedAt))
           .where
           .eq(o.groupId, sqls.uuid(groupId))
           .and
@@ -651,16 +696,39 @@ object GroupService {
   }
 
   private def getGroupRole(user: User, groupId: String)(implicit s: DBSession) = {
-    val m = persistence.Member.syntax("m")
+    if (user.isGuest) {
+      None
+    } else {
+      val m = persistence.Member.syntax("m")
+      withSQL {
+        select(m.result.*)
+          .from(persistence.Member as m)
+          .where
+          .eq(m.groupId, sqls.uuid(groupId))
+          .and
+          .eq(m.userId, sqls.uuid(user.id))
+          .and
+          .isNull(m.deletedAt)
+      }.map(_.int(m.resultName.role)).single().apply
+    }
+  }
+
+  private def isGroupAdministrator(user: User, groupId: String)(implicit s: DBSession) = {
+    val g = persistence.Group.g
+    val m = persistence.Member.m
     withSQL {
-      select(m.result.*)
-      .from(persistence.Member as m)
-      .where
-      .eq(m.groupId, sqls.uuid(groupId))
-      .and
-      .eq(m.userId, sqls.uuid(user.id))
-      .and
-      .isNull(m.deletedAt)
-    }.map(_.int(m.resultName.role)).single().apply
+      select(sqls"1")
+        .from(persistence.Group as g)
+        .innerJoin(persistence.Member as m).on(sqls.eq(g.id, m.groupId).and.isNull(m.deletedAt))
+        .where
+        .eq(g.groupType, 0)
+        .and
+        .eq(m.role, 1)
+        .and
+        .eq(m.userId, sqls.uuid(user.id))
+        .and
+        .isNull(g.deletedAt)
+        .limit(1)
+    }.map(x => true).single.apply().getOrElse(false)
   }
 }
