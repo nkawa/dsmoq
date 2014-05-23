@@ -74,6 +74,14 @@ object DatasetService {
           createdAt = timestamp,
           updatedBy = myself.id,
           updatedAt = timestamp)
+        // FIXME licenseIdを指定してcreateできなかったため、データ作成後にupdateで対応
+        withSQL {
+          val d = persistence.Dataset.column
+          update(persistence.Dataset)
+            .set(d.licenseId -> sqls.uuid(AppConf.defaultLicenseId))
+            .where
+            .eq(d.id, sqls.uuid(dataset.id))
+        }.update().apply
         val ownership = persistence.Ownership.create(
           id = UUID.randomUUID.toString,
           datasetId = datasetId,

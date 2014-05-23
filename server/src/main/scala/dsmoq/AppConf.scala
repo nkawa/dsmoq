@@ -15,6 +15,7 @@ object AppConf {
   val guestGroupId = conf.getString("dsmoq.guest_group_uuid")
 
   val defaultDatasetImageId = conf.getString("dsmoq.default_dataset_image_uuid")
+  val defaultLicenseId = conf.getString("dsmoq.default_license_uuid")
 
   val imageDownloadRoot = conf.getString("dsmoq.image_url_root")
   val fileDownloadRoot = conf.getString("dsmoq.file_url_root")
