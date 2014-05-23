@@ -232,6 +232,11 @@ object DatasetService {
           images <- Some(getImages(params.id))
           primaryImage <- getPrimaryImageId(params.id)
         } yield {
+          // 権限チェック
+          if ((params.userInfo.isGuest && guestAccessLevel == AccessLevel.Deny) ||
+              (!params.userInfo.isGuest && permission == AccessLevel.Deny)) {
+            throw new NotAuthorizedException
+          }
           DatasetData.Dataset(
             id = dataset.id,
             files = files,
