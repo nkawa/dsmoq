@@ -631,24 +631,20 @@ val g = persistence.Group.syntax("g")
   }
 
   private def getMembers(user: User, groupId: String, offset: Int, limit: Int)(implicit s: DBSession): Seq[(persistence.User, Int)] = {
-    if (user.isGuest) {
-      Seq.empty
-    } else {
-      val m = persistence.Member.syntax("m")
-      val u = persistence.User.syntax("u")
-      withSQL {
-        select(u.result.*, m.role)
-          .from(persistence.User as u)
-          .innerJoin(persistence.Member as m).on(m.userId, u.id)
-          .where
-          .eq(m.groupId, sqls.uuid(groupId))
-          .and
-          .isNull(m.deletedAt)
-          .orderBy(m.updatedAt).desc
-          .offset(offset)
-          .limit(limit)
-      }.map(rs => (persistence.User(u.resultName)(rs), rs.int(persistence.Member.column.role))).list().apply()
-    }
+    val m = persistence.Member.syntax("m")
+    val u = persistence.User.syntax("u")
+    withSQL {
+      select(u.result.*, m.role)
+        .from(persistence.User as u)
+        .innerJoin(persistence.Member as m).on(m.userId, u.id)
+        .where
+        .eq(m.groupId, sqls.uuid(groupId))
+        .and
+        .isNull(m.deletedAt)
+        .orderBy(m.updatedAt).desc
+        .offset(offset)
+        .limit(limit)
+    }.map(rs => (persistence.User(u.resultName)(rs), rs.int(persistence.Member.column.role))).list().apply()
   }
 
   private def getDatasets(user: User, groupId: String, offset: Int, limit: Int)(implicit s: DBSession): Seq[(persistence.Dataset, Int)] = {
