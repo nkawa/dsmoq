@@ -12,7 +12,7 @@ import dsmoq.services.data.RangeSlice
 import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.persistence.AccessLevel
 import org.joda.time.DateTime
-import dsmoq.exceptions.{ValidationException, NotAuthorizedException}
+import dsmoq.exceptions.{NotFoundException, ValidationException, NotAuthorizedException}
 import java.util.UUID
 import java.nio.file.Paths
 import scala.collection.mutable.ArrayBuffer
@@ -60,28 +60,34 @@ object GroupService {
   def get(params: GroupData.GetGroupParams): Try[GroupData.Group] = {
     try {
       DB readOnly { implicit s =>
-        (for {
-          group <- persistence.Group.find(params.groupId)
-          images = getGroupImage(group.id)
-          primaryImage = getGroupPrimaryImageId(group.id)
-          groupRole = getGroupRole(params.userInfo, group.id)
-        } yield {
-          GroupData.Group(
-            id = group.id,
-            name = group.name,
-            description = group.description,
-            images = images.map(x => Image(
-              id = x.id,
-              url = AppConf.imageDownloadRoot + x.id
-            )),
-            primaryImage = primaryImage.getOrElse(""),
-            isMember = groupRole match {
-              case Some(x) => true
-              case None => false
-            },
-            role = groupRole.getOrElse(0)
-          )
-        }).map(x => Success(x)).getOrElse(Failure(new RuntimeException()))
+        val group = try {
+          getGroup(params.groupId) match {
+            case Some(x) => x
+            case None => throw new NotFoundException
+          }
+        } catch {
+          case e: Exception => throw new NotFoundException
+        }
+
+        val images = getGroupImage(group.id)
+        val primaryImage = getGroupPrimaryImageId(group.id)
+        val groupRole = getGroupRole(params.userInfo, group.id)
+
+        Success(GroupData.Group(
+          id = group.id,
+          name = group.name,
+          description = group.description,
+          images = images.map(x => Image(
+            id = x.id,
+            url = AppConf.imageDownloadRoot + x.id
+          )),
+          primaryImage = primaryImage.getOrElse(""),
+          isMember = groupRole match {
+            case Some(x) => true
+            case None => false
+          },
+          role = groupRole.getOrElse(0)
+        ))
       }
     } catch {
       case e: Exception => Failure(e)
@@ -513,6 +519,21 @@ object GroupService {
       primaryImage = primaryImage
     ))
   }
+  private def getGroup(groupId: String)(implicit s: DBSession) = {
+//    persistence.Group.find(groupId)
+val g = persistence.Group.syntax("g")
+    withSQL {
+      select(g.result.*)
+        .from(persistence.Group as g)
+        .where
+        .eq(g.id, sqls.uuid(groupId))
+        .and
+        .eq(g.groupType, persistence.GroupType.Public)
+        .and
+        .isNull(g.deletedAt)
+    }.map(persistence.Group(g.resultName)).single().apply
+  }
+
 
   private def getGroups(user: User, offset: Int, limit: Int)(implicit s: DBSession): Seq[persistence.Group] = {
     val g = persistence.Group.syntax("g")
@@ -675,17 +696,21 @@ object GroupService {
   }
 
   private def getGroupRole(user: User, groupId: String)(implicit s: DBSession) = {
-    val m = persistence.Member.syntax("m")
-    withSQL {
-      select(m.result.*)
-      .from(persistence.Member as m)
-      .where
-      .eq(m.groupId, sqls.uuid(groupId))
-      .and
-      .eq(m.userId, sqls.uuid(user.id))
-      .and
-      .isNull(m.deletedAt)
-    }.map(_.int(m.resultName.role)).single().apply
+    if (user.isGuest) {
+      None
+    } else {
+      val m = persistence.Member.syntax("m")
+      withSQL {
+        select(m.result.*)
+          .from(persistence.Member as m)
+          .where
+          .eq(m.groupId, sqls.uuid(groupId))
+          .and
+          .eq(m.userId, sqls.uuid(user.id))
+          .and
+          .isNull(m.deletedAt)
+      }.map(_.int(m.resultName.role)).single().apply
+    }
   }
 
   private def isGroupAdministrator(user: User, groupId: String)(implicit s: DBSession) = {

@@ -429,7 +429,11 @@ class ApiController extends ScalatraServlet
     }
     response match {
       case Success(x) => x
-      case Failure(e) => AjaxResponse("NG")
+      case Failure(e) =>
+        e match {
+          case e: NotFoundException => AjaxResponse("NotFound")
+          case _ => AjaxResponse("NG")
+        }
     }
   }
 
