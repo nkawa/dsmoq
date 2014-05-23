@@ -633,10 +633,12 @@ val g = persistence.Group.syntax("g")
   private def getMembers(user: User, groupId: String, offset: Int, limit: Int)(implicit s: DBSession): Seq[(persistence.User, Int)] = {
     val m = persistence.Member.syntax("m")
     val u = persistence.User.syntax("u")
+    val g = persistence.Group.syntax("g")
     withSQL {
       select(u.result.*, m.role)
         .from(persistence.User as u)
-        .innerJoin(persistence.Member as m).on(m.userId, u.id)
+        .innerJoin(persistence.Member as m).on(sqls.eq(m.userId, u.id).and.isNull(m.deletedAt))
+        .innerJoin(persistence.Group as g).on(sqls.eq(g.id, m.groupId).and.isNull(g.deletedAt))
         .where
         .eq(m.groupId, sqls.uuid(groupId))
         .and
@@ -653,10 +655,12 @@ val g = persistence.Group.syntax("g")
     } else {
       val ds = persistence.Dataset.syntax("ds")
       val o = persistence.Ownership.syntax("o")
+      val g = persistence.Group.syntax("g")
       withSQL {
         select(ds.result.*, sqls.max(o.accessLevel).append(sqls"access_level"))
           .from(persistence.Dataset as ds)
-          .innerJoin(persistence.Ownership as o).on(ds.id, o.datasetId)
+          .innerJoin(persistence.Ownership as o).on(sqls.eq(ds.id, o.datasetId).and.isNull(o.deletedAt))
+          .innerJoin(persistence.Group as g).on(sqls.eq(g.id, o.groupId).and.isNull(g.deletedAt))
           .where
           .eq(o.groupId, sqls.uuid(groupId))
           .and
