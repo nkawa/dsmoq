@@ -4,18 +4,19 @@ import dsmoq.framework.ApplicationContext;
 import dsmoq.framework.Engine;
 import dsmoq.framework.types.PositiveInt;
 import dsmoq.framework.View;
-import dsmoq.framework.types.ControllableStream;
-import dsmoq.framework.types.Promise;
-import dsmoq.framework.types.Stream;
+import js.support.ControllableStream;
+import js.support.Promise;
+import js.support.Stream;
 import dsmoq.framework.types.Location;
-import dsmoq.framework.types.Option;
+import js.support.Option;
 import dsmoq.framework.types.PageContent;
 import dsmoq.framework.types.PageNavigation;
 import dsmoq.framework.types.PageFrame;
-import dsmoq.framework.types.Unit;
+import js.support.Unit;
 import dsmoq.framework.helper.PageHelper;
 import dsmoq.models.HeaderModel;
 import dsmoq.models.Service;
+import haxe.ds.ObjectMap;
 import haxe.Json;
 import haxe.Resource;
 import haxe.Timer;
@@ -29,9 +30,10 @@ import js.jqhx.JQuery;
 import js.jqhx.JqHtml;
 import dsmoq.framework.LocationTools;
 import js.jsviews.JsViews;
-import dsmoq.framework.helper.JsHelper;
+import js.support.JsTools;
 using StringTools;
-using dsmoq.framework.helper.OptionHelper;
+using js.support.OptionTools;
+using dsmoq.framework.helper.JQueryTools;
 
 /**
  * EntryPoint
@@ -46,7 +48,7 @@ class Main {
             var buf = [];
             for (k in Reflect.fields(props)) {
                 var v = Reflect.field(props, k);
-                buf.push('${StringTools.urlEncode(k)}="${JsHelper.encodeURI(v)}"');
+                buf.push('${StringTools.urlEncode(k)}="${JsTools.encodeURI(v)}"');
             }
             return '<a ${buf.join(" ")}>${ctx.render()}</a>';
         });
@@ -58,7 +60,7 @@ class Main {
             var buf = [];
             for (k in Reflect.fields(props)) {
                 var v = Reflect.field(props, k);
-                buf.push('${StringTools.urlEncode(k)}="${JsHelper.encodeURI(v)}"');
+                buf.push('${StringTools.urlEncode(k)}="${JsTools.encodeURI(v)}"');
             }
             return '<img ${buf.join(" ")}>';
         });
@@ -224,13 +226,17 @@ class Main {
                     navigation: new ControllableStream(),
                     invalidate: function (container: Element) {
                         Service.instance.getDataset(id).then(function (data) {
-                            trace(data);
                             var binding = JsViews.objectObservable(data);
                             View.getTemplate("dataset/show").link(container, binding.data());
 
+                            //JQueryTools.createEventStream(new JqHtml(container), "click").then(function (_) trace("c"));
+
+                            function f(_) trace("one");
+                            new JqHtml(container).one("click", f);
+                            new JqHtml(container).unbind("click", f);
+
                             new JqHtml(container).find("#dataset-delete").on("click", function (_) {
                                 Service.instance.deleteDeataset(id);
-                                trace("click");
                             });
                         }, function (err) {
                             switch (err.name) {
