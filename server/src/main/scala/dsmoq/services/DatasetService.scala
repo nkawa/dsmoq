@@ -255,7 +255,7 @@ object DatasetService {
             meta = DatasetData.DatasetMetaData(
               name = dataset.name,
               description = dataset.description,
-              license = None,
+              license = dataset.licenseId,
               attributes = attributes
             ),
             images = images,
