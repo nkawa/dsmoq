@@ -62,6 +62,10 @@ object User extends SQLSyntaxSupport[User] {
   def findAll()(implicit session: DBSession = autoSession): List[User] = {
     withSQL(select.from(User as u)).map(User(u.resultName)).list.apply()
   }
+
+  def findAllOrderByName()(implicit session: DBSession = autoSession): List[User] = {
+    withSQL(select.from(User as u).orderBy(u.name)).map(User(u.resultName)).list.apply()
+  }
           
   def countAll()(implicit session: DBSession = autoSession): Long = {
     withSQL(select(sqls"count(1)").from(User as u)).map(rs => rs.long(1)).single.apply().get

@@ -5,10 +5,10 @@ import org.specs2.mutable._
 import org.joda.time._
 import scalikejdbc.SQLInterpolation._
 
-class LicensesSpec extends Specification {
+class LicenseSpec extends Specification {
   val l = License.syntax("l")
 
-  "Licenses" should {
+  "License" should {
     "find by primary keys" in new AutoRollback {
       val maybeFound = License.find(null)
       maybeFound.isDefined should beTrue
@@ -30,7 +30,7 @@ class LicensesSpec extends Specification {
       count should be_>(0L)
     }
     "create new record" in new AutoRollback {
-      val created = License.create(id = null, name = "MyString", createdBy = null, createdAt = DateTime.now, updatedBy = null, updatedAt = DateTime.now)
+      val created = License.create(id = null, name = "MyString", displayOrder = 123, createdBy = null, createdAt = DateTime.now, updatedBy = null, updatedAt = DateTime.now)
       created should not beNull
     }
     "save a record" in new AutoRollback {

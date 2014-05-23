@@ -241,13 +241,30 @@ object AccountService extends SessionTrait {
 
   def getLicenses()  = {
     val licenses = DB readOnly { implicit s =>
-      persistence.License.findAllNameOrder()
+      persistence.License.findOrderedAll()
     }
     licenses.map(x =>
       dsmoq.services.data.License(
         id = x.id,
         name = x.name
     ))
+  }
+
+  def getAccounts() = {
+    val accounts = DB readOnly { implicit s =>
+      persistence.User.findAllOrderByName()
+    }
+    accounts.map(x =>
+      dsmoq.services.data.ProfileData.Account(
+        id = x.id,
+        name = x.name,
+        image = if (x.imageId.length > 0) {
+          AppConf.imageDownloadRoot + x.imageId
+        } else {
+          ""
+        }
+      )
+    )
   }
 
   private def createPasswordHash(password: String) = {

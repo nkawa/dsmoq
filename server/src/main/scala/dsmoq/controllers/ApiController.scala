@@ -24,7 +24,8 @@ class ApiController extends ScalatraServlet
   before("/*") {
     if (!isValidSession()) {
       if (!((request.getRequestURI == "/api/profile" && request.getMethod == "GET") ||
-          request.getRequestURI == "/api/licenses")) {
+          (request.getRequestURI == "/api/licenses" && request.getMethod == "GET") ||
+          (request.getRequestURI == "/api/accounts" && request.getMethod == "GET"))) {
         cookies.get(sessionId) match {
           case Some(x) =>
             clearSessionCookie()
@@ -358,6 +359,23 @@ class ApiController extends ScalatraServlet
     setAccessControl(params("datasetId"), AppConf.guestGroupId, 0)
   }
 
+  delete("/datasets/:datasetId") {
+    val datasetId = params("datasetId")
+
+    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
+
+    val response = for {
+      userInfo <- getUserInfoFromSession()
+      result = DatasetService.deleteDataset(userInfo, datasetId)
+     } yield {
+      result
+    }
+    response match {
+      case Success(x) => AjaxResponse("OK")
+      case Failure(e) => AjaxResponse("NG")
+    }
+  }
+
   get("/groups") {
     val query = params.get("query")
     val limit = params.get("limit")
@@ -617,6 +635,11 @@ class ApiController extends ScalatraServlet
   get("/licenses") {
     val licenses = AccountService.getLicenses();
     AjaxResponse("OK", licenses)
+  }
+
+  get("/accounts") {
+    val accounts = AccountService.getAccounts();
+    AjaxResponse("OK", accounts)
   }
 
   private def setAccessControl(datasetId: String, groupId: String, accessLevel: Int) = {

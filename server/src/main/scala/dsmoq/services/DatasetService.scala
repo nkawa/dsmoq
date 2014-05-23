@@ -74,6 +74,14 @@ object DatasetService {
           createdAt = timestamp,
           updatedBy = myself.id,
           updatedAt = timestamp)
+        // FIXME licenseIdを指定してcreateできなかったため、データ作成後にupdateで対応
+        withSQL {
+          val d = persistence.Dataset.column
+          update(persistence.Dataset)
+            .set(d.licenseId -> sqls.uuid(AppConf.defaultLicenseId))
+            .where
+            .eq(d.id, sqls.uuid(dataset.id))
+        }.update().apply
         val ownership = persistence.Ownership.create(
           id = UUID.randomUUID.toString,
           datasetId = datasetId,
@@ -717,6 +725,23 @@ object DatasetService {
     Success(DatasetData.DatasetDeleteImage(
       primaryImage = primaryImage
     ))
+  }
+
+  def deleteDataset(user: User, datasetId: String) = {
+    if (user.isGuest) throw new NotAuthorizedException
+
+    val timestamp = DateTime.now()
+    DB localTx { implicit s =>
+      if (!hasAllowAllPermission(user.id, datasetId)) throw new NotAuthorizedException
+      val d = persistence.Dataset.column
+      withSQL {
+        update(persistence.Dataset)
+          .set(d.deletedAt -> timestamp, d.deletedBy -> sqls.uuid(user.id))
+          .where
+          .eq(d.id, sqls.uuid(datasetId))
+      }.update().apply
+    }
+    datasetId
   }
 
   private def hasAllowAllPermission(userId: String, datasetId: String)(implicit s: DBSession) = {
