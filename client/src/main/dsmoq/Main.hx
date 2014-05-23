@@ -152,7 +152,7 @@ class Main {
         var ref = JsViews.objectObservable(data);
 
         var header = JQuery.find("#header");
-        View.link("Header", header, data);
+        View.link("header", header, data);
 
         context.location.then(function (location) {
             ref.setProperty("location", url(location));
