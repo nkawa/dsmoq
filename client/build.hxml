@@ -12,6 +12,8 @@
 
 -resource assets/dataset/list.html@template/dataset/list
 -resource assets/dataset/show.html@template/dataset/show
+-resource assets/dataset/edit.html@template/dataset/edit
+
 -resource assets/DatasetEdit/acl.html@template/DatasetEditAcl
 -resource assets/DatasetEdit/basic_tab.html@template/DatasetEditBasic
 -resource assets/DatasetEdit/upload_file.html@template/DatasetEditUpload

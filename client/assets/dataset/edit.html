@@ -1,11 +1,13 @@
 <ul class="nav nav-tabs">
-  <li class="active"><a href="#files-tab" data-toggle="tab">Files</a></li>
-  <li><a href="#basic-tab" data-toggle="tab">Metadata</a> </li>
+  <li><a href="#files-tab" data-toggle="tab">Files</a></li>
+  <li class="active"><a href="#basic-tab" data-toggle="tab">Metadata</a> </li>
   <li><a href="#acl-tab" data-toggle="tab">Access Control</a> </li>
 </ul>
+
 <div class="tab-panel">
   <div class="tab-content">
-    <div class="tab-pane active" id="files-tab">
+    <!-- files --->
+    <div class="tab-pane" id="files-tab">
       <div class="row">
         <div class="col-sm-12 text-right">
           <div>
@@ -15,7 +17,6 @@
           <div class="small">need to set <a href="#basic-tab">Metadata</a> and
             <a href="#acl-tab">Access Control</a> to publish
           </div>
-          <p/>
         </div>
       </div>
       <form class="form-horizontal" role="form">
@@ -51,7 +52,9 @@
         </div>
       </form>
     </div>
-    <div class="tab-pane" id="basic-tab">
+
+    <!-- basic --->
+    <div class="tab-pane active" id="basic-tab">
       <div class="row">
         <p class="col-sm-12 text-right">
           <a class="btn btn-primary">Publish</a>
@@ -103,33 +106,41 @@
           <div class="col-sm-10">
             <table class="table table-bordered table-condensed">
               <thead>
-                <tr><td>#</td><td>name</td><td>value</td><td></td></tr>
+                <tr><td>#</td><td>name</td><td>value</td><td> </td></tr>
               </thead>
               <tbody>
-                <tr><td>1</td>
+                <tr>
+                  <td>1</td>
                   <td><input class="form-control" value="AUTHOR"></td>
                   <td><input class="form-control" value="John Lennon"></td>
                   <td>
                     <a class="btn btn-success btn-sm">update</a>
                     <a class="btn btn-warning btn-sm">del</a>
-                </td></tr>
-                <tr><td>2</td>
+                  </td>
+                </tr>
+                <tr>
+                  <td>2</td>
                   <td><input class="form-control" value="VERSION"></td>
                   <td><input class="form-control" value="1.0.0"></td>
                   <td>
                     <a class="btn btn-success btn-sm">update</a>
                     <a class="btn btn-warning btn-sm">del</a>
-                </td></tr>
-                <tr><td>*</td>
+                  </td>
+                </tr>
+                <tr>
+                  <td>*</td>
                   <td><input class="form-control" placeholder="Enter new key"></td>
                   <td><input class="form-control" placeholder="Enter new value"></td>
-                  <td><a class="btn btn-success btn-sm">add</a></td></tr>
+                  <td><a class="btn btn-success btn-sm">add</a></td>
+                </tr>
               </tbody>
             </table>
           </div>
         </div>
       </form>
     </div>
+
+    <!-- acl --->
     <div class="tab-pane" id="acl-tab">
       <div class="row">
         <p class="col-sm-12 text-right">
@@ -145,23 +156,27 @@
             <table class="table table-bordered table-condensed">
               <tbody>
                 <tr>
-                  <td><p class="form-control-static">1</td>
-                  <td><p class="form-control-static">
+                  <td><p class="form-control-static">1</p></td>
+                  <td>
+                    <p class="form-control-static">
                       <img src="images/user.jpg" class="icon"/> john001
-                  </p></td>
+                    </p>
+                  </td>
                   <td><select><option>Owner</option> <option>Full Read</option> <option>Limited Read</option> </select></td>
                   <td> <a class="btn btn-warning btn-sm disabled">del</a> </td>
                 </tr>
                 <tr>
-                  <td><p class="form-control-static">2</td>
-                  <td><p class="form-control-static">
+                  <td><p class="form-control-static">2</p></td>
+                  <td>
+                    <p class="form-control-static">
                       <img src="images/user.jpg" class="icon"/> paul001
-                  </p></td>
+                    </p>
+                  </td>
                   <td><select><option>Owner</option> <option selected>Full Read</option> <option>Limited Read</option> </select></td>
                   <td> <a class="btn btn-warning btn-sm">del</a> </td>
                 </tr>
                 <tr>
-                  <td><p class="form-control-static">3</td>
+                  <td><p class="form-control-static">3</p></td>
                   <td><p class="form-control-static">
                       名古屋大学
                   </p></td>
@@ -169,7 +184,7 @@
                   <td> <a class="btn btn-warning btn-sm">del</a> </td>
                 </tr>
                 <tr>
-                  <td><p class="form-control-static">*</td>
+                  <td><p class="form-control-static">*</p></td>
                   <td><input class="form-control" placeholder="Enter new user or group"></td>
                   <td> </td>
                   <td><a class="btn btn-success btn-sm">add</a></td></tr>

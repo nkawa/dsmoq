@@ -7,12 +7,12 @@
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>
       </button>
-      <a class="navbar-brand" href="/">COI Data Store</a>
+      {{a class="navbar-brand" href="/"}}COI Data Store{{/a}}
     </div>
     <div class="collapse navbar-collapse">
       <ul class="nav navbar-nav">
-        <li><a href="/datasets">Datasets</a></li>
-       　<li><a href="/groups">Groups</a></li>
+        <li>{{a href="/datasets"}}Datasets{{/a}}</li>
+       　<li>{{a href="/groups"}}Groups{{/a}}</li>
         {^{if profile == null || profile.isGuest === false}}
           <li><a data-toggle="modal" data-target="#new-dataset-dialog"><span class="glyphicon glyphicon-cloud-upload"></span> Upload Dataset</a></li>
         {{/if}}

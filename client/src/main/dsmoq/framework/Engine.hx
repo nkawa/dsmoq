@@ -52,27 +52,9 @@ class Engine<TPage: EnumValue> {
                 untyped __js__("console.error(err)");
             });
 
+            registerAnchorHandler();
+
             var context = { location: location };
-
-            Browser.document.addEventListener("click", function (event: Event) {
-                function getAnchor(elem: Element) {
-                    return if (elem == null || elem.tagName == null) {
-                        None;
-                    } else if (elem.tagName.toUpperCase() == "A") {
-                        Some(cast(elem, AnchorElement));
-                    } else {
-                        getAnchor(elem.parentElement);
-                    }
-                }
-
-                getAnchor(cast event.target).each(function (a: AnchorElement) {
-                    if (!~/^javascript:/.match(StringTools.trim(a.href))
-                            && a.host == Browser.location.host && a.protocol == Browser.location.protocol) {
-                        event.preventDefault();
-                        History.pushState(null, null, a.href);
-                    }
-                });
-            }, false);
 
             this.frame = app.frame(context);
             frame.navigation.then(onPageEvent, function (e) {
@@ -91,16 +73,41 @@ class Engine<TPage: EnumValue> {
         });
     }
 
+    function registerAnchorHandler() {
+        Browser.document.addEventListener("click", function (event: Event) {
+            function getAnchor(elem: Element) {
+                return if (elem == null || elem.tagName == null) {
+                    None;
+                } else if (untyped __strict_eq__(elem.tagName.toUpperCase(), "A")) {
+                    Some(cast(elem, AnchorElement));
+                } else {
+                    getAnchor(elem.parentElement);
+                }
+            }
+
+            getAnchor(cast event.target).each(function (a: AnchorElement) {
+                if (a.hasAttribute("data-history")
+                        && !~/^javascript:/.match(StringTools.trim(a.href))
+                        && a.host == Browser.location.host
+                        && a.protocol == Browser.location.protocol) {
+                    event.preventDefault();
+                    History.pushState(null, null, a.href);
+                }
+            });
+        }, false);
+    }
+
     function onPageEvent(event: PageNavigation<TPage>) {
         switch (event) {
             case Navigate(x):
+                // TODO History.pushState("{param=1}", null, "url"));みたいにしないと、IE8/9が対応できない
                 History.pushState("data", null, LocationTools.toUrl(app.toLocation(x)));
             case Reload:
                 if (page != null) changePage(page);
             case Foward:
-                Browser.window.history.forward();
+                History.forward();
             case Back:
-                Browser.window.history.back();
+                History.back();
         }
     }
 
@@ -122,6 +129,8 @@ class Engine<TPage: EnumValue> {
 private extern class History {
     static function pushState(data: Null<Dynamic>, title: Null<String>, url: String): Bool;
     static function getState(): Null<Dynamic>;
+    static function forward(): Void;
+    static function back(): Void;
 
     static var Adapter: {
         function bind(element: EventTarget, name: String, handler: Void -> Void): Void;

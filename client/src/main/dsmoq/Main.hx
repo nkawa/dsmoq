@@ -41,6 +41,7 @@ using dsmoq.framework.helper.JQueryTools;
  */
 class Main {
     public static function main() {
+        // TODO frameworkで管理すべき
         JsViews.views.tags("a", function (_) {
             var ctx = JsViewsTools.tagCtx();
             var props = ctx.props;
@@ -50,7 +51,7 @@ class Main {
                 var v = Reflect.field(props, k);
                 buf.push('${StringTools.urlEncode(k)}="${JsTools.encodeURI(v)}"');
             }
-            return '<a ${buf.join(" ")}>${ctx.render()}</a>';
+            return '<a data-history ${buf.join(" ")}>${ctx.render()}</a>';
         });
 
         JsViews.views.tags("img", function (_) {
@@ -258,7 +259,8 @@ class Main {
                 {
                     navigation: new ControllableStream(),
                     invalidate: function (container: Element) {
-                        container.innerHTML = 'dataset edit ${id}';
+                        var binding = JsViews.objectObservable({});
+                        View.getTemplate("dataset/edit").link(container, binding.data());
                     },
                     dispose: function () {
 
