@@ -1,58 +1,53 @@
-<ol class="breadcrumb">
-    <li><a href="#">Home</a></li>
-    <li class="active">Profile Setting</li>
-</ol>
+<h2>Profile</h2>
 
 <div class="panel panel-default">
-    <div class="panel-heading">
-        <div class="row">
-            <div class="col-sm-6">
-                Basics
-            </div>
-            <div class="col-sm-6">
-            </div>
-        </div>
+  <div class="panel-heading">
+    <div class="row">
+      <div class="col-sm-6">Basics</div>
+      <div class="col-sm-6"></div>
     </div>
-    <div class="panel-body">
-        <form class="form-horizontal" role="form">
-            <div class="form-group">
-                <label for="form-name" class="col-sm-2 control-label">Account Name</label>
-                <div class="col-sm-10"> <input type="text" class="form-control" id="form-name" value="john001"> </div>
-            </div>
-            <div class="form-group">
-                <label for="form-description" class="col-sm-2 control-label">Full Name</label>
-                <div class="col-sm-10"> <input type="text" class="form-control" id="form-name" value="John Lennon">   </div>
-            </div>
-            <div class="form-group">
-                <label for="form-description" class="col-sm-2 control-label">Organization</label>
-                <div class="col-sm-10"> <input type="text" class="form-control" id="form-name" value="Nagoya Univ.">   </div>
-            </div>
-            <div class="form-group">
-                <label for="form-description" class="col-sm-2 control-label">Title</label>
-                <div class="col-sm-10"> <input type="text" class="form-control" id="form-name" value="Student">   </div>
-            </div>
-            <div class="form-group">
-                <label for="form-description" class="col-sm-2 control-label">Description</label>
-                <div class="col-sm-10"> <textarea class="form-control" row="3"></textarea> </div>
-            </div>
-            <div class="form-group">
-                <label class="col-sm-2 control-label">Icon</label>
-                <div class="col-sm-10">
-                    <div class="pull-left">
-                        <img src="/resources/dummy/images/user.jpg" class="img-thumbnail">
-                    </div>
-                    <input type="file">
-                </div>
-            </div>
-        </form>
-        <div class="row">
-            <div class="col-sm-2"></div>
-            <div class="col-sm-10">
-                <a class="btn btn-primary">Save</a>
-                <a class="btn btn-default">Cancel</a>
-            </div>
+  </div>
+
+  <div class="panel-body">
+    <form class="form-horizontal" role="form">
+      <div class="form-group">
+        <label for="form-name" class="col-sm-2 control-label">Account Name</label>
+        <div class="col-sm-10"> <input type="text" class="form-control" data-link="name"></div>
+      </div>
+      <div class="form-group">
+        <label for="form-description" class="col-sm-2 control-label">Full Name</label>
+        <div class="col-sm-10"> <input type="text" class="form-control" data-link="fullname"></div>
+      </div>
+      <div class="form-group">
+        <label for="form-description" class="col-sm-2 control-label">Organization</label>
+        <div class="col-sm-10"> <input type="text" class="form-control" data-link="organization"></div>
+      </div>
+      <div class="form-group">
+        <label for="form-description" class="col-sm-2 control-label">Title</label>
+        <div class="col-sm-10"> <input type="text" class="form-control" data-link="title"></div>
+      </div>
+      <div class="form-group">
+        <label for="form-description" class="col-sm-2 control-label">Description</label>
+        <div class="col-sm-10"><textarea class="form-control" row="3" data-link="description"></textarea></div>
+      </div>
+      <div class="form-group">
+        <label class="col-sm-2 control-label">Icon</label>
+        <div class="col-sm-10">
+          <div class="pull-left">
+            {{img src=image class="img-thumbnail"/}}
+          </div>
+          <input type="file">
         </div>
+      </div>
+    </form>
+
+    <div class="row">
+      <div class="col-sm-2"></div>
+      <div class="col-sm-10">
+        <a class="btn btn-primary">Save</a>
+      </div>
     </div>
+  </div>
 </div>
 
 <div class="panel panel-default">
@@ -64,8 +59,7 @@
                     <div class="form-group">
                         <label for="form-name" class="col-sm-2 control-label">Mail Address</label>
                         <div class="col-sm-10">
-                            <input type="text" class="form-control"
-                            id="form-name" value="john@example.com">
+                            <input type="text" class="form-control" data-link="email">
                         </div>
                     </div>
                 </div>

@@ -333,7 +333,14 @@ class Main {
                 {
                     navigation: new ControllableStream(),
                     invalidate: function (container: Element) {
-                        var binding = JsViews.objectObservable({});
+                        // TODO ログインしてなかったらエラー画面
+
+                        var profile = { };
+                        for (k in Reflect.fields(Service.instance.profile)) {
+                            Reflect.setField(profile, k, Reflect.field(Service.instance.profile, k));
+                        }
+
+                        var binding = JsViews.objectObservable(profile);
                         View.getTemplate("profile/edit").link(container, binding.data());
                     },
                     dispose: function () {
