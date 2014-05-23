@@ -67,6 +67,12 @@ class Main {
             return '<img ${buf.join(" ")}>';
         });
 
+        JsViews.views.tags("license", function (id) {
+            var license = Lambda.find(Service.instance.licenses, function (x) return x.id == id);
+            if (license == null) license = Service.instance.licenses[0];
+            return '<span>${license.name}</span>';
+        });
+
 
         JsViews.views.tags("datasize", function (size) {
             function round(x: Float) {
@@ -229,8 +235,14 @@ class Main {
                     navigation: navigation,
                     invalidate: function (container: Element) {
                         Service.instance.getDataset(id).then(function (data) {
+                            trace(data);
+
                             var binding = JsViews.objectObservable(data);
                             View.getTemplate("dataset/show").link(container, binding.data());
+
+                            new JqHtml(container).find("#dataset-edit").on("click", function (_) {
+                                navigation.update(PageNavigation.Navigate(DatasetEdit(id)));
+                            });
 
                             new JqHtml(container).find("#dataset-delete").createEventStream("click").chain(function (_) {
                                 // TODO ダイアログ

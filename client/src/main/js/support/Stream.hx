@@ -204,15 +204,15 @@ class Stream<A> {
         });
     }
 
-    public function chain<B>(f: A -> Promise<B>, ?onErrorResume: Dynamic -> Option<B>): Stream<B> {
+    public function chain<B>(f: A -> Promise<B>, ?resume: Dynamic -> Option<B>): Stream<B> {
         return new Stream(function (update, close, fail) {
             var promise;
             this.then(function (a) {
-                promise = if (onErrorResume == null) {
+                promise = if (resume == null) {
                     f(a).then(function (b) { trace(b);  update(b); } , fail);
                 } else {
                     f(a).then(update, function (e) {
-                        switch (onErrorResume(e)) {
+                        switch (resume(e)) {
                             case Some(b): update(b);
                             case None:
                         }
