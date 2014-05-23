@@ -488,8 +488,6 @@ class ApiController extends ScalatraServlet
     val name = params("name")
     val description = params("description")
 
-    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
-
     val response = for {
       userInfo <- getUserInfoFromSession()
       facadeParams = ModifyGroupParams(userInfo, groupId, name, description)
@@ -499,15 +497,17 @@ class ApiController extends ScalatraServlet
     }
     response match {
       case Success(x) => x
-      case Failure(e) => AjaxResponse("NG")
+      case Failure(e) =>
+        e match {
+          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case _ => AjaxResponse("NG")
+        }
     }
   }
 
   post("/groups/:groupId/images") {
     val groupId = params("groupId")
     val images = fileMultiParams.get("image")
-
-    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
 
     val response = for {
       userInfo <- getUserInfoFromSession()
@@ -518,15 +518,17 @@ class ApiController extends ScalatraServlet
     }
     response match {
       case Success(x) => x
-      case Failure(e) => AjaxResponse("NG")
+      case Failure(e) =>
+        e match {
+          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case _ => AjaxResponse("NG")
+        }
     }
   }
 
   put("/groups/:groupId/images/primary") {
     val groupId = params("groupId")
     val id = params("id")
-
-    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
 
     val response = for {
       userInfo <- getUserInfoFromSession()
@@ -537,15 +539,17 @@ class ApiController extends ScalatraServlet
     }
     response match {
       case Success(x) => AjaxResponse("OK")
-      case Failure(e) => AjaxResponse("NG")
+      case Failure(e) =>
+        e match {
+          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case _ => AjaxResponse("NG")
+        }
     }
   }
 
   delete("/groups/:groupId/images/:imageId") {
     val groupId = params("groupId")
     val imageId = params("imageId")
-
-    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
 
     val response = for {
       userInfo <- getUserInfoFromSession()
@@ -556,7 +560,11 @@ class ApiController extends ScalatraServlet
     }
     response match {
       case Success(x) => x
-      case Failure(e) => AjaxResponse("NG")
+      case Failure(e) =>
+        e match {
+          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case _ => AjaxResponse("NG")
+        }
     }
   }
 
@@ -564,8 +572,6 @@ class ApiController extends ScalatraServlet
     val groupId = params("groupId")
     val userId = params("id")
     val role = params("role").toInt
-
-    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
 
     val response = for {
       userInfo <- getUserInfoFromSession()
@@ -576,7 +582,11 @@ class ApiController extends ScalatraServlet
     }
     response match {
       case Success(x) => x
-      case Failure(e) => AjaxResponse("NG")
+      case Failure(e) =>
+        e match {
+          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case _ => AjaxResponse("NG")
+        }
     }
   }
 
@@ -584,8 +594,6 @@ class ApiController extends ScalatraServlet
     val groupId = params("groupId")
     val memberId = params("memberId")
     val role = params("role").toInt
-
-    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
 
     val response = for {
       userInfo <- getUserInfoFromSession()
@@ -596,15 +604,17 @@ class ApiController extends ScalatraServlet
     }
     response match {
       case Success(x) => AjaxResponse("OK")
-      case Failure(e) => AjaxResponse("NG")
+      case Failure(e) =>
+        e match {
+          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case _ => AjaxResponse("NG")
+        }
     }
   }
 
   delete("/groups/:groupId/members/:memberId") {
     val groupId = params("groupId")
     val memberId = params("memberId")
-
-    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
 
     val response = for {
       userInfo <- getUserInfoFromSession()
@@ -615,14 +625,17 @@ class ApiController extends ScalatraServlet
     }
     response match {
       case Success(x) => AjaxResponse("OK")
-      case Failure(e) => AjaxResponse("NG")
+      case Failure(e) =>
+        e match {
+          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case _ => AjaxResponse("NG")
+        }
     }
   }
 
   delete("/groups/:groupId") {
     val groupId = params("groupId")
 
-    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
 
     val response = for {
       userInfo <- getUserInfoFromSession()
@@ -633,7 +646,11 @@ class ApiController extends ScalatraServlet
     }
     response match {
       case Success(x) => AjaxResponse("OK")
-      case Failure(e) => AjaxResponse("NG")
+      case Failure(e) =>
+        e match {
+          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case _ => AjaxResponse("NG")
+        }
     }
   }
 

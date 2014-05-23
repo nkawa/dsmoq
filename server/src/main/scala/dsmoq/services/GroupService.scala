@@ -192,6 +192,9 @@ object GroupService {
 
     try {
       val result = DB localTx { implicit s =>
+        // 権限チェック
+        if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+
         val myself = persistence.User.find(params.userInfo.id).get
         val timestamp = DateTime.now()
 
@@ -233,6 +236,9 @@ object GroupService {
 
     try {
       val result = DB localTx { implicit s =>
+        // 権限チェック
+        if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+
         val myself = persistence.User.find(params.userInfo.id).get
         val addUser = persistence.User.find(params.userId).get
         val timestamp = DateTime.now()
@@ -266,6 +272,9 @@ object GroupService {
 
     try {
       val result = DB localTx { implicit s =>
+        // 権限チェック
+        if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+
         val myself = persistence.User.find(params.userInfo.id).get
         val timestamp = DateTime.now()
 
@@ -293,6 +302,9 @@ object GroupService {
 
     try {
       val result = DB localTx { implicit s =>
+        // 権限チェック
+        if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+
         val myself = persistence.User.find(params.userInfo.id).get
         val timestamp = DateTime.now()
 
@@ -320,6 +332,9 @@ object GroupService {
 
     try {
       val result = DB localTx { implicit s =>
+        // 権限チェック
+        if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+
         val myself = persistence.User.find(params.userInfo.id).get
         val timestamp = DateTime.now()
 
@@ -345,6 +360,9 @@ object GroupService {
     if (params.images.getOrElse(Seq.empty).isEmpty) throw new ValidationException
 
     DB localTx { implicit s =>
+      // 権限チェック
+      if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+
       val myself = persistence.User.find(params.userInfo.id).get
       val timestamp = DateTime.now()
       val primaryImage = getPrimaryImageId(params.groupId)
@@ -399,6 +417,9 @@ object GroupService {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
 
     DB localTx { implicit s =>
+      // 権限チェック
+      if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+
       val myself = persistence.User.find(params.userInfo.id).get
       val timestamp = DateTime.now()
       withSQL {
@@ -433,6 +454,9 @@ object GroupService {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
 
     val primaryImage = DB localTx { implicit s =>
+      // 権限チェック
+      if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+
       val myself = persistence.User.find(params.userInfo.id).get
       val timestamp = DateTime.now()
       withSQL {
@@ -662,5 +686,24 @@ object GroupService {
       .and
       .isNull(m.deletedAt)
     }.map(_.int(m.resultName.role)).single().apply
+  }
+
+  private def isGroupAdministrator(user: User, groupId: String)(implicit s: DBSession) = {
+    val g = persistence.Group.g
+    val m = persistence.Member.m
+    withSQL {
+      select(sqls"1")
+        .from(persistence.Group as g)
+        .innerJoin(persistence.Member as m).on(sqls.eq(g.id, m.groupId).and.isNull(m.deletedAt))
+        .where
+        .eq(g.groupType, 0)
+        .and
+        .eq(m.role, 1)
+        .and
+        .eq(m.userId, sqls.uuid(user.id))
+        .and
+        .isNull(g.deletedAt)
+        .limit(1)
+    }.map(x => true).single.apply().getOrElse(false)
   }
 }
