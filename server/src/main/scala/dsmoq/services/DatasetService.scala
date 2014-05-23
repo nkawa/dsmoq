@@ -878,7 +878,15 @@ object DatasetService {
   }
 
   private def getDataset(id: String)(implicit s: DBSession) = {
-    persistence.Dataset.find(id)
+    val d = persistence.Dataset.syntax("d")
+    withSQL {
+      select(d.result.*)
+        .from(persistence.Dataset as d)
+        .where
+        .eq(d.id, sqls.uuid(id))
+        .and
+        .isNull(d.deletedAt)
+    }.map(persistence.Dataset(d.resultName)).single.apply()
   }
 
   private def getPermission(id: String, groups: Seq[String])(implicit s: DBSession) = {
