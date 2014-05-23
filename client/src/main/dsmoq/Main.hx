@@ -204,7 +204,7 @@ class Main {
                 {
                     navigation: new ControllableStream(),
                     invalidate: function (container: Element) {
-                        View.getTemplate("DashBoard").link(container, {});
+                        View.getTemplate("dashboard/show").link(container, {});
                     },
                     dispose: function () {
                     }
