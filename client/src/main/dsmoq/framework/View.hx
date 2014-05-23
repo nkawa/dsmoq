@@ -1,6 +1,6 @@
 package dsmoq.framework;
 
-import dsmoq.framework.types.Error;
+import js.Error;
 import js.support.Result;
 import js.support.Unit;
 import js.html.Element;
@@ -11,10 +11,6 @@ import haxe.Resource;
 using js.support.ResultTools;
 using js.support.OptionTools;
 
-/**
- * ...
- * @author terurou
- */
 class View {
     static var uninitialized = true;
     static inline function initialize(): Void {

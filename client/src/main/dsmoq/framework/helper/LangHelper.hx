@@ -1,15 +1,7 @@
 package dsmoq.framework.helper;
 
-import haxe.macro.Expr;
-import dsmoq.framework.types.Error;
-import js.support.Result;
-import haxe.macro.ExprTools;
+import js.Error;
 
-
-/**
- * ...
- * @author terurou
- */
 class LangHelper {
 
     public inline static function orElse<T>(a: Null<T>, b: T): T {
