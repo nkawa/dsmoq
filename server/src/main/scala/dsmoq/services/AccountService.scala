@@ -241,7 +241,7 @@ object AccountService extends SessionTrait {
 
   def getLicenses()  = {
     val licenses = DB readOnly { implicit s =>
-      persistence.License.findAllNameOrder()
+      persistence.License.findOrderedAll()
     }
     licenses.map(x =>
       dsmoq.services.data.License(

@@ -8,6 +8,7 @@ import PostgresqlHelper._
 case class License(
   id: String, 
   name: String, 
+  displayOrder: Int, 
   createdBy: String, 
   createdAt: DateTime, 
   updatedBy: String, 
@@ -26,11 +27,12 @@ object License extends SQLSyntaxSupport[License] {
 
   override val tableName = "licenses"
 
-  override val columns = Seq("id", "name", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
+  override val columns = Seq("id", "name", "display_order", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
 
   def apply(l: ResultName[License])(rs: WrappedResultSet): License = new License(
     id = rs.string(l.id),
     name = rs.string(l.name),
+    displayOrder = rs.int(l.displayOrder),
     createdBy = rs.string(l.createdBy),
     createdAt = rs.timestamp(l.createdAt).toDateTime,
     updatedBy = rs.string(l.updatedBy),
@@ -53,10 +55,10 @@ object License extends SQLSyntaxSupport[License] {
     withSQL(select.from(License as l)).map(License(l.resultName)).list.apply()
   }
 
-  def findAllNameOrder()(implicit session: DBSession = autoSession): List[License] = {
-    withSQL(select.from(License as l).orderBy(l.name)).map(License(l.resultName)).list.apply()
+  def findOrderedAll()(implicit session: DBSession = autoSession): List[License] = {
+    withSQL(select.from(License as l).orderBy(l.displayOrder)).map(License(l.resultName)).list.apply()
   }
-          
+  
   def countAll()(implicit session: DBSession = autoSession): Long = {
     withSQL(select(sqls"count(1)").from(License as l)).map(rs => rs.long(1)).single.apply().get
   }
@@ -76,6 +78,7 @@ object License extends SQLSyntaxSupport[License] {
   def create(
     id: String,
     name: String,
+    displayOrder: Int,
     createdBy: String,
     createdAt: DateTime,
     updatedBy: String,
@@ -86,6 +89,7 @@ object License extends SQLSyntaxSupport[License] {
       insert.into(License).columns(
         column.id,
         column.name,
+        column.displayOrder,
         column.createdBy,
         column.createdAt,
         column.updatedBy,
@@ -95,6 +99,7 @@ object License extends SQLSyntaxSupport[License] {
       ).values(
         sqls.uuid(id),
         name,
+        displayOrder,
         sqls.uuid(createdBy),
         createdAt,
         sqls.uuid(updatedBy),
@@ -107,6 +112,7 @@ object License extends SQLSyntaxSupport[License] {
     License(
       id = id,
       name = name,
+      displayOrder = displayOrder,
       createdBy = createdBy,
       createdAt = createdAt,
       updatedBy = updatedBy,
@@ -120,6 +126,7 @@ object License extends SQLSyntaxSupport[License] {
       update(License).set(
         column.id -> sqls.uuid(entity.id),
         column.name -> entity.name,
+        column.displayOrder -> entity.displayOrder,
         column.createdBy -> sqls.uuid(entity.createdBy),
         column.createdAt -> entity.createdAt,
         column.updatedBy -> sqls.uuid(entity.updatedBy),
