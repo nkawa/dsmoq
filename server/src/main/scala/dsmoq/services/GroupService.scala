@@ -105,8 +105,17 @@ object GroupService {
 
   def getGroupMembers(params: GroupData.GetGroupMembersParams) = {
     try {
-      val offset = params.offset.getOrElse("0").toInt
-      val limit = params.limit.getOrElse("20").toInt
+      // FIXME input parameter check
+      val offset = try {
+        params.offset.getOrElse("0").toInt
+      } catch {
+        case e: Exception => throw new InputValidationException("offset", "wrong parameter")
+      }
+      val limit = try {
+        params.limit.getOrElse("20").toInt
+      } catch {
+        case e: Exception => throw new InputValidationException("limit", "wrong parameter")
+      }
 
       DB readOnly { implicit s =>
         val members = getMembers(params.userInfo, params.groupId, offset, limit)
@@ -136,8 +145,17 @@ object GroupService {
 
   def getGroupDatasets(params: GroupData.GetGroupDatasetsParams) = {
     try {
-      val offset = params.offset.getOrElse("0").toInt
-      val limit = params.limit.getOrElse("20").toInt
+      // FIXME input parameter check
+      val offset = try {
+        params.offset.getOrElse("0").toInt
+      } catch {
+        case e: Exception => throw new InputValidationException("offset", "wrong parameter")
+      }
+      val limit = try {
+        params.limit.getOrElse("20").toInt
+      } catch {
+        case e: Exception => throw new InputValidationException("limit", "wrong parameter")
+      }
 
       DB readOnly { implicit s =>
         val datasets = getDatasets(params.userInfo, params.groupId, offset, limit)
