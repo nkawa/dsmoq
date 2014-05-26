@@ -44,8 +44,13 @@ using dsmoq.framework.helper.JQueryTools;
 class Main {
     public static function main() {
         // TODO frameworkで管理すべき
+        JsViews.views.tags("debug", function (x) {
+            trace(x);
+            return "";
+        });
+
         JsViews.views.tags("a", function (_) {
-            var ctx = JsViewsTools.tagCtx();
+            var ctx = JsViewsTools.tag().tagCtx;
             var props = ctx.props;
 
             var buf = [];
@@ -57,7 +62,7 @@ class Main {
         });
 
         JsViews.views.tags("img", function (_) {
-            var ctx = JsViewsTools.tagCtx();
+            var ctx = JsViewsTools.tag().tagCtx;
             var props = ctx.props;
 
             var buf = [];
@@ -97,30 +102,56 @@ class Main {
             }
         });
 
-        JsViews.views.tags("pagination", {
-            template: Resource.getString("share/panination"),
+        var pagenationTemplate = JsViews.template(Resource.getString("share/pagination"));
+        JsViews.views.tags("pagination", cast {
+            template: "<div></div>",
             dataBoundOnly: true,
-            init: function (tag, link) {
-                trace("init");
-            },
-            onBeforeLink: function() {
-                trace("onBeforeLink");
-                return true;
-            },
+            //init: function (tag, link) {
+            //    trace("init");
+            //},
+            //onBeforeLink: function() {
+                //trace("onBeforeLink");
+                //return true;
+            //},
             onAfterLink: function(tag, link) {
-                trace("onAfterLink");
-            },
-            onUpdate: function(ev, eventArgs, tag) {
-                trace("onUpdate");
-                return true;
-            },
-            onBeforeChange: function(ev, eventArgs) {
-                trace("onBeforeChange");
-                return true;
-            },
-            onDispose: function() {
-                trace("onDispose");
+                var tag = JsViewsTools.tag();
+                var root = tag.contents("*:first");
+
+                var pageSize: Int = tag.tagCtx.props["pagesize"];
+                var pageDelta: Int = tag.tagCtx.props["pagedelta"];
+                var pageDeltaCenter = Math.floor(pageDelta / 2);
+                var total: Int = tag.tagCtx.args[0].total;
+                var count: Int = tag.tagCtx.args[0].count;
+                var offset: Int = tag.tagCtx.args[0].offset;
+                var page = Math.ceil(offset / pageSize) + 1;
+                var last = Math.ceil(total / pageSize);
+
+                var range = [for (i in if (page <= pageDeltaCenter) {
+                    1...((pageDelta < last) ? pageDelta + 1 : last + 1);
+                } else if (page >= (last - pageDeltaCenter)) {
+                    (last - pageDelta + 1)...(last+1);
+                } else {
+                    var left = page - pageDeltaCenter;
+                    (left)...(left + pageDelta);
+                }) i];
+
+                root.html(pagenationTemplate.render({ page: page, range: range, last: last }));
+                root.on("click", "a[data-value]", function (e) {
+                    root.attr("data-value", new JqHtml(e.target).attr("data-value"));
+                    root.trigger("change.dsmoq.pagination");
+                });
             }
+            //onUpdate: function(ev, eventArgs, tag) { // binding.onchange
+                //trace("onUpdate");
+                //return true;
+            //},
+            //onBeforeChange: function(ev, eventArgs) { //input.onchange
+                //trace("onBeforeChange");
+                //return true;
+            //},
+            //onDispose: function() {
+                //trace("onDispose");
+            //}
         });
 
         Engine.start(new Main());

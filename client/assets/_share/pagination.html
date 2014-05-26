@@ -1,7 +1,19 @@
-<ul class="pagination">
-  <li><a class="disabled" href="#">&laquo;</a></li>
-  <li class="active"><a href="#">1 <span class="sr-only">(current)</span></a></li>
-  <li><a href="#">2</a></li> <li><a href="#">3</a></li>
-  <li><a href="#">4</a></li> <li><a href="#">5</a></li>
-  <li><a href="#">&raquo;</a></li>
+<ul class="pagination" data-value="{{>page}}">
+  {{if page <= 1}}
+    <li class="disabled"><a href="javascript:void 0;">&laquo;</a></li>
+  {{else}}
+    <li><a href="javascript:void 0;" data-value="1">&laquo;</a></li>
+  {{/if}}
+  {{for range}}
+    {{if #data == #parent.parent.data.page}}
+      <li class="active"><a href="javascript:void 0;">{{>#data}}</a></li>
+    {{else}}
+      <li><a href="javascript:void 0;" data-value="{{>#data}}">{{>#data}}</a></li>
+    {{/if}}
+  {{/for}}
+  {{if page >= last}}
+    <li class="disabled"><a href="javascript:void 0;">&raquo;</a></li>
+  {{else}}
+    <li><a href="javascript:void 0;" data-value="{{>last}}">&raquo;</a></li>
+  {{/if}}
 </ul>
