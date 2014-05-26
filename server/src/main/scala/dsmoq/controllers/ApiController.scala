@@ -347,7 +347,7 @@ class ApiController extends ScalatraServlet
 
   put("/datasets/:datasetId/images/primary") {
     val datasetId = params("datasetId")
-    val id = params("id")
+    val id = params.get("id")
 
     val response = for {
       userInfo <- getUserInfoFromSession()
@@ -361,6 +361,8 @@ class ApiController extends ScalatraServlet
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case e: NotFoundException => AjaxResponse("NotFound")
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
           case _ => AjaxResponse("NG")
         }
     }

@@ -670,8 +670,22 @@ object DatasetService {
   def changePrimaryImage(params: DatasetData.ChangePrimaryImageParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
 
+    val imageId = params.id match {
+      case Some(x) => x
+      case None => throw new InputValidationException("id", "ID is empty")
+    }
+
     DB localTx { implicit s =>
-      if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+      try {
+        getDataset(params.datasetId) match {
+          case Some(x) =>
+            if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+          case None => throw new NotFoundException
+        }
+        if (!isValidImage(params.datasetId, imageId)) throw new NotFoundException
+      } catch {
+        case e: Exception => throw new NotFoundException
+      }
 
       val myself = persistence.User.find(params.userInfo.id).get
       val timestamp = DateTime.now()
@@ -680,7 +694,7 @@ object DatasetService {
         update(persistence.DatasetImage)
           .set(di.isPrimary -> true, di.updatedBy -> sqls.uuid(myself.id), di.updatedAt -> timestamp)
           .where
-          .eq(di.imageId, sqls.uuid(params.id))
+          .eq(di.imageId, sqls.uuid(imageId))
           .and
           .eq(di.datasetId, sqls.uuid(params.datasetId))
           .and
@@ -692,7 +706,7 @@ object DatasetService {
         update(persistence.DatasetImage)
           .set(di.isPrimary -> false, di.updatedBy -> sqls.uuid(myself.id), di.updatedAt -> timestamp)
           .where
-          .ne(di.imageId, sqls.uuid(params.id))
+          .ne(di.imageId, sqls.uuid(imageId))
           .and
           .eq(di.datasetId, sqls.uuid(params.datasetId))
           .and
@@ -1225,5 +1239,26 @@ object DatasetService {
         .and
         .isNull(i.deletedAt)
     }.map(rs => rs.string(i.resultName.id)).single().apply
+  }
+
+  private def isValidImage(datasetId: String, imageId: String)(implicit s: DBSession) = {
+    val i = persistence.Image.syntax("i")
+    val di = persistence.DatasetImage.syntax("di")
+    withSQL {
+      select(i.result.id)
+        .from(persistence.Image as i)
+        .innerJoin(persistence.DatasetImage as di).on(i.id, di.imageId)
+        .where
+        .eq(di.datasetId, sqls.uuid(datasetId))
+        .and
+        .eq(i.id, sqls.uuid(imageId))
+        .and
+        .isNull(di.deletedAt)
+        .and
+        .isNull(i.deletedAt)
+    }.map(rs => rs.string(i.resultName.id)).single().apply match {
+      case Some(x) => true
+      case None => false
+    }
   }
 }
