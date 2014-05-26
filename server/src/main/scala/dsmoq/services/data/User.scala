@@ -18,7 +18,7 @@ object User {
     fullname = x.fullname,
     organization = x.organization,
     title = x.title,
-    image = "", //TODO
+    image = dsmoq.AppConf.imageDownloadRoot + x.imageId,
     isGuest = false,
     isDeleted = x.deletedAt.isDefined
   )
