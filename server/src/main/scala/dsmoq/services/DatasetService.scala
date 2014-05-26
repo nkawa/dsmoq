@@ -426,11 +426,20 @@ object DatasetService {
 
     val file = params.file match {
       case Some(x) => x
-      case None => throw new ValidationException
+      case None => throw new InputValidationException("file", "file is empty")
     }
+    if (file.name.length == 0) throw new InputValidationException("file", "file is empty")
 
     DB localTx { implicit s =>
-      if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+      try {
+        getDataset(params.datasetId) match {
+          case Some(x) => if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+          case None => throw new NotFoundException
+        }
+        if (!isValidFile(params.datasetId, params.fileId)) throw new NotFoundException
+      } catch {
+        case e: Exception => throw new NotFoundException
+      }
 
       val myself = persistence.User.find(params.userInfo.id).get
       val timestamp = DateTime.now()
@@ -1267,6 +1276,27 @@ object DatasetService {
         .and
         .isNull(i.deletedAt)
     }.map(rs => rs.string(i.resultName.id)).single().apply match {
+      case Some(x) => true
+      case None => false
+    }
+  }
+
+  private def isValidFile(datasetId: String, fileId: String)(implicit s: DBSession) = {
+    val f = persistence.File.syntax("f")
+    val d = persistence.Dataset.syntax("d")
+    withSQL {
+      select(f.result.id)
+        .from(persistence.File as f)
+        .innerJoin(persistence.Dataset as d).on(d.id, f.datasetId)
+        .where
+        .eq(f.datasetId, sqls.uuid(datasetId))
+        .and
+        .eq(f.id, sqls.uuid(fileId))
+        .and
+        .isNull(f.deletedAt)
+        .and
+        .isNull(d.deletedAt)
+    }.map(rs => rs.string(f.resultName.id)).single().apply match {
       case Some(x) => true
       case None => false
     }
