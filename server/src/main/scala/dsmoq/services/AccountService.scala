@@ -107,49 +107,49 @@ object AccountService extends SessionTrait {
     }
   }
 
-  def changeUserPassword(user: User, currentPassword: Option[String], newPassword: Option[String]): Try[Option[String]] = {
+  def changeUserPassword(user: User, currentPassword: Option[String], newPassword: Option[String]): Try[String] = {
     try {
       if (user.isGuest) throw new NotAuthorizedException
 
-      // 値があるかチェック
-      val result = for {
-        c <- currentPassword
-        n <- newPassword
-      } yield {
-        val oldPasswordHash = createPasswordHash(c)
-        DB localTx { implicit s =>
-          val u = persistence.User.u
-          val p = persistence.Password.p
-          val pwd = withSQL {
-            select(p.result.*)
-              .from(persistence.Password as p)
-              .innerJoin(persistence.User as u).on(u.id, p.userId)
-              .where
-              .eq(u.id, sqls.uuid(user.id))
-              .and
-              .eq(p.hash, oldPasswordHash)
-              .and
-              .isNull(p.deletedAt)
-          }.map(persistence.Password(p.resultName)).single().apply
-
-          val newPasswordHash = createPasswordHash(n)
-          pwd match {
-            case Some(x) =>
-              withSQL {
-                val p = persistence.Password.column
-                update(persistence.Password)
-                  .set(p.hash -> newPasswordHash, p.updatedAt -> DateTime.now, p.updatedBy -> sqls.uuid(user.id))
-                  .where
-                  .eq(p.id, sqls.uuid(x.id))
-              }.update().apply
-            case None => throw new RuntimeException("password data is not found.")
-          }
-        }
-        n
+      // FIXME input validation
+      val c = currentPassword match {
+        case Some(x) => x
+        case None => throw new InputValidationException("current_password", "current password is empty.")
       }
-      // 引数不足の場合Noneが返る
-      if (result.isEmpty) throw new RuntimeException("parameter error.")
-      Success(result)
+      val n = newPassword match {
+        case Some(x) => x
+        case None => throw new InputValidationException("new_password", "new password is empty")
+      }
+      val oldPasswordHash = createPasswordHash(c)
+      DB localTx { implicit s =>
+        val u = persistence.User.u
+        val p = persistence.Password.p
+        val pwd = withSQL {
+          select(p.result.*)
+            .from(persistence.Password as p)
+            .innerJoin(persistence.User as u).on(u.id, p.userId)
+            .where
+            .eq(u.id, sqls.uuid(user.id))
+            .and
+            .eq(p.hash, oldPasswordHash)
+            .and
+            .isNull(p.deletedAt)
+        }.map(persistence.Password(p.resultName)).single().apply
+
+        val newPasswordHash = createPasswordHash(n)
+        pwd match {
+          case Some(x) =>
+            withSQL {
+              val p = persistence.Password.column
+              update(persistence.Password)
+                .set(p.hash -> newPasswordHash, p.updatedAt -> DateTime.now, p.updatedBy -> sqls.uuid(user.id))
+                .where
+                .eq(p.id, sqls.uuid(x.id))
+            }.update().apply
+          case None => throw new InputValidationException("current_password", "wrong password")
+        }
+      }
+      Success(n)
     } catch {
       case e: Exception => Failure(e)
     }
