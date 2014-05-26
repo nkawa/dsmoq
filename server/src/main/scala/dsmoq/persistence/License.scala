@@ -47,7 +47,7 @@ object License extends SQLSyntaxSupport[License] {
 
   def find(id: String)(implicit session: DBSession = autoSession): Option[License] = {
     withSQL { 
-      select.from(License as l).where.eq(l.id, id)
+      select.from(License as l).where.eq(l.id, sqls.uuid(id))
     }.map(License(l.resultName)).single.apply()
   }
           

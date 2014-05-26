@@ -306,9 +306,9 @@ class ApiController extends ScalatraServlet
 
   put("/datasets/:datasetId/meta") {
     val datasetId = params("datasetId")
-    val name = params("name")
-    val description = params("description")
-    val license = params("license")
+    val name = params.get("name")
+    val description = params.get("description")
+    val license = params.get("license")
     val attributes = multiParams("attributes[][name]").zip(multiParams("attributes[][value]"))
 
     val response = for {
@@ -321,8 +321,11 @@ class ApiController extends ScalatraServlet
     response match {
       case Success(x) => AjaxResponse("OK")
       case Failure(e) =>
+        println(e)
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case e: NotFoundException => AjaxResponse("NotFound")
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
           case _ => AjaxResponse("NG")
         }
     }

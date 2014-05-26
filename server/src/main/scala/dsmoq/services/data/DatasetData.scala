@@ -55,9 +55,9 @@ object DatasetData {
   case class ModifyDatasetMetaParams(
                                       userInfo: User,
                                       datasetId: String,
-                                      name: String,
-                                      description: String,
-                                      licenseId: String,
+                                      name: Option[String],
+                                      description: Option[String],
+                                      licenseId: Option[String],
                                       attributes: Seq[(String, String)]
                                       )
 

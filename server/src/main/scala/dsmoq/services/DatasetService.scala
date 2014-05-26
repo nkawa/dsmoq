@@ -568,10 +568,41 @@ object DatasetService {
   
   def modifyDatasetMeta(params: DatasetData.ModifyDatasetMetaParams): Try[String] = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
+    // FIXME input parameter check
+    val name = params.name match {
+      case Some(x) => x
+      case None => throw new InputValidationException("name", "name is empty")
+    }
+    val description = params.description match {
+      case Some(x) => x
+      case None => throw new InputValidationException("description", "description is empty")
+    }
+    val licenseId = params.licenseId match {
+      case Some(x) => x
+      case None => throw new InputValidationException("license", "license is empty")
+    }
 
     try {
       DB localTx { implicit s =>
-        if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+        try {
+          getDataset(params.datasetId) match {
+            case Some(x) => if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+            case None => throw new NotFoundException
+          }
+        } catch {
+          case e: InputValidationException => throw e
+          case e: Exception => throw new NotFoundException
+        }
+
+        // licenseの存在チェック
+        try {
+          persistence.License.find(licenseId) match {
+            case Some(x) => // do nothing
+            case None => throw new InputValidationException("license", "license is invalid")
+          }
+        } catch {
+          case e: Exception => throw new InputValidationException("license", "license is invalid")
+        }
 
         val myself = persistence.User.find(params.userInfo.id).get
         val timestamp = DateTime.now()
@@ -579,7 +610,7 @@ object DatasetService {
         withSQL {
           val d = persistence.Dataset.column
           update(persistence.Dataset)
-            .set(d.name -> params.name, d.description -> params.description, d.licenseId -> sqls.uuid(params.licenseId),
+            .set(d.name -> name, d.description -> description, d.licenseId -> sqls.uuid(licenseId),
               d.updatedBy -> sqls.uuid(myself.id), d.updatedAt -> timestamp)
             .where
             .eq(d.id, sqls.uuid(params.datasetId))
