@@ -73,7 +73,7 @@ class Service extends Stream<ServiceEvent> {
         return sendForm("/api/datasets", form);
     }
 
-    public function findDatasets(?params: {?query: String, ?group: String, ?attributes: {}, ?page: UInt}): Promise<RangeSlice<{}>> {
+    public function findDatasets(?params: {?query: String, ?group: String, ?attributes: {}, ?page: UInt}): Promise<RangeSlice<DatasetSummary>> {
         return send(Get, "/api/datasets", { } );
     }
 
@@ -81,8 +81,68 @@ class Service extends Stream<ServiceEvent> {
         return send(Get, '/api/datasets/$id');
     }
 
-    public function deleteDeataset(id: String): Promise<Unit> {
-        return send(Delete, '/api/datasets/$id');
+    public function addDatasetFiles(datasetId: String, form: JqHtml): Promise<Array<DatasetFile>> {
+        // TODO
+        return null;
+    }
+
+    public function replaceDatasetFile(datasetId: String, fileId: String, form: JqHtml): Promise<DatasetFile> {
+        // TODO
+        return null;
+    }
+
+    public function renameDatatetFile(datasetId: String, fileId: String, name: String): Promise<Unit> {
+        // TODO
+        return null;
+    }
+
+    public function removeDatasetFile(datasetId: String, fileId: String): Promise<Unit> {
+        // TODO
+        return null;
+    }
+
+    public function updateDatasetMetadata(datasetId: String, meta: DatasetMetadata): Promise<Unit> {
+        // TODO
+        return null;
+    }
+
+    public function addDatasetImage(datasetId: String, form: JqHtml): Promise<{images: Array<Image>, primaryImage: String}> {
+        // TODO
+        return null;
+    }
+
+    public function setDatasetPrimeryImage(datasetId: String, imageId: String): Promise<Unit> {
+        // TODO
+        return null;
+    }
+
+    public function removeDatasetImage(datasetId: String, imageId: String): Promise<{primaryImage: String}> {
+        // TODO
+        return null;
+    }
+
+    public function setDatasetAccessLevel(datasetId: String, groupId: String, accessLevel: DatasetPermission): Promise<Unit> {
+        // TODO
+        return null;
+    }
+
+    public function removeDatasetAccessLevel(datasetId: String, groupId: String): Promise<Unit> {
+        // TODO
+        return null;
+    }
+
+    public function setDatasetGuestAccessLevel(dataset: String, accessLevel: GuestAccessLevel): Promise<Unit> {
+        // TODO
+        return null;
+    }
+
+    public function resetDatasetGuestAccessLevel(dataset: String): Promise<Unit> {
+        // TODO
+        return null;
+    }
+
+    public function deleteDeataset(datasetId: String): Promise<Unit> {
+        return send(Delete, '/api/datasets/$datasetId');
     }
 
     // ---
@@ -91,6 +151,58 @@ class Service extends Stream<ServiceEvent> {
         trace( { name: name, description: "" } );
         return send(Post, "/api/groups", { name: name, description: "" });
     }
+
+    public function findGroups(?params: {page: UInt}): Promise<RangeSlice<GroupSummary>> {
+        // TODO
+        return null;
+    }
+
+    public function getGroup(id: String): Promise<Group> {
+        return null;
+        // TODO
+    }
+
+    public function getGroupMembers(id: String, page: UInt): Promise<{}> {
+        return null;
+    }
+
+    public function updateGroupBasics(id: String, name: String, description: String): Promise<{}> {
+        return null;
+    }
+
+    public function addGroupImages(id: String, form: JqHtml): Promise<Unit> {
+        return null;
+    }
+
+    public function setGroupPrimaryImage(groupId: String, imageId: String): Promise<Unit> {
+        return null;
+    }
+
+    public function removeGroupImage(groupId: String, imageId: String): Promise<Unit> {
+        return null;
+    }
+
+    public function addGroupMember(groupId: String, userId: String, role: Int): Promise<Unit> {
+        return null;
+    }
+
+    public function setGroupMemberRole(groupId: String, userId: String, role: Int): Promise<Unit> {
+        return null;
+    }
+
+    public function removeGroupMember(groupId: String, userId: String): Promise<Unit> {
+        return null;
+    }
+
+    public function deleteGroup(groupId: String): Promise<Unit> {
+        return null;
+    }
+
+
+    public function getUsers(): Promise<{}> {
+        return null;
+    }
+
 
 
     inline function guest(): Profile {

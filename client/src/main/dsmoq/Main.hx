@@ -268,7 +268,6 @@ class Main {
                         });
                     },
                     dispose: function () {
-
                     }
                 }
             case DatasetShow(id):
@@ -312,18 +311,17 @@ class Main {
                         });
                     },
                     dispose: function () {
-
                     }
                 }
             case DatasetEdit(id):
+                var navigation = new ControllableStream();
                 {
-                    navigation: new ControllableStream(),
+                    navigation: navigation,
                     invalidate: function (container: Element) {
                         var binding = JsViews.objectObservable({});
                         View.getTemplate("dataset/edit").link(container, binding.data());
                     },
                     dispose: function () {
-
                     }
                 }
 
@@ -331,11 +329,13 @@ class Main {
                 {
                     navigation: new ControllableStream(),
                     invalidate: function (container: Element) {
+                        //Service.instance.
+
+
                         var binding = JsViews.objectObservable({});
                         View.getTemplate("group/list").link(container, binding.data());
                     },
                     dispose: function () {
-
                     }
                 }
             case GroupShow(id):
@@ -346,7 +346,6 @@ class Main {
                         View.getTemplate("group/show").link(container, binding.data());
                     },
                     dispose: function () {
-
                     }
                 }
             case GroupEdit(id):
@@ -357,7 +356,6 @@ class Main {
                         View.getTemplate("group/edit").link(container, binding.data());
                     },
                     dispose: function () {
-
                     }
                 }
 
@@ -419,7 +417,6 @@ class Main {
                         });
                     },
                     dispose: function () {
-
                     }
                 }
         };
