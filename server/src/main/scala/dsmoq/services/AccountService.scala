@@ -257,7 +257,7 @@ object AccountService extends SessionTrait {
           case pattern() => x
           case _ => throw new ValidationException
         }
-      case None => throw new RuntimeException("email is empty")
+      case None => throw new InputValidationException("email", "email is empty")
     }
 
     DB readOnly { implicit s =>
