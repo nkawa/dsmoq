@@ -72,7 +72,7 @@ object AccountService extends SessionTrait {
       // FIXME Eメールアドレスのフォーマットチェックはしていない
       val mail = email match {
         case Some(x) => x
-        case None => throw new RuntimeException("email is empty")
+        case None => throw new InputValidationException("email", "email is empty")
       }
 
       DB localTx {implicit s =>

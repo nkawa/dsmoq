@@ -90,7 +90,11 @@ class ApiController extends ScalatraServlet
       result
     }) match {
       case Success(x) => AjaxResponse("OK")
-      case Failure(e) => AjaxResponse("NG")
+      case Failure(e) =>
+        e match {
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+          case _ => AjaxResponse("NG")
+        }
     }
   }
 
