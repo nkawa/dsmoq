@@ -77,33 +77,28 @@ class Service extends Stream<ServiceEvent> {
         return send(Get, "/api/datasets", { } );
     }
 
-    public function getDataset(id: String): Promise<Dataset> {
-        return send(Get, '/api/datasets/$id');
+    public function getDataset(datasetId: String): Promise<Dataset> {
+        return send(Get, '/api/datasets/$datasetId');
     }
 
     public function addDatasetFiles(datasetId: String, form: JqHtml): Promise<Array<DatasetFile>> {
-        // TODO
-        return null;
+        return sendForm('/api/datasets/$datasetId/files', form);
     }
 
     public function replaceDatasetFile(datasetId: String, fileId: String, form: JqHtml): Promise<DatasetFile> {
-        // TODO
-        return null;
+        return sendForm('/api/datasets/$datasetId/files/$fileId', form);
     }
 
     public function renameDatatetFile(datasetId: String, fileId: String, name: String): Promise<Unit> {
-        // TODO
-        return null;
+        return send(Put, '/api/datasets/$datasetId/files/$fileId/name', name);
     }
 
     public function removeDatasetFile(datasetId: String, fileId: String): Promise<Unit> {
-        // TODO
-        return null;
+        return send(Delete, '/api/datasets/$datasetId/files/$fileId');
     }
 
-    public function updateDatasetMetadata(datasetId: String, meta: DatasetMetadata): Promise<Unit> {
-        // TODO
-        return null;
+    public function updateDatasetMetadata(datasetId: String, metadata: DatasetMetadata): Promise<Unit> {
+        return send(Put, '/datasets/${datasetId}/metadata', metadata);
     }
 
     public function addDatasetImage(datasetId: String, form: JqHtml): Promise<{images: Array<Image>, primaryImage: String}> {
@@ -236,12 +231,13 @@ class Service extends Stream<ServiceEvent> {
             });
     }
 
-    function sendForm<T>(url: String, form: JqHtml): Promise<T> {
+    function sendForm<T>(url: String, form: JqHtml, ?optData: {}): Promise<T> {
         var promise = new ControllablePromise();
         untyped form.ajaxSubmit({
             url: url,
             type: "post",
             dataType: "json",
+            data: optData,
             success: function (response) {
                 switch (response.status) {
                     case ApiStatus.OK:
