@@ -5,6 +5,6 @@ package dsmoq.services.data
  */
 object LoginData {
   // request
-  case class SigninParams(id: String, password: String)
+  case class SigninParams(id: Option[String], password: Option[String])
 
 }

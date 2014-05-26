@@ -12,7 +12,7 @@ import dsmoq.services.data.GroupData._
 import dsmoq.forms._
 import dsmoq.AppConf
 import dsmoq.services.data.ProfileData.UpdateProfileParams
-import dsmoq.exceptions.{NotFoundException, NotAuthorizedException}
+import dsmoq.exceptions.{InputValidationException, NotFoundException, NotAuthorizedException}
 
 class ApiController extends ScalatraServlet
     with JacksonJsonSupport with SessionTrait with FileUploadSupport {
@@ -108,23 +108,20 @@ class ApiController extends ScalatraServlet
   }
 
   post("/signin") {
-    val id = params("id")
-    val facadeParams = SigninParams(id, params("password"))
+    val id = params.get("id")
+    val password = params.get("password")
+    val facadeParams = SigninParams(id, password)
     AccountService.getAuthenticatedUser(facadeParams) match {
       case Success(x) =>
-        x match {
-          case Some(y) =>
-            setUserInfoToSession(y)
-            AjaxResponse("OK", getUserInfoFromSession().get)
-          case None =>
-            clearSession()
-            clearSessionCookie()
-            AjaxResponse("BadRequest")
-        }
+        setUserInfoToSession(x)
+        AjaxResponse("OK", getUserInfoFromSession().get)
       case Failure(e) =>
         clearSession()
         clearSessionCookie()
-        AjaxResponse("NG")
+        e match {
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+          case _ => AjaxResponse ("NG")
+        }
     }
   }
 

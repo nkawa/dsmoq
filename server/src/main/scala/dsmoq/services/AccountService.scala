@@ -6,7 +6,7 @@ import java.security.MessageDigest
 import dsmoq.{AppConf, persistence}
 import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.services.data._
-import dsmoq.exceptions.{ValidationException, NotAuthorizedException}
+import dsmoq.exceptions.{InputValidationException, ValidationException, NotAuthorizedException}
 import org.joda.time.DateTime
 import dsmoq.services.data.ProfileData.UpdateProfileParams
 import dsmoq.controllers.SessionTrait
@@ -18,11 +18,20 @@ import dsmoq.logic.ImageSaveLogic
 
 object AccountService extends SessionTrait {
 
-  def getAuthenticatedUser(params: LoginData.SigninParams): Try[Option[User]] = {
+  def getAuthenticatedUser(params: LoginData.SigninParams): Try[User] = {
     // TODO dbアクセス時エラーでFailure返す try~catch
     try {
+      val id = params.id match {
+        case Some(x) => x
+        case None => throw new InputValidationException("id", "ID is empty")
+      }
+      val password = params.password match {
+        case Some(x) => x
+        case None => throw new InputValidationException("password", "password is empty")
+      }
+
       // TODO パスワードソルトを追加
-      val hash = MessageDigest.getInstance("SHA-256").digest(params.password.getBytes("UTF-8")).map("%02x".format(_)).mkString
+      val hash = MessageDigest.getInstance("SHA-256").digest(password.getBytes("UTF-8")).map("%02x".format(_)).mkString
 
       DB readOnly { implicit s =>
         val u = persistence.User.u
@@ -36,9 +45,9 @@ object AccountService extends SessionTrait {
             .innerJoin(persistence.Password as p).on(u.id, p.userId)
             .where
               .append(sqls"(")
-                .eq(u.name, params.id)
+                .eq(u.name, id)
                 .or
-                .eq(ma.address, params.id)
+                .eq(ma.address, id)
               .append(sqls")")
               .and
               .eq(p.hash, hash)
@@ -46,7 +55,10 @@ object AccountService extends SessionTrait {
         .map(persistence.User(u.resultName)).single.apply
         .map(x => User(x))
 
-        Success(user)
+        user match {
+          case Some(x) => Success(x)
+          case None => throw new InputValidationException("password", "wrong password")
+        }
       }
     } catch {
       case e: RuntimeException => Failure(e)
