@@ -231,11 +231,28 @@ object GroupService {
 
   def modifyGroup(params: GroupData.ModifyGroupParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
+    // FIXME input parameter check
+    val name = params.name match {
+      case Some(x) => x
+      case None => throw new InputValidationException("name", "name is empty")
+    }
+    val description = params.description match {
+      case Some(x) => x
+      case None => throw new InputValidationException("description", "description is empty")
+    }
 
     try {
       val result = DB localTx { implicit s =>
-        // 権限チェック
-        if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+        try {
+          getGroup(params.groupId) match {
+            case Some(x) =>
+              // 権限チェック
+              if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+            case None => throw new NotFoundException
+          }
+        } catch {
+          case e: Exception => throw new NotFoundException
+        }
 
         val myself = persistence.User.find(params.userInfo.id).get
         val timestamp = DateTime.now()
@@ -243,7 +260,7 @@ object GroupService {
         withSQL {
           val g = persistence.Group.column
           update(persistence.Group)
-            .set(g.name -> params.name, g.description -> params.description,
+            .set(g.name -> name, g.description -> description,
             g.updatedBy -> sqls.uuid(myself.id), g.updatedAt -> timestamp)
             .where
             .eq(g.id, sqls.uuid(params.groupId))

@@ -543,8 +543,8 @@ class ApiController extends ScalatraServlet
 
   put("/groups/:groupId") {
     val groupId = params("groupId")
-    val name = params("name")
-    val description = params("description")
+    val name = params.get("name")
+    val description = params.get("description")
 
     val response = for {
       userInfo <- getUserInfoFromSession()
@@ -558,6 +558,8 @@ class ApiController extends ScalatraServlet
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case e: NotFoundException => AjaxResponse("NotFound")
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
           case _ => AjaxResponse("NG")
         }
     }

@@ -38,8 +38,8 @@ object GroupData {
   case class ModifyGroupParams(
                                 userInfo: User,
                                 groupId: String,
-                                name: String,
-                                description: String
+                                name: Option[String],
+                                description: Option[String]
                                 )
 
   case class AddUserToGroupParams(
