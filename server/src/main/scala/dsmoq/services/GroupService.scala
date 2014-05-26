@@ -12,7 +12,7 @@ import dsmoq.services.data.RangeSlice
 import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.persistence.AccessLevel
 import org.joda.time.DateTime
-import dsmoq.exceptions.{NotFoundException, ValidationException, NotAuthorizedException}
+import dsmoq.exceptions.{InputValidationException, NotFoundException, ValidationException, NotAuthorizedException}
 import java.util.UUID
 import java.nio.file.Paths
 import scala.collection.mutable.ArrayBuffer
@@ -21,8 +21,17 @@ import dsmoq.logic.ImageSaveLogic
 object GroupService {
   def search(params: GroupData.SearchGroupsParams): Try[RangeSlice[GroupData.GroupsSummary]] = {
     try {
-      val offset = params.offset.getOrElse("0").toInt
-      val limit = params.limit.getOrElse("20").toInt
+      // FIXME input parameter check
+      val offset = try {
+        params.offset.getOrElse("0").toInt
+      } catch {
+        case e: Exception => throw new InputValidationException("offset", "wrong parameter")
+      }
+      val limit = try {
+        params.limit.getOrElse("20").toInt
+      } catch {
+        case e: Exception => throw new InputValidationException("limit", "wrong parameter")
+      }
 
       DB readOnly { implicit s =>
         val groups = getGroups(params.userInfo, offset, limit)
