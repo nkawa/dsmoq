@@ -9,26 +9,26 @@
   </div>
 
   <div class="panel-body">
-    <form class="form-horizontal" role="form">
+    <form class="form-horizontal" role="form" id="basics-form">
       <div class="form-group">
         <label for="form-name" class="col-sm-2 control-label">Account Name</label>
-        <div class="col-sm-10"> <input type="text" class="form-control" data-link="name"></div>
+        <div class="col-sm-10"><input name="name" type="text" class="form-control" data-link="name"></div>
       </div>
       <div class="form-group">
         <label for="form-description" class="col-sm-2 control-label">Full Name</label>
-        <div class="col-sm-10"> <input type="text" class="form-control" data-link="fullname"></div>
+        <div class="col-sm-10"><input name="fullname" type="text" class="form-control" data-link="fullname"></div>
       </div>
       <div class="form-group">
         <label for="form-description" class="col-sm-2 control-label">Organization</label>
-        <div class="col-sm-10"> <input type="text" class="form-control" data-link="organization"></div>
+        <div class="col-sm-10"><input name="organization" type="text" class="form-control" data-link="organization"></div>
       </div>
       <div class="form-group">
         <label for="form-description" class="col-sm-2 control-label">Title</label>
-        <div class="col-sm-10"> <input type="text" class="form-control" data-link="title"></div>
+        <div class="col-sm-10"><input name="title" type="text" class="form-control" data-link="title"></div>
       </div>
       <div class="form-group">
         <label for="form-description" class="col-sm-2 control-label">Description</label>
-        <div class="col-sm-10"><textarea class="form-control" row="3" data-link="description"></textarea></div>
+        <div class="col-sm-10"><textarea name="description" class="form-control" row="3" data-link="description"></textarea></div>
       </div>
       <div class="form-group">
         <label class="col-sm-2 control-label">Icon</label>
@@ -36,72 +36,66 @@
           <div class="pull-left">
             {{img src=image class="img-thumbnail"/}}
           </div>
-          <input type="file">
+          <input type="file" name="image">
         </div>
       </div>
     </form>
-
     <div class="row">
       <div class="col-sm-2"></div>
-      <div class="col-sm-10">
-        <a class="btn btn-primary">Save</a>
-      </div>
+      <div class="col-sm-10"><a class="btn btn-primary" id="basics-form-submit">Save</a></div>
     </div>
   </div>
 </div>
 
 <div class="panel panel-default">
-    <div class="panel-heading">Mail Address </div>
-    <div class="panel-body">
-        <form class="form-horizontal" role="form">
-            <div class="row">
-                <div class="col-sm-10">
-                    <div class="form-group">
-                        <label for="form-name" class="col-sm-2 control-label">Mail Address</label>
-                        <div class="col-sm-10">
-                            <input type="text" class="form-control" data-link="email">
-                        </div>
-                    </div>
-                </div>
-                <div class="col-sm-2">
-                    <a class="btn btn-primary">Change</a>
-                </div>
-            </div>
-        </form>
-    </div>
+  <div class="panel-heading">Mail Address</div>
+  <div class="panel-body">
+    <form class="form-horizontal" role="form">
+      <div class="row">
+        <div class="col-sm-10">
+          <div class="form-group">
+            <label for="email" class="col-sm-2 control-label">Mail Address</label>
+            <div class="col-sm-10"><input type="text" name="email" class="form-control" data-link="email"></div>
+          </div>
+        </div>
+        <div class="col-sm-2">
+          <a class="btn btn-primary" id="email-form-submit">Change</a>
+        </div>
+      </div>
+    </form>
+  </div>
 </div>
 
 <div class="panel panel-danger">
-    <div class="panel-heading">Password</div>
-    <div class="panel-body">
-        <form class="form-horizontal" role="form">
-            <div class="form-group">
-                <label for="form-name" class="col-sm-2 control-label">Current Password</label>
-                <div class="col-sm-10">
-                    <input type="password" class="form-control" id="form-name">
-                </div>
-            </div>
-            <div class="form-group">
-                <label for="form-name" class="col-sm-2 control-label">New Password</label>
-                <div class="col-sm-10">
-                    <input type="password" class="form-control" id="form-name">
-                </div>
-            </div>
-            <div class="form-group">
-                <label for="form-name" class="col-sm-2 control-label">Verify Password</label>
-                <div class="col-sm-10">
-                    <input type="password" class="form-control" id="form-name">
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-sm-2"></div>
-                <div class="col-sm-10">
-                    <a class="btn btn-danger">Change</a>
-                </div>
-            </div>
-
-        </form>
-    </div>
+  <div class="panel-heading">Password</div>
+  <div class="panel-body">
+    <form class="form-horizontal" role="form">
+      <div class="form-group">
+        <label class="col-sm-2 control-label">Current Password</label>
+        <div class="col-sm-10">
+          <input type="password" class="form-control" name="current_password">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="col-sm-2 control-label">New Password</label>
+        <div class="col-sm-10">
+          <input type="password" class="form-control" name="new_password">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="col-sm-2 control-label">Verify Password</label>
+        <div class="col-sm-10">
+          <input type="password" class="form-control" name="verify_password">
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm-2"></div>
+        <div class="col-sm-10">
+          <a class="btn btn-danger">Change</a>
+        </div>
+      </div>
+    </form>
+  </div>
 </div>
 
 

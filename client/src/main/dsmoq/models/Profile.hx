@@ -7,5 +7,6 @@ typedef Profile = {
     var organization(default, never): String;
     var title(default, never): String;
     var image(default, never): String;
+    var email(default, never): String;
     var isGuest(default, never): Bool;
 }

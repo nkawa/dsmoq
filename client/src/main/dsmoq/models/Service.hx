@@ -54,15 +54,18 @@ class Service extends Stream<ServiceEvent> {
     }
 
     public function updateProfile(form: JqHtml): Promise<Unit> {
-        return null;
+        return sendForm("/api/profile", form).then(function (x: Profile) {
+            profile = x;
+            update(SignedIn); //TODO updateイベント
+        }).map(function (_) return Unit._);
     }
 
-    public function sendEmailChangeRequests(email: String): Void {
-        // /profile/email_change_requests
+    public function sendEmailChangeRequests(email: String): Promise<Unit> {
+        return send(Post, "/api/profile/email_change_requests", { email: email });
     }
 
-    public function updatePassword(currentPassword: String, newPassword: String) : Void {
-        // /profile/password
+    public function updatePassword(currentPassword: String, newPassword: String): Promise<Unit> {
+        return send(Put, "/api/profile/password", { current_password: currentPassword, new_password: newPassword });
     }
 
     // ---
@@ -98,6 +101,7 @@ class Service extends Stream<ServiceEvent> {
             organization: "",
             title: "",
             image: "",
+            email: "",
             isGuest: true
         }
     }

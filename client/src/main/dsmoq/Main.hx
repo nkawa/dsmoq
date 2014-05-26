@@ -4,6 +4,7 @@ import dsmoq.framework.ApplicationContext;
 import dsmoq.framework.Engine;
 import dsmoq.framework.types.PositiveInt;
 import dsmoq.framework.View;
+import dsmoq.models.Profile;
 import js.support.ControllablePromise;
 import js.support.ControllableStream;
 import js.support.Promise;
@@ -335,13 +336,29 @@ class Main {
                     invalidate: function (container: Element) {
                         // TODO ログインしてなかったらエラー画面
 
-                        var profile = { };
+                        var profile: Profile = cast { };
                         for (k in Reflect.fields(Service.instance.profile)) {
                             Reflect.setField(profile, k, Reflect.field(Service.instance.profile, k));
                         }
 
                         var binding = JsViews.objectObservable(profile);
                         View.getTemplate("profile/edit").link(container, binding.data());
+
+                        new JqHtml(container).find("#basics-form-submit").on("click", function (_) {
+                            Service.instance.updateProfile(new JqHtml(container).find("#basics-form")).then(function (_) {
+
+                            });
+                        });
+
+                        new JqHtml(container).find("#email-form-submit").on("click", function (_) {
+                            Service.instance.sendEmailChangeRequests(profile.email);
+                        });
+
+                        new JqHtml(container).find("#password-form-submit").on("click", function (_) {
+                            var currentPassword = new JqHtml(container).
+
+                            Service.instance.updatePassword(
+                        });
                     },
                     dispose: function () {
 
