@@ -12,7 +12,8 @@ import dsmoq.services.data.GroupData._
 import dsmoq.forms._
 import dsmoq.AppConf
 import dsmoq.services.data.ProfileData.UpdateProfileParams
-import dsmoq.exceptions.{NotFoundException, NotAuthorizedException}
+import dsmoq.exceptions.{InputValidationException, NotFoundException, NotAuthorizedException}
+import com.sun.corba.se.spi.orbutil.fsm.Input
 
 class ApiController extends ScalatraServlet
     with JacksonJsonSupport with SessionTrait with FileUploadSupport {
@@ -50,11 +51,11 @@ class ApiController extends ScalatraServlet
   }
 
   post("/profile") {
-    val name = params("name")
-    val fullname = params("fullname")
-    val organization = params("organization")
-    val title = params("title")
-    val description = params("description")
+    val name = params.get("name")
+    val fullname = params.get("fullname")
+    val organization = params.get("organization")
+    val title = params.get("title")
+    val description = params.get("description")
     val image = fileParams.get("image")
 
     if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
@@ -69,7 +70,11 @@ class ApiController extends ScalatraServlet
     }
     response match {
       case Success(x) => x
-      case Failure(e) => AjaxResponse("NG")
+      case Failure(e) =>
+        e match {
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+          case _ => AjaxResponse("NG")
+        }
     }
   }
 
@@ -85,7 +90,11 @@ class ApiController extends ScalatraServlet
       result
     }) match {
       case Success(x) => AjaxResponse("OK")
-      case Failure(e) => AjaxResponse("NG")
+      case Failure(e) =>
+        e match {
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+          case _ => AjaxResponse("NG")
+        }
     }
   }
 
@@ -103,28 +112,29 @@ class ApiController extends ScalatraServlet
     }
     response match {
       case Success(x) => AjaxResponse("OK")
-      case Failure(e) => AjaxResponse("NG")
+      case Failure(e) =>
+        e match {
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+          case _ => AjaxResponse("NG")
+        }
     }
   }
 
   post("/signin") {
-    val id = params("id")
-    val facadeParams = SigninParams(id, params("password"))
+    val id = params.get("id")
+    val password = params.get("password")
+    val facadeParams = SigninParams(id, password)
     AccountService.getAuthenticatedUser(facadeParams) match {
       case Success(x) =>
-        x match {
-          case Some(y) =>
-            setUserInfoToSession(y)
-            AjaxResponse("OK", getUserInfoFromSession().get)
-          case None =>
-            clearSession()
-            clearSessionCookie()
-            AjaxResponse("BadRequest")
-        }
+        setUserInfoToSession(x)
+        AjaxResponse("OK", getUserInfoFromSession().get)
       case Failure(e) =>
         clearSession()
         clearSessionCookie()
-        AjaxResponse("NG")
+        e match {
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+          case _ => AjaxResponse ("NG")
+        }
     }
   }
 
@@ -149,7 +159,11 @@ class ApiController extends ScalatraServlet
     }
     response match {
       case Success(x) => x
-      case Failure(e) => AjaxResponse("NG")
+      case Failure(e) =>
+        e match {
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+          case _ => AjaxResponse ("NG")
+        }
     }
   }
 
@@ -169,7 +183,11 @@ class ApiController extends ScalatraServlet
     }
     response match {
       case Success(x) => x
-      case Failure(e) => AjaxResponse("NG")
+      case Failure(e) =>
+        e match {
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+          case _ => AjaxResponse("NG")
+        }
     }
   }
 
@@ -209,6 +227,8 @@ class ApiController extends ScalatraServlet
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case e: NotFoundException => AjaxResponse("NotFound")
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
           case _ => AjaxResponse("NG")
         }
     }
@@ -231,15 +251,17 @@ class ApiController extends ScalatraServlet
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case e: NotFoundException => AjaxResponse("NotFound")
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
           case _ => AjaxResponse("NG")
         }
     }
   }
 
-  put("/datasets/:datasetId/files/:fileId") {
+  put("/datasets/:datasetId/files/:fileId/name") {
     val datasetId = params("datasetId")
     val fileId = params("fileId")
-    val filename = params("name")
+    val filename = params.get("name")
 
     val response = for {
       userInfo <- getUserInfoFromSession()
@@ -253,6 +275,8 @@ class ApiController extends ScalatraServlet
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case e: NotFoundException => AjaxResponse("NotFound")
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
           case _ => AjaxResponse("NG")
         }
     }
@@ -274,6 +298,7 @@ class ApiController extends ScalatraServlet
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case e: NotFoundException => AjaxResponse("NotFound")
           case _ => AjaxResponse("NG")
         }
     }
@@ -281,9 +306,9 @@ class ApiController extends ScalatraServlet
 
   put("/datasets/:datasetId/meta") {
     val datasetId = params("datasetId")
-    val name = params("name")
-    val description = params("description")
-    val license = params("license")
+    val name = params.get("name")
+    val description = params.get("description")
+    val license = params.get("license")
     val attributes = multiParams("attributes[][name]").zip(multiParams("attributes[][value]"))
 
     val response = for {
@@ -296,8 +321,11 @@ class ApiController extends ScalatraServlet
     response match {
       case Success(x) => AjaxResponse("OK")
       case Failure(e) =>
+        println(e)
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case e: NotFoundException => AjaxResponse("NotFound")
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
           case _ => AjaxResponse("NG")
         }
     }
@@ -319,6 +347,7 @@ class ApiController extends ScalatraServlet
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
           case _ => AjaxResponse("NG")
         }
     }
@@ -326,7 +355,7 @@ class ApiController extends ScalatraServlet
 
   put("/datasets/:datasetId/images/primary") {
     val datasetId = params("datasetId")
-    val id = params("id")
+    val id = params.get("id")
 
     val response = for {
       userInfo <- getUserInfoFromSession()
@@ -340,6 +369,8 @@ class ApiController extends ScalatraServlet
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case e: NotFoundException => AjaxResponse("NotFound")
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
           case _ => AjaxResponse("NG")
         }
     }
@@ -361,6 +392,7 @@ class ApiController extends ScalatraServlet
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case e: NotFoundException => AjaxResponse("NotFound")
           case _ => AjaxResponse("NG")
         }
     }
@@ -415,7 +447,11 @@ class ApiController extends ScalatraServlet
     }
     response match {
       case Success(x) => x
-      case Failure(e) => AjaxResponse("NG")
+      case Failure(e) =>
+        e match {
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+          case _ => AjaxResponse("NG")
+        }
     }
   }
 
@@ -452,7 +488,11 @@ class ApiController extends ScalatraServlet
     }
     response match {
       case Success(x) => x
-      case Failure(e) => AjaxResponse("NG")
+      case Failure(e) =>
+        e match {
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+          case _ => AjaxResponse("NG")
+        }
     }
   }
 
@@ -470,13 +510,17 @@ class ApiController extends ScalatraServlet
     }
     response match {
       case Success(x) => x
-      case Failure(e) => AjaxResponse("NG")
+      case Failure(e) =>
+        e match {
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+          case _ => AjaxResponse("NG")
+        }
     }
   }
 
   post("/groups") {
-    val name = params("name")
-    val description = params("description")
+    val name = params.get("name")
+    val description = params.get("description")
 
     if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
 
@@ -489,14 +533,18 @@ class ApiController extends ScalatraServlet
     }
     response match {
       case Success(x) => x
-      case Failure(e) => AjaxResponse("NG")
+      case Failure(e) =>
+        e match {
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+          case _ => AjaxResponse("NG")
+        }
     }
   }
 
   put("/groups/:groupId") {
     val groupId = params("groupId")
-    val name = params("name")
-    val description = params("description")
+    val name = params.get("name")
+    val description = params.get("description")
 
     val response = for {
       userInfo <- getUserInfoFromSession()
@@ -510,6 +558,8 @@ class ApiController extends ScalatraServlet
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case e: NotFoundException => AjaxResponse("NotFound")
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
           case _ => AjaxResponse("NG")
         }
     }
@@ -674,7 +724,11 @@ class ApiController extends ScalatraServlet
     }
     response match {
       case Success(x) => AjaxResponse("OK")
-      case Failure(e) => AjaxResponse("NG")
+      case Failure(e) =>
+        e match {
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+          case _ => AjaxResponse ("NG")
+        }
     }
   }
 

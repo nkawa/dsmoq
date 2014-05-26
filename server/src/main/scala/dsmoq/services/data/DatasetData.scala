@@ -37,7 +37,7 @@ object DatasetData {
                                           userInfo: User,
                                           datasetId: String,
                                           fileId: String,
-                                          filename: String
+                                          filename: Option[String]
                                           )
   case class DeleteDatasetFileParams(
                                       userInfo: User,
@@ -55,9 +55,9 @@ object DatasetData {
   case class ModifyDatasetMetaParams(
                                       userInfo: User,
                                       datasetId: String,
-                                      name: String,
-                                      description: String,
-                                      licenseId: String,
+                                      name: Option[String],
+                                      description: Option[String],
+                                      licenseId: Option[String],
                                       attributes: Seq[(String, String)]
                                       )
 
@@ -69,7 +69,7 @@ object DatasetData {
 
   case class ChangePrimaryImageParams(
                                        userInfo: User,
-                                       id: String,
+                                       id: Option[String],
                                        datasetId: String
                                        )
 

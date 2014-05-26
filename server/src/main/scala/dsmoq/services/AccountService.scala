@@ -6,7 +6,7 @@ import java.security.MessageDigest
 import dsmoq.{AppConf, persistence}
 import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.services.data._
-import dsmoq.exceptions.{ValidationException, NotAuthorizedException}
+import dsmoq.exceptions.{InputValidationException, ValidationException, NotAuthorizedException}
 import org.joda.time.DateTime
 import dsmoq.services.data.ProfileData.UpdateProfileParams
 import dsmoq.controllers.SessionTrait
@@ -18,11 +18,20 @@ import dsmoq.logic.ImageSaveLogic
 
 object AccountService extends SessionTrait {
 
-  def getAuthenticatedUser(params: LoginData.SigninParams): Try[Option[User]] = {
+  def getAuthenticatedUser(params: LoginData.SigninParams): Try[User] = {
     // TODO dbアクセス時エラーでFailure返す try~catch
     try {
+      val id = params.id match {
+        case Some(x) => x
+        case None => throw new InputValidationException("id", "ID is empty")
+      }
+      val password = params.password match {
+        case Some(x) => x
+        case None => throw new InputValidationException("password", "password is empty")
+      }
+
       // TODO パスワードソルトを追加
-      val hash = MessageDigest.getInstance("SHA-256").digest(params.password.getBytes("UTF-8")).map("%02x".format(_)).mkString
+      val hash = MessageDigest.getInstance("SHA-256").digest(password.getBytes("UTF-8")).map("%02x".format(_)).mkString
 
       DB readOnly { implicit s =>
         val u = persistence.User.u
@@ -36,9 +45,9 @@ object AccountService extends SessionTrait {
             .innerJoin(persistence.Password as p).on(u.id, p.userId)
             .where
               .append(sqls"(")
-                .eq(u.name, params.id)
+                .eq(u.name, id)
                 .or
-                .eq(ma.address, params.id)
+                .eq(ma.address, id)
               .append(sqls")")
               .and
               .eq(p.hash, hash)
@@ -46,7 +55,10 @@ object AccountService extends SessionTrait {
         .map(persistence.User(u.resultName)).single.apply
         .map(x => User(x))
 
-        Success(user)
+        user match {
+          case Some(x) => Success(x)
+          case None => throw new InputValidationException("password", "wrong password")
+        }
       }
     } catch {
       case e: RuntimeException => Failure(e)
@@ -60,7 +72,7 @@ object AccountService extends SessionTrait {
       // FIXME Eメールアドレスのフォーマットチェックはしていない
       val mail = email match {
         case Some(x) => x
-        case None => throw new RuntimeException("email is empty")
+        case None => throw new InputValidationException("email", "email is empty")
       }
 
       DB localTx {implicit s =>
@@ -95,49 +107,49 @@ object AccountService extends SessionTrait {
     }
   }
 
-  def changeUserPassword(user: User, currentPassword: Option[String], newPassword: Option[String]): Try[Option[String]] = {
+  def changeUserPassword(user: User, currentPassword: Option[String], newPassword: Option[String]): Try[String] = {
     try {
       if (user.isGuest) throw new NotAuthorizedException
 
-      // 値があるかチェック
-      val result = for {
-        c <- currentPassword
-        n <- newPassword
-      } yield {
-        val oldPasswordHash = createPasswordHash(c)
-        DB localTx { implicit s =>
-          val u = persistence.User.u
-          val p = persistence.Password.p
-          val pwd = withSQL {
-            select(p.result.*)
-              .from(persistence.Password as p)
-              .innerJoin(persistence.User as u).on(u.id, p.userId)
-              .where
-              .eq(u.id, sqls.uuid(user.id))
-              .and
-              .eq(p.hash, oldPasswordHash)
-              .and
-              .isNull(p.deletedAt)
-          }.map(persistence.Password(p.resultName)).single().apply
-
-          val newPasswordHash = createPasswordHash(n)
-          pwd match {
-            case Some(x) =>
-              withSQL {
-                val p = persistence.Password.column
-                update(persistence.Password)
-                  .set(p.hash -> newPasswordHash, p.updatedAt -> DateTime.now, p.updatedBy -> sqls.uuid(user.id))
-                  .where
-                  .eq(p.id, sqls.uuid(x.id))
-              }.update().apply
-            case None => throw new RuntimeException("password data is not found.")
-          }
-        }
-        n
+      // FIXME input validation
+      val c = currentPassword match {
+        case Some(x) => x
+        case None => throw new InputValidationException("current_password", "current password is empty.")
       }
-      // 引数不足の場合Noneが返る
-      if (result.isEmpty) throw new RuntimeException("parameter error.")
-      Success(result)
+      val n = newPassword match {
+        case Some(x) => x
+        case None => throw new InputValidationException("new_password", "new password is empty")
+      }
+      val oldPasswordHash = createPasswordHash(c)
+      DB localTx { implicit s =>
+        val u = persistence.User.u
+        val p = persistence.Password.p
+        val pwd = withSQL {
+          select(p.result.*)
+            .from(persistence.Password as p)
+            .innerJoin(persistence.User as u).on(u.id, p.userId)
+            .where
+            .eq(u.id, sqls.uuid(user.id))
+            .and
+            .eq(p.hash, oldPasswordHash)
+            .and
+            .isNull(p.deletedAt)
+        }.map(persistence.Password(p.resultName)).single().apply
+
+        val newPasswordHash = createPasswordHash(n)
+        pwd match {
+          case Some(x) =>
+            withSQL {
+              val p = persistence.Password.column
+              update(persistence.Password)
+                .set(p.hash -> newPasswordHash, p.updatedAt -> DateTime.now, p.updatedBy -> sqls.uuid(user.id))
+                .where
+                .eq(p.id, sqls.uuid(x.id))
+            }.update().apply
+          case None => throw new InputValidationException("current_password", "wrong password")
+        }
+      }
+      Success(n)
     } catch {
       case e: Exception => Failure(e)
     }
@@ -146,13 +158,39 @@ object AccountService extends SessionTrait {
   def updateUserProfile(user: User, params: UpdateProfileParams): Try[User]  = {
     try {
       if (user.isGuest) throw new NotAuthorizedException
+      // FIXME input validation
+      val name = params.name match {
+        case Some(x) =>
+          if (x.length == 0) {
+            throw new InputValidationException("name", "name is empty")
+          } else {
+            x
+          }
+        case None => throw new InputValidationException("name", "name is empty")
+      }
+      val fullname = params.fullname match {
+        case Some(x) => x
+        case None => throw new InputValidationException("fullname", "fullname is empty")
+      }
+      val organization = params.organization match {
+        case Some(x) => x
+        case None => throw new InputValidationException("organization", "organization is empty")
+      }
+      val title = params.title match {
+        case Some(x) => x
+        case None => throw new InputValidationException("title", "title is empty")
+      }
+      val description = params.description match {
+        case Some(x) => x
+        case None => throw new InputValidationException("description", "description is empty")
+      }
 
       DB localTx { implicit s =>
         withSQL {
           val u = persistence.User.column
           update(persistence.User)
-            .set(u.name -> params.name, u.fullname -> params.fullname, u.organization -> params.organization,
-              u.title -> params.title, u.description -> params.description,
+            .set(u.name -> name, u.fullname -> fullname, u.organization -> organization,
+              u.title -> title, u.description -> description,
               u.updatedAt -> DateTime.now, u.updatedBy -> sqls.uuid(user.id))
             .where
             .eq(u.id, sqls.uuid(user.id))
@@ -206,9 +244,7 @@ object AccountService extends SessionTrait {
         }
       }
     } catch {
-      case e: Exception =>
-        println(e)
-        Failure(e)
+      case e: Exception => Failure(e)
     }
   }
 
@@ -221,7 +257,7 @@ object AccountService extends SessionTrait {
           case pattern() => x
           case _ => throw new ValidationException
         }
-      case None => throw new RuntimeException("email is empty")
+      case None => throw new InputValidationException("email", "email is empty")
     }
 
     DB readOnly { implicit s =>

@@ -8,7 +8,7 @@ import dsmoq.AppConf
 import dsmoq.services.data._
 import dsmoq.persistence
 import dsmoq.persistence.PostgresqlHelper._
-import dsmoq.exceptions.{NotFoundException, ValidationException, NotAuthorizedException}
+import dsmoq.exceptions.{InputValidationException, NotFoundException, ValidationException, NotAuthorizedException}
 import org.joda.time.DateTime
 import org.scalatra.servlet.FileItem
 import dsmoq.forms.{AccessCrontolItem, AccessControl}
@@ -25,7 +25,11 @@ object DatasetService {
   def create(params: DatasetData.CreateDatasetParams): Try[DatasetData.Dataset] = {
     try {
       if (params.userInfo.isGuest) throw new NotAuthorizedException
-      if (params.files.getOrElse(Seq.empty).isEmpty) throw new ValidationException
+      val files = params.files match {
+        case Some(x) => x.filter(_.name.length != 0)
+        case None => Seq.empty
+      }
+      if (files.size == 0) throw new InputValidationException("files", "file is empty")
 
       DB localTx { implicit s =>
         val myself = persistence.User.find(params.userInfo.id).get
@@ -34,7 +38,7 @@ object DatasetService {
         val datasetId = UUID.randomUUID().toString
         val timestamp = DateTime.now()
 
-        val files = params.files.getOrElse(Seq.empty).map(f => {
+        val f = files.map(f => {
           val file = persistence.File.create(
             id = UUID.randomUUID.toString,
             datasetId = datasetId,
@@ -66,10 +70,10 @@ object DatasetService {
         })
         val dataset = persistence.Dataset.create(
           id = datasetId,
-          name = files.head._1.name,
+          name = f.head._1.name,
           description = "",
-          filesCount = files.length,
-          filesSize = files.map(x => x._2.fileSize).sum,
+          filesCount = f.length,
+          filesSize = f.map(x => x._2.fileSize).sum,
           createdBy = myself.id,
           createdAt = timestamp,
           updatedBy = myself.id,
@@ -112,7 +116,7 @@ object DatasetService {
           ),
           filesCount = dataset.filesCount,
           filesSize = dataset.filesSize,
-          files = files.map(x => DatasetData.DatasetFile(
+          files = f.map(x => DatasetData.DatasetFile(
             id = x._1.id,
             name = x._1.name,
             description = x._1.description,
@@ -163,8 +167,17 @@ object DatasetService {
    */
   def search(params: DatasetData.SearchDatasetsParams): Try[RangeSlice[DatasetData.DatasetsSummary]] = {
     try {
-      val offset = params.offset.getOrElse("0").toInt
-      val limit = params.limit.getOrElse("20").toInt
+      // FIXME input parameter check
+      val offset = try {
+        params.offset.getOrElse("0").toInt
+      } catch {
+        case e: Exception => throw new InputValidationException("offset", "wrong parameter")
+      }
+      val limit = try {
+        params.limit.getOrElse("20").toInt
+      } catch {
+        case e: Exception => throw new InputValidationException("limit", "wrong parameter")
+      }
 
       DB readOnly { implicit s =>
         val groups = getJoinedGroups(params.userInfo)
@@ -338,15 +351,27 @@ object DatasetService {
 
   def addFiles(params: DatasetData.AddFilesToDatasetParams): Try[DatasetData.DatasetAddFiles] = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
-    if (params.files.getOrElse(Seq.empty).isEmpty) throw new ValidationException
+    // input validation
+    val files = params.files match {
+      case Some(x) => x.filter(_.name.length != 0)
+      case None => Seq.empty
+    }
+    if (files.size == 0) throw new InputValidationException("files", "file is empty")
 
     DB localTx { implicit s =>
-      if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+      try {
+        getDataset(params.datasetId) match {
+          case Some(x) =>
+            if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+          case None => throw new NotFoundException
+        }
+      } catch {
+        case e: Exception => throw new NotFoundException
+      }
 
       val myself = persistence.User.find(params.userInfo.id).get
       val timestamp = DateTime.now()
-      val files = params.files.getOrElse(Seq.empty).map(f => {
-        // FIXME ファイルサイズ=0のデータ時の措置(現状何も回避していない)
+      val f = files.map(f => {
         val file = persistence.File.create(
           id = UUID.randomUUID.toString,
           datasetId = params.datasetId,
@@ -381,7 +406,7 @@ object DatasetService {
       updateDatasetFileStatus(params.datasetId, myself.id, timestamp)
 
       Success(DatasetData.DatasetAddFiles(
-        files = files.map(x => DatasetData.DatasetFile(
+        files = f.map(x => DatasetData.DatasetFile(
           id = x._1.id,
           name = x._1.name,
           description = x._1.description,
@@ -401,11 +426,20 @@ object DatasetService {
 
     val file = params.file match {
       case Some(x) => x
-      case None => throw new ValidationException
+      case None => throw new InputValidationException("file", "file is empty")
     }
+    if (file.name.length == 0) throw new InputValidationException("file", "file is empty")
 
     DB localTx { implicit s =>
-      if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+      try {
+        getDataset(params.datasetId) match {
+          case Some(x) => if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+          case None => throw new NotFoundException
+        }
+        if (!isValidFile(params.datasetId, params.fileId)) throw new NotFoundException
+      } catch {
+        case e: Exception => throw new NotFoundException
+      }
 
       val myself = persistence.User.find(params.userInfo.id).get
       val timestamp = DateTime.now()
@@ -455,10 +489,22 @@ object DatasetService {
 
   def modifyFilename(params: DatasetData.ModifyDatasetFilenameParams): Try[String] = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
+    val name = params.filename match {
+      case Some(x) => x
+      case None => throw new InputValidationException("name", "name is empty")
+    }
 
     try {
       DB localTx { implicit s =>
-        if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+        try {
+          getDataset(params.datasetId) match {
+            case Some(x) => if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+            case None => throw new NotFoundException
+          }
+          if (!isValidFile(params.datasetId, params.fileId)) throw new NotFoundException
+        } catch {
+          case e: Exception => throw new NotFoundException
+        }
 
         val myself = persistence.User.find(params.userInfo.id).get
         val timestamp = DateTime.now()
@@ -473,7 +519,7 @@ object DatasetService {
             .eq(f.datasetId, sqls.uuid(params.datasetId))
         }.update().apply
       }
-      Success(params.filename)
+      Success(name)
     } catch {
       case e: Exception => Failure(e)
     }
@@ -484,7 +530,15 @@ object DatasetService {
 
     try {
       DB localTx { implicit s =>
-        if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+        try {
+          getDataset(params.datasetId) match {
+            case Some(x) => if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+            case None => throw new NotFoundException
+          }
+          if (!isValidFile(params.datasetId, params.fileId)) throw new NotFoundException
+        } catch {
+          case e: Exception => throw new NotFoundException
+        }
 
         val myself = persistence.User.find(params.userInfo.id).get
         val timestamp = DateTime.now()
@@ -514,10 +568,41 @@ object DatasetService {
   
   def modifyDatasetMeta(params: DatasetData.ModifyDatasetMetaParams): Try[String] = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
+    // FIXME input parameter check
+    val name = params.name match {
+      case Some(x) => x
+      case None => throw new InputValidationException("name", "name is empty")
+    }
+    val description = params.description match {
+      case Some(x) => x
+      case None => throw new InputValidationException("description", "description is empty")
+    }
+    val licenseId = params.licenseId match {
+      case Some(x) => x
+      case None => throw new InputValidationException("license", "license is empty")
+    }
 
     try {
       DB localTx { implicit s =>
-        if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+        try {
+          getDataset(params.datasetId) match {
+            case Some(x) => if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+            case None => throw new NotFoundException
+          }
+        } catch {
+          case e: InputValidationException => throw e
+          case e: Exception => throw new NotFoundException
+        }
+
+        // licenseの存在チェック
+        try {
+          persistence.License.find(licenseId) match {
+            case Some(x) => // do nothing
+            case None => throw new InputValidationException("license", "license is invalid")
+          }
+        } catch {
+          case e: Exception => throw new InputValidationException("license", "license is invalid")
+        }
 
         val myself = persistence.User.find(params.userInfo.id).get
         val timestamp = DateTime.now()
@@ -525,7 +610,7 @@ object DatasetService {
         withSQL {
           val d = persistence.Dataset.column
           update(persistence.Dataset)
-            .set(d.name -> params.name, d.description -> params.description, d.licenseId -> sqls.uuid(params.licenseId),
+            .set(d.name -> name, d.description -> description, d.licenseId -> sqls.uuid(licenseId),
               d.updatedBy -> sqls.uuid(myself.id), d.updatedAt -> timestamp)
             .where
             .eq(d.id, sqls.uuid(params.datasetId))
@@ -586,7 +671,11 @@ object DatasetService {
 
   def addImages(params: DatasetData.AddImagesToDatasetParams): Try[DatasetData.DatasetAddImages] = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
-    if (params.images.getOrElse(Seq.empty).isEmpty) throw new ValidationException
+    val inputImages = params.images match {
+      case Some(x) => x.filter(_.name.length != 0)
+      case None => Seq.empty
+    }
+    if (inputImages.size == 0) throw new InputValidationException("image", "image is empty")
 
     DB localTx { implicit s =>
       if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
@@ -595,10 +684,6 @@ object DatasetService {
       val timestamp = DateTime.now()
       val primaryImage = getPrimaryImageId(params.datasetId)
       var isFirst = true
-      val inputImages = params.images match {
-        case Some(x) => x.filter(_.size > 0)
-        case None => Seq.empty
-      }
 
       val images = inputImages.map(i => {
         val imageId = UUID.randomUUID().toString
@@ -645,8 +730,22 @@ object DatasetService {
   def changePrimaryImage(params: DatasetData.ChangePrimaryImageParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
 
+    val imageId = params.id match {
+      case Some(x) => x
+      case None => throw new InputValidationException("id", "ID is empty")
+    }
+
     DB localTx { implicit s =>
-      if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+      try {
+        getDataset(params.datasetId) match {
+          case Some(x) =>
+            if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+          case None => throw new NotFoundException
+        }
+        if (!isValidImage(params.datasetId, imageId)) throw new NotFoundException
+      } catch {
+        case e: Exception => throw new NotFoundException
+      }
 
       val myself = persistence.User.find(params.userInfo.id).get
       val timestamp = DateTime.now()
@@ -655,7 +754,7 @@ object DatasetService {
         update(persistence.DatasetImage)
           .set(di.isPrimary -> true, di.updatedBy -> sqls.uuid(myself.id), di.updatedAt -> timestamp)
           .where
-          .eq(di.imageId, sqls.uuid(params.id))
+          .eq(di.imageId, sqls.uuid(imageId))
           .and
           .eq(di.datasetId, sqls.uuid(params.datasetId))
           .and
@@ -667,7 +766,7 @@ object DatasetService {
         update(persistence.DatasetImage)
           .set(di.isPrimary -> false, di.updatedBy -> sqls.uuid(myself.id), di.updatedAt -> timestamp)
           .where
-          .ne(di.imageId, sqls.uuid(params.id))
+          .ne(di.imageId, sqls.uuid(imageId))
           .and
           .eq(di.datasetId, sqls.uuid(params.datasetId))
           .and
@@ -682,7 +781,17 @@ object DatasetService {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
 
     val primaryImage = DB localTx { implicit s =>
-      if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+//      if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+      try {
+        getDataset(params.datasetId) match {
+          case Some(x) =>
+            if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+          case None => throw new NotFoundException
+        }
+        if (!isValidImage(params.datasetId, params.imageId)) throw new NotFoundException
+      } catch {
+        case e: Exception => throw new NotFoundException
+      }
 
       val myself = persistence.User.find(params.userInfo.id).get
       val timestamp = DateTime.now()
@@ -1200,5 +1309,47 @@ object DatasetService {
         .and
         .isNull(i.deletedAt)
     }.map(rs => rs.string(i.resultName.id)).single().apply
+  }
+
+  private def isValidImage(datasetId: String, imageId: String)(implicit s: DBSession) = {
+    val i = persistence.Image.syntax("i")
+    val di = persistence.DatasetImage.syntax("di")
+    withSQL {
+      select(i.result.id)
+        .from(persistence.Image as i)
+        .innerJoin(persistence.DatasetImage as di).on(i.id, di.imageId)
+        .where
+        .eq(di.datasetId, sqls.uuid(datasetId))
+        .and
+        .eq(i.id, sqls.uuid(imageId))
+        .and
+        .isNull(di.deletedAt)
+        .and
+        .isNull(i.deletedAt)
+    }.map(rs => rs.string(i.resultName.id)).single().apply match {
+      case Some(x) => true
+      case None => false
+    }
+  }
+
+  private def isValidFile(datasetId: String, fileId: String)(implicit s: DBSession) = {
+    val f = persistence.File.syntax("f")
+    val d = persistence.Dataset.syntax("d")
+    withSQL {
+      select(f.result.id)
+        .from(persistence.File as f)
+        .innerJoin(persistence.Dataset as d).on(d.id, f.datasetId)
+        .where
+        .eq(f.datasetId, sqls.uuid(datasetId))
+        .and
+        .eq(f.id, sqls.uuid(fileId))
+        .and
+        .isNull(f.deletedAt)
+        .and
+        .isNull(d.deletedAt)
+    }.map(rs => rs.string(f.resultName.id)).single().apply match {
+      case Some(x) => true
+      case None => false
+    }
   }
 }

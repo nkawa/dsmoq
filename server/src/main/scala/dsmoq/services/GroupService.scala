@@ -12,7 +12,7 @@ import dsmoq.services.data.RangeSlice
 import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.persistence.AccessLevel
 import org.joda.time.DateTime
-import dsmoq.exceptions.{NotFoundException, ValidationException, NotAuthorizedException}
+import dsmoq.exceptions.{InputValidationException, NotFoundException, ValidationException, NotAuthorizedException}
 import java.util.UUID
 import java.nio.file.Paths
 import scala.collection.mutable.ArrayBuffer
@@ -21,8 +21,17 @@ import dsmoq.logic.ImageSaveLogic
 object GroupService {
   def search(params: GroupData.SearchGroupsParams): Try[RangeSlice[GroupData.GroupsSummary]] = {
     try {
-      val offset = params.offset.getOrElse("0").toInt
-      val limit = params.limit.getOrElse("20").toInt
+      // FIXME input parameter check
+      val offset = try {
+        params.offset.getOrElse("0").toInt
+      } catch {
+        case e: Exception => throw new InputValidationException("offset", "wrong parameter")
+      }
+      val limit = try {
+        params.limit.getOrElse("20").toInt
+      } catch {
+        case e: Exception => throw new InputValidationException("limit", "wrong parameter")
+      }
 
       DB readOnly { implicit s =>
         val groups = getGroups(params.userInfo, offset, limit)
@@ -96,8 +105,17 @@ object GroupService {
 
   def getGroupMembers(params: GroupData.GetGroupMembersParams) = {
     try {
-      val offset = params.offset.getOrElse("0").toInt
-      val limit = params.limit.getOrElse("20").toInt
+      // FIXME input parameter check
+      val offset = try {
+        params.offset.getOrElse("0").toInt
+      } catch {
+        case e: Exception => throw new InputValidationException("offset", "wrong parameter")
+      }
+      val limit = try {
+        params.limit.getOrElse("20").toInt
+      } catch {
+        case e: Exception => throw new InputValidationException("limit", "wrong parameter")
+      }
 
       DB readOnly { implicit s =>
         val members = getMembers(params.userInfo, params.groupId, offset, limit)
@@ -127,8 +145,17 @@ object GroupService {
 
   def getGroupDatasets(params: GroupData.GetGroupDatasetsParams) = {
     try {
-      val offset = params.offset.getOrElse("0").toInt
-      val limit = params.limit.getOrElse("20").toInt
+      // FIXME input parameter check
+      val offset = try {
+        params.offset.getOrElse("0").toInt
+      } catch {
+        case e: Exception => throw new InputValidationException("offset", "wrong parameter")
+      }
+      val limit = try {
+        params.limit.getOrElse("20").toInt
+      } catch {
+        case e: Exception => throw new InputValidationException("limit", "wrong parameter")
+      }
 
       DB readOnly { implicit s =>
         val datasets = getDatasets(params.userInfo, params.groupId, offset, limit)
@@ -149,6 +176,15 @@ object GroupService {
 
   def createGroup(params: GroupData.CreateGroupParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
+    // FIXME input validation
+    val name = params.name match {
+      case Some(x) => x
+      case None => throw new InputValidationException("name", "name is empty")
+    }
+    val description = params.description match {
+      case Some(x) => x
+      case None => throw new InputValidationException("description", "description is empty")
+    }
 
     try {
       val group = DB localTx { implicit s =>
@@ -158,8 +194,8 @@ object GroupService {
 
         val group = persistence.Group.create(
           id = groupId,
-          name = params.name,
-          description = params.description,
+          name = name,
+          description = description,
           groupType = persistence.GroupType.Public,
           createdBy = myself.id,
           createdAt = timestamp,
@@ -195,11 +231,28 @@ object GroupService {
 
   def modifyGroup(params: GroupData.ModifyGroupParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
+    // FIXME input parameter check
+    val name = params.name match {
+      case Some(x) => x
+      case None => throw new InputValidationException("name", "name is empty")
+    }
+    val description = params.description match {
+      case Some(x) => x
+      case None => throw new InputValidationException("description", "description is empty")
+    }
 
     try {
       val result = DB localTx { implicit s =>
-        // 権限チェック
-        if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+        try {
+          getGroup(params.groupId) match {
+            case Some(x) =>
+              // 権限チェック
+              if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+            case None => throw new NotFoundException
+          }
+        } catch {
+          case e: Exception => throw new NotFoundException
+        }
 
         val myself = persistence.User.find(params.userInfo.id).get
         val timestamp = DateTime.now()
@@ -207,7 +260,7 @@ object GroupService {
         withSQL {
           val g = persistence.Group.column
           update(persistence.Group)
-            .set(g.name -> params.name, g.description -> params.description,
+            .set(g.name -> name, g.description -> description,
             g.updatedBy -> sqls.uuid(myself.id), g.updatedAt -> timestamp)
             .where
             .eq(g.id, sqls.uuid(params.groupId))
