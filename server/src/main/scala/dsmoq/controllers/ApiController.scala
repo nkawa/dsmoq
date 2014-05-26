@@ -49,7 +49,7 @@ class ApiController extends ScalatraServlet
     }
   }
 
-  put("/profile") {
+  post("/profile") {
     val name = params("name")
     val fullname = params("fullname")
     val organization = params("organization")
