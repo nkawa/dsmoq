@@ -26,7 +26,7 @@ object DatasetService {
     try {
       if (params.userInfo.isGuest) throw new NotAuthorizedException
       val files = params.files match {
-        case Some(x) => x.filter(_.size > 0)
+        case Some(x) => x.filter(_.name.length != 0)
         case None => Seq.empty
       }
       if (files.size == 0) throw new InputValidationException("files", "file is empty")
@@ -353,7 +353,7 @@ object DatasetService {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
     // input validation
     val files = params.files match {
-      case Some(x) => x.filter(_.size > 0)
+      case Some(x) => x.filter(_.name.length != 0)
       case None => Seq.empty
     }
     if (files.size == 0) throw new InputValidationException("files", "file is empty")
