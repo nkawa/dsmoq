@@ -489,10 +489,22 @@ object DatasetService {
 
   def modifyFilename(params: DatasetData.ModifyDatasetFilenameParams): Try[String] = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
+    val name = params.filename match {
+      case Some(x) => x
+      case None => throw new InputValidationException("name", "name is empty")
+    }
 
     try {
       DB localTx { implicit s =>
-        if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+        try {
+          getDataset(params.datasetId) match {
+            case Some(x) => if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+            case None => throw new NotFoundException
+          }
+          if (!isValidFile(params.datasetId, params.fileId)) throw new NotFoundException
+        } catch {
+          case e: Exception => throw new NotFoundException
+        }
 
         val myself = persistence.User.find(params.userInfo.id).get
         val timestamp = DateTime.now()
@@ -507,7 +519,7 @@ object DatasetService {
             .eq(f.datasetId, sqls.uuid(params.datasetId))
         }.update().apply
       }
-      Success(params.filename)
+      Success(name)
     } catch {
       case e: Exception => Failure(e)
     }

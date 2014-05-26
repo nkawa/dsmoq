@@ -37,7 +37,7 @@ object DatasetData {
                                           userInfo: User,
                                           datasetId: String,
                                           fileId: String,
-                                          filename: String
+                                          filename: Option[String]
                                           )
   case class DeleteDatasetFileParams(
                                       userInfo: User,

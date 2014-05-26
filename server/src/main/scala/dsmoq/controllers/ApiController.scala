@@ -261,7 +261,7 @@ class ApiController extends ScalatraServlet
   put("/datasets/:datasetId/files/:fileId") {
     val datasetId = params("datasetId")
     val fileId = params("fileId")
-    val filename = params("name")
+    val filename = params.get("name")
 
     val response = for {
       userInfo <- getUserInfoFromSession()
@@ -275,6 +275,8 @@ class ApiController extends ScalatraServlet
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case e: NotFoundException => AjaxResponse("NotFound")
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
           case _ => AjaxResponse("NG")
         }
     }
