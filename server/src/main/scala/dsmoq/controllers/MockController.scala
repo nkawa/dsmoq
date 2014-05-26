@@ -139,6 +139,8 @@ class MockController extends ScalatraServlet with SessionTrait {
           organization = result.get("organization").toString,
           title = result.get("title").toString,
           image = "",
+          mailAddress = "",
+          description = "",
           isGuest = false,
           isDeleted = false
         )

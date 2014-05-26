@@ -7,6 +7,8 @@ case class User(
   organization: String,
   title: String,
   image: String,
+  mailAddress: String,
+  description: String,
   isGuest: Boolean,
   isDeleted: Boolean
 )
@@ -19,6 +21,8 @@ object User {
     organization = x.organization,
     title = x.title,
     image = dsmoq.AppConf.imageDownloadRoot + x.imageId,
+    mailAddress = "", // TODO
+    description = x.description,
     isGuest = false,
     isDeleted = x.deletedAt.isDefined
   )

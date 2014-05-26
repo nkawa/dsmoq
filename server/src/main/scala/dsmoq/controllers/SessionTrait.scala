@@ -15,11 +15,11 @@ trait SessionTrait extends ScalatraServlet {
         case None =>
           clearSession()
           clearSessionCookie()
-          Success(User("", "", "", "", "", "http://xxxx", true, false))
+          Success(User("", "", "", "", "", "http://xxxx", "", "", true, false))
       }
       case None =>
         clearSessionCookie()
-        Success(User("", "", "", "", "", "http://xxxx", true, false))
+        Success(User("", "", "", "", "", "http://xxxx", "", "", true, false))
     }
   }
 
