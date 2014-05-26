@@ -25,7 +25,11 @@ object DatasetService {
   def create(params: DatasetData.CreateDatasetParams): Try[DatasetData.Dataset] = {
     try {
       if (params.userInfo.isGuest) throw new NotAuthorizedException
-      if (params.files.getOrElse(Seq.empty).isEmpty) throw new ValidationException
+      val files = params.files match {
+        case Some(x) => x.filter(_.size > 0)
+        case None => Seq.empty
+      }
+      if (files.size == 0) throw new InputValidationException("files", "file is empty")
 
       DB localTx { implicit s =>
         val myself = persistence.User.find(params.userInfo.id).get
@@ -34,7 +38,7 @@ object DatasetService {
         val datasetId = UUID.randomUUID().toString
         val timestamp = DateTime.now()
 
-        val files = params.files.getOrElse(Seq.empty).map(f => {
+        val f = files.map(f => {
           val file = persistence.File.create(
             id = UUID.randomUUID.toString,
             datasetId = datasetId,
@@ -66,10 +70,10 @@ object DatasetService {
         })
         val dataset = persistence.Dataset.create(
           id = datasetId,
-          name = files.head._1.name,
+          name = f.head._1.name,
           description = "",
-          filesCount = files.length,
-          filesSize = files.map(x => x._2.fileSize).sum,
+          filesCount = f.length,
+          filesSize = f.map(x => x._2.fileSize).sum,
           createdBy = myself.id,
           createdAt = timestamp,
           updatedBy = myself.id,
@@ -112,7 +116,7 @@ object DatasetService {
           ),
           filesCount = dataset.filesCount,
           filesSize = dataset.filesSize,
-          files = files.map(x => DatasetData.DatasetFile(
+          files = f.map(x => DatasetData.DatasetFile(
             id = x._1.id,
             name = x._1.name,
             description = x._1.description,
