@@ -4,11 +4,11 @@ import org.scalatra.servlet.FileItem
 
 object ProfileData {
   case class UpdateProfileParams(
-    name: String,
-    fullname: String,
-    organization: String,
-    title: String,
-    description: String,
+    name: Option[String],
+    fullname: Option[String],
+    organization: Option[String],
+    title: Option[String],
+    description: Option[String],
     image: Option[FileItem]
   )
 

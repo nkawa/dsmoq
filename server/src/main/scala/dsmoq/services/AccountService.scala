@@ -158,13 +158,39 @@ object AccountService extends SessionTrait {
   def updateUserProfile(user: User, params: UpdateProfileParams): Try[User]  = {
     try {
       if (user.isGuest) throw new NotAuthorizedException
+      // FIXME input validation
+      val name = params.name match {
+        case Some(x) =>
+          if (x.length == 0) {
+            throw new InputValidationException("name", "name is empty")
+          } else {
+            x
+          }
+        case None => throw new InputValidationException("name", "name is empty")
+      }
+      val fullname = params.fullname match {
+        case Some(x) => x
+        case None => throw new InputValidationException("fullname", "fullname is empty")
+      }
+      val organization = params.organization match {
+        case Some(x) => x
+        case None => throw new InputValidationException("organization", "organization is empty")
+      }
+      val title = params.title match {
+        case Some(x) => x
+        case None => throw new InputValidationException("title", "title is empty")
+      }
+      val description = params.description match {
+        case Some(x) => x
+        case None => throw new InputValidationException("description", "description is empty")
+      }
 
       DB localTx { implicit s =>
         withSQL {
           val u = persistence.User.column
           update(persistence.User)
-            .set(u.name -> params.name, u.fullname -> params.fullname, u.organization -> params.organization,
-              u.title -> params.title, u.description -> params.description,
+            .set(u.name -> name, u.fullname -> fullname, u.organization -> organization,
+              u.title -> title, u.description -> description,
               u.updatedAt -> DateTime.now, u.updatedBy -> sqls.uuid(user.id))
             .where
             .eq(u.id, sqls.uuid(user.id))
@@ -218,9 +244,7 @@ object AccountService extends SessionTrait {
         }
       }
     } catch {
-      case e: Exception =>
-        println(e)
-        Failure(e)
+      case e: Exception => Failure(e)
     }
   }
 

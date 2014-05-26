@@ -13,6 +13,7 @@ import dsmoq.forms._
 import dsmoq.AppConf
 import dsmoq.services.data.ProfileData.UpdateProfileParams
 import dsmoq.exceptions.{InputValidationException, NotFoundException, NotAuthorizedException}
+import com.sun.corba.se.spi.orbutil.fsm.Input
 
 class ApiController extends ScalatraServlet
     with JacksonJsonSupport with SessionTrait with FileUploadSupport {
@@ -50,11 +51,11 @@ class ApiController extends ScalatraServlet
   }
 
   post("/profile") {
-    val name = params("name")
-    val fullname = params("fullname")
-    val organization = params("organization")
-    val title = params("title")
-    val description = params("description")
+    val name = params.get("name")
+    val fullname = params.get("fullname")
+    val organization = params.get("organization")
+    val title = params.get("title")
+    val description = params.get("description")
     val image = fileParams.get("image")
 
     if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
@@ -69,7 +70,11 @@ class ApiController extends ScalatraServlet
     }
     response match {
       case Success(x) => x
-      case Failure(e) => AjaxResponse("NG")
+      case Failure(e) =>
+        e match {
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+          case _ => AjaxResponse("NG")
+        }
     }
   }
 
