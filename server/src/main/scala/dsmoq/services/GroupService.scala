@@ -158,6 +158,15 @@ object GroupService {
 
   def createGroup(params: GroupData.CreateGroupParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
+    // FIXME input validation
+    val name = params.name match {
+      case Some(x) => x
+      case None => throw new InputValidationException("name", "name is empty")
+    }
+    val description = params.description match {
+      case Some(x) => x
+      case None => throw new InputValidationException("description", "description is empty")
+    }
 
     try {
       val group = DB localTx { implicit s =>
@@ -167,8 +176,8 @@ object GroupService {
 
         val group = persistence.Group.create(
           id = groupId,
-          name = params.name,
-          description = params.description,
+          name = name,
+          description = description,
           groupType = persistence.GroupType.Public,
           createdBy = myself.id,
           createdAt = timestamp,

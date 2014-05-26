@@ -495,8 +495,8 @@ class ApiController extends ScalatraServlet
   }
 
   post("/groups") {
-    val name = params("name")
-    val description = params("description")
+    val name = params.get("name")
+    val description = params.get("description")
 
     if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
 
@@ -509,7 +509,11 @@ class ApiController extends ScalatraServlet
     }
     response match {
       case Success(x) => x
-      case Failure(e) => AjaxResponse("NG")
+      case Failure(e) =>
+        e match {
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+          case _ => AjaxResponse("NG")
+        }
     }
   }
 
