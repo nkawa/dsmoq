@@ -611,7 +611,11 @@ object DatasetService {
 
   def addImages(params: DatasetData.AddImagesToDatasetParams): Try[DatasetData.DatasetAddImages] = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
-    if (params.images.getOrElse(Seq.empty).isEmpty) throw new ValidationException
+    val inputImages = params.images match {
+      case Some(x) => x.filter(_.name.length != 0)
+      case None => Seq.empty
+    }
+    if (inputImages.size == 0) throw new InputValidationException("image", "image is empty")
 
     DB localTx { implicit s =>
       if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
@@ -620,10 +624,6 @@ object DatasetService {
       val timestamp = DateTime.now()
       val primaryImage = getPrimaryImageId(params.datasetId)
       var isFirst = true
-      val inputImages = params.images match {
-        case Some(x) => x.filter(_.size > 0)
-        case None => Seq.empty
-      }
 
       val images = inputImages.map(i => {
         val imageId = UUID.randomUUID().toString

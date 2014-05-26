@@ -339,6 +339,7 @@ class ApiController extends ScalatraServlet
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
           case _ => AjaxResponse("NG")
         }
     }
