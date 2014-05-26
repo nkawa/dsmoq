@@ -8,7 +8,7 @@ import dsmoq.AppConf
 import dsmoq.services.data._
 import dsmoq.persistence
 import dsmoq.persistence.PostgresqlHelper._
-import dsmoq.exceptions.{NotFoundException, ValidationException, NotAuthorizedException}
+import dsmoq.exceptions.{InputValidationException, NotFoundException, ValidationException, NotAuthorizedException}
 import org.joda.time.DateTime
 import org.scalatra.servlet.FileItem
 import dsmoq.forms.{AccessCrontolItem, AccessControl}
@@ -163,8 +163,17 @@ object DatasetService {
    */
   def search(params: DatasetData.SearchDatasetsParams): Try[RangeSlice[DatasetData.DatasetsSummary]] = {
     try {
-      val offset = params.offset.getOrElse("0").toInt
-      val limit = params.limit.getOrElse("20").toInt
+      // FIXME input parameter check
+      val offset = try {
+        params.offset.getOrElse("0").toInt
+      } catch {
+        case e: Exception => throw new InputValidationException("offset", "wrong parameter")
+      }
+      val limit = try {
+        params.limit.getOrElse("20").toInt
+      } catch {
+        case e: Exception => throw new InputValidationException("limit", "wrong parameter")
+      }
 
       DB readOnly { implicit s =>
         val groups = getJoinedGroups(params.userInfo)
