@@ -336,28 +336,55 @@ class Main {
                     invalidate: function (container: Element) {
                         // TODO ログインしてなかったらエラー画面
 
-                        var profile: Profile = cast { };
-                        for (k in Reflect.fields(Service.instance.profile)) {
-                            Reflect.setField(profile, k, Reflect.field(Service.instance.profile, k));
-                        }
+                        var data = {
+                            basics: {
+                                name: Service.instance.profile.name,
+                                fullname: Service.instance.profile.fullname,
+                                organization: Service.instance.profile.organization,
+                                title: Service.instance.profile.title,
+                                description: "", //Service.instance.profile.
+                                image: Service.instance.profile.image
+                            },
+                            email: {
+                                value: ""
+                            },
+                            password: {
+                                currentValue: "",
+                                newValue: "",
+                                verifyValue: ""
+                            }
+                        };
 
-                        var binding = JsViews.objectObservable(profile);
-                        View.getTemplate("profile/edit").link(container, binding.data());
+                        var binding = JsViews.objectObservable(data);
+                        View.getTemplate("profile/edit").link(container, data);
 
                         new JqHtml(container).find("#basics-form-submit").on("click", function (_) {
-                            Service.instance.updateProfile(new JqHtml(container).find("#basics-form")).then(function (_) {
-
+                            Service.instance.updateProfile(new JqHtml(container).find("#basics-form")).then(function (x) {
+                                binding.setProperty("basics.name", x.name);
+                                binding.setProperty("basics.fullname", x.fullname);
+                                binding.setProperty("basics.organization", x.organization);
+                                binding.setProperty("basics.title", x.title);
+                                //binding.setProperty("basics.description", x.description);
+                                binding.setProperty("basics.image", x.image);
                             });
                         });
 
                         new JqHtml(container).find("#email-form-submit").on("click", function (_) {
-                            Service.instance.sendEmailChangeRequests(profile.email);
+                            Service.instance.sendEmailChangeRequests(data.email.value).then(function (_) {
+                                binding.setProperty("email.value", "");
+                            }, function (err) {
+                                // TODO エラー処理
+                            });
                         });
 
                         new JqHtml(container).find("#password-form-submit").on("click", function (_) {
-                            var currentPassword = new JqHtml(container).
-
-                            Service.instance.updatePassword(
+                            Service.instance.updatePassword(data.password.currentValue, data.password.newValue).then(function (_) {
+                                binding.setProperty("password.currentValue", "");
+                                binding.setProperty("password.newValue", "");
+                                binding.setProperty("password.verifyValue", "");
+                            }, function (err) {
+                                // TODO エラー処理
+                            });
                         });
                     },
                     dispose: function () {

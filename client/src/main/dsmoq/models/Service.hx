@@ -53,11 +53,11 @@ class Service extends Stream<ServiceEvent> {
                 .map(function (_) return Unit._);
     }
 
-    public function updateProfile(form: JqHtml): Promise<Unit> {
+    public function updateProfile(form: JqHtml): Promise<Profile> {
         return sendForm("/api/profile", form).then(function (x: Profile) {
             profile = x;
             update(SignedIn); //TODO updateイベント
-        }).map(function (_) return Unit._);
+        });
     }
 
     public function sendEmailChangeRequests(email: String): Promise<Unit> {
