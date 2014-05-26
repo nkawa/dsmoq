@@ -258,7 +258,7 @@ class ApiController extends ScalatraServlet
     }
   }
 
-  put("/datasets/:datasetId/files/:fileId") {
+  put("/datasets/:datasetId/files/:fileId/name") {
     val datasetId = params("datasetId")
     val fileId = params("fileId")
     val filename = params.get("name")
