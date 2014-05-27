@@ -318,8 +318,16 @@ class Main {
                 {
                     navigation: navigation,
                     invalidate: function (container: Element) {
-                        var binding = JsViews.objectObservable({});
-                        View.getTemplate("dataset/edit").link(container, binding.data());
+                        Service.instance.getDataset(id).then(function (x) {
+                            var data = {
+                                licenses: Service.instance.licenses,
+                                dataset: x,
+                            };
+
+                            trace(data);
+                            var binding = JsViews.objectObservable(data);
+                            View.getTemplate("dataset/edit").link(container, binding.data());
+                        });
                     },
                     dispose: function () {
                     }

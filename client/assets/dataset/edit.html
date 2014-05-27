@@ -1,11 +1,76 @@
 <ul class="nav nav-tabs">
-  <li><a href="#files-tab" data-toggle="tab">Files</a></li>
   <li class="active"><a href="#basic-tab" data-toggle="tab">Metadata</a> </li>
+  <li><a href="#files-tab" data-toggle="tab">Files</a></li>
   <li><a href="#acl-tab" data-toggle="tab">Access Control</a> </li>
 </ul>
 
 <div class="tab-panel">
   <div class="tab-content">
+    <!-- basic --->
+    <div class="tab-pane active" id="basic-tab">
+      <form class="form-horizontal" role="form">
+        <div class="form-group">
+          <label for="form-title" class="col-sm-2 control-label">Dataset Title</label>
+          <div class="col-sm-10"><input type="text" class="form-control" placeholder="Dataset Title" data-link="dataset.meta.name"></div>
+        </div>
+        <div class="form-group">
+          <label for="form-description" class="col-sm-2 control-label">Description</label>
+          <div class="col-sm-10"><textarea class="form-control" row="3" data-link="dataset.meta.description"></textarea></div>
+        </div>
+        <div class="form-group">
+          <label class="col-sm-2 control-label">Attributes</label>
+          <div class="col-sm-10">
+            <table class="table table-bordered table-condensed">
+              <thead>
+                <tr><td>name</td><td>value</td><td></td></tr>
+              </thead>
+              <tbody>
+                {{for dataset.meta.attributes}}
+                  <tr>
+                    <td><input class="form-control" data-link="name"></td>
+                    <td><input class="form-control" data-link="value"></td>
+                    <td><a class="btn btn-warning btn-sm">del</a></td>
+                  </tr>
+                {{/for}}
+                <tr>
+                  <td></td>
+                  <td></td>
+                  <td><a class="btn btn-success btn-sm">add</a></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="form-description" class="col-sm-2 control-label">License</label>
+          <div class="col-sm-10">
+            <select class="form-control" data-link="dataset.meta.license">
+              {{for licenses}}
+                <option data-link="value{>#data.id},selected{>#data.id==#parent.parent.data.dataset.meta.license}">{{>#data.name}}</option>
+              {{/for}}
+            </select>
+          </div>
+        </div>
+      </form>
+      <div class="row">
+        <p class="col-sm-12 text-right">
+          <a class="btn btn-primary" id="dataset-basics-submit">Save</a>
+        </p>
+      </div>
+    </div>
+
+    <div class="tab-pane active" id="basic-tab">
+      <form class="form-horizontal" role="form">
+        <div class="form-group">
+          <label class="col-sm-2 control-label">Icon</label>
+          <div class="col-sm-10">
+            <div class="pull-left"><img data-link="src{>dataset.primaryImage.url}"></div>
+            <input type="file">
+          </div>
+        </div>
+      </form>
+    </div>
+
     <!-- files --->
     <div class="tab-pane" id="files-tab">
       <div class="row">
@@ -48,93 +113,6 @@
             <div class="well well-sm" style="border-style:dashed; border-width:3px">
               <center>Drop files to upload</center>
             </div>
-          </div>
-        </div>
-      </form>
-    </div>
-
-    <!-- basic --->
-    <div class="tab-pane active" id="basic-tab">
-      <div class="row">
-        <p class="col-sm-12 text-right">
-          <a class="btn btn-primary">Publish</a>
-          <a class="btn btn-info">Save as Private</a>
-          <a class="btn btn-default">Cancel</a>
-        </p>
-      </div>
-      <form class="form-horizontal" role="form">
-        <div class="form-group">
-          <label for="form-title" class="col-sm-2 control-label">Dataset Title</label>
-          <div class="col-sm-10"> <input type="text" class="form-control" id="form-title" placeholder="Dataset Title"> </div>
-        </div>
-        <div class="form-group">
-          <label for="form-description" class="col-sm-2 control-label">Description</label>
-          <div class="col-sm-10"> <textarea class="form-control" row="3"></textarea> </div>
-        </div>
-        <div class="form-group">
-          <label class="col-sm-2 control-label">Icon</label>
-          <div class="col-sm-10">
-            <div class="pull-left">
-              <img src="images/nagoya.jpg">
-            </div>
-            <input type="file">
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="form-description" class="col-sm-2 control-label">License</label>
-          <div class="col-sm-10"> <select class="form-control" >
-              <option>Creative Commons Attribution</option>
-              <option>Creative Commons Attribution Share-Alike</option>
-              <option>Creative Commons CCZero</option>
-              <option>Creative Commons Non-Commercial (Any)</option>
-              <option>Creative Commons Non-Derivs (Any)</option>
-              <option>GNU Free Documentation License</option>
-              <option>License Not Specified</option>
-              <option>Open Data Commons Attribution License</option>
-              <option>Open Data Commons Open Database License (ODbL)</option>
-              <option>Open Data Commons Public Domain Dedication and Licence (PDDL)</option>
-              <option>Other (Attribution)</option>
-              <option>Other (Non-Commercial)</option>
-              <option>Other (Not Open)</option>
-              <option>Other (Open)</option>
-              <option>Other (Public Domain)</option>
-              <option>UK Open Government Licence (OGL)</option>
-          </select> </div>
-        </div>
-        <div class="form-group">
-          <label class="col-sm-2 control-label">Attributes</label>
-          <div class="col-sm-10">
-            <table class="table table-bordered table-condensed">
-              <thead>
-                <tr><td>#</td><td>name</td><td>value</td><td> </td></tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>1</td>
-                  <td><input class="form-control" value="AUTHOR"></td>
-                  <td><input class="form-control" value="John Lennon"></td>
-                  <td>
-                    <a class="btn btn-success btn-sm">update</a>
-                    <a class="btn btn-warning btn-sm">del</a>
-                  </td>
-                </tr>
-                <tr>
-                  <td>2</td>
-                  <td><input class="form-control" value="VERSION"></td>
-                  <td><input class="form-control" value="1.0.0"></td>
-                  <td>
-                    <a class="btn btn-success btn-sm">update</a>
-                    <a class="btn btn-warning btn-sm">del</a>
-                  </td>
-                </tr>
-                <tr>
-                  <td>*</td>
-                  <td><input class="form-control" placeholder="Enter new key"></td>
-                  <td><input class="form-control" placeholder="Enter new value"></td>
-                  <td><a class="btn btn-success btn-sm">add</a></td>
-                </tr>
-              </tbody>
-            </table>
           </div>
         </div>
       </form>
