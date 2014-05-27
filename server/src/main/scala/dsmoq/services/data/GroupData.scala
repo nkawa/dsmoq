@@ -45,15 +45,15 @@ object GroupData {
   case class AddUserToGroupParams(
                                    userInfo: User,
                                    groupId: String,
-                                   userId: String,
-                                   role: Int
+                                   userId: Option[String],
+                                   role: Option[String]
                                    )
 
   case class ModifyMemberRoleParams(
                                      userInfo: User,
                                      groupId: String,
                                      memberId: String,
-                                     role: Int
+                                     role: Option[String]
                                      )
 
   case class DeleteMemberParams(
@@ -75,7 +75,7 @@ object GroupData {
 
   case class ChangeGroupPrimaryImageParams(
                                             userInfo: User,
-                                            id: String,
+                                            id: Option[String],
                                             groupId: String
                                             )
 

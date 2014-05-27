@@ -39,7 +39,7 @@ object AccountService extends SessionTrait {
         val p = persistence.Password.p
 
         val user = withSQL {
-          select(u.result.*)
+          select(u.result.*, ma.result.address)
             .from(persistence.User as u)
             .innerJoin(persistence.MailAddress as ma).on(u.id, ma.userId)
             .innerJoin(persistence.Password as p).on(u.id, p.userId)
@@ -52,8 +52,8 @@ object AccountService extends SessionTrait {
               .and
               .eq(p.hash, hash)
         }
-        .map(persistence.User(u.resultName)).single.apply
-        .map(x => User(x))
+        .map(rs => (persistence.User(u.resultName)(rs), rs.string(ma.resultName.address))).single().apply
+        .map(x => User(x._1, x._2))
 
         user match {
           case Some(x) => Success(x)
@@ -230,13 +230,15 @@ object AccountService extends SessionTrait {
 
         // 新しいユーザー情報を取得
         val u = persistence.User.u
+        val ma = persistence.MailAddress.ma
         val newUser = withSQL {
-          select(u.result.*)
+          select(u.result.*, ma.result.address)
             .from(persistence.User as u)
+            .innerJoin(persistence.MailAddress as ma).on(u.id, ma.userId)
             .where
             .eq(u.id, sqls.uuid(user.id))
-        }.map(persistence.User(u.resultName)).single().apply
-        .map(x => User(x))
+        }.map(rs => (persistence.User(u.resultName)(rs), rs.string(ma.resultName.address))).single().apply
+        .map(x => User(x._1, x._2))
 
         newUser match {
           case Some(x) => Success(x)

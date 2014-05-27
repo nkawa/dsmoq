@@ -10,7 +10,7 @@ import dsmoq.services.data.RangeSliceSummary
 import scala.util.Success
 import dsmoq.services.data.RangeSlice
 import dsmoq.persistence.PostgresqlHelper._
-import dsmoq.persistence.AccessLevel
+import dsmoq.persistence.{GroupMemberRole, AccessLevel}
 import org.joda.time.DateTime
 import dsmoq.exceptions.{InputValidationException, NotFoundException, ValidationException, NotAuthorizedException}
 import java.util.UUID
@@ -251,6 +251,7 @@ object GroupService {
             case None => throw new NotFoundException
           }
         } catch {
+          case e: NotAuthorizedException => throw e
           case e: Exception => throw new NotFoundException
         }
 
@@ -293,20 +294,52 @@ object GroupService {
   def addUser(params: GroupData.AddUserToGroupParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
 
+    // FIXME input parameter check
+    val userId = params.userId match {
+      case Some(x) => x
+      case None => throw new InputValidationException("id", "ID is empty")
+    }
+    val role = params.role match {
+      case Some(x) =>
+        try {
+          val role = x.toInt
+          role match {
+            case GroupMemberRole.Administrator => role
+            case GroupMemberRole.Member => role
+            case _ => throw new InputValidationException("role", "role value error")
+          }
+        } catch {
+          case e: InputValidationException => throw e
+          case e: Exception => throw new InputValidationException("role", "role format error")
+        }
+      case None => throw new InputValidationException("role", "role is empty")
+    }
+
     try {
       val result = DB localTx { implicit s =>
-        // 権限チェック
-        if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+        try {
+          getGroup(params.groupId) match {
+            case Some(x) =>
+              // 権限チェック
+              if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+            case None => throw new NotFoundException
+          }
+          if (!isValidUser(userId)) throw new NotFoundException
+        } catch {
+          case e: NotAuthorizedException => throw e
+          case e: Exception => throw new NotFoundException
+        }
 
         val myself = persistence.User.find(params.userInfo.id).get
-        val addUser = persistence.User.find(params.userId).get
+        val addUser = persistence.User.find(userId).get
         val timestamp = DateTime.now()
 
+        // FIXME deletedAtつきデータが存在している場合にはcreateではなくupdateで対応する
         persistence.Member.create(
           id = UUID.randomUUID.toString,
           groupId = params.groupId,
           userId = addUser.id,
-          role = params.role,
+          role = role,
           status = 1,
           createdBy = myself.id,
           createdAt = timestamp,
@@ -319,7 +352,7 @@ object GroupService {
         id = result.id,
         name = result.name,
         organization = result.organization,
-        role = params.role
+        role = role
       ))
     } catch {
       case e: Exception => Failure(e)
@@ -329,10 +362,36 @@ object GroupService {
   def modifyMemberRole(params: GroupData.ModifyMemberRoleParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
 
+    val role = params.role match {
+      case Some(x) =>
+        try {
+          val role = x.toInt
+          role match {
+            case GroupMemberRole.Administrator => role
+            case GroupMemberRole.Member => role
+            case _ => throw new InputValidationException("role", "role value error")
+          }
+        } catch {
+          case e: InputValidationException => throw e
+          case e: Exception => throw new InputValidationException("role", "role format error")
+        }
+      case None => throw new InputValidationException("role", "role is empty")
+    }
+
     try {
       val result = DB localTx { implicit s =>
-        // 権限チェック
-        if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+        try {
+          getGroup(params.groupId) match {
+            case Some(x) =>
+              // 権限チェック
+              if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+            case None => throw new NotFoundException
+          }
+          if (!isValidGroupMember(params.groupId, params.memberId)) throw new NotFoundException
+        } catch {
+          case e: NotAuthorizedException => throw e
+          case e: Exception => throw new NotFoundException
+        }
 
         val myself = persistence.User.find(params.userInfo.id).get
         val timestamp = DateTime.now()
@@ -340,7 +399,7 @@ object GroupService {
         withSQL {
           val m = persistence.Member.column
           update(persistence.Member)
-            .set(m.role -> params.role,
+            .set(m.role -> role,
               m.updatedBy -> sqls.uuid(myself.id), m.updatedAt -> timestamp)
             .where
             .eq(m.id, sqls.uuid(params.memberId))
@@ -362,7 +421,19 @@ object GroupService {
     try {
       val result = DB localTx { implicit s =>
         // 権限チェック
-        if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+//        if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+        try {
+          getGroup(params.groupId) match {
+            case Some(x) =>
+              // 権限チェック
+              if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+            case None => throw new NotFoundException
+          }
+          if (!isValidGroupMember(params.groupId, params.memberId)) throw new NotFoundException
+        } catch {
+          case e: NotAuthorizedException => throw e
+          case e: Exception => throw new NotFoundException
+        }
 
         val myself = persistence.User.find(params.userInfo.id).get
         val timestamp = DateTime.now()
@@ -425,20 +496,30 @@ object GroupService {
 
   def addImages(params: GroupData.AddImagesToGroupParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
-    if (params.images.getOrElse(Seq.empty).isEmpty) throw new ValidationException
+
+    val inputImages = params.images match {
+      case Some(x) => x.filter(_.name.length != 0)
+      case None => Seq.empty
+    }
+    if (inputImages.size == 0) throw new InputValidationException("image", "image is empty")
 
     DB localTx { implicit s =>
-      // 権限チェック
-      if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+      try {
+        getGroup(params.groupId) match {
+          case Some(x) =>
+            // 権限チェック
+            if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+          case None => throw new NotFoundException
+        }
+      } catch {
+        case e: NotAuthorizedException => throw e
+        case e: Exception => throw new NotFoundException
+      }
 
       val myself = persistence.User.find(params.userInfo.id).get
       val timestamp = DateTime.now()
       val primaryImage = getPrimaryImageId(params.groupId)
       var isFirst = true
-      val inputImages = params.images match {
-        case Some(x) => x.filter(_.size > 0)
-        case None => Seq.empty
-      }
 
       val images = inputImages.map(i => {
         val imageId = UUID.randomUUID().toString
@@ -484,9 +565,26 @@ object GroupService {
   def changePrimaryImage(params: GroupData.ChangeGroupPrimaryImageParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
 
+    // FIXME input validation check
+    val imageId = params.id match {
+      case Some(x) => x
+      case None => throw new InputValidationException("id", "id is empty")
+    }
+
     DB localTx { implicit s =>
-      // 権限チェック
-      if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+      try {
+        getGroup(params.groupId) match {
+          case Some(x) =>
+            // 権限チェック
+            if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+            // image_idの存在チェック
+            if (!isValidGroupImage(params.groupId, imageId)) throw new NotFoundException
+          case None => throw new NotFoundException
+        }
+      } catch {
+        case e: NotAuthorizedException => throw e
+        case e: Exception => throw new NotFoundException
+      }
 
       val myself = persistence.User.find(params.userInfo.id).get
       val timestamp = DateTime.now()
@@ -495,7 +593,7 @@ object GroupService {
         update(persistence.GroupImage)
           .set(gi.isPrimary -> 1, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
           .where
-          .eq(gi.imageId, sqls.uuid(params.id))
+          .eq(gi.imageId, sqls.uuid(imageId))
           .and
           .eq(gi.groupId, sqls.uuid(params.groupId))
           .and
@@ -507,7 +605,7 @@ object GroupService {
         update(persistence.GroupImage)
           .set(gi.isPrimary -> 0, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
           .where
-          .ne(gi.imageId, sqls.uuid(params.id))
+          .ne(gi.imageId, sqls.uuid(imageId))
           .and
           .eq(gi.groupId, sqls.uuid(params.groupId))
           .and
@@ -522,8 +620,19 @@ object GroupService {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
 
     val primaryImage = DB localTx { implicit s =>
-      // 権限チェック
-      if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+      try {
+        getGroup(params.groupId) match {
+          case Some(x) =>
+            // 権限チェック
+            if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+            // image_idの存在チェック
+            if (!isValidGroupImage(params.groupId, params.imageId)) throw new NotFoundException
+          case None => throw new NotFoundException
+        }
+      } catch {
+        case e: NotAuthorizedException => throw e
+        case e: Exception => throw new NotFoundException
+      }
 
       val myself = persistence.User.find(params.userInfo.id).get
       val timestamp = DateTime.now()
@@ -783,6 +892,8 @@ val g = persistence.Group.syntax("g")
         .from(persistence.Group as g)
         .innerJoin(persistence.Member as m).on(sqls.eq(g.id, m.groupId).and.isNull(m.deletedAt))
         .where
+        .eq(g.id, sqls.uuid(groupId))
+        .and
         .eq(g.groupType, 0)
         .and
         .eq(m.role, 1)
@@ -792,5 +903,62 @@ val g = persistence.Group.syntax("g")
         .isNull(g.deletedAt)
         .limit(1)
     }.map(x => true).single.apply().getOrElse(false)
+  }
+  
+  private def isValidGroupImage(groupId: String, imageId: String)(implicit s: DBSession) = {
+    val gi = persistence.GroupImage.syntax("gi")
+    val i = persistence.Image.syntax("i")
+    withSQL {
+      select(gi.result.id)
+        .from(persistence.GroupImage as gi)
+        .innerJoin(persistence.Image as i).on(i.id, gi.imageId)
+        .where
+        .eq(gi.groupId, sqls.uuid(groupId))
+        .and
+        .eq(i.id, sqls.uuid(imageId))
+        .and
+        .isNull(gi.deletedAt)
+        .and
+        .isNull(i.deletedAt)
+    }.map(rs => rs.string(gi.resultName.id)).single().apply match {
+      case Some(x) => true
+      case None => false
+    }
+  }
+
+  private def isValidUser(userId: String)(implicit s: DBSession) = {
+    val u = persistence.User.syntax("u")
+    withSQL {
+      select(u.result.id)
+      .from(persistence.User as u)
+      .where
+      .eq(u.id, sqls.uuid(userId))
+      .and
+      .isNull(u.deletedAt)
+    }.map(rs => rs.string(u.resultName.id)).single().apply match {
+      case Some(x) => true
+      case None => false
+    }
+  }
+
+  private def isValidGroupMember(groupId: String, memberId: String)(implicit s: DBSession) = {
+    val m = persistence.Member.syntax("m")
+    val g = persistence.Group.syntax("g")
+    withSQL {
+      select(m.result.id)
+        .from(persistence.Member as m)
+        .innerJoin(persistence.Group as g).on(g.id, m.groupId)
+        .where
+        .eq(g.id, sqls.uuid(groupId))
+        .and
+        .eq(m.id, sqls.uuid(memberId))
+        .and
+        .isNull(m.deletedAt)
+        .and
+        .isNull(g.deletedAt)
+    }.map(rs => rs.string(m.resultName.id)).single().apply match {
+      case Some(x) => true
+      case None => false
+    }
   }
 }

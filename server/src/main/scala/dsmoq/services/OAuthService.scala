@@ -54,7 +54,7 @@ object OAuthService {
             .eq(gu.googleId, googleUser.getId)
         }
         .map(persistence.User(u.resultName)).single().apply
-        .map(x => dsmoq.services.data.User(x))
+        .map(x => dsmoq.services.data.User(x, googleUser.getEmail))
 
         // ユーザーがなければユーザー作成
         val user = coiUser match {
@@ -130,6 +130,6 @@ object OAuthService {
       updatedAt = timestamp
     )
 
-    dsmoq.services.data.User(user)
+    dsmoq.services.data.User(user, googleUser.getEmail)
   }
 }

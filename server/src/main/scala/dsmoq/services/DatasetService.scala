@@ -8,13 +8,22 @@ import dsmoq.AppConf
 import dsmoq.services.data._
 import dsmoq.persistence
 import dsmoq.persistence.PostgresqlHelper._
-import dsmoq.exceptions.{InputValidationException, NotFoundException, ValidationException, NotAuthorizedException}
+import dsmoq.exceptions._
 import org.joda.time.DateTime
 import org.scalatra.servlet.FileItem
 import dsmoq.forms.{AccessCrontolItem, AccessControl}
 import dsmoq.persistence.{AccessLevel, GroupMemberRole}
 import scala.collection.mutable.ArrayBuffer
 import dsmoq.logic.ImageSaveLogic
+import scala.util.Failure
+import scala.Some
+import scala.util.Success
+import dsmoq.services.data.RangeSlice
+import org.scalatra.servlet.FileItem
+import dsmoq.forms.AccessControl
+import dsmoq.services.data.RangeSliceSummary
+import dsmoq.services.data.Image
+import dsmoq.forms.AccessCrontolItem
 
 object DatasetService {
   /**
@@ -295,9 +304,28 @@ object DatasetService {
     try {
       if (user.isGuest) throw new NotAuthorizedException
 
+      val accessLevel = try {
+        item.accessLevel match {
+          case Some(x) => x.toInt
+          case None => throw new InputValidationException("accessLevel", "access level is empty")
+        }
+      } catch {
+       case e: InputValidationException => throw e
+       case e: Exception => throw new InputValidationException("accessLevel", "access level is invalid")
+      }
+
       DB localTx { implicit s =>
         if (!hasAllowAllPermission(user.id, item.datasetId))
             throw new NotAuthorizedException
+
+        try {
+          getDataset(item.datasetId) match {
+            case Some(x) => // do nothing
+            case None => throw new NotFoundException
+          }
+        } catch {
+          case e: Exception => throw new NotFoundException
+        }
 
         val o = persistence.Ownership.o
         withSQL(
@@ -314,7 +342,7 @@ object DatasetService {
                 id = x.id,
                 datasetId = x.datasetId,
                 groupId = x.groupId,
-                accessLevel = item.accessLevel,
+                accessLevel = accessLevel,
                 createdBy = x.createdBy,
                 createdAt = x.createdAt,
                 updatedBy = user.id,
@@ -322,13 +350,13 @@ object DatasetService {
               ).save()
             }
           case None =>
-            if (item.accessLevel > 0) {
+            if (accessLevel > 0) {
               val ts = DateTime.now
               persistence.Ownership.create(
                 id = UUID.randomUUID.toString,
                 datasetId = item.datasetId,
                 groupId = item.groupId,
-                accessLevel = item.accessLevel,
+                accessLevel = accessLevel,
                 createdBy = user.id,
                 createdAt = ts,
                 updatedBy = user.id,
@@ -341,7 +369,7 @@ object DatasetService {
           id = item.groupId,
           name = "", //TODO
           image = "", //TODO
-          accessLevel = item.accessLevel
+          accessLevel = accessLevel
         ))
       }
     } catch {
@@ -366,6 +394,7 @@ object DatasetService {
           case None => throw new NotFoundException
         }
       } catch {
+        case e: NotAuthorizedException => throw e
         case e: Exception => throw new NotFoundException
       }
 
@@ -438,6 +467,7 @@ object DatasetService {
         }
         if (!isValidFile(params.datasetId, params.fileId)) throw new NotFoundException
       } catch {
+        case e: NotAuthorizedException => throw e
         case e: Exception => throw new NotFoundException
       }
 
@@ -503,6 +533,7 @@ object DatasetService {
           }
           if (!isValidFile(params.datasetId, params.fileId)) throw new NotFoundException
         } catch {
+          case e: NotAuthorizedException => throw e
           case e: Exception => throw new NotFoundException
         }
 
@@ -537,6 +568,7 @@ object DatasetService {
           }
           if (!isValidFile(params.datasetId, params.fileId)) throw new NotFoundException
         } catch {
+          case e: NotAuthorizedException => throw e
           case e: Exception => throw new NotFoundException
         }
 
@@ -590,7 +622,7 @@ object DatasetService {
             case None => throw new NotFoundException
           }
         } catch {
-          case e: InputValidationException => throw e
+          case e: NotAuthorizedException => throw e
           case e: Exception => throw new NotFoundException
         }
 
@@ -744,6 +776,7 @@ object DatasetService {
         }
         if (!isValidImage(params.datasetId, imageId)) throw new NotFoundException
       } catch {
+        case e: NotAuthorizedException => throw e
         case e: Exception => throw new NotFoundException
       }
 
@@ -790,6 +823,7 @@ object DatasetService {
         }
         if (!isValidImage(params.datasetId, params.imageId)) throw new NotFoundException
       } catch {
+        case e: NotAuthorizedException => throw e
         case e: Exception => throw new NotFoundException
       }
 
@@ -1235,12 +1269,16 @@ object DatasetService {
     val f = persistence.File.f
     val u1 = persistence.User.syntax("u1")
     val u2 = persistence.User.syntax("u2")
+    val ma1 = persistence.MailAddress.syntax("ma1")
+    val ma2 = persistence.MailAddress.syntax("ma2")
 
     withSQL {
-      select(f.result.*, u1.result.*, u2.result.*)
+      select(f.result.*, u1.result.*, u2.result.*, ma1.result.address, ma2.result.address)
         .from(persistence.File as f)
         .innerJoin(persistence.User as u1).on(f.createdBy, u1.id)
         .innerJoin(persistence.User as u2).on(f.updatedBy, u2.id)
+        .innerJoin(persistence.MailAddress as ma1).on(u1.id, ma1.userId)
+        .innerJoin(persistence.MailAddress as ma2).on(u2.id, ma2.userId)
         .where
           .eq(f.datasetId, sqls.uuid(datasetId))
           .and
@@ -1250,7 +1288,9 @@ object DatasetService {
       (
         persistence.File(f.resultName)(rs),
         persistence.User(u1.resultName)(rs),
-        persistence.User(u2.resultName)(rs)
+        persistence.User(u2.resultName)(rs),
+        rs.string(ma1.resultName.address),
+        rs.string(ma2.resultName.address)
       )
     ).list.apply.map(x =>
       DatasetData.DatasetFile(
@@ -1259,9 +1299,9 @@ object DatasetService {
         description = x._1.description,
         url = AppConf.fileDownloadRoot + datasetId + "/" + x._1.id,
         size = x._1.fileSize,
-        createdBy = User(x._2),
+        createdBy = User(x._2, x._4),
         createdAt = x._1.createdAt.toString(),
-        updatedBy = User(x._3),
+        updatedBy = User(x._3, x._5),
         updatedAt = x._1.updatedAt.toString()
       )
     )
