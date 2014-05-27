@@ -326,7 +326,16 @@ class Main {
 
                             trace(data);
                             var binding = JsViews.objectObservable(data);
-                            View.getTemplate("dataset/edit").link(container, binding.data());
+                            View.getTemplate("dataset/edit").link(container, data);
+
+                            new JqHtml(container).find("#dataset-attribute-add").on("click", function (_) {
+                                //var attrs = JsViews.arrayObservable(data.dataset.meta.attributes);
+                                //attrs.insert({name: "", value:""});
+                            });
+
+                            new JqHtml(container).find("#dataset-basics-submit").on("click", function (_) {
+                                Service.instance.updateDatasetMetadata(id, data.dataset.meta);
+                            });
                         });
                     },
                     dispose: function () {

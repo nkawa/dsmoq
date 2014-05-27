@@ -107,23 +107,30 @@ class Service extends Stream<ServiceEvent> {
     }
 
     public function updateDatasetMetadata(datasetId: String, metadata: DatasetMetadata): Promise<Unit> {
-        return send(Put, '/datasets/${datasetId}/metadata', metadata);
+        var req = {
+            name: metadata.name,
+            description: metadata.description,
+            "attributes[][name]": metadata.attributes.map(function (x) return x.name),
+            "attributes[][value]": metadata.attributes.map(function (x) return x.value),
+            license: metadata.license
+        };
+        return send(Put, '/api/datasets/$datasetId/metadata', req);
     }
 
     public function addDatasetImage(datasetId: String, form: JqHtml): Promise<{images: Array<Image>, primaryImage: String}> {
-        return sendForm('/datasets/$datasetId/images', form);
+        return sendForm('/api/datasets/$datasetId/images', form);
     }
 
     public function setDatasetPrimaryImage(datasetId: String, imageId: String): Promise<Unit> {
-        return send(Put, '/datasets/$datasetId/images/primary', {id: imageId});
+        return send(Put, '/api/datasets/$datasetId/images/primary', {id: imageId});
     }
 
     public function removeDatasetImage(datasetId: String, imageId: String): Promise<{primaryImage: String}> {
-        return send(Delete, '/datasets/$datasetId/images/$imageId');
+        return send(Delete, '/api/datasets/$datasetId/images/$imageId');
     }
 
     public function setDatasetAccessLevel(datasetId: String, groupId: String, accessLevel: DatasetPermission): Promise<Unit> {
-        return send(Put, '/datasets/$datasetId/acl/$groupId', accessLevel);
+        return send(Put, '/api/datasets/$datasetId/acl/$groupId', accessLevel);
     }
 
     // setで代用可能
@@ -217,7 +224,7 @@ class Service extends Stream<ServiceEvent> {
     }
 
     function send<T>(method: RequestMethod, url: String, ?data: Dynamic): Promise<T> {
-        return JQuery.ajax(url, {type: method, dataType: "json", cache: false, data: data}).toPromise()
+        return JQuery.ajax(url, {type: method, dataType: "json", cache: false, data: data, traditional: true}).toPromise()
             .bind(function (response: ApiResponse) {
                 return switch (response.status) {
                     case ApiStatus.OK:
