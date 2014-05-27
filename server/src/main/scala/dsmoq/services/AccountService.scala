@@ -15,6 +15,7 @@ import java.util.UUID
 import java.awt.image.BufferedImage
 import org.scalatra.servlet.FileItem
 import dsmoq.logic.ImageSaveLogic
+import dsmoq.persistence.PresetType
 
 object AccountService extends SessionTrait {
 
@@ -210,7 +211,8 @@ object AccountService extends SessionTrait {
                 name = x.getName,
                 width = bufferedImage.getWidth,
                 height = bufferedImage.getWidth,
-                filePath = "/" + imageId,
+                filePath = "/" + ImageSaveLogic.uploadPath + "/" + imageId,
+                presetType = PresetType.Default,
                 createdBy = user.id,
                 createdAt = DateTime.now,
                 updatedBy = user.id,

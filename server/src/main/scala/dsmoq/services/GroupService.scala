@@ -10,7 +10,7 @@ import dsmoq.services.data.RangeSliceSummary
 import scala.util.Success
 import dsmoq.services.data.RangeSlice
 import dsmoq.persistence.PostgresqlHelper._
-import dsmoq.persistence.{GroupMemberRole, AccessLevel}
+import dsmoq.persistence.{PresetType, GroupMemberRole, AccessLevel}
 import org.joda.time.DateTime
 import dsmoq.exceptions.{InputValidationException, NotFoundException, ValidationException, NotAuthorizedException}
 import java.util.UUID
@@ -529,7 +529,8 @@ object GroupService {
           name = i.getName,
           width = bufferedImage.getWidth,
           height = bufferedImage.getWidth,
-          filePath = "/" + imageId,
+          filePath = "/" + ImageSaveLogic.uploadPath + "/" + imageId,
+          presetType = PresetType.Default,
           createdBy = myself.id,
           createdAt = DateTime.now,
           updatedBy = myself.id,
@@ -539,8 +540,7 @@ object GroupService {
           id = UUID.randomUUID.toString,
           groupId = params.groupId,
           imageId = imageId,
-          isPrimary = if (isFirst && primaryImage.isEmpty) 1 else 0,
-          displayOrder = 999, // 廃止予定値
+          isPrimary = if (isFirst && primaryImage.isEmpty) true else false,
           createdBy = myself.id,
           createdAt = timestamp,
           updatedBy = myself.id,

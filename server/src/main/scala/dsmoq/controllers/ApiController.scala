@@ -171,12 +171,13 @@ class ApiController extends ScalatraServlet
     val query = params.get("query")
     val group = params.get("group")
     val attributes = multiParams.toMap
+    val owner = params.get("owner")
     val limit = params.get("limit")
     val offset = params.get("offset")
 
     val response = for {
       userInfo <- getUserInfoFromSession()
-      facadeParams = SearchDatasetsParams(query, group, attributes, limit, offset, userInfo)
+      facadeParams = SearchDatasetsParams(query, group, attributes, owner, limit, offset, userInfo)
       datasets <- DatasetService.search(facadeParams)
     } yield {
       AjaxResponse("OK", datasets)
@@ -435,6 +436,7 @@ class ApiController extends ScalatraServlet
 
   get("/groups") {
     val query = params.get("query")
+    val user = params.get("user")
     val limit = params.get("limit")
     val offset = params.get("offset")
 

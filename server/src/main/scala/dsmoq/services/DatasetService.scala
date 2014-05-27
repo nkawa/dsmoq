@@ -12,7 +12,7 @@ import dsmoq.exceptions._
 import org.joda.time.DateTime
 import org.scalatra.servlet.FileItem
 import dsmoq.forms.{AccessCrontolItem, AccessControl}
-import dsmoq.persistence.{AccessLevel, GroupMemberRole}
+import dsmoq.persistence.{PresetType, AccessLevel, GroupMemberRole}
 import scala.collection.mutable.ArrayBuffer
 import dsmoq.logic.ImageSaveLogic
 import scala.util.Failure
@@ -109,7 +109,6 @@ object DatasetService {
           datasetId = dataset.id,
           imageId = AppConf.defaultDatasetImageId,
           isPrimary = true,
-          displayOrder = 0,
           createdBy = myself.id,
           createdAt = timestamp,
           updatedBy = myself.id,
@@ -726,7 +725,8 @@ object DatasetService {
           name = i.getName,
           width = bufferedImage.getWidth,
           height = bufferedImage.getWidth,
-          filePath = "/" + imageId,
+          filePath = "/" + ImageSaveLogic.uploadPath + "/" + imageId,
+          presetType = PresetType.Default,
           createdBy = myself.id,
           createdAt = DateTime.now,
           updatedBy = myself.id,
@@ -737,7 +737,6 @@ object DatasetService {
           datasetId = params.datasetId,
           imageId = imageId,
           isPrimary = if (isFirst && primaryImage.isEmpty) true else false,
-          displayOrder = 999, // 廃止予定値
           createdBy = myself.id,
           createdAt = timestamp,
           updatedBy = myself.id,
@@ -1251,7 +1250,7 @@ object DatasetService {
           .isNull(di.deletedAt)
           .and
           .isNull(i.deletedAt)
-        .orderBy(di.displayOrder)
+        .orderBy(i.name)
     }.map(rs =>
       (
         persistence.DatasetImage(di.resultName)(rs),

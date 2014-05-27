@@ -13,6 +13,7 @@ object DatasetData {
                                    query: Option[String],
                                    group: Option[String],
                                    attributes: Map[String, Seq[String]],
+                                   owner: Option[String],
                                    limit: Option[String],
                                    offset: Option[String],
                                    userInfo: User
