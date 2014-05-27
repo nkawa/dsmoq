@@ -1,16 +1,13 @@
 package dsmoq.models;
 
-import js.support.ControllablePromise;
-import js.support.Option;
-import js.support.Promise;
-import js.support.Promise;
-import js.support.Stream;
-import js.support.Stream;
-import js.support.Unit;
 import js.Cookie;
 import js.Error;
 import js.jqhx.JqHtml;
 import js.jqhx.JQuery;
+import js.support.ControllablePromise;
+import js.support.Promise;
+import js.support.Stream;
+import js.support.Unit;
 using dsmoq.framework.helper.JQueryTools;
 
 class Service extends Stream<ServiceEvent> {
@@ -102,39 +99,34 @@ class Service extends Stream<ServiceEvent> {
     }
 
     public function addDatasetImage(datasetId: String, form: JqHtml): Promise<{images: Array<Image>, primaryImage: String}> {
-        // TODO
-        return null;
+        return sendForm('/datasets/$datasetId/images', form);
     }
 
-    public function setDatasetPrimeryImage(datasetId: String, imageId: String): Promise<Unit> {
-        // TODO
-        return null;
+    public function setDatasetPrimaryImage(datasetId: String, imageId: String): Promise<Unit> {
+        return send(Put, '/datasets/$datasetId/images/primary', {id: imageId});
     }
 
     public function removeDatasetImage(datasetId: String, imageId: String): Promise<{primaryImage: String}> {
-        // TODO
-        return null;
+        return send(Delete, '/datasets/$datasetId/images/$imageId');
     }
 
     public function setDatasetAccessLevel(datasetId: String, groupId: String, accessLevel: DatasetPermission): Promise<Unit> {
-        // TODO
-        return null;
+        return send(Put, '/datasets/$datasetId/acl/$groupId', accessLevel);
     }
 
-    public function removeDatasetAccessLevel(datasetId: String, groupId: String): Promise<Unit> {
-        // TODO
-        return null;
+    // setで代用可能
+    //public function removeDatasetAccessLevel(datasetId: String, groupId: String): Promise<Unit> {
+        //return send(Delete, '/datasets/$datasetId/acl/$groupId');
+    //}
+
+    public function setDatasetGuestAccessLevel(datasetId: String, accessLevel: GuestAccessLevel): Promise<Unit> {
+        return send(Put, '/datasets/$datasetId/acl/guest', accessLevel);
     }
 
-    public function setDatasetGuestAccessLevel(dataset: String, accessLevel: GuestAccessLevel): Promise<Unit> {
-        // TODO
-        return null;
-    }
-
-    public function resetDatasetGuestAccessLevel(dataset: String): Promise<Unit> {
-        // TODO
-        return null;
-    }
+    // setで代用可能
+    //public function removeDatasetGuestAccessLevel(dataset: String): Promise<Unit> {
+        //return send(Delete, '/datasets/$datasetId/acl/guest');
+    //}
 
     public function deleteDeataset(datasetId: String): Promise<Unit> {
         return send(Delete, '/api/datasets/$datasetId');
@@ -143,18 +135,15 @@ class Service extends Stream<ServiceEvent> {
     // ---
     public function createGroup(name: String): Promise<{id: String}> {
         // TODO descriptionをAPIパラメータから削除
-        trace( { name: name, description: "" } );
         return send(Post, "/api/groups", { name: name, description: "" });
     }
 
     public function findGroups(?params: {page: UInt}): Promise<RangeSlice<GroupSummary>> {
-        // TODO
-        return null;
+        return send(Get, "/api/groups");
     }
 
-    public function getGroup(id: String): Promise<Group> {
-        return null;
-        // TODO
+    public function getGroup(groupId: String): Promise<Group> {
+        return send(Get, '/api/groups/$groupId');
     }
 
     public function getGroupMembers(id: String, page: UInt): Promise<{}> {
