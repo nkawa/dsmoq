@@ -71,11 +71,23 @@ class Service extends Stream<ServiceEvent> {
     }
 
     public function findDatasets(?params: {?query: String, ?group: String, ?attributes: {}, ?page: UInt}): Promise<RangeSlice<DatasetSummary>> {
-        return send(Get, "/api/datasets", { } );
+        // TODO ページング
+        return send(Get, "/api/datasets", { offset: 0, limit: 20 });
     }
 
     public function getDataset(datasetId: String): Promise<Dataset> {
-        return send(Get, '/api/datasets/$datasetId');
+        return send(Get, '/api/datasets/$datasetId').map(function (a) {
+            return {
+                id: cast a.id,
+                files: cast a.files,
+                meta: cast a.meta,
+                images: cast a.images,
+                primaryImage: cast Lambda.find(a.images, function (x) return x.id == a.primaryImage),
+                ownerships: cast a.ownerships,
+                defaultAccessLevel: cast a.defaultAccessLevel,
+                permission: cast a.permission
+            };
+        });
     }
 
     public function addDatasetFiles(datasetId: String, form: JqHtml): Promise<Array<DatasetFile>> {
@@ -138,23 +150,25 @@ class Service extends Stream<ServiceEvent> {
         return send(Post, "/api/groups", { name: name, description: "" });
     }
 
-    public function findGroups(?params: {page: UInt}): Promise<RangeSlice<GroupSummary>> {
-        return send(Get, "/api/groups");
+    public function findGroups(?params: {page: UInt}): Promise<RangeSlice<Group>> {
+        // TODO ページング
+        return send(Get, "/api/groups", { offset: 0, limit: 20 });
     }
 
     public function getGroup(groupId: String): Promise<Group> {
         return send(Get, '/api/groups/$groupId');
     }
 
-    public function getGroupMembers(id: String, page: UInt): Promise<{}> {
-        return null;
+    public function getGroupMembers(groupId: String, page: UInt): Promise<RangeSlice<GroupMember>> {
+        // TODO ページング
+        return send(Get, '/api/groups/$groupId/members', { offset: 0, limit: 20 });
     }
 
-    public function updateGroupBasics(id: String, name: String, description: String): Promise<{}> {
-        return null;
+    public function updateGroupBasics(groupId: String, name: String, description: String): Promise<Group> {
+        return send(Post, '/api/groups/$groupId', { name: name, description: description });
     }
 
-    public function addGroupImages(id: String, form: JqHtml): Promise<Unit> {
+    public function addGroupImages(groupId: String, form: JqHtml): Promise<Unit> {
         return null;
     }
 
