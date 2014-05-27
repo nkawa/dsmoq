@@ -6,16 +6,15 @@ import org.joda.time.{DateTime}
 import PostgresqlHelper._
 
 case class DatasetImage(
-  id: String,
-  datasetId: String,
-  imageId: String,
+  id: String, 
+  datasetId: String, 
+  imageId: String, 
   isPrimary: Boolean, 
-  displayOrder: Int, 
-  createdBy: String,
+  createdBy: String, 
   createdAt: DateTime, 
-  updatedBy: String,
+  updatedBy: String, 
   updatedAt: DateTime, 
-  deletedBy: Option[String] = None,
+  deletedBy: Option[String] = None, 
   deletedAt: Option[DateTime] = None) {
 
   def save()(implicit session: DBSession = DatasetImage.autoSession): DatasetImage = DatasetImage.save(this)(session)
@@ -29,14 +28,13 @@ object DatasetImage extends SQLSyntaxSupport[DatasetImage] {
 
   override val tableName = "dataset_images"
 
-  override val columns = Seq("id", "dataset_id", "image_id", "is_primary", "display_order", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
+  override val columns = Seq("id", "dataset_id", "image_id", "is_primary", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
 
   def apply(di: ResultName[DatasetImage])(rs: WrappedResultSet): DatasetImage = new DatasetImage(
     id = rs.string(di.id),
     datasetId = rs.string(di.datasetId),
     imageId = rs.string(di.imageId),
     isPrimary = rs.boolean(di.isPrimary),
-    displayOrder = rs.int(di.displayOrder),
     createdBy = rs.string(di.createdBy),
     createdAt = rs.timestamp(di.createdAt).toDateTime,
     updatedBy = rs.string(di.updatedBy),
@@ -80,7 +78,6 @@ object DatasetImage extends SQLSyntaxSupport[DatasetImage] {
     datasetId: String,
     imageId: String,
     isPrimary: Boolean,
-    displayOrder: Int,
     createdBy: String,
     createdAt: DateTime,
     updatedBy: String,
@@ -93,7 +90,6 @@ object DatasetImage extends SQLSyntaxSupport[DatasetImage] {
         column.datasetId,
         column.imageId,
         column.isPrimary,
-        column.displayOrder,
         column.createdBy,
         column.createdAt,
         column.updatedBy,
@@ -105,7 +101,6 @@ object DatasetImage extends SQLSyntaxSupport[DatasetImage] {
         sqls.uuid(datasetId),
         sqls.uuid(imageId),
         isPrimary,
-        displayOrder,
         sqls.uuid(createdBy),
         createdAt,
         sqls.uuid(updatedBy),
@@ -120,7 +115,6 @@ object DatasetImage extends SQLSyntaxSupport[DatasetImage] {
       datasetId = datasetId,
       imageId = imageId,
       isPrimary = isPrimary,
-      displayOrder = displayOrder,
       createdBy = createdBy,
       createdAt = createdAt,
       updatedBy = updatedBy,
@@ -136,7 +130,6 @@ object DatasetImage extends SQLSyntaxSupport[DatasetImage] {
         column.datasetId -> sqls.uuid(entity.datasetId),
         column.imageId -> sqls.uuid(entity.imageId),
         column.isPrimary -> entity.isPrimary,
-        column.displayOrder -> entity.displayOrder,
         column.createdBy -> sqls.uuid(entity.createdBy),
         column.createdAt -> entity.createdAt,
         column.updatedBy -> sqls.uuid(entity.updatedBy),

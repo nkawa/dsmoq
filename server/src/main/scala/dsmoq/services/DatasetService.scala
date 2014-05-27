@@ -109,7 +109,6 @@ object DatasetService {
           datasetId = dataset.id,
           imageId = AppConf.defaultDatasetImageId,
           isPrimary = true,
-          displayOrder = 0,
           createdBy = myself.id,
           createdAt = timestamp,
           updatedBy = myself.id,
@@ -737,7 +736,6 @@ object DatasetService {
           datasetId = params.datasetId,
           imageId = imageId,
           isPrimary = if (isFirst && primaryImage.isEmpty) true else false,
-          displayOrder = 999, // 廃止予定値
           createdBy = myself.id,
           createdAt = timestamp,
           updatedBy = myself.id,
@@ -1251,7 +1249,7 @@ object DatasetService {
           .isNull(di.deletedAt)
           .and
           .isNull(i.deletedAt)
-        .orderBy(di.displayOrder)
+        .orderBy(i.name)
     }.map(rs =>
       (
         persistence.DatasetImage(di.resultName)(rs),

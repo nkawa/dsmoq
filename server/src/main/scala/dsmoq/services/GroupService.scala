@@ -540,7 +540,6 @@ object GroupService {
           groupId = params.groupId,
           imageId = imageId,
           isPrimary = if (isFirst && primaryImage.isEmpty) 1 else 0,
-          displayOrder = 999, // 廃止予定値
           createdBy = myself.id,
           createdAt = timestamp,
           updatedBy = myself.id,

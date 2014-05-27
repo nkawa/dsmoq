@@ -6,16 +6,15 @@ import org.joda.time.{DateTime}
 import PostgresqlHelper._
 
 case class GroupImage(
-  id: String,
-  groupId: String,
-  imageId: String,
+  id: String, 
+  groupId: String, 
+  imageId: String, 
   isPrimary: Int, 
-  displayOrder: Int, 
-  createdBy: String,
+  createdBy: String, 
   createdAt: DateTime, 
-  updatedBy: String,
+  updatedBy: String, 
   updatedAt: DateTime, 
-  deletedBy: Option[String] = None,
+  deletedBy: Option[String] = None, 
   deletedAt: Option[DateTime] = None) {
 
   def save()(implicit session: DBSession = GroupImage.autoSession): GroupImage = GroupImage.save(this)(session)
@@ -29,14 +28,13 @@ object GroupImage extends SQLSyntaxSupport[GroupImage] {
 
   override val tableName = "group_images"
 
-  override val columns = Seq("id", "group_id", "image_id", "is_primary", "display_order", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
+  override val columns = Seq("id", "group_id", "image_id", "is_primary", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
 
   def apply(gi: ResultName[GroupImage])(rs: WrappedResultSet): GroupImage = new GroupImage(
     id = rs.string(gi.id),
     groupId = rs.string(gi.groupId),
     imageId = rs.string(gi.imageId),
     isPrimary = rs.int(gi.isPrimary),
-    displayOrder = rs.int(gi.displayOrder),
     createdBy = rs.string(gi.createdBy),
     createdAt = rs.timestamp(gi.createdAt).toDateTime,
     updatedBy = rs.string(gi.updatedBy),
@@ -80,7 +78,6 @@ object GroupImage extends SQLSyntaxSupport[GroupImage] {
     groupId: String,
     imageId: String,
     isPrimary: Int,
-    displayOrder: Int,
     createdBy: String,
     createdAt: DateTime,
     updatedBy: String,
@@ -93,7 +90,6 @@ object GroupImage extends SQLSyntaxSupport[GroupImage] {
         column.groupId,
         column.imageId,
         column.isPrimary,
-        column.displayOrder,
         column.createdBy,
         column.createdAt,
         column.updatedBy,
@@ -105,7 +101,6 @@ object GroupImage extends SQLSyntaxSupport[GroupImage] {
         sqls.uuid(groupId),
         sqls.uuid(imageId),
         isPrimary,
-        displayOrder,
         sqls.uuid(createdBy),
         createdAt,
         sqls.uuid(updatedBy),
@@ -120,7 +115,6 @@ object GroupImage extends SQLSyntaxSupport[GroupImage] {
       groupId = groupId,
       imageId = imageId,
       isPrimary = isPrimary,
-      displayOrder = displayOrder,
       createdBy = createdBy,
       createdAt = createdAt,
       updatedBy = updatedBy,
@@ -136,7 +130,6 @@ object GroupImage extends SQLSyntaxSupport[GroupImage] {
         column.groupId -> sqls.uuid(entity.groupId),
         column.imageId -> sqls.uuid(entity.imageId),
         column.isPrimary -> entity.isPrimary,
-        column.displayOrder -> entity.displayOrder,
         column.createdBy -> sqls.uuid(entity.createdBy),
         column.createdAt -> entity.createdAt,
         column.updatedBy -> sqls.uuid(entity.updatedBy),
