@@ -425,20 +425,30 @@ object GroupService {
 
   def addImages(params: GroupData.AddImagesToGroupParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
-    if (params.images.getOrElse(Seq.empty).isEmpty) throw new ValidationException
+
+    val inputImages = params.images match {
+      case Some(x) => x.filter(_.name.length != 0)
+      case None => Seq.empty
+    }
+    if (inputImages.size == 0) throw new InputValidationException("image", "image is empty")
 
     DB localTx { implicit s =>
-      // 権限チェック
-      if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+      try {
+        getGroup(params.groupId) match {
+          case Some(x) =>
+            // 権限チェック
+            if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+          case None => throw new NotFoundException
+        }
+      } catch {
+        case e: NotAuthorizedException => throw new NotAuthorizedException
+        case e: Exception => throw new NotFoundException
+      }
 
       val myself = persistence.User.find(params.userInfo.id).get
       val timestamp = DateTime.now()
       val primaryImage = getPrimaryImageId(params.groupId)
       var isFirst = true
-      val inputImages = params.images match {
-        case Some(x) => x.filter(_.size > 0)
-        case None => Seq.empty
-      }
 
       val images = inputImages.map(i => {
         val imageId = UUID.randomUUID().toString
