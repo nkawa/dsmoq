@@ -550,8 +550,19 @@ object GroupService {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
 
     val primaryImage = DB localTx { implicit s =>
-      // 権限チェック
-      if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+      try {
+        getGroup(params.groupId) match {
+          case Some(x) =>
+            // 権限チェック
+            if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+            // image_idの存在チェック
+            if (!isValidGroupImage(params.groupId, params.imageId)) throw new NotFoundException
+          case None => throw new NotFoundException
+        }
+      } catch {
+        case e: NotAuthorizedException => throw e
+        case e: Exception => throw new NotFoundException
+      }
 
       val myself = persistence.User.find(params.userInfo.id).get
       val timestamp = DateTime.now()
