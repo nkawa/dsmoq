@@ -783,6 +783,8 @@ val g = persistence.Group.syntax("g")
         .from(persistence.Group as g)
         .innerJoin(persistence.Member as m).on(sqls.eq(g.id, m.groupId).and.isNull(m.deletedAt))
         .where
+        .eq(g.id, sqls.uuid(groupId))
+        .and
         .eq(g.groupType, 0)
         .and
         .eq(m.role, 1)
