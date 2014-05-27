@@ -12,7 +12,7 @@ import dsmoq.exceptions._
 import org.joda.time.DateTime
 import org.scalatra.servlet.FileItem
 import dsmoq.forms.{AccessCrontolItem, AccessControl}
-import dsmoq.persistence.{AccessLevel, GroupMemberRole}
+import dsmoq.persistence.{PresetType, AccessLevel, GroupMemberRole}
 import scala.collection.mutable.ArrayBuffer
 import dsmoq.logic.ImageSaveLogic
 import scala.util.Failure
@@ -726,6 +726,7 @@ object DatasetService {
           width = bufferedImage.getWidth,
           height = bufferedImage.getWidth,
           filePath = "/" + imageId,
+          presetType = PresetType.Default,
           createdBy = myself.id,
           createdAt = DateTime.now,
           updatedBy = myself.id,

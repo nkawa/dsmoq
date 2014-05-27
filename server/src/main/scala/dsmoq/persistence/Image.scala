@@ -11,7 +11,8 @@ case class Image(
   width: Int, 
   height: Int, 
   filePath: String, 
-  createdBy: String,
+  presetType: Int, 
+  createdBy: String, 
   createdAt: DateTime, 
   updatedBy: String, 
   updatedAt: DateTime, 
@@ -29,7 +30,7 @@ object Image extends SQLSyntaxSupport[Image] {
 
   override val tableName = "images"
 
-  override val columns = Seq("id", "name", "width", "height", "file_path", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
+  override val columns = Seq("id", "name", "width", "height", "file_path", "preset_type", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
 
   def apply(i: ResultName[Image])(rs: WrappedResultSet): Image = new Image(
     id = rs.string(i.id),
@@ -37,6 +38,7 @@ object Image extends SQLSyntaxSupport[Image] {
     width = rs.int(i.width),
     height = rs.int(i.height),
     filePath = rs.string(i.filePath),
+    presetType = rs.int(i.presetType),
     createdBy = rs.string(i.createdBy),
     createdAt = rs.timestamp(i.createdAt).toDateTime,
     updatedBy = rs.string(i.updatedBy),
@@ -81,6 +83,7 @@ object Image extends SQLSyntaxSupport[Image] {
     width: Int,
     height: Int,
     filePath: String,
+    presetType: Int,
     createdBy: String,
     createdAt: DateTime,
     updatedBy: String,
@@ -94,6 +97,7 @@ object Image extends SQLSyntaxSupport[Image] {
         column.width,
         column.height,
         column.filePath,
+        column.presetType,
         column.createdBy,
         column.createdAt,
         column.updatedBy,
@@ -106,6 +110,7 @@ object Image extends SQLSyntaxSupport[Image] {
         width,
         height,
         filePath,
+        presetType,
         sqls.uuid(createdBy),
         createdAt,
         sqls.uuid(updatedBy),
@@ -121,6 +126,7 @@ object Image extends SQLSyntaxSupport[Image] {
       width = width,
       height = height,
       filePath = filePath,
+      presetType = presetType,
       createdBy = createdBy,
       createdAt = createdAt,
       updatedBy = updatedBy,
@@ -137,6 +143,7 @@ object Image extends SQLSyntaxSupport[Image] {
         column.width -> entity.width,
         column.height -> entity.height,
         column.filePath -> entity.filePath,
+        column.presetType -> entity.presetType,
         column.createdBy -> sqls.uuid(entity.createdBy),
         column.createdAt -> entity.createdAt,
         column.updatedBy -> sqls.uuid(entity.updatedBy),
