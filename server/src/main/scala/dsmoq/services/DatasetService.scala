@@ -1269,12 +1269,16 @@ object DatasetService {
     val f = persistence.File.f
     val u1 = persistence.User.syntax("u1")
     val u2 = persistence.User.syntax("u2")
+    val ma1 = persistence.MailAddress.syntax("ma1")
+    val ma2 = persistence.MailAddress.syntax("ma2")
 
     withSQL {
-      select(f.result.*, u1.result.*, u2.result.*)
+      select(f.result.*, u1.result.*, u2.result.*, ma1.result.address, ma2.result.address)
         .from(persistence.File as f)
         .innerJoin(persistence.User as u1).on(f.createdBy, u1.id)
         .innerJoin(persistence.User as u2).on(f.updatedBy, u2.id)
+        .innerJoin(persistence.MailAddress as ma1).on(u1.id, ma1.userId)
+        .innerJoin(persistence.MailAddress as ma2).on(u2.id, ma2.userId)
         .where
           .eq(f.datasetId, sqls.uuid(datasetId))
           .and
@@ -1284,7 +1288,9 @@ object DatasetService {
       (
         persistence.File(f.resultName)(rs),
         persistence.User(u1.resultName)(rs),
-        persistence.User(u2.resultName)(rs)
+        persistence.User(u2.resultName)(rs),
+        rs.string(ma1.resultName.address),
+        rs.string(ma2.resultName.address)
       )
     ).list.apply.map(x =>
       DatasetData.DatasetFile(
@@ -1293,9 +1299,9 @@ object DatasetService {
         description = x._1.description,
         url = AppConf.fileDownloadRoot + datasetId + "/" + x._1.id,
         size = x._1.fileSize,
-        createdBy = User(x._2),
+        createdBy = User(x._2, x._4),
         createdAt = x._1.createdAt.toString(),
-        updatedBy = User(x._3),
+        updatedBy = User(x._3, x._5),
         updatedAt = x._1.updatedAt.toString()
       )
     )

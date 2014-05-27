@@ -206,7 +206,7 @@ class MockController extends ScalatraServlet with SessionTrait {
             )
             u
         }
-        dsmoq.services.data.User(aaa)
+        dsmoq.services.data.User(aaa, user.getEmail)
     }
 
     // セッション作成
