@@ -304,9 +304,28 @@ object DatasetService {
     try {
       if (user.isGuest) throw new NotAuthorizedException
 
+      val accessLevel = try {
+        item.accessLevel match {
+          case Some(x) => x.toInt
+          case None => throw new InputValidationException("accessLevel", "access level is empty")
+        }
+      } catch {
+       case e: InputValidationException => throw e
+       case e: Exception => throw new InputValidationException("accessLevel", "access level is invalid")
+      }
+
       DB localTx { implicit s =>
         if (!hasAllowAllPermission(user.id, item.datasetId))
             throw new NotAuthorizedException
+
+        try {
+          getDataset(item.datasetId) match {
+            case Some(x) => // do nothing
+            case None => throw new NotFoundException
+          }
+        } catch {
+          case e: Exception => throw new NotFoundException
+        }
 
         val o = persistence.Ownership.o
         withSQL(
@@ -323,7 +342,7 @@ object DatasetService {
                 id = x.id,
                 datasetId = x.datasetId,
                 groupId = x.groupId,
-                accessLevel = item.accessLevel,
+                accessLevel = accessLevel,
                 createdBy = x.createdBy,
                 createdAt = x.createdAt,
                 updatedBy = user.id,
@@ -331,13 +350,13 @@ object DatasetService {
               ).save()
             }
           case None =>
-            if (item.accessLevel > 0) {
+            if (accessLevel > 0) {
               val ts = DateTime.now
               persistence.Ownership.create(
                 id = UUID.randomUUID.toString,
                 datasetId = item.datasetId,
                 groupId = item.groupId,
-                accessLevel = item.accessLevel,
+                accessLevel = accessLevel,
                 createdBy = user.id,
                 createdAt = ts,
                 updatedBy = user.id,
@@ -350,7 +369,7 @@ object DatasetService {
           id = item.groupId,
           name = "", //TODO
           image = "", //TODO
-          accessLevel = item.accessLevel
+          accessLevel = accessLevel
         ))
       }
     } catch {

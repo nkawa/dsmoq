@@ -399,18 +399,18 @@ class ApiController extends ScalatraServlet
   }
 
   put("/datasets/:datasetId/acl/:groupId") {
-    setAccessControl(params("datasetId"), params("groupId"), params("accessLevel").toInt)
+    setAccessControl(params("datasetId"), params("groupId"), params.get("accessLevel"))
   }
 
   delete("/datasets/:datasetId/acl/:groupId") {
-    setAccessControl(params("datasetId"), params("groupId"), 0)
+    setAccessControl(params("datasetId"), params("groupId"), Some("0"))
   }
   put("/datasets/:datasetId/acl/guest") {
-    setAccessControl(params("datasetId"), AppConf.guestGroupId, params("accessLevel").toInt)
+    setAccessControl(params("datasetId"), AppConf.guestGroupId, params.get("accessLevel"))
   }
 
   delete("/datasets/:datasetId/acl/guest") {
-    setAccessControl(params("datasetId"), AppConf.guestGroupId, 0)
+    setAccessControl(params("datasetId"), AppConf.guestGroupId, Some("0"))
   }
 
   delete("/datasets/:datasetId") {
@@ -752,7 +752,7 @@ class ApiController extends ScalatraServlet
     AjaxResponse("OK", accounts)
   }
 
-  private def setAccessControl(datasetId: String, groupId: String, accessLevel: Int) = {
+  private def setAccessControl(datasetId: String, groupId: String, accessLevel: Option[String]) = {
     val aci = AccessControl(datasetId, groupId, accessLevel)
 
     (for {
@@ -765,6 +765,8 @@ class ApiController extends ScalatraServlet
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case e: NotFoundException => AjaxResponse("NotFound")
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
           case _ => AjaxResponse("NG")
         }
     }
