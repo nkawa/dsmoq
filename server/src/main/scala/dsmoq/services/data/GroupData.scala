@@ -45,8 +45,8 @@ object GroupData {
   case class AddUserToGroupParams(
                                    userInfo: User,
                                    groupId: String,
-                                   userId: String,
-                                   role: Int
+                                   userId: Option[String],
+                                   role: Option[String]
                                    )
 
   case class ModifyMemberRoleParams(

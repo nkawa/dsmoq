@@ -10,7 +10,7 @@ import dsmoq.services.data.RangeSliceSummary
 import scala.util.Success
 import dsmoq.services.data.RangeSlice
 import dsmoq.persistence.PostgresqlHelper._
-import dsmoq.persistence.AccessLevel
+import dsmoq.persistence.{GroupMemberRole, AccessLevel}
 import org.joda.time.DateTime
 import dsmoq.exceptions.{InputValidationException, NotFoundException, ValidationException, NotAuthorizedException}
 import java.util.UUID
@@ -294,20 +294,52 @@ object GroupService {
   def addUser(params: GroupData.AddUserToGroupParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
 
+    // FIXME input parameter check
+    val userId = params.userId match {
+      case Some(x) => x
+      case None => throw new InputValidationException("id", "ID is empty")
+    }
+    val role = params.role match {
+      case Some(x) =>
+        try {
+          val role = x.toInt
+          role match {
+            case GroupMemberRole.Administrator => role
+            case GroupMemberRole.Member => role
+            case _ => throw new InputValidationException("role", "role value error")
+          }
+        } catch {
+          case e: InputValidationException => throw e
+          case e: Exception => throw new InputValidationException("role", "role format error")
+        }
+      case None => throw new InputValidationException("role", "role is empty")
+    }
+
     try {
       val result = DB localTx { implicit s =>
-        // 権限チェック
-        if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+        try {
+          getGroup(params.groupId) match {
+            case Some(x) =>
+              // 権限チェック
+              if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+            case None => throw new NotFoundException
+          }
+          if (!isValidUser(userId)) throw new NotFoundException
+        } catch {
+          case e: NotAuthorizedException => throw e
+          case e: Exception => throw new NotFoundException
+        }
 
         val myself = persistence.User.find(params.userInfo.id).get
-        val addUser = persistence.User.find(params.userId).get
+        val addUser = persistence.User.find(userId).get
         val timestamp = DateTime.now()
 
+        // FIXME deletedAtつきデータが存在している場合にはcreateではなくupdateで対応する
         persistence.Member.create(
           id = UUID.randomUUID.toString,
           groupId = params.groupId,
           userId = addUser.id,
-          role = params.role,
+          role = role,
           status = 1,
           createdBy = myself.id,
           createdAt = timestamp,
@@ -320,7 +352,7 @@ object GroupService {
         id = result.id,
         name = result.name,
         organization = result.organization,
-        role = params.role
+        role = role
       ))
     } catch {
       case e: Exception => Failure(e)
@@ -851,6 +883,21 @@ val g = persistence.Group.syntax("g")
         .and
         .isNull(i.deletedAt)
     }.map(rs => rs.string(gi.resultName.id)).single().apply match {
+      case Some(x) => true
+      case None => false
+    }
+  }
+
+  private def isValidUser(userId: String)(implicit s: DBSession) = {
+    val u = persistence.User.syntax("u")
+    withSQL {
+      select(u.result.id)
+      .from(persistence.User as u)
+      .where
+      .eq(u.id, sqls.uuid(userId))
+      .and
+      .isNull(u.deletedAt)
+    }.map(rs => rs.string(u.resultName.id)).single().apply match {
       case Some(x) => true
       case None => false
     }
