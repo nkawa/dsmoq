@@ -495,9 +495,26 @@ object GroupService {
   def changePrimaryImage(params: GroupData.ChangeGroupPrimaryImageParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
 
+    // FIXME input validation check
+    val imageId = params.id match {
+      case Some(x) => x
+      case None => throw new InputValidationException("id", "id is empty")
+    }
+
     DB localTx { implicit s =>
-      // 権限チェック
-      if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+      try {
+        getGroup(params.groupId) match {
+          case Some(x) =>
+            // 権限チェック
+            if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+            // image_idの存在チェック
+            if (!isValidGroupImage(params.groupId, imageId)) throw new NotFoundException
+          case None => throw new NotFoundException
+        }
+      } catch {
+        case e: NotAuthorizedException => throw e
+        case e: Exception => throw new NotFoundException
+      }
 
       val myself = persistence.User.find(params.userInfo.id).get
       val timestamp = DateTime.now()
@@ -506,7 +523,7 @@ object GroupService {
         update(persistence.GroupImage)
           .set(gi.isPrimary -> 1, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
           .where
-          .eq(gi.imageId, sqls.uuid(params.id))
+          .eq(gi.imageId, sqls.uuid(imageId))
           .and
           .eq(gi.groupId, sqls.uuid(params.groupId))
           .and
@@ -518,7 +535,7 @@ object GroupService {
         update(persistence.GroupImage)
           .set(gi.isPrimary -> 0, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
           .where
-          .ne(gi.imageId, sqls.uuid(params.id))
+          .ne(gi.imageId, sqls.uuid(imageId))
           .and
           .eq(gi.groupId, sqls.uuid(params.groupId))
           .and
@@ -805,5 +822,26 @@ val g = persistence.Group.syntax("g")
         .isNull(g.deletedAt)
         .limit(1)
     }.map(x => true).single.apply().getOrElse(false)
+  }
+  
+  private def isValidGroupImage(groupId: String, imageId: String)(implicit s: DBSession) = {
+    val gi = persistence.GroupImage.syntax("gi")
+    val i = persistence.Image.syntax("i")
+    withSQL {
+      select(gi.result.id)
+        .from(persistence.GroupImage as gi)
+        .innerJoin(persistence.Image as i).on(i.id, gi.imageId)
+        .where
+        .eq(gi.groupId, sqls.uuid(groupId))
+        .and
+        .eq(i.id, sqls.uuid(imageId))
+        .and
+        .isNull(gi.deletedAt)
+        .and
+        .isNull(i.deletedAt)
+    }.map(rs => rs.string(gi.resultName.id)).single().apply match {
+      case Some(x) => true
+      case None => false
+    }
   }
 }
