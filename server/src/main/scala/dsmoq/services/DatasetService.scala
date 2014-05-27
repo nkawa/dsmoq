@@ -8,13 +8,22 @@ import dsmoq.AppConf
 import dsmoq.services.data._
 import dsmoq.persistence
 import dsmoq.persistence.PostgresqlHelper._
-import dsmoq.exceptions.{InputValidationException, NotFoundException, ValidationException, NotAuthorizedException}
+import dsmoq.exceptions._
 import org.joda.time.DateTime
 import org.scalatra.servlet.FileItem
 import dsmoq.forms.{AccessCrontolItem, AccessControl}
 import dsmoq.persistence.{AccessLevel, GroupMemberRole}
 import scala.collection.mutable.ArrayBuffer
 import dsmoq.logic.ImageSaveLogic
+import scala.util.Failure
+import scala.Some
+import scala.util.Success
+import dsmoq.services.data.RangeSlice
+import org.scalatra.servlet.FileItem
+import dsmoq.forms.AccessControl
+import dsmoq.services.data.RangeSliceSummary
+import dsmoq.services.data.Image
+import dsmoq.forms.AccessCrontolItem
 
 object DatasetService {
   /**
@@ -366,6 +375,7 @@ object DatasetService {
           case None => throw new NotFoundException
         }
       } catch {
+        case e: NotAuthorizedException => throw e
         case e: Exception => throw new NotFoundException
       }
 
@@ -438,6 +448,7 @@ object DatasetService {
         }
         if (!isValidFile(params.datasetId, params.fileId)) throw new NotFoundException
       } catch {
+        case e: NotAuthorizedException => throw e
         case e: Exception => throw new NotFoundException
       }
 
@@ -503,6 +514,7 @@ object DatasetService {
           }
           if (!isValidFile(params.datasetId, params.fileId)) throw new NotFoundException
         } catch {
+          case e: NotAuthorizedException => throw e
           case e: Exception => throw new NotFoundException
         }
 
@@ -537,6 +549,7 @@ object DatasetService {
           }
           if (!isValidFile(params.datasetId, params.fileId)) throw new NotFoundException
         } catch {
+          case e: NotAuthorizedException => throw e
           case e: Exception => throw new NotFoundException
         }
 
@@ -590,7 +603,7 @@ object DatasetService {
             case None => throw new NotFoundException
           }
         } catch {
-          case e: InputValidationException => throw e
+          case e: NotAuthorizedException => throw e
           case e: Exception => throw new NotFoundException
         }
 
@@ -744,6 +757,7 @@ object DatasetService {
         }
         if (!isValidImage(params.datasetId, imageId)) throw new NotFoundException
       } catch {
+        case e: NotAuthorizedException => throw e
         case e: Exception => throw new NotFoundException
       }
 
@@ -790,6 +804,7 @@ object DatasetService {
         }
         if (!isValidImage(params.datasetId, params.imageId)) throw new NotFoundException
       } catch {
+        case e: NotAuthorizedException => throw e
         case e: Exception => throw new NotFoundException
       }
 

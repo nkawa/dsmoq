@@ -251,6 +251,7 @@ object GroupService {
             case None => throw new NotFoundException
           }
         } catch {
+          case e: NotAuthorizedException => throw e
           case e: Exception => throw new NotFoundException
         }
 
@@ -441,7 +442,7 @@ object GroupService {
           case None => throw new NotFoundException
         }
       } catch {
-        case e: NotAuthorizedException => throw new NotAuthorizedException
+        case e: NotAuthorizedException => throw e
         case e: Exception => throw new NotFoundException
       }
 
