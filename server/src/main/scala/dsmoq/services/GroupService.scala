@@ -539,7 +539,7 @@ object GroupService {
           id = UUID.randomUUID.toString,
           groupId = params.groupId,
           imageId = imageId,
-          isPrimary = if (isFirst && primaryImage.isEmpty) 1 else 0,
+          isPrimary = if (isFirst && primaryImage.isEmpty) true else false,
           createdBy = myself.id,
           createdAt = timestamp,
           updatedBy = myself.id,
