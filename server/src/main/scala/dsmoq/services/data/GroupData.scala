@@ -53,7 +53,7 @@ object GroupData {
                                      userInfo: User,
                                      groupId: String,
                                      memberId: String,
-                                     role: Int
+                                     role: Option[String]
                                      )
 
   case class DeleteMemberParams(

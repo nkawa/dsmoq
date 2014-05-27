@@ -362,10 +362,36 @@ object GroupService {
   def modifyMemberRole(params: GroupData.ModifyMemberRoleParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
 
+    val role = params.role match {
+      case Some(x) =>
+        try {
+          val role = x.toInt
+          role match {
+            case GroupMemberRole.Administrator => role
+            case GroupMemberRole.Member => role
+            case _ => throw new InputValidationException("role", "role value error")
+          }
+        } catch {
+          case e: InputValidationException => throw e
+          case e: Exception => throw new InputValidationException("role", "role format error")
+        }
+      case None => throw new InputValidationException("role", "role is empty")
+    }
+
     try {
       val result = DB localTx { implicit s =>
-        // 権限チェック
-        if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+        try {
+          getGroup(params.groupId) match {
+            case Some(x) =>
+              // 権限チェック
+              if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+            case None => throw new NotFoundException
+          }
+          if (!isValidGroupMember(params.groupId, params.memberId)) throw new NotFoundException
+        } catch {
+          case e: NotAuthorizedException => throw e
+          case e: Exception => throw new NotFoundException
+        }
 
         val myself = persistence.User.find(params.userInfo.id).get
         val timestamp = DateTime.now()
@@ -373,7 +399,7 @@ object GroupService {
         withSQL {
           val m = persistence.Member.column
           update(persistence.Member)
-            .set(m.role -> params.role,
+            .set(m.role -> role,
               m.updatedBy -> sqls.uuid(myself.id), m.updatedAt -> timestamp)
             .where
             .eq(m.id, sqls.uuid(params.memberId))
@@ -898,6 +924,27 @@ val g = persistence.Group.syntax("g")
       .and
       .isNull(u.deletedAt)
     }.map(rs => rs.string(u.resultName.id)).single().apply match {
+      case Some(x) => true
+      case None => false
+    }
+  }
+
+  private def isValidGroupMember(groupId: String, memberId: String)(implicit s: DBSession) = {
+    val m = persistence.Member.syntax("m")
+    val g = persistence.Group.syntax("g")
+    withSQL {
+      select(m.result.id)
+        .from(persistence.Member as m)
+        .innerJoin(persistence.Group as g).on(g.id, m.groupId)
+        .where
+        .eq(g.id, sqls.uuid(groupId))
+        .and
+        .eq(m.id, sqls.uuid(memberId))
+        .and
+        .isNull(m.deletedAt)
+        .and
+        .isNull(g.deletedAt)
+    }.map(rs => rs.string(m.resultName.id)).single().apply match {
       case Some(x) => true
       case None => false
     }
