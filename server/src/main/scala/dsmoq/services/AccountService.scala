@@ -211,7 +211,7 @@ object AccountService extends SessionTrait {
                 name = x.getName,
                 width = bufferedImage.getWidth,
                 height = bufferedImage.getWidth,
-                filePath = "/" + imageId,
+                filePath = "/" + ImageSaveLogic.uploadPath + "/" + imageId,
                 presetType = PresetType.Default,
                 createdBy = user.id,
                 createdAt = DateTime.now,

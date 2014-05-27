@@ -529,7 +529,7 @@ object GroupService {
           name = i.getName,
           width = bufferedImage.getWidth,
           height = bufferedImage.getWidth,
-          filePath = "/" + imageId,
+          filePath = "/" + ImageSaveLogic.uploadPath + "/" + imageId,
           presetType = PresetType.Default,
           createdBy = myself.id,
           createdAt = DateTime.now,

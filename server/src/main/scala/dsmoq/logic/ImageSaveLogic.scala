@@ -8,6 +8,7 @@ import java.awt.image.BufferedImage
 
 object ImageSaveLogic {
   val defaultFileName = "original"
+  val uploadPath = "upload"
   val imageSizes = Array(16, 32, 48, 128)
 
   def writeImageFile(imageId: String, file: FileItem) {
@@ -17,7 +18,10 @@ object ImageSaveLogic {
       throw new RuntimeException("file format error.")
     }
 
-    val imageDir = Paths.get(AppConf.imageDir, imageId).toFile
+    val presetImageDir = Paths.get(AppConf.imageDir, uploadPath).toFile
+    if (!presetImageDir.exists()) presetImageDir.mkdir()
+
+    val imageDir = presetImageDir.toPath.resolve(imageId).toFile
     if (!imageDir.exists()) imageDir.mkdir()
 
     // オリジナル画像の保存
