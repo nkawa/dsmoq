@@ -37,8 +37,7 @@ object FileService {
         }
       }
 
-      val filePath = Paths.get(fileInfo._2).toFile
-      println(filePath)
+      val filePath = Paths.get(AppConf.fileDir, fileInfo._2).toFile
       if (!filePath.exists()) throw new RuntimeException("file not found")
 
       val file = new java.io.File(filePath.toString)
