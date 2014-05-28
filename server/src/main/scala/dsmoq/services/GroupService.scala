@@ -34,7 +34,10 @@ object GroupService {
       }
 
       DB readOnly { implicit s =>
-        val groups = getGroups(params.userInfo, offset, limit)
+        val groups = params.user match {
+          case Some(x) => getUserGroups(x, offset, limit)
+          case None => getGroups(offset, limit)
+        }
         val count = groups.size
         val groupIds = groups.map(_.id)
         val datasetsCount = countDatasets(groupIds)
@@ -706,7 +709,7 @@ val g = persistence.Group.syntax("g")
   }
 
 
-  private def getGroups(user: User, offset: Int, limit: Int)(implicit s: DBSession): Seq[persistence.Group] = {
+  private def getGroups(offset: Int, limit: Int)(implicit s: DBSession): Seq[persistence.Group] = {
     val g = persistence.Group.syntax("g")
     withSQL {
       select(g.result.*)
@@ -719,6 +722,31 @@ val g = persistence.Group.syntax("g")
         .offset(offset)
         .limit(limit)
     }.map(rs => persistence.Group(g.resultName)(rs)).list().apply
+  }
+
+  private def getUserGroups(userId: String, offset: Int, limit: Int)(implicit s: DBSession): Seq[persistence.Group] = {
+    try {
+      val g = persistence.Group.syntax("g")
+      val m = persistence.Member.syntax("m")
+      withSQL {
+        select(g.result.*)
+          .from(persistence.Group as g)
+          .innerJoin(persistence.Member as m)
+          .where
+          .eq(g.groupType, persistence.GroupType.Public)
+          .and
+          .eq(m.userId, sqls.uuid(userId))
+          .and
+          .isNull(g.deletedAt)
+          .and
+          .isNull(m.deletedAt)
+          .orderBy(g.updatedAt).desc
+          .offset(offset)
+          .limit(limit)
+      }.map(rs => persistence.Group(g.resultName)(rs)).list().apply
+    } catch {
+      case e: Exception => Seq.empty
+    }
   }
 
   private def countDatasets(groups : Seq[String])(implicit s: DBSession) = {

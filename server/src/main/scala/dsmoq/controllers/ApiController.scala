@@ -442,7 +442,7 @@ class ApiController extends ScalatraServlet
 
     val response = for {
       userInfo <- getUserInfoFromSession()
-      facadeParams = SearchGroupsParams(userInfo, query, limit, offset)
+      facadeParams = SearchGroupsParams(userInfo, query, user, limit, offset)
       groups <- GroupService.search(facadeParams)
     } yield {
       AjaxResponse("OK", groups)
