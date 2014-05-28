@@ -6,6 +6,7 @@ import dsmoq.persistence.PostgresqlHelper._
 import scala.util.{Failure, Success}
 import java.nio.file.Paths
 import dsmoq.services.data.User
+import dsmoq.exceptions.NotFoundException
 
 object FileService {
   def getFile(datasetId: String, fileId: String, user: User) = {
@@ -20,6 +21,9 @@ object FileService {
         if (permission < 2) {
           throw new RuntimeException("access denied")
         }
+
+        // datasetが削除されていないか
+        if (!isValidDataset(datasetId)) throw new NotFoundException
 
         val file = persistence.File.find(fileId)
         val fh = persistence.FileHistory.syntax("fi")
@@ -77,5 +81,20 @@ object FileService {
         .and
         .isNull(o.deletedAt)
     }.map(_.int(o.resultName.accessLevel)).single().apply().getOrElse(0)
+  }
+
+  private def isValidDataset(datasetId: String)(implicit s: DBSession) = {
+    val d = persistence.Dataset.syntax("d")
+    withSQL {
+      select(d.result.*)
+        .from(persistence.Dataset as d)
+        .where
+        .eq(d.id, sqls.uuid(datasetId))
+        .and
+        .isNull(d.deletedAt)
+    }.map(persistence.Dataset(d.resultName)).single().apply() match {
+      case Some(x) => true
+      case None => false
+    }
   }
 }
