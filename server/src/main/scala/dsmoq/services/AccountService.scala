@@ -16,6 +16,11 @@ import java.awt.image.BufferedImage
 import org.scalatra.servlet.FileItem
 import dsmoq.logic.ImageSaveLogic
 import dsmoq.persistence.PresetType
+import org.scalatra.servlet.FileItem
+import scala.util.Failure
+import scala.Some
+import dsmoq.services.data.ProfileData.UpdateProfileParams
+import scala.util.Success
 
 object AccountService extends SessionTrait {
 
@@ -66,7 +71,7 @@ object AccountService extends SessionTrait {
     }
   }
 
-  def changeUserEmail(user: User, email: Option[String]): Try[String] = {
+  def changeUserEmail(user: User, email: Option[String]) = {
     try {
       if (user.isGuest) throw new NotAuthorizedException
 
@@ -101,8 +106,22 @@ object AccountService extends SessionTrait {
             }.update.apply
           case None => throw new RuntimeException("user mail address is not found.")
         }
+
+        // 新しいユーザー情報を取得
+        val newUser = withSQL {
+          select(u.result.*, ma.result.address)
+            .from(persistence.User as u)
+            .innerJoin(persistence.MailAddress as ma).on(u.id, ma.userId)
+            .where
+            .eq(u.id, sqls.uuid(user.id))
+        }.map(rs => (persistence.User(u.resultName)(rs), rs.string(ma.resultName.address))).single().apply
+          .map(x => User(x._1, x._2))
+
+        newUser match {
+          case Some(x) => Success(x)
+          case None => throw new RuntimeException("user data not found.")
+        }
       }
-      Success(mail)
     } catch {
       case e: Exception => Failure(e)
     }

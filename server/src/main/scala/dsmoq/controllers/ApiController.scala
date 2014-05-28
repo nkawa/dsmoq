@@ -85,9 +85,9 @@ class ApiController extends ScalatraServlet
 
     (for {
       userInfo <- getUserInfoFromSession()
-      result <- AccountService.changeUserEmail(userInfo, email)
+      user <- AccountService.changeUserEmail(userInfo, email)
     } yield {
-      result
+      setUserInfoToSession(user)
     }) match {
       case Success(x) => AjaxResponse("OK")
       case Failure(e) =>
