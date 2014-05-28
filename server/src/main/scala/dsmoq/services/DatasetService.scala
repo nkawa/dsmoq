@@ -63,7 +63,7 @@ object DatasetService {
           )
           val historyId = UUID.randomUUID.toString
           val histroy = persistence.FileHistory.create(
-            id = UUID.randomUUID.toString,
+            id = historyId,
             fileId = file.id,
             fileType = 0,
             fileMime = "application/octet-stream",
@@ -486,7 +486,7 @@ object DatasetService {
 
       val historyId = UUID.randomUUID.toString
       val history = persistence.FileHistory.create(
-        id = UUID.randomUUID.toString,
+        id = historyId,
         fileId = params.fileId,
         fileType = 0,
         fileMime = "application/octet-stream",
