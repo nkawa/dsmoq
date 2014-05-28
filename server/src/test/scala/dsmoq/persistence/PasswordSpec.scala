@@ -6,7 +6,7 @@ import org.joda.time._
 import scalikejdbc.SQLInterpolation._
 
 class PasswordSpec extends Specification {
-  val p = Password.syntax("p")
+  val pwd = Password.syntax("p")
 
   "Password" should {
     "find by primary keys" in new AutoRollback {
@@ -22,11 +22,11 @@ class PasswordSpec extends Specification {
       count should be_>(0L)
     }
     "find by where clauses" in new AutoRollback {
-      val results = Password.findAllBy(sqls.eq(p.id, null))
+      val results = Password.findAllBy(sqls.eq(pwd.id, null))
       results.size should be_>(0)
     }
     "count by where clauses" in new AutoRollback {
-      val count = Password.countBy(sqls.eq(p.id, null))
+      val count = Password.countBy(sqls.eq(pwd.id, null))
       count should be_>(0L)
     }
     "create new record" in new AutoRollback {
