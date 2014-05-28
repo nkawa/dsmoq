@@ -591,7 +591,7 @@ object GroupService {
       withSQL {
         val gi = persistence.GroupImage.column
         update(persistence.GroupImage)
-          .set(gi.isPrimary -> 1, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
+          .set(gi.isPrimary -> true, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
           .where
           .eq(gi.imageId, sqls.uuid(imageId))
           .and
@@ -603,7 +603,7 @@ object GroupService {
       withSQL{
         val gi = persistence.GroupImage.column
         update(persistence.GroupImage)
-          .set(gi.isPrimary -> 0, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
+          .set(gi.isPrimary -> false, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
           .where
           .ne(gi.imageId, sqls.uuid(imageId))
           .and
@@ -639,7 +639,7 @@ object GroupService {
       withSQL {
         val gi = persistence.GroupImage.column
         update(persistence.GroupImage)
-          .set(gi.deletedBy -> sqls.uuid(myself.id), gi.deletedAt -> timestamp, gi.isPrimary -> 0,
+          .set(gi.deletedBy -> sqls.uuid(myself.id), gi.deletedAt -> timestamp, gi.isPrimary -> false,
             gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
           .where
           .eq(gi.groupId, sqls.uuid(params.groupId))
@@ -676,7 +676,7 @@ object GroupService {
               val gi = persistence.GroupImage.column
               withSQL {
                 update(persistence.GroupImage)
-                  .set(gi.isPrimary -> 1, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
+                  .set(gi.isPrimary -> true, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
                   .where
                   .eq(gi.id, sqls.uuid(x._1))
               }.update().apply
@@ -778,7 +778,7 @@ val g = persistence.Group.syntax("g")
           .where
           .inByUuid(gi.groupId, groupIds)
           .and
-          .eq(gi.isPrimary, 1)
+          .eq(gi.isPrimary, true)
           .and
           .isNull(gi.deletedAt)
       }.map(rs => (rs.string(gi.resultName.groupId), rs.string(gi.resultName.imageId))).list().apply().toMap
@@ -795,7 +795,7 @@ val g = persistence.Group.syntax("g")
         .where
         .eq(gi.groupId, sqls.uuid(groupId))
         .and
-        .eq(gi.isPrimary, 1)
+        .eq(gi.isPrimary, true)
         .and
         .isNull(gi.deletedAt)
     }.map(_.string("id")).single().apply()
@@ -858,7 +858,7 @@ val g = persistence.Group.syntax("g")
         .where
         .eq(gi.groupId, sqls.uuid(groupId))
         .and
-        .eq(gi.isPrimary, 1)
+        .eq(gi.isPrimary, true)
         .and
         .isNull(gi.deletedAt)
         .and
