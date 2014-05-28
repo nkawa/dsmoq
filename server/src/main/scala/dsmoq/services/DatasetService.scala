@@ -12,7 +12,7 @@ import dsmoq.exceptions._
 import org.joda.time.DateTime
 import org.scalatra.servlet.FileItem
 import dsmoq.forms.{AccessCrontolItem, AccessControl}
-import dsmoq.persistence.{PresetType, AccessLevel, GroupMemberRole}
+import dsmoq.persistence.{GroupType, PresetType, AccessLevel, GroupMemberRole}
 import scala.collection.mutable.ArrayBuffer
 import dsmoq.logic.ImageSaveLogic
 import scala.util.Failure
@@ -188,7 +188,10 @@ object DatasetService {
       }
 
       DB readOnly { implicit s =>
-        val groups = getJoinedGroups(params.userInfo)
+        val groups = params.owner match {
+          case Some(x) => getPrivateGroups(params.userInfo, x)
+          case None => getJoinedGroups(params.userInfo)
+        }
         val count = countDatasets(groups)
 
         val summary = RangeSliceSummary(count, limit, offset)
@@ -954,6 +957,32 @@ object DatasetService {
             .and
             .isNull(m.deletedAt)
       }.map(_.string("id")).list().apply()
+    }
+  }
+
+  private def getPrivateGroups(user: User, owner: String)(implicit s: DBSession): Seq[String] = {
+    if (user.isGuest) {
+      Seq.empty
+    } else {
+      try {
+        val g = persistence.Group.syntax("g")
+        val m = persistence.Member.syntax("m")
+        withSQL {
+          select(g.id)
+            .from(persistence.Group as g)
+            .innerJoin(persistence.Member as m).on(m.groupId, g.id)
+            .where
+            .eq(m.userId, sqls.uuid(owner))
+            .and
+            .eq(g.groupType, GroupType.Personal)
+            .and
+            .isNull(g.deletedAt)
+            .and
+            .isNull(m.deletedAt)
+        }.map(_.string("id")).list().apply()
+      } catch {
+        case e: Exception => Seq.empty
+      }
     }
   }
 
