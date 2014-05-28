@@ -1311,7 +1311,7 @@ object DatasetService {
           .eq(f.datasetId, sqls.uuid(datasetId))
           .and
           .isNull(f.deletedAt)
-        .orderBy(f.createdAt)
+        .orderBy(f.name)
     }.map(rs =>
       (
         persistence.File(f.resultName)(rs),
