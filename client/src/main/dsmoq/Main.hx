@@ -329,8 +329,14 @@ class Main {
                             View.getTemplate("dataset/edit").link(container, data);
 
                             new JqHtml(container).find("#dataset-attribute-add").on("click", function (_) {
-                                //var attrs = JsViews.arrayObservable(data.dataset.meta.attributes);
-                                //attrs.insert({name: "", value:""});
+                                var attrs = JsViews.arrayObservable(data.dataset.meta.attributes);
+                                attrs.insert({ name: "", value:"" });
+                            });
+
+                            new JqHtml(container).on("click", ".dataset-attribute-remove", function (e) {
+                                var index = new JqHtml(e.target).data("value");
+                                var attrs = JsViews.arrayObservable(data.dataset.meta.attributes);
+                                attrs.remove(index);
                             });
 
                             new JqHtml(container).find("#dataset-basics-submit").on("click", function (_) {

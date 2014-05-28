@@ -8,9 +8,14 @@ import js.support.ControllablePromise;
 import js.support.Promise;
 import js.support.Stream;
 import js.support.Unit;
+import dsmoq.framework.types.PositiveInt;
+
 using dsmoq.framework.helper.JQueryTools;
+using dsmoq.framework.helper.LangHelper;
 
 class Service extends Stream<ServiceEvent> {
+    public static inline var QueryLimit: UInt = 20;
+
     public static var instance(default, null) = new Service();
 
     public var bootstrap(default, null): Promise<Unit>;
@@ -70,9 +75,13 @@ class Service extends Stream<ServiceEvent> {
         return sendForm("/api/datasets", form);
     }
 
-    public function findDatasets(?params: {?query: String, ?group: String, ?attributes: {}, ?page: UInt}): Promise<RangeSlice<DatasetSummary>> {
-        // TODO ページング
-        return send(Get, "/api/datasets", { offset: 0, limit: 20 });
+    public function findDatasets(?params: {?query: String,
+                                           ?group: String,
+                                           ?owner: String,
+                                           ?attributes: Array<DatasetAttribute>,
+                                           ?page: PositiveInt}): Promise<RangeSlice<DatasetSummary>> {
+        var params = params.orElse({});
+        return send(Get, "/api/datasets", { offset: toOffset(params.page.orElse(1)), limit: QueryLimit });
     }
 
     public function getDataset(datasetId: String): Promise<Dataset> {
@@ -107,14 +116,13 @@ class Service extends Stream<ServiceEvent> {
     }
 
     public function updateDatasetMetadata(datasetId: String, metadata: DatasetMetadata): Promise<Unit> {
-        var req = {
+        return send(Put, '/api/datasets/$datasetId/metadata', {
             name: metadata.name,
             description: metadata.description,
             "attributes[][name]": metadata.attributes.map(function (x) return x.name),
             "attributes[][value]": metadata.attributes.map(function (x) return x.value),
             license: metadata.license
-        };
-        return send(Put, '/api/datasets/$datasetId/metadata', req);
+        });
     }
 
     public function addDatasetImage(datasetId: String, form: JqHtml): Promise<{images: Array<Image>, primaryImage: String}> {
@@ -135,16 +143,16 @@ class Service extends Stream<ServiceEvent> {
 
     // setで代用可能
     //public function removeDatasetAccessLevel(datasetId: String, groupId: String): Promise<Unit> {
-        //return send(Delete, '/datasets/$datasetId/acl/$groupId');
+        //return send(Delete, '/api/datasets/$datasetId/acl/$groupId');
     //}
 
     public function setDatasetGuestAccessLevel(datasetId: String, accessLevel: GuestAccessLevel): Promise<Unit> {
-        return send(Put, '/datasets/$datasetId/acl/guest', accessLevel);
+        return send(Put, '/api/datasets/$datasetId/acl/guest', accessLevel);
     }
 
     // setで代用可能
     //public function removeDatasetGuestAccessLevel(dataset: String): Promise<Unit> {
-        //return send(Delete, '/datasets/$datasetId/acl/guest');
+        //return send(Delete, '/api/datasets/$datasetId/acl/guest');
     //}
 
     public function deleteDeataset(datasetId: String): Promise<Unit> {
@@ -221,6 +229,10 @@ class Service extends Stream<ServiceEvent> {
             email: "",
             isGuest: true
         }
+    }
+
+    inline function toOffset(page: PositiveInt): Int {
+        return (page - 1) * QueryLimit;
     }
 
     function send<T>(method: RequestMethod, url: String, ?data: Dynamic): Promise<T> {
