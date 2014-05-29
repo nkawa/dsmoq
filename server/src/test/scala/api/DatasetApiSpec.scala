@@ -156,7 +156,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         }
       }
 
-      "データセットのファイル名が変更できるか" in {
+      "データセットのファイルメタデータが変更できるか" in {
         session {
           signIn()
           val datasetId = createDataset()
@@ -171,8 +171,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           }
           post("/api/datasets/" + datasetId + "/files", Map.empty, files) { checkStatus() }
 
-          val params = Map("name" -> "testtest.txt")
-          put("/api/datasets/" + datasetId + "/files/" + fileId + "/name", params) { checkStatus() }
+          val params = Map("name" -> "testtest.txt", "description" -> "description")
+          put("/api/datasets/" + datasetId + "/files/" + fileId + "/metadata", params) { checkStatus() }
 
           get("/api/datasets/" + datasetId) {
             checkStatus()
@@ -181,6 +181,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             result.data.files.map {x =>
               if (x.id == fileId) {
                 x.name should be ("testtest.txt")
+                x.description should be("description")
               }
             }
           }
