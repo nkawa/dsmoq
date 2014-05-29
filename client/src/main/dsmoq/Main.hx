@@ -87,7 +87,7 @@ class Main {
 
             return if (Std.is(size, Float)) {
                 if (size < 1024) {
-                    size + "B";
+                    size + "Byte";
                 } else if (size < 1048576) {
                     round(size / 1024) + "KB";
                 } else if (size < 1073741824) {
@@ -342,6 +342,8 @@ class Main {
                             new JqHtml(container).find("#dataset-basics-submit").on("click", function (_) {
                                 Service.instance.updateDatasetMetadata(id, data.dataset.meta);
                             });
+
+
                         });
                     },
                     dispose: function () {

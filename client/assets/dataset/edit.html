@@ -73,42 +73,24 @@
 
     <!-- files --->
     <div class="tab-pane" id="files-tab">
-      <div class="row">
-        <div class="col-sm-12 text-right">
-          <div>
-            <a class="btn btn-info">Save as Private</a>
-            <a class="btn btn-default">Cancel</a>
-          </div>
-          <div class="small">need to set <a href="#basic-tab">Metadata</a> and
-            <a href="#acl-tab">Access Control</a> to publish
-          </div>
-        </div>
-      </div>
       <form class="form-horizontal" role="form">
         <div class="form-group">
           <div class="col-sm-12">
-            <div class="well well-sm">
-              <div class="row"> <div class="col-sm-12">
-                  <span class="glyphicon glyphicon-file"> </span>
-                  xxxx.csv (112K)
-                  uploaded by <strong>john001</strong>
-                  <img src="images/user.jpg" class="icon"/>
-                  <a>rename</a>
-                  <span class="glyphicon glyphicon-trash pull-right"> </span>
-              </div></div>
-              <textarea class="form-control" placeholder="Description about this file."></textarea>
-            </div>
-            <div class="well well-sm">
-              <div class="row"> <div class="col-sm-12">
-                  <span class="glyphicon glyphicon-file"> </span>
-                  xxxx.json (83K)
-                  uploaded by <strong>john001</strong>
-                  <img src="images/user.jpg" class="icon"/>
-                  <a>rename</a>
-                  <span class="glyphicon glyphicon-trash pull-right"> </span>
-              </div></div>
-              <textarea class="form-control" placeholder="Description about this file."></textarea>
-            </div>
+            {^{for dataset.files}}
+              <div class="well well-sm">
+                <div class="row">
+                  <div class="col-sm-12">
+                    <span class="glyphicon glyphicon-file"></span>
+                    {{>name}} ({{datasize size/}})
+                    uploaded by <strong>{{>createdBy.fullname}}</strong>
+                    <img data-link="src{>createdBy.image}" class="icon">
+                    <a>rename</a>
+                    <a class="btn"><span class="glyphicon glyphicon-trash pull-right"></span></a>
+                  </div>
+                </div>
+                <textarea class="form-control" placeholder="Description about this file." data-link="description"></textarea>
+              </div>
+            {{/for}}
 
             <div class="well well-sm" style="border-style:dashed; border-width:3px">
               <center>Drop files to upload</center>

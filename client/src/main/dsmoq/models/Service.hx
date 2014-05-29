@@ -107,8 +107,8 @@ class Service extends Stream<ServiceEvent> {
         return sendForm('/api/datasets/$datasetId/files/$fileId', form);
     }
 
-    public function renameDatatetFile(datasetId: String, fileId: String, name: String): Promise<Unit> {
-        return send(Put, '/api/datasets/$datasetId/files/$fileId/name', name);
+    public function updateDatatetMetadata(datasetId: String, fileId: String, name: String, description: String): Promise<Unit> {
+        return send(Put, '/api/datasets/$datasetId/files/$fileId/metadata', { name: name, description: description });
     }
 
     public function removeDatasetFile(datasetId: String, fileId: String): Promise<Unit> {
@@ -184,23 +184,23 @@ class Service extends Stream<ServiceEvent> {
     }
 
     public function addGroupImages(groupId: String, form: JqHtml): Promise<Unit> {
-        return null;
+        return sendForm('/api/groups/$groupId/images', form);
     }
 
     public function setGroupPrimaryImage(groupId: String, imageId: String): Promise<Unit> {
-        return null;
+        return send(Put, '/api/groups/$groupId/iamges/primary', {id: imageId});
     }
 
     public function removeGroupImage(groupId: String, imageId: String): Promise<Unit> {
-        return null;
+        return send(Delete, '/api/groups/$groupId/iamges/$imageId');
     }
 
-    public function addGroupMember(groupId: String, userId: String, role: Int): Promise<Unit> {
-        return null;
-    }
+    //public function addGroupMember(groupId: String, userId: String, role: Int): Promise<Unit> {
+        //return send(Post, '/api/groups/$groupId/members', { id: userId, role: role });
+    //}
 
     public function setGroupMemberRole(groupId: String, userId: String, role: Int): Promise<Unit> {
-        return null;
+        return send(Put, '/api/groups/$groupId/members', { id: userId, role: role });
     }
 
     public function removeGroupMember(groupId: String, userId: String): Promise<Unit> {
