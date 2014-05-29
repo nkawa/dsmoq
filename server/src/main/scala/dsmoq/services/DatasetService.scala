@@ -519,11 +519,15 @@ object DatasetService {
     }
   }
 
-  def modifyFilename(params: DatasetData.ModifyDatasetFilenameParams): Try[String] = {
+  def modifyFilename(params: DatasetData.ModifyDatasetMetadataParams): Try[String] = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
     val name = params.filename match {
       case Some(x) => x
       case None => throw new InputValidationException("name", "name is empty")
+    }
+    val description = params.description match {
+      case Some(x) => x
+      case None => throw new InputValidationException("description", "description is empty")
     }
 
     try {
@@ -544,7 +548,7 @@ object DatasetService {
         withSQL {
           val f = persistence.File.column
           update(persistence.File)
-            .set(f.name -> params.filename,
+            .set(f.name -> params.filename, f.description -> params.description,
               f.updatedBy -> sqls.uuid(myself.id), f.updatedAt -> timestamp)
             .where
             .eq(f.id, sqls.uuid(params.fileId))

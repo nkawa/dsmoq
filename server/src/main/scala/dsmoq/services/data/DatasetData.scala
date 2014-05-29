@@ -34,11 +34,12 @@ object DatasetData {
                                       datasetId: String,
                                       files: Option[Seq[FileItem]]
                                       )
-  case class ModifyDatasetFilenameParams(
+  case class ModifyDatasetMetadataParams(
                                           userInfo: User,
                                           datasetId: String,
                                           fileId: String,
-                                          filename: Option[String]
+                                          filename: Option[String],
+                                          description: Option[String]
                                           )
   case class DeleteDatasetFileParams(
                                       userInfo: User,

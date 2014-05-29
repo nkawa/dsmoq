@@ -259,14 +259,15 @@ class ApiController extends ScalatraServlet
     }
   }
 
-  put("/datasets/:datasetId/files/:fileId/name") {
+  put("/datasets/:datasetId/files/:fileId/metadata") {
     val datasetId = params("datasetId")
     val fileId = params("fileId")
     val filename = params.get("name")
+    val description = params.get("description")
 
     val response = for {
       userInfo <- getUserInfoFromSession()
-      facadeParams = ModifyDatasetFilenameParams(userInfo, datasetId, fileId, filename)
+      facadeParams = ModifyDatasetMetadataParams(userInfo, datasetId, fileId, filename, description)
       result <- DatasetService.modifyFilename(facadeParams)
     } yield {
       result
