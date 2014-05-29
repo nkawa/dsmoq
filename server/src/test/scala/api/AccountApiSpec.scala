@@ -8,11 +8,21 @@ import dsmoq.controllers.{AjaxResponse, ApiController}
 import org.json4s.jackson.JsonMethods._
 import dsmoq.services.data.User
 import java.io.File
+import org.scalatra.servlet.MultipartConfig
 
 class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
 
-  addServlet(classOf[ApiController], "/api/*")
+  private val dummyImage = new File("../client/www/dummy/images/nagoya.jpg")
+
+  // multi-part file upload config
+  val holder = addServlet(classOf[ApiController], "/api/*")
+  holder.getRegistration.setMultipartConfig(
+    MultipartConfig(
+      maxFileSize = Some(3 * 1024 * 1024),
+      fileSizeThreshold = Some(1 * 1024 * 1024)
+    ).toMultipartConfigElement
+  )
 
   before {
     DBs.setup()
@@ -27,7 +37,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         get("/api/profile") {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[User]]
-          result.data.isGuest should be === true
+          assert(result.data.isGuest)
         }
       }
       "サインイン後はCOIユーザーか" in {
@@ -36,7 +46,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           get("/api/profile") {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[User]]
-            result.data.isGuest should be === false
+            assert(!result.data.isGuest)
           }
         }
       }
@@ -47,7 +57,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           get("/api/profile") {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[User]]
-            result.data.isGuest should be === true
+            assert(result.data.isGuest)
           }
         }
       }
@@ -66,7 +76,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           get("/api/profile") {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[User]]
-            result.data.fullname should be === "フルネーム"
+            result.data.fullname should be("フルネーム")
           }
         }
       }
@@ -74,21 +84,26 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
       "画像情報付きで基本情報が更新できるか" in {
         session {
           signIn()
+          val oldImageUrl = get("/api/profile") {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[User]]
+            result.data.image
+          }
+
           val params = Map(
             "name" -> "t_okada",
-            "fullname" -> "フルネーム2",
-            "organization" -> "テスト所属2",
-            "title" -> "テストタイトル2",
-            "description" -> "テスト詳細2"
+            "fullname" -> "fullname 2",
+            "organization" -> "organization 2",
+            "title" -> "title 2",
+            "description" -> "description 2"
           )
-          val file = Map("image" -> new File("test.png"))
-          // TODO プロフィール変更(画像付き)
-          fail
-          post("/api/profile", params) { checkStatus }
+          val file = Map("image" -> dummyImage)
+          post("/api/profile", params, file) { checkStatus() }
           get("/api/profile") {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[User]]
-            result.data.fullname should be === "フルネーム2"
+            result.data.fullname should be("fullname 2")
+            result.data.image should not be(oldImageUrl)
           }
         }
       }
@@ -101,7 +116,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           get("/api/profile") {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[User]]
-            result.data.mailAddress should be === "hogehoge@test.com"
+            result.data.mailAddress should be("hogehoge@test.com")
           }
 
           // 戻す
@@ -110,7 +125,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           get("/api/profile") {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[User]]
-            result.data.mailAddress should be === "t_okada@denkiyagi.jp"
+            result.data.mailAddress should be("t_okada@denkiyagi.jp")
           }
         }
       }
@@ -148,8 +163,8 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   }
 
   def checkStatus() {
-    status should be === 200
+    status should be(200)
     val result = parse(body).extract[AjaxResponse[Any]]
-    result.status should be === "OK"
+    result.status should be("OK")
   }
 }
