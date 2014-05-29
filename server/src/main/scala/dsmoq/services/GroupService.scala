@@ -83,6 +83,7 @@ object GroupService {
 
         val images = getGroupImage(group.id)
         val primaryImage = getGroupPrimaryImageId(group.id)
+        println(primaryImage)
         val groupRole = getGroupRole(params.userInfo, group.id)
 
         Success(GroupData.Group(
@@ -841,7 +842,7 @@ val g = persistence.Group.syntax("g")
   private def getGroupPrimaryImageId(groupId: String)(implicit s: DBSession) = {
     val gi = persistence.GroupImage.syntax("gi")
     withSQL {
-      select(gi.id)
+      select(gi.result.imageId)
         .from(persistence.GroupImage as gi)
         .where
         .eq(gi.groupId, sqls.uuid(groupId))
@@ -849,7 +850,7 @@ val g = persistence.Group.syntax("g")
         .eq(gi.isPrimary, true)
         .and
         .isNull(gi.deletedAt)
-    }.map(_.string("id")).single().apply()
+    }.map(_.string(gi.resultName.imageId)).single().apply()
   }
 
   private def getMembers(groupId: String, offset: Int, limit: Int)(implicit s: DBSession): Seq[(persistence.User, Int)] = {
