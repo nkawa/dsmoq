@@ -569,7 +569,7 @@ class ApiController extends ScalatraServlet
 
   post("/groups/:groupId/images") {
     val groupId = params("groupId")
-    val images = fileMultiParams.get("image")
+    val images = fileMultiParams.get("images")
 
     val response = for {
       userInfo <- getUserInfoFromSession()
