@@ -30,7 +30,7 @@ class OwnershipSpec extends Specification {
       count should be_>(0L)
     }
     "create new record" in new AutoRollback {
-      val created = Ownership.create(id = null, datasetId = null, ownerType = 123, ownerId = null, accessLevel = 123, createdAt = DateTime.now, updatedAt = DateTime.now, createdBy = null, updatedBy = null)
+      val created = Ownership.create(id = null, datasetId = null, groupId = null, accessLevel = 123, createdAt = DateTime.now, updatedAt = DateTime.now, createdBy = null, updatedBy = null)
       created should not beNull
     }
     "save a record" in new AutoRollback {

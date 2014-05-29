@@ -12,7 +12,7 @@ import dsmoq.exceptions._
 import org.joda.time.DateTime
 import org.scalatra.servlet.FileItem
 import dsmoq.forms.{AccessCrontolItem, AccessControl}
-import dsmoq.persistence.{PresetType, AccessLevel, GroupMemberRole}
+import dsmoq.persistence.{GroupType, PresetType, AccessLevel, GroupMemberRole}
 import scala.collection.mutable.ArrayBuffer
 import dsmoq.logic.ImageSaveLogic
 import scala.util.Failure
@@ -63,7 +63,7 @@ object DatasetService {
           )
           val historyId = UUID.randomUUID.toString
           val histroy = persistence.FileHistory.create(
-            id = UUID.randomUUID.toString,
+            id = historyId,
             fileId = file.id,
             fileType = 0,
             fileMime = "application/octet-stream",
@@ -188,7 +188,10 @@ object DatasetService {
       }
 
       DB readOnly { implicit s =>
-        val groups = getJoinedGroups(params.userInfo)
+        val groups = params.owner match {
+          case Some(x) => getPrivateGroups(params.userInfo, x)
+          case None => getJoinedGroups(params.userInfo)
+        }
         val count = countDatasets(groups)
 
         val summary = RangeSliceSummary(count, limit, offset)
@@ -483,7 +486,7 @@ object DatasetService {
 
       val historyId = UUID.randomUUID.toString
       val history = persistence.FileHistory.create(
-        id = UUID.randomUUID.toString,
+        id = historyId,
         fileId = params.fileId,
         fileType = 0,
         fileMime = "application/octet-stream",
@@ -516,11 +519,15 @@ object DatasetService {
     }
   }
 
-  def modifyFilename(params: DatasetData.ModifyDatasetFilenameParams): Try[String] = {
+  def modifyFilename(params: DatasetData.ModifyDatasetMetadataParams): Try[String] = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
     val name = params.filename match {
       case Some(x) => x
       case None => throw new InputValidationException("name", "name is empty")
+    }
+    val description = params.description match {
+      case Some(x) => x
+      case None => throw new InputValidationException("description", "description is empty")
     }
 
     try {
@@ -541,7 +548,7 @@ object DatasetService {
         withSQL {
           val f = persistence.File.column
           update(persistence.File)
-            .set(f.name -> params.filename,
+            .set(f.name -> params.filename, f.description -> params.description,
               f.updatedBy -> sqls.uuid(myself.id), f.updatedAt -> timestamp)
             .where
             .eq(f.id, sqls.uuid(params.fileId))
@@ -957,6 +964,32 @@ object DatasetService {
     }
   }
 
+  private def getPrivateGroups(user: User, owner: String)(implicit s: DBSession): Seq[String] = {
+    if (user.isGuest) {
+      Seq.empty
+    } else {
+      try {
+        val g = persistence.Group.syntax("g")
+        val m = persistence.Member.syntax("m")
+        withSQL {
+          select(g.id)
+            .from(persistence.Group as g)
+            .innerJoin(persistence.Member as m).on(m.groupId, g.id)
+            .where
+            .eq(m.userId, sqls.uuid(owner))
+            .and
+            .eq(g.groupType, GroupType.Personal)
+            .and
+            .isNull(g.deletedAt)
+            .and
+            .isNull(m.deletedAt)
+        }.map(_.string("id")).list().apply()
+      } catch {
+        case e: Exception => Seq.empty
+      }
+    }
+  }
+
   private def getPersonalGroup(userId: String)(implicit s: DBSession) = {
     val g = persistence.Group.syntax("g")
     val m = persistence.Member.syntax("m")
@@ -1282,7 +1315,7 @@ object DatasetService {
           .eq(f.datasetId, sqls.uuid(datasetId))
           .and
           .isNull(f.deletedAt)
-        .orderBy(f.createdAt)
+        .orderBy(f.name)
     }.map(rs =>
       (
         persistence.File(f.resultName)(rs),

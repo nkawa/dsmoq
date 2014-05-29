@@ -30,7 +30,7 @@ class DatasetSpec extends Specification {
       count should be_>(0L)
     }
     "create new record" in new AutoRollback {
-      val created = Dataset.create(id = null, name = "MyString", description = "MyString", licenseId = null, defaultAccessLevel = 123, createdAt = DateTime.now, updatedAt = DateTime.now, createdBy = null, updatedBy = null)
+      val created = Dataset.create(id = null, name = "MyString", description = "MyString", licenseId = null, filesCount = 0, filesSize = 0, createdAt = DateTime.now, updatedAt = DateTime.now, createdBy = null, updatedBy = null)
       created should not beNull
     }
     "save a record" in new AutoRollback {

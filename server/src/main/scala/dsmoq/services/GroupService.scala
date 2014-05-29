@@ -34,7 +34,10 @@ object GroupService {
       }
 
       DB readOnly { implicit s =>
-        val groups = getGroups(params.userInfo, offset, limit)
+        val groups = params.user match {
+          case Some(x) => getUserGroups(x, offset, limit)
+          case None => getGroups(offset, limit)
+        }
         val count = groups.size
         val groupIds = groups.map(_.id)
         val datasetsCount = countDatasets(groupIds)
@@ -80,6 +83,7 @@ object GroupService {
 
         val images = getGroupImage(group.id)
         val primaryImage = getGroupPrimaryImageId(group.id)
+        println(primaryImage)
         val groupRole = getGroupRole(params.userInfo, group.id)
 
         Success(GroupData.Group(
@@ -118,7 +122,7 @@ object GroupService {
       }
 
       DB readOnly { implicit s =>
-        val members = getMembers(params.userInfo, params.groupId, offset, limit)
+        val members = getMembers(params.groupId, offset, limit)
         val count = members.size
 
         val summary = RangeSliceSummary(count, limit, offset)
@@ -334,18 +338,41 @@ object GroupService {
         val addUser = persistence.User.find(userId).get
         val timestamp = DateTime.now()
 
-        // FIXME deletedAtつきデータが存在している場合にはcreateではなくupdateで対応する
-        persistence.Member.create(
-          id = UUID.randomUUID.toString,
-          groupId = params.groupId,
-          userId = addUser.id,
-          role = role,
-          status = 1,
-          createdBy = myself.id,
-          createdAt = timestamp,
-          updatedBy = myself.id,
-          updatedAt = timestamp
-        )
+        val m = persistence.Member.syntax("m")
+        withSQL {
+          select(m.result.*)
+            .from(persistence.Member as m)
+            .where
+            .eq(m.userId, sqls.uuid(userId))
+            .and
+            .eq(m.groupId, sqls.uuid(params.groupId))
+        }.map(persistence.Member(m.resultName)).single().apply match {
+          case Some(x) =>
+            // create
+            val m = persistence.Member.column
+            withSQL {
+              update(persistence.Member)
+              .set(m.role -> role, m.status -> 1, m.updatedAt -> timestamp, m.updatedBy -> sqls.uuid(myself.id),
+                  m.deletedAt -> null, m.deletedBy -> null)
+              .where
+              .eq(m.userId, sqls.uuid(userId))
+              .and
+              .eq(m.groupId, sqls.uuid(params.groupId))
+            }.update().apply
+          case None =>
+            // update
+            persistence.Member.create(
+              id = UUID.randomUUID.toString,
+              groupId = params.groupId,
+              userId = addUser.id,
+              role = role,
+              status = 1,
+              createdBy = myself.id,
+              createdAt = timestamp,
+              updatedBy = myself.id,
+              updatedAt = timestamp
+            )
+        }
         addUser
       }
       Success(GroupData.AddMember(
@@ -402,7 +429,7 @@ object GroupService {
             .set(m.role -> role,
               m.updatedBy -> sqls.uuid(myself.id), m.updatedAt -> timestamp)
             .where
-            .eq(m.id, sqls.uuid(params.memberId))
+            .eq(m.userId, sqls.uuid(params.memberId))
             .and
             .eq(m.groupId, sqls.uuid(params.groupId))
             .and
@@ -444,7 +471,7 @@ object GroupService {
             .set(m.deletedBy -> sqls.uuid(myself.id), m.deletedAt -> timestamp,
               m.updatedBy -> sqls.uuid(myself.id), m.updatedAt -> timestamp)
             .where
-            .eq(m.id, sqls.uuid(params.memberId))
+            .eq(m.userId, sqls.uuid(params.memberId))
             .and
             .eq(m.groupId, sqls.uuid(params.groupId))
             .and
@@ -706,7 +733,7 @@ val g = persistence.Group.syntax("g")
   }
 
 
-  private def getGroups(user: User, offset: Int, limit: Int)(implicit s: DBSession): Seq[persistence.Group] = {
+  private def getGroups(offset: Int, limit: Int)(implicit s: DBSession): Seq[persistence.Group] = {
     val g = persistence.Group.syntax("g")
     withSQL {
       select(g.result.*)
@@ -719,6 +746,31 @@ val g = persistence.Group.syntax("g")
         .offset(offset)
         .limit(limit)
     }.map(rs => persistence.Group(g.resultName)(rs)).list().apply
+  }
+
+  private def getUserGroups(userId: String, offset: Int, limit: Int)(implicit s: DBSession): Seq[persistence.Group] = {
+    try {
+      val g = persistence.Group.syntax("g")
+      val m = persistence.Member.syntax("m")
+      withSQL {
+        select(g.result.*)
+          .from(persistence.Group as g)
+          .innerJoin(persistence.Member as m)
+          .where
+          .eq(g.groupType, persistence.GroupType.Public)
+          .and
+          .eq(m.userId, sqls.uuid(userId))
+          .and
+          .isNull(g.deletedAt)
+          .and
+          .isNull(m.deletedAt)
+          .orderBy(g.updatedAt).desc
+          .offset(offset)
+          .limit(limit)
+      }.map(rs => persistence.Group(g.resultName)(rs)).list().apply
+    } catch {
+      case e: Exception => Seq.empty
+    }
   }
 
   private def countDatasets(groups : Seq[String])(implicit s: DBSession) = {
@@ -790,7 +842,7 @@ val g = persistence.Group.syntax("g")
   private def getGroupPrimaryImageId(groupId: String)(implicit s: DBSession) = {
     val gi = persistence.GroupImage.syntax("gi")
     withSQL {
-      select(gi.id)
+      select(gi.result.imageId)
         .from(persistence.GroupImage as gi)
         .where
         .eq(gi.groupId, sqls.uuid(groupId))
@@ -798,10 +850,10 @@ val g = persistence.Group.syntax("g")
         .eq(gi.isPrimary, true)
         .and
         .isNull(gi.deletedAt)
-    }.map(_.string("id")).single().apply()
+    }.map(_.string(gi.resultName.imageId)).single().apply()
   }
 
-  private def getMembers(user: User, groupId: String, offset: Int, limit: Int)(implicit s: DBSession): Seq[(persistence.User, Int)] = {
+  private def getMembers(groupId: String, offset: Int, limit: Int)(implicit s: DBSession): Seq[(persistence.User, Int)] = {
     val m = persistence.Member.syntax("m")
     val u = persistence.User.syntax("u")
     val g = persistence.Group.syntax("g")
@@ -951,7 +1003,7 @@ val g = persistence.Group.syntax("g")
         .where
         .eq(g.id, sqls.uuid(groupId))
         .and
-        .eq(m.id, sqls.uuid(memberId))
+        .eq(m.userId, sqls.uuid(memberId))
         .and
         .isNull(m.deletedAt)
         .and

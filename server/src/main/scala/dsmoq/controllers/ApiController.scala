@@ -85,9 +85,9 @@ class ApiController extends ScalatraServlet
 
     (for {
       userInfo <- getUserInfoFromSession()
-      result <- AccountService.changeUserEmail(userInfo, email)
+      user <- AccountService.changeUserEmail(userInfo, email)
     } yield {
-      result
+      setUserInfoToSession(user)
     }) match {
       case Success(x) => AjaxResponse("OK")
       case Failure(e) =>
@@ -213,7 +213,7 @@ class ApiController extends ScalatraServlet
   }
 
   post("/datasets/:datasetId/files") {
-    val files = fileMultiParams.get("file[]")
+    val files = fileMultiParams.get("files[]")
     val datasetId = params("datasetId")
 
     val response = for {
@@ -248,7 +248,7 @@ class ApiController extends ScalatraServlet
       AjaxResponse("OK", file)
     }
     response match {
-      case Success(x) => AjaxResponse("OK")
+      case Success(x) => x
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
@@ -259,14 +259,15 @@ class ApiController extends ScalatraServlet
     }
   }
 
-  put("/datasets/:datasetId/files/:fileId/name") {
+  put("/datasets/:datasetId/files/:fileId/metadata") {
     val datasetId = params("datasetId")
     val fileId = params("fileId")
     val filename = params.get("name")
+    val description = params.get("description")
 
     val response = for {
       userInfo <- getUserInfoFromSession()
-      facadeParams = ModifyDatasetFilenameParams(userInfo, datasetId, fileId, filename)
+      facadeParams = ModifyDatasetMetadataParams(userInfo, datasetId, fileId, filename, description)
       result <- DatasetService.modifyFilename(facadeParams)
     } yield {
       result
@@ -333,7 +334,7 @@ class ApiController extends ScalatraServlet
   }
 
   post("/datasets/:datasetId/images") {
-    val images = fileMultiParams.get("image")
+    val images = fileMultiParams.get("images")
     val datasetId = params("datasetId")
 
     val response = for {
@@ -442,7 +443,7 @@ class ApiController extends ScalatraServlet
 
     val response = for {
       userInfo <- getUserInfoFromSession()
-      facadeParams = SearchGroupsParams(userInfo, query, limit, offset)
+      facadeParams = SearchGroupsParams(userInfo, query, user, limit, offset)
       groups <- GroupService.search(facadeParams)
     } yield {
       AjaxResponse("OK", groups)
@@ -569,7 +570,7 @@ class ApiController extends ScalatraServlet
 
   post("/groups/:groupId/images") {
     val groupId = params("groupId")
-    val images = fileMultiParams.get("image")
+    val images = fileMultiParams.get("images")
 
     val response = for {
       userInfo <- getUserInfoFromSession()

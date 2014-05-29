@@ -1,17 +1,19 @@
 package com.constructiveproof.example
 
-import com.constructiveproof.example.facade.{Dataset, Datasets, User}
 import org.scalatest.{BeforeAndAfter, FreeSpec}
 import org.scalatra.test.scalatest._
 
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
 import scalikejdbc.config.DBs
+import dsmoq.controllers.{AjaxResponse, ApiController}
+import dsmoq.services.data.{RangeSlice, User}
+import dsmoq.services.data.DatasetData.{DatasetsSummary, Dataset}
 
-class ServerApiTest extends FreeSpec with ScalatraSuite with BeforeAndAfter {
+class OldServerApiTest extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
 
-  addServlet(classOf[ServerApiController], "/api/*")
+  addServlet(classOf[ApiController], "/api/*")
 
   before {
     DBs.setup()
@@ -27,7 +29,7 @@ class ServerApiTest extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           status should equal (200)
           val result = parse(body).extract[AjaxResponse[User]]
           assert(result === AjaxResponse("OK", User(
-            "", "", "", "", "", "http://xxxx", true
+            "", "", "", "", "", "http://xxxx", "", "", true, false
           )))
         }
       }
@@ -75,10 +77,10 @@ class ServerApiTest extends FreeSpec with ScalatraSuite with BeforeAndAfter {
       "can get" in {
         get("/api/datasets") {
           status should equal (200)
-          val result = parse(body).extract[AjaxResponse[Datasets]]
+          val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
           result.status should equal ("OK")
           result.data.summary.count should equal (20)
-          val datasetResult = result.data.results(0)
+          val datasetResult = result.data.results(0).asInstanceOf[DatasetsSummary]
           datasetResult.license should equal (1)
         }
       }
@@ -88,9 +90,9 @@ class ServerApiTest extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           post("/api/signin", params) { status should equal (200) }
           get("/api/datasets") {
             status should equal (200)
-            val result = parse(body).extract[AjaxResponse[Datasets]]
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
             result.data.results shouldNot(be(empty))
-            val datasetResult = result.data.results(0)
+            val datasetResult = result.data.results(0).asInstanceOf[DatasetsSummary]
             datasetResult.name should equal ("user")
           }
           post("/api/signout", params) { status should equal (200) }
@@ -100,9 +102,9 @@ class ServerApiTest extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           get("/api/datasets") {
             status should equal (200)
-            val result = parse(body).extract[AjaxResponse[Datasets]]
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
             result.data.results shouldNot(be(empty))
-            val datasetResult = result.data.results(0)
+            val datasetResult = result.data.results(0).asInstanceOf[DatasetsSummary]
             datasetResult.name should equal ("guest")
           }
         }

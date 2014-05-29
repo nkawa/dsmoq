@@ -30,7 +30,7 @@ class GroupSpec extends Specification {
       count should be_>(0L)
     }
     "create new record" in new AutoRollback {
-      val created = Group.create(id = null, name = "MyString", description = "MyString", dataType = 123, createdAt = DateTime.now, updatedAt = DateTime.now, createdBy = null, updatedBy = null)
+      val created = Group.create(id = null, name = "MyString", description = "MyString", groupType = 123, createdAt = DateTime.now, updatedAt = DateTime.now, createdBy = null, updatedBy = null)
       created should not beNull
     }
     "save a record" in new AutoRollback {
