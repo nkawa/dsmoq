@@ -333,7 +333,7 @@ class ApiController extends ScalatraServlet
   }
 
   post("/datasets/:datasetId/images") {
-    val images = fileMultiParams.get("image")
+    val images = fileMultiParams.get("images")
     val datasetId = params("datasetId")
 
     val response = for {
