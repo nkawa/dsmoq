@@ -283,7 +283,7 @@ object AccountService extends SessionTrait {
       case None => throw new InputValidationException("email", "email is empty")
     }
 
-    DB readOnly { implicit s =>
+    val result = DB readOnly { implicit s =>
       val ma = persistence.MailAddress.syntax("ma")
       withSQL {
         select(ma.result.id)
@@ -291,11 +291,11 @@ object AccountService extends SessionTrait {
           .where
           .eq(ma.address, email)
       }.map(rs => rs.string(ma.resultName.id)).single().apply match {
-        case Some(x) => throw new RuntimeException("email already exists")
-        case None => // do nothing
+        case Some(x) => MailValidationResult(isValid = false)
+        case None => MailValidationResult(isValid = true)
       }
     }
-    Success(email)
+    Success(result)
   }
 
   def getLicenses()  = {

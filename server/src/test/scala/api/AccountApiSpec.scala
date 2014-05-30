@@ -6,7 +6,7 @@ import org.json4s.{DefaultFormats, Formats}
 import scalikejdbc.config.DBs
 import dsmoq.controllers.{AjaxResponse, ApiController}
 import org.json4s.jackson.JsonMethods._
-import dsmoq.services.data.{License, User}
+import dsmoq.services.data.{MailValidationResult, License, User}
 import java.io.File
 import org.scalatra.servlet.MultipartConfig
 
@@ -156,8 +156,9 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
       "メールアドレスが重複していないか" in {
         val params = Map("value" -> "hogehoge@hoge.jp")
         get("/api/system/is_valid_email", params) {
-          // 現状、重複していなければOKが返る
           checkStatus()
+          val result = parse(body).extract[AjaxResponse[MailValidationResult]]
+          assert(result.data.isValid)
         }
       }
 
