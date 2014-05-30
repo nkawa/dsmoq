@@ -17,12 +17,14 @@ import scala.Some
 import dsmoq.controllers.AjaxResponse
 import dsmoq.services.data.DatasetData.DatasetAddImages
 import dsmoq.services.data.RangeSlice
+import dsmoq.services.data.GroupData.Group
 
 class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
 
   private val dummyFile = new File("README.md")
   private val dummyImage = new File("../client/www/dummy/images/nagoya.jpg")
+  private val dummyUserLoginParams = Map("id" -> "kawaguti", "password" -> "password")
 
   // multi-part file upload config
   val holder = addServlet(classOf[ApiController], "/api/*")
@@ -317,6 +319,143 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           println(url)
           // FIXME 別途clientを使用して画像DL検証
           fail()
+        }
+      }
+
+      "データセットACLアイテム アクセスレベル設定したデータが閲覧できるか" in {
+        session {
+          // データセット作成
+          signIn()
+          val datasetId = createDataset()
+          post("/api/signout") { checkStatus() }
+
+          // アクセスレベル設定対象のグループを作成
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          val createGroupParams = Map("name" -> "group name", "description" -> "group description")
+          val groupId = post("/api/groups", createGroupParams) {
+            checkStatus()
+            parse(body).extract[AjaxResponse[Group]].data.id
+          }
+          post("/api/signout") { checkStatus() }
+
+          // アクセスレベル設定
+          signIn()
+          val params = Map("accessLevel" -> "2")
+          put("/api/datasets/" + datasetId + "/acl/" + groupId, params) { checkStatus() }
+          post("/api/signout") { checkStatus() }
+
+          // アクセスレベルを設定したdatasetはそのユーザーから参照できるはず
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get("/api/datasets") {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+            result.data.summary.total should not be(0)
+          }
+          // TODO 権限のないデータセットアクセスでNG？
+          get("/api/datasets/" + datasetId) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.data.id should be(datasetId)
+          }
+        }
+      }
+
+      "データセットACLアイテムが削除できるか" in {
+        session {
+          signIn()
+          // データセット作成
+          signIn()
+          val datasetId = createDataset()
+          post("/api/signout") { checkStatus() }
+
+          // アクセスレベル設定対象のグループを作成
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          val createGroupParams = Map("name" -> "group name", "description" -> "group description")
+          val groupId = post("/api/groups", createGroupParams) {
+            checkStatus()
+            parse(body).extract[AjaxResponse[Group]].data.id
+          }
+          post("/api/signout") { checkStatus() }
+
+          // アクセスレベル設定
+          signIn()
+          val params = Map("accessLevel" -> "2")
+          put("/api/datasets/" + datasetId + "/acl/" + groupId, params) { checkStatus() }
+          post("/api/signout") { checkStatus() }
+
+          // アクセスレベルを設定したdatasetはグループから参照できるはず
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get("/api/datasets/" + datasetId) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.data.id should be(datasetId)
+          }
+          post("/api/signout") { checkStatus() }
+
+          // アクセスレベル解除
+          signIn()
+          delete("/api/datasets/" + datasetId + "/acl/" + groupId) { checkStatus() }
+          post("/api/signout") { checkStatus() }
+
+          // アクセスレベルを解除したdatasetはグループから見えなくなるはず
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get("/api/datasets/" + datasetId) {
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.status should be("Unauthorized")
+          }
+        }
+      }
+
+      "データセットACLアイテム ゲストアクセスレベル設定したデータがゲストから閲覧できるか" in {
+        session {
+          signIn()
+          val datasetId = createDataset()
+
+          // アクセスレベル設定
+          val params = Map("accessLevel" -> "2")
+          put("/api/datasets/" + datasetId + "/acl/guest", params) { checkStatus() }
+
+          // アクセスレベルを設定したdatasetはゲストから参照できるはず
+          post("/api/signout") { checkStatus() }
+          get("/api/datasets") {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+            result.data.summary.total should not be(0)
+          }
+
+          get("/api/datasets/" + datasetId) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.data.id should be(datasetId)
+          }
+        }
+      }
+
+      "データセットACLアイテム ゲストアクセスレベルが解除できるか" in {
+        session {
+          signIn()
+          val datasetId = createDataset()
+
+          // アクセスレベル設定
+          val params = Map("accessLevel" -> "2")
+          put("/api/datasets/" + datasetId + "/acl/guest", params) { checkStatus() }
+
+          // アクセスレベルを設定したdatasetはゲストから参照できるはず
+          post("/api/signout") { checkStatus() }
+          get("/api/datasets/" + datasetId) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.data.id should be(datasetId)
+          }
+
+          // アクセスレベルを解除したdatasetはゲストから見えなくなるはず
+          signIn()
+          delete("/api/datasets/" + datasetId + "/acl/guest") { checkStatus() }
+          post("/api/signout") { checkStatus() }
+          get("/api/datasets/" + datasetId) {
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.status should be("Unauthorized")
+          }
         }
       }
     }

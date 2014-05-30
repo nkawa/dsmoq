@@ -15,12 +15,15 @@ import scala.Some
 import dsmoq.services.data.GroupData.GroupsSummary
 import dsmoq.controllers.AjaxResponse
 import dsmoq.services.data.{User, RangeSlice}
+import dsmoq.services.data.DatasetData.{DatasetsSummary, Dataset}
 
 class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
 
+  private val dummyFile = new File("README.md")
   private val dummyImage = new File("../client/www/dummy/images/nagoya.jpg")
   private val dummyUserUUID = "eb7a596d-e50c-483f-bbc7-50019eea64d7"
+  private val dummyUserLoginParams = Map("id" -> "kawaguti", "password" -> "password")
 
   // multi-part file upload config
   val holder = addServlet(classOf[ApiController], "/api/*")
@@ -244,7 +247,6 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
       "追加したグループメンバーを削除できるか" in {
         session {
           signIn()
-
           val groupId = createGroup()
           val params = Map("id" -> dummyUserUUID, "role" -> "0")
           post("/api/groups/" + groupId + "/members", params) {
@@ -265,8 +267,42 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
       "グループに所属するデータセットを取得できるか" in {
         session {
+          // データセット作成
           signIn()
-          fail()
+          val files = Map("file[]" -> dummyFile)
+          val datasetId = post("/api/datasets", Map.empty, files) {
+            checkStatus()
+            parse(body).extract[AjaxResponse[Dataset]].data.id
+          }
+          post("/api/signout") { checkStatus() }
+
+          // 権限を与えるグループを作成(別ユーザーで作成)
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          val groupId = createGroup()
+          // この時点ではグループに所属しているデータセットは0件のはず
+          val params = Map("limit" -> "10")
+          get("/api/groups/" + groupId + "/datasets", params) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[RangeSlice[MemberSummary]]]
+            result.data.summary.total should be(0)
+          }
+          post("/api/signout") { checkStatus() }
+
+          // グループにアクセスレベルを設定
+          signIn()
+          val accessLevelParams = Map("accessLevel" -> "2")
+          put("/api/datasets/" + datasetId + "/acl/" + groupId, accessLevelParams) { checkStatus() }
+          post("/api/signout") { checkStatus() }
+
+          // 1件データセットが見えるはず
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get("/api/groups/" + groupId + "/datasets", params) {
+            checkStatus()
+            println(body)
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+            result.data.summary.total should be(1)
+            result.data.results.size should be(1)
+          }
         }
       }
     }
