@@ -152,6 +152,28 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         }
       }
 
+      "データセットに複数ファイルが追加できるか" in {
+        session {
+          signIn()
+          val datasetId = createDataset()
+          val files = List(("files[]", dummyFile), ("files[]", dummyFile))
+          val fileIds = post("/api/datasets/" + datasetId + "/files", Map.empty, files) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[DatasetAddFiles]]
+            result.data.files.map(_.id)
+          }
+
+          get("/api/datasets/" + datasetId) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.data.filesCount should be(3)
+            fileIds.map {x =>
+              assert(result.data.files.map(_.id).contains(x))
+            }
+          }
+        }
+      }
+
       "データセットに追加したファイルが変更できるか" in {
         session {
           signIn()
