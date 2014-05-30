@@ -6,9 +6,10 @@ import org.json4s.{DefaultFormats, Formats}
 import scalikejdbc.config.DBs
 import dsmoq.controllers.{AjaxResponse, ApiController}
 import org.json4s.jackson.JsonMethods._
-import dsmoq.services.data.User
+import dsmoq.services.data.{License, User}
 import java.io.File
 import org.scalatra.servlet.MultipartConfig
+import dsmoq.services.data.ProfileData.Account
 
 class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
@@ -150,6 +151,30 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           put("/api/profile/password", rollbackParams) { checkStatus() }
           post("/api/signout") { checkStatus() }
           signIn()
+        }
+      }
+
+      "メールアドレスが重複していないか" in {
+        val params = Map("value" -> "hogehoge@hoge.jp")
+        get("/api/system/is_valid_email", params) {
+          // 現状、重複していなければOKが返る
+          checkStatus()
+        }
+      }
+
+      "ライセンス一覧を取得できるか" in {
+        get("/api/licenses") {
+          checkStatus()
+          val result = parse(body).extract[AjaxResponse[Seq[License]]]
+          assert(result.data.size > 0)
+        }
+      }
+
+      "アカウント一覧を取得できるか" in {
+        get("/api/accounts") {
+          checkStatus()
+          val result = parse(body).extract[AjaxResponse[Seq[Account]]]
+          assert(result.data.size > 0)
         }
       }
     }
