@@ -887,7 +887,7 @@ val g = persistence.Group.syntax("g")
           .where
           .eq(o.groupId, sqls.uuid(groupId))
           .and
-          .eq(o.accessLevel, persistence.AccessLevel.AllowAll)
+          .gt(o.accessLevel, persistence.AccessLevel.Deny)
           .and
           .isNull(ds.deletedAt)
           .and
