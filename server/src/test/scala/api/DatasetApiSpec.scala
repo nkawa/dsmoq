@@ -18,6 +18,15 @@ import dsmoq.controllers.AjaxResponse
 import dsmoq.services.data.DatasetData.DatasetAddImages
 import dsmoq.services.data.RangeSlice
 import dsmoq.services.data.GroupData.Group
+import org.apache.http.client.methods.{HttpGet, HttpPost}
+import org.apache.http.message.BasicNameValuePair
+import org.apache.http.{HttpStatus, NameValuePair}
+import org.apache.http.client.entity.UrlEncodedFormEntity
+import java.util
+import org.apache.http.protocol.HTTP
+import org.apache.http.util.EntityUtils
+import com.sun.jndi.toolkit.url.Uri
+import org.apache.http.impl.client.DefaultHttpClient
 
 class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
@@ -25,6 +34,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   private val dummyFile = new File("README.md")
   private val dummyImage = new File("../client/www/dummy/images/nagoya.jpg")
   private val dummyUserLoginParams = Map("id" -> "kawaguti", "password" -> "password")
+
+  private val host = "http://localhost:8080"
 
   // multi-part file upload config
   val holder = addServlet(classOf[ApiController], "/api/*")
@@ -298,10 +309,29 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             checkStatus()
             parse(body).extract[AjaxResponse[Dataset]].data.files(0).url
           }
-
+          post("/api/signout") { checkStatus() }
           println(url)
-          // FIXME 別途clientを使用してファイルDL検証
-          fail()
+
+          // 別途clientを使用してファイルDL検証
+          val client = createClient
+          try {
+            signInWithHttpClient(client)
+
+            val fileGet = new HttpGet(url)
+            val fileResponse = client.execute(fileGet)
+            val byte = EntityUtils.toByteArray(fileResponse.getEntity)
+            fileResponse.getStatusLine.getStatusCode should be(HttpStatus.SC_OK)
+
+            // バイトサイズのみでチェック ファイルは書き込まない
+            byte.size should be(dummyFile.length())
+          } catch {
+            case e: Exception =>
+              println(e.getMessage)
+              println(e.getStackTraceString)
+              fail()
+          } finally {
+            client.getConnectionManager.shutdown()
+          }
         }
       }
 
@@ -317,8 +347,26 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           }
 
           println(url)
-          // FIXME 別途clientを使用して画像DL検証
-          fail()
+          // 別途clientを使用して画像DL検証
+          val client = createClient
+          try {
+            signInWithHttpClient(client)
+
+            val fileGet = new HttpGet(url)
+            val fileResponse = client.execute(fileGet)
+            val byte = EntityUtils.toByteArray(fileResponse.getEntity)
+            fileResponse.getStatusLine.getStatusCode should be(HttpStatus.SC_OK)
+
+            // バイトサイズのみでチェック ファイルは書き込まない
+            byte.size should be(dummyImage.length())
+          } catch {
+            case e: Exception =>
+              println(e.getMessage)
+              println(e.getStackTraceString)
+              fail()
+          } finally {
+            client.getConnectionManager.shutdown()
+          }
         }
       }
 
@@ -480,5 +528,17 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
       checkStatus()
       parse(body).extract[AjaxResponse[Dataset]].data.id
     }
+  }
+
+  private def signInWithHttpClient(client: DefaultHttpClient) {
+    val signInPost = new HttpPost(host + "/api/signin")
+    signInPost.setHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+    val params = new util.ArrayList[NameValuePair]()
+    params.add(new BasicNameValuePair("id", "t_okada"))
+    params.add(new BasicNameValuePair("password", "password"))
+    signInPost.setEntity(new UrlEncodedFormEntity(params))
+    val signInResponse = client.execute(signInPost)
+    signInResponse.getStatusLine.getStatusCode should be(HttpStatus.SC_OK)
+    signInResponse.getEntity.getContent.close()
   }
 }
