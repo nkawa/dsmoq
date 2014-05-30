@@ -133,6 +133,32 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         }
       }
 
+      "データセットの情報が編集できるか(attribute込み)" in {
+        session {
+          signIn()
+          session {
+            signIn()
+            val datasetId = createDataset()
+            val params = List(
+              "name" -> "変更後データセット",
+              "description" -> "change description",
+              "license" -> AppConf.defaultLicenseId,
+              "attributes[][name]" -> "attr_name",
+              "attributes[][value]" -> "attr_value",
+              "attributes[][name]" -> "attr_another_name",
+              "attributes[][value]" -> "attr_another_value"
+            )
+            put("/api/datasets/" + datasetId + "/metadata", params) { checkStatus() }
+            get("/api/datasets/" + datasetId) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.meta.name should be ("変更後データセット")
+              result.data.meta.attributes.map(_.value).contains("attr_another_value")
+            }
+          }
+        }
+      }
+
       "データセットにファイルが追加できるか" in {
         session {
           signIn()
