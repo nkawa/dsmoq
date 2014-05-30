@@ -204,16 +204,16 @@ class Service extends Stream<ServiceEvent> {
     }
 
     public function removeGroupMember(groupId: String, userId: String): Promise<Unit> {
-        return null;
+        return send(Delete, '/api/groups/$groupId/members/$userId');
     }
 
     public function deleteGroup(groupId: String): Promise<Unit> {
-        return null;
+        return send(Delete, '/api/groups/$groupId');
     }
 
 
-    public function getUsers(): Promise<{}> {
-        return null;
+    public function getUsers(page: PositiveInt): Promise<{}> {
+        return send(Get, '/api/accounts');
     }
 
 
