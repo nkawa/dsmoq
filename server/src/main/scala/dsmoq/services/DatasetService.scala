@@ -227,7 +227,7 @@ object DatasetService {
         name = ds.name,
         description = ds.description,
         image = imageUrl,
-        attributes = Seq.empty, // TODO
+        attributes = getAttributes(ds.id),
         ownerships = owners.get(ds.id).getOrElse(Seq.empty),
         files = ds.filesCount,
         dataSize = ds.filesSize,
@@ -1245,7 +1245,7 @@ object DatasetService {
 
   }
 
-  private def getAttributes(datasetId: String)(implicit s: DBSession) = {
+  def getAttributes(datasetId: String)(implicit s: DBSession) = {
     val da = persistence.DatasetAnnotation.syntax("da")
     val a = persistence.Annotation.syntax("d")
     withSQL {
