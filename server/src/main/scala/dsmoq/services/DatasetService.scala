@@ -289,7 +289,7 @@ object DatasetService {
             permission = permission
           )
         })
-        .map(x => Success(x)).getOrElse(Failure(new RuntimeException()))
+        .map(x => Success(x)).getOrElse(Failure(new NotAuthorizedException()))
       }
     } catch {
       case e: Exception => Failure(e)
