@@ -71,7 +71,6 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         }
       }
 
-      // TODO 複数ファイルを指定してデータセットを作成できるかどうか
       "データセットが作成できるか" in {
         session {
           signIn()
@@ -80,6 +79,24 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Dataset]]
             result.data.id should be (datasetId)
+          }
+        }
+      }
+
+      "データセットが作成できるか(複数ファイル)" in {
+        session {
+          signIn()
+          val files = List(("file[]", dummyFile), ("file[]", dummyFile))
+          val datasetId = post("/api/datasets", Map.empty, files) {
+            checkStatus()
+            parse(body).extract[AjaxResponse[Dataset]].data.id
+          }
+
+          get("/api/datasets/" + datasetId) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.data.id should be (datasetId)
+            result.data.filesCount should be(2)
           }
         }
       }
