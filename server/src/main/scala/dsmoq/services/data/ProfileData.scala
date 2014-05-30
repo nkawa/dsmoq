@@ -11,10 +11,4 @@ object ProfileData {
     description: Option[String],
     image: Option[FileItem]
   )
-
-  case class Account(
-    id: String,
-    name: String,
-    image: String
-  )
 }

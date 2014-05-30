@@ -9,7 +9,6 @@ import org.json4s.jackson.JsonMethods._
 import dsmoq.services.data.{License, User}
 import java.io.File
 import org.scalatra.servlet.MultipartConfig
-import dsmoq.services.data.ProfileData.Account
 
 class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
@@ -173,7 +172,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
       "アカウント一覧を取得できるか" in {
         get("/api/accounts") {
           checkStatus()
-          val result = parse(body).extract[AjaxResponse[Seq[Account]]]
+          val result = parse(body).extract[AjaxResponse[Seq[User]]]
           assert(result.data.size > 0)
         }
       }
