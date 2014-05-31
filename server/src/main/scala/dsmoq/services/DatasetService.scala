@@ -227,7 +227,7 @@ object DatasetService {
         name = ds.name,
         description = ds.description,
         image = imageUrl,
-        attributes = Seq.empty, // TODO
+        attributes = getAttributes(ds.id),
         ownerships = owners.get(ds.id).getOrElse(Seq.empty),
         files = ds.filesCount,
         dataSize = ds.filesSize,
@@ -289,7 +289,7 @@ object DatasetService {
             permission = permission
           )
         })
-        .map(x => Success(x)).getOrElse(Failure(new RuntimeException()))
+        .map(x => Success(x)).getOrElse(Failure(new NotAuthorizedException()))
       }
     } catch {
       case e: Exception => Failure(e)
@@ -1099,7 +1099,7 @@ object DatasetService {
     }.map(_.int(o.resultName.accessLevel)).single().apply().getOrElse(0)
   }
 
-  private def getGuestAccessLevel(datasetIds: Seq[String])(implicit s: DBSession): Map[String, Int] = {
+  def getGuestAccessLevel(datasetIds: Seq[String])(implicit s: DBSession): Map[String, Int] = {
     if (datasetIds.nonEmpty) {
       val o = persistence.Ownership.syntax("o")
       withSQL {
@@ -1117,7 +1117,7 @@ object DatasetService {
     }
   }
 
-  private def getImageId(datasetIds: Seq[String])(implicit s: DBSession): Map[String, String] = {
+  def getImageId(datasetIds: Seq[String])(implicit s: DBSession): Map[String, String] = {
     if (datasetIds.nonEmpty) {
       val di = persistence.DatasetImage.syntax("di")
       withSQL {
@@ -1135,7 +1135,7 @@ object DatasetService {
     }
   }
 
-  private def getOwnerGroups(datasetIds: Seq[String])(implicit s: DBSession):Map[String, Seq[DatasetData.DatasetOwnership]] = {
+  def getOwnerGroups(datasetIds: Seq[String])(implicit s: DBSession):Map[String, Seq[DatasetData.DatasetOwnership]] = {
     if (datasetIds.nonEmpty) {
       val o = persistence.Ownership.o
       val g = persistence.Group.g
@@ -1245,7 +1245,7 @@ object DatasetService {
 
   }
 
-  private def getAttributes(datasetId: String)(implicit s: DBSession) = {
+  def getAttributes(datasetId: String)(implicit s: DBSession) = {
     val da = persistence.DatasetAnnotation.syntax("da")
     val a = persistence.Annotation.syntax("d")
     withSQL {

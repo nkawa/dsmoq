@@ -733,10 +733,10 @@ class ApiController extends ScalatraServlet
       userInfo <- getUserInfoFromSession()
       result <- AccountService.isValidEmail(userInfo, value)
     } yield {
-      result
+      AjaxResponse("OK", result)
     }
     response match {
-      case Success(x) => AjaxResponse("OK")
+      case Success(x) => x
       case Failure(e) =>
         e match {
           case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())

@@ -283,7 +283,7 @@ object AccountService extends SessionTrait {
       case None => throw new InputValidationException("email", "email is empty")
     }
 
-    DB readOnly { implicit s =>
+    val result = DB readOnly { implicit s =>
       val ma = persistence.MailAddress.syntax("ma")
       withSQL {
         select(ma.result.id)
@@ -291,11 +291,11 @@ object AccountService extends SessionTrait {
           .where
           .eq(ma.address, email)
       }.map(rs => rs.string(ma.resultName.id)).single().apply match {
-        case Some(x) => throw new RuntimeException("email already exists")
-        case None => // do nothing
+        case Some(x) => MailValidationResult(isValid = false)
+        case None => MailValidationResult(isValid = true)
       }
     }
-    Success(email)
+    Success(result)
   }
 
   def getLicenses()  = {
@@ -310,37 +310,24 @@ object AccountService extends SessionTrait {
   }
 
   def getAccounts() = {
-    val accounts = DB readOnly { implicit s =>
-      persistence.User.findAllOrderByName()
+    DB readOnly { implicit s =>
+      val u = persistence.User.u
+      val ma = persistence.MailAddress.ma
+      withSQL {
+        select(u.result.*, ma.result.address)
+          .from(persistence.User as u)
+          .innerJoin(persistence.MailAddress as ma).on(u.id, ma.userId)
+          .where
+          .isNull(u.deletedAt)
+          .and
+          .isNull(ma.deletedAt)
+          .orderBy(u.name)
+      }.map(rs => (persistence.User(u.resultName)(rs), rs.string(ma.resultName.address))).list().apply
+      .map(x => User(x._1, x._2))
     }
-    accounts.map(x =>
-      dsmoq.services.data.ProfileData.Account(
-        id = x.id,
-        name = x.name,
-        image = if (x.imageId.length > 0) {
-          AppConf.imageDownloadRoot + x.imageId
-        } else {
-          ""
-        }
-      )
-    )
   }
 
   private def createPasswordHash(password: String) = {
     MessageDigest.getInstance("SHA-256").digest(password.getBytes("UTF-8")).map("%02x".format(_)).mkString
-  }
-
-  private def saveThumbnailImage(thumbImageId: String, f: FileItem) = {
-    // FIXME 画像のアス比は計算せず固定(100x100)にしている
-    val picSize = 100
-    val bufferedImage = javax.imageio.ImageIO.read(f.getInputStream)
-    val thumbBufferedImage = new BufferedImage(picSize, picSize, bufferedImage.getType)
-    thumbBufferedImage.getGraphics.drawImage(bufferedImage.getScaledInstance(picSize, picSize,
-      java.awt.Image.SCALE_AREA_AVERAGING), 0, 0, 100, 100, null)
-
-    // save thumbnail file
-    val fileType = f.name.split('.').last
-    javax.imageio.ImageIO.write(thumbBufferedImage, fileType, (Paths.get(AppConf.imageDir).resolve(thumbImageId).toFile))
-    (picSize, picSize)
   }
 }

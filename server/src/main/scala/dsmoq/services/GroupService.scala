@@ -167,7 +167,7 @@ object GroupService {
 
         val summary = RangeSliceSummary(count, limit, offset)
         val results = if (count > offset) {
-          DatasetService.getDatasetSummary(ArrayBuffer(params.groupId), limit, offset)
+          getGroupDatasetSummary(params.groupId, limit, offset)
         } else {
           List.empty
         }
@@ -887,7 +887,7 @@ val g = persistence.Group.syntax("g")
           .where
           .eq(o.groupId, sqls.uuid(groupId))
           .and
-          .eq(o.accessLevel, persistence.AccessLevel.AllowAll)
+          .gt(o.accessLevel, persistence.AccessLevel.Deny)
           .and
           .isNull(ds.deletedAt)
           .and
@@ -898,6 +898,58 @@ val g = persistence.Group.syntax("g")
           .limit(limit)
       }.map(rs => (persistence.Dataset(ds.resultName)(rs), rs.int("access_level"))).list().apply()
     }
+  }
+
+  private def getGroupDatasetSummary(groupId: String, limit: Int, offset: Int)(implicit s: DBSession) = {
+    val datasets = findGroupDatasets(groupId, limit, offset)
+    val datasetIds = datasets.map(_._1.id)
+
+    val owners = DatasetService.getOwnerGroups(datasetIds)
+    val guestAccessLevels = DatasetService.getGuestAccessLevel(datasetIds)
+    val imageIds = DatasetService.getImageId(datasetIds)
+
+    datasets.map(x => {
+      val ds = x._1
+      val permission = x._2
+      val imageUrl = imageIds.get(ds.id) match {
+        case Some(x) => AppConf.imageDownloadRoot + x + "/48"
+        case None => ""
+      }
+      DatasetData.DatasetsSummary(
+        id = ds.id,
+        name = ds.name,
+        description = ds.description,
+        image = imageUrl,
+        attributes = DatasetService.getAttributes(ds.id),
+        ownerships = owners.get(ds.id).getOrElse(Seq.empty),
+        files = ds.filesCount,
+        dataSize = ds.filesSize,
+        defaultAccessLevel = guestAccessLevels.get(ds.id).getOrElse(0),
+        permission = permission
+      )
+    })
+  }
+
+  private def findGroupDatasets(groupId: String, limit: Int, offset: Int)(implicit s: DBSession) = {
+    val ds = persistence.Dataset.syntax("ds")
+    val o = persistence.Ownership.syntax("o")
+    withSQL {
+      select(ds.result.*, sqls.max(o.accessLevel).append(sqls"access_level"))
+        .from(persistence.Dataset as ds)
+        .innerJoin(persistence.Ownership as o).on(ds.id, o.datasetId)
+        .where
+        .eq(o.groupId, sqls.uuid(groupId))
+        .and
+        .gt(o.accessLevel, 0)
+        .and
+        .isNull(ds.deletedAt)
+        .and
+        .isNull(o.deletedAt)
+        .groupBy(ds.*)
+        .orderBy(ds.updatedAt).desc
+        .offset(offset)
+        .limit(limit)
+    }.map(rs => (persistence.Dataset(ds.resultName)(rs), rs.int("access_level"))).list().apply()
   }
 
   private def getPrimaryImageId(groupId: String)(implicit s: DBSession) = {
