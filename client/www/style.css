@@ -1,8 +1,19 @@
-/*
 body {
-  padding-top: 50px;
+  padding-top: 64px; 
 }
-*/
+
+body, h1, h2, h3, h4, h5, h6 {
+  font-family: "Segoe UI", "游ゴシック", YuGothic, Verdana, "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+}
+
+.page-heading {
+  margin-top: 0px;
+  margin-bottom: 16px;
+}
+
+.tab-pane {
+  padding-top: 8px;
+}
 
 .modal-dialog-center {
     margin: 0;

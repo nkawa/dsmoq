@@ -125,12 +125,18 @@ class Service extends Stream<ServiceEvent> {
         });
     }
 
-    public function addDatasetImage(datasetId: String, form: JqHtml): Promise<{images: Array<Image>, primaryImage: String}> {
-        return sendForm('/api/datasets/$datasetId/images', form);
-    }
-
-    public function setDatasetPrimaryImage(datasetId: String, imageId: String): Promise<Unit> {
-        return send(Put, '/api/datasets/$datasetId/images/primary', {id: imageId});
+    //public function addDatasetImage(datasetId: String, form: JqHtml): Promise<{images: Array<Image>, primaryImage: String}> {
+        //return sendForm('/api/datasets/$datasetId/images', form);
+    //}
+//
+    //public function setDatasetPrimaryImage(datasetId: String, imageId: String): Promise<Unit> {
+        //return send(Put, '/api/datasets/$datasetId/images/primary', {id: imageId});
+    //}
+//
+    public function changeDatasetImage(datasetId: String, form: JqHtml): Promise<{images: Array<Image>, primaryImage: String}> {
+        return sendForm('/api/datasets/$datasetId/images', form).bind(function (res) {
+            return send(Put, '/api/datasets/$datasetId/images/primary', {id: res.images[0].id }).map(function (_) return cast res);
+        });
     }
 
     public function removeDatasetImage(datasetId: String, imageId: String): Promise<{primaryImage: String}> {
@@ -215,7 +221,6 @@ class Service extends Stream<ServiceEvent> {
     public function getUsers(page: PositiveInt): Promise<{}> {
         return send(Get, '/api/accounts');
     }
-
 
 
     inline function guest(): Profile {

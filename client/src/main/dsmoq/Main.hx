@@ -343,7 +343,13 @@ class Main {
                                 Service.instance.updateDatasetMetadata(id, data.dataset.meta);
                             });
 
+                            new JqHtml(container).find("#dataset-icon-submit").on("click", function (_) {
+                                Service.instance.changeDatasetImage(id, JQuery.find("#dataset-icon-form"));
+                            });
 
+                            new JqHtml(container).find("#dataset-finish-editing").on("click", function (_) {
+                                navigation.update(PageNavigation.Back); //TODO ヒストリーを消す
+                            });
                         });
                     },
                     dispose: function () {

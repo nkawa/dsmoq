@@ -1,114 +1,134 @@
-<ul class="nav nav-tabs">
-  <li class="active"><a href="#basic-tab" data-toggle="tab">Metadata</a> </li>
-  <li><a href="#files-tab" data-toggle="tab">Files</a></li>
-  <li><a href="#acl-tab" data-toggle="tab">Access Control</a> </li>
-</ul>
+<div class="row" style="">
+  <div class="col-sm-10">
+    <h2 class="page-heading">Edit Dataset</h2>
+  </div>
+  <div class="col-sm-2 text-right">
+    <div class="btn-group-vertical">
+      <button type="button" class="btn btn-info" id="dataset-finish-editing">Finish</button>
+    </div>
+  </div>
+</div>
 
-<div class="tab-panel">
+<div class="tabbable">
+  <ul class="nav nav-tabs">
+    <li class="active"><a href="#dataset-basics" data-toggle="tab">Basics</a></li>
+    <li><a href="#dataset-icon" data-toggle="tab">Icon</a></li>
+    <li><a href="#dataset-files" data-toggle="tab">Files</a></li>
+    <li><a href="#dataset-acl" data-toggle="tab">Accesss Control</a></li>
+  </ul>
+
   <div class="tab-content">
-    <!-- basic --->
-    <div class="tab-pane active" id="basic-tab">
-      <form class="form-horizontal" role="form">
+    <div class="tab-pane active" id="dataset-basics">
+      <form role="form">
         <div class="form-group">
-          <label for="form-title" class="col-sm-2 control-label">Dataset Title</label>
-          <div class="col-sm-10"><input type="text" class="form-control" placeholder="Dataset Title" data-link="dataset.meta.name"></div>
+          <label for="form-title" class="control-label">Title</label>
+          <input type="text" style="width:300px;" class="form-control" placeholder="Dataset Title" data-link="dataset.meta.name">
         </div>
         <div class="form-group">
-          <label for="form-description" class="col-sm-2 control-label">Description</label>
-          <div class="col-sm-10"><textarea class="form-control" row="3" data-link="dataset.meta.description"></textarea></div>
+          <label for="form-description" class="control-label">Description</label>
+          <textarea class="form-control" row="3" style="width: 600px;" data-link="dataset.meta.description"></textarea>
         </div>
         <div class="form-group">
-          <label class="col-sm-2 control-label">Attributes</label>
-          <div class="col-sm-10">
-            <table class="table table-bordered table-condensed">
-              <thead>
-                <tr><td>name</td><td>value</td><td></td></tr>
-              </thead>
-              <tbody>
-                {^{for dataset.meta.attributes}}
-                  <tr>
-                    <td><input class="form-control" data-link="name"></td>
-                    <td><input class="form-control" data-link="value"></td>
-                    <td><a class="btn btn-warning btn-sm dataset-attribute-remove" data-value="{{>#index}}">del</a></td>
-                  </tr>
-                {{/for}}
+          <label for="form-description" class="control-label">License</label>
+          <select class="form-control" style="width: auto;" data-link="dataset.meta.license">
+            {{for licenses}}
+              <option data-link="value{>#data.id},selected{>#data.id==#parent.parent.data.dataset.meta.license}">{{>#data.name}}</option>
+            {{/for}}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="control-label">Attributes</label>
+          <table class="table table-bordered table-condensed" style="width: 600px;">
+            <thead>
+              <tr><td>name</td><td>value</td><td></td></tr>
+            </thead>
+            <tbody>
+              {^{for dataset.meta.attributes}}
                 <tr>
-                  <td></td>
-                  <td></td>
-                  <td><a class="btn btn-success btn-sm" id="dataset-attribute-add">add</a></td>
+                  <td><input class="form-control" data-link="name"></td>
+                  <td><input class="form-control" data-link="value"></td>
+                  <td><a class="btn btn-warning btn-sm dataset-attribute-remove" data-value="{{>#index}}">del</a></td>
                 </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="form-description" class="col-sm-2 control-label">License</label>
-          <div class="col-sm-10">
-            <select class="form-control" data-link="dataset.meta.license">
-              {{for licenses}}
-                <option data-link="value{>#data.id},selected{>#data.id==#parent.parent.data.dataset.meta.license}">{{>#data.name}}</option>
               {{/for}}
-            </select>
-          </div>
+              <tr>
+                <td colspan="3"><a class="btn btn-success btn-sm" id="dataset-attribute-add">add</a></td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </form>
       <div class="row">
-        <p class="col-sm-12 text-right">
+        <p class="col-sm-12">
           <a class="btn btn-primary" id="dataset-basics-submit">Save</a>
         </p>
       </div>
     </div>
 
-    <div class="tab-pane active" id="basic-tab">
-      <form class="form-horizontal" role="form">
-        <div class="form-group">
-          <label class="col-sm-2 control-label">Icon</label>
-          <div class="col-sm-10">
-            <div class="pull-left"><img data-link="src{>dataset.primaryImage.url}"></div>
-            <input type="file">
-          </div>
+    <div class="tab-pane" id="dataset-icon">
+      <div class="form-group">
+        <div>
+          <img data-link="src{>dataset.primaryImage.url}" alt="icon">
         </div>
-      </form>
-    </div>
-
-    <!-- files --->
-    <div class="tab-pane" id="files-tab">
-      <form class="form-horizontal" role="form">
-        <div class="form-group">
-          <div class="col-sm-12">
-            {^{for dataset.files}}
-              <div class="well well-sm">
-                <div class="row">
-                  <div class="col-sm-12">
-                    <span class="glyphicon glyphicon-file"></span>
-                    {{>name}} ({{datasize size/}})
-                    uploaded by <strong>{{>createdBy.fullname}}</strong>
-                    <img data-link="src{>createdBy.image}" class="icon">
-                    <a>rename</a>
-                    <a class="btn"><span class="glyphicon glyphicon-trash pull-right"></span></a>
-                  </div>
-                </div>
-                <textarea class="form-control" placeholder="Description about this file." data-link="description"></textarea>
-              </div>
-            {{/for}}
-
-            <div class="well well-sm" style="border-style:dashed; border-width:3px">
-              <center>Drop files to upload</center>
+      </div>
+      <form role="form" id="dataset-icon-form">
+        <div class="well well-sm">
+          <div class="form-group">
+            <div><label class="control-label">Change icon</label></div>
+            <div>
+              <input type="file" name="images[]" style="display:inline;">
+              <a class="btn btn-primary btn-sm" id="dataset-icon-submit">Upload</a>
             </div>
           </div>
         </div>
       </form>
     </div>
 
-    <!-- acl --->
-    <div class="tab-pane" id="acl-tab">
-      <div class="row">
-        <p class="col-sm-12 text-right">
-          <a class="btn btn-primary">Publish</a>
-          <a class="btn btn-info">Save as Private</a>
-          <a class="btn btn-default">Cancel</a>
-        </p>
-      </div>
+    <div class="tab-pane" id="dataset-files">
+      <form class="form-horizontal" role="form">
+        <div class="form-group">
+          <div class="col-sm-12">
+            {^{for dataset.files}}
+              <div class="well well-sm">
+                <div class="row">
+                  <div class="col-sm-9">
+                      <span class="glyphicon glyphicon-file"></span>
+                      {{>name}} ({{datasize size/}})
+                      uploaded by <strong>{{>createdBy.fullname}}</strong>
+                      <img data-link="src{>createdBy.image}" class="icon">
+                  </div>
+                  <div class="col-sm-3 text-right">
+                    <a class="btn btn-xs">edit</a>
+                    <a class="btn btn-xs">replace</a>
+                    <a class="btn btn-xs">delete</a>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="col-sm-12" style="margin-left: 16px;">
+                    {^{if description != null && description.length > 0}}
+                      <span data-link="description"></span>
+                    {{else}}
+                      <span>(This file does not have description.)</span>
+                    {{/if}}
+                  </div>
+                </div>
+
+
+                <div>
+                  <input type="text" class="form-control" style="width: 300px;" data-link="name">
+                  <textarea class="form-control" placeholder="Description about this file." data-link="description"></textarea>
+                  <button type="button" class="btn btn-primary btn-sm">Save</button>
+                  <button type="button" class="btn btn-default btn-sm">Cancel</button>
+                </div>
+                <!--
+                -->
+              </div>
+            {{/for}}
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <div class="tab-pane" id="dataset-acl">
       <form class="form-horizontal" role="form">
         <div class="form-group">
           <label for="form-title" class="col-sm-2 control-label">Access Control List</label>
@@ -168,6 +188,12 @@
           </div>
         </div>
       </form>
+
+      <div class="row">
+        <p class="col-sm-12 text-right">
+          <a class="btn btn-primary">Save</a>
+        </p>
+      </div>
     </div>
   </div>
 </div>
