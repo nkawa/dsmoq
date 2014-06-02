@@ -152,8 +152,8 @@ class Service extends Stream<ServiceEvent> {
         //return send(Delete, '/api/datasets/$datasetId/acl/$groupId');
     //}
 
-    public function setDatasetGuestAccessLevel(datasetId: String, accessLevel: GuestAccessLevel): Promise<Unit> {
-        return send(Put, '/api/datasets/$datasetId/acl/guest', accessLevel);
+    public function setDatasetGuestAccessLevel(datasetId: String, accessLevel: DatasetGuestAccessLevel): Promise<Unit> {
+        return send(Put, '/api/datasets/$datasetId/acl/guest', {accessLevel: accessLevel});
     }
 
     // setで代用可能

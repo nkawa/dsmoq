@@ -4,6 +4,7 @@ import dsmoq.framework.ApplicationContext;
 import dsmoq.framework.Engine;
 import dsmoq.framework.types.PositiveInt;
 import dsmoq.framework.View;
+import dsmoq.models.DatasetGuestAccessLevel;
 import dsmoq.models.Profile;
 import js.support.ControllablePromise;
 import js.support.ControllableStream;
@@ -100,6 +101,10 @@ class Main {
             } else {
                 Std.string(size) + " is not number";
             }
+        });
+
+        JsViews.views.converters("toInt", function (x) {
+            return Std.parseInt(x);
         });
 
         var pagenationTemplate = JsViews.template(Resource.getString("share/pagination"));
@@ -319,6 +324,7 @@ class Main {
                     navigation: navigation,
                     invalidate: function (container: Element) {
                         Service.instance.getDataset(id).then(function (x) {
+                            // TODO clone
                             var data = {
                                 licenses: Service.instance.licenses,
                                 dataset: x,
@@ -349,6 +355,10 @@ class Main {
 
                             new JqHtml(container).find("#dataset-finish-editing").on("click", function (_) {
                                 navigation.update(PageNavigation.Back); //TODO ヒストリーを消す
+                            });
+
+                            new JqHtml(container).find("#dataset-guest-access-submit").on("click", function (_) {
+                                Service.instance.setDatasetGuestAccessLevel(id, data.dataset.defaultAccessLevel);
                             });
                         });
                     },

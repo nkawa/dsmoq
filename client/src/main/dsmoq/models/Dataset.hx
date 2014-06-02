@@ -7,6 +7,6 @@ typedef Dataset = {
     var images(default, null): Array<Image>;
     var primaryImage(default, null): Image;
     var ownerships(default, null): Array<DatasetOwnership>;
-    var defaultAccessLevel(default, null): DatasetAccessLevel;
+    var defaultAccessLevel(default, null): DatasetGuestAccessLevel;
     var permission(default, null): DatasetPermission;
 }

@@ -10,6 +10,6 @@ typedef DatasetSummary = {
     var ownerships(default, never): Array<DatasetOwnership>;
     var files(default, never): UInt;
     var dataSize(default, never): UInt;
-    var defaultAccessLevel(default, never): GuestAccessLevel;
+    var defaultAccessLevel(default, never): DatasetGuestAccessLevel;
     var permission(default, never): DatasetPermission;
 }

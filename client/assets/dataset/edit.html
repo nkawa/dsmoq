@@ -71,128 +71,140 @@
         </div>
       </div>
       <form role="form" id="dataset-icon-form">
-        <div class="well well-sm">
-          <div class="form-group">
-            <div><label class="control-label">Change icon</label></div>
-            <div>
-              <input type="file" name="images[]" style="display:inline;">
-              <a class="btn btn-primary btn-sm" id="dataset-icon-submit">Upload</a>
-            </div>
+        <div class="form-group">
+          <div><label class="control-label">Replace icon</label></div>
+          <div>
+            <input type="file" name="images[]" style="display:inline;">
+            <a class="btn btn-primary btn-sm" id="dataset-icon-submit">Upload</a>
           </div>
         </div>
       </form>
     </div>
 
     <div class="tab-pane" id="dataset-files">
-      <form class="form-horizontal" role="form">
-        <div class="form-group">
-          <div class="col-sm-12">
-            {^{for dataset.files}}
-              <div class="well well-sm">
-                <div class="row">
-                  <div class="col-sm-9">
-                      <span class="glyphicon glyphicon-file"></span>
-                      {{>name}} ({{datasize size/}})
-                      uploaded by <strong>{{>createdBy.fullname}}</strong>
-                      <img data-link="src{>createdBy.image}" class="icon">
-                  </div>
-                  <div class="col-sm-3 text-right">
-                    <a class="btn btn-xs">edit</a>
-                    <a class="btn btn-xs">replace</a>
-                    <a class="btn btn-xs">delete</a>
-                  </div>
-                </div>
-                <div class="row">
-                  <div class="col-sm-12" style="margin-left: 16px;">
-                    {^{if description != null && description.length > 0}}
-                      <span data-link="description"></span>
-                    {{else}}
-                      <span>(This file does not have description.)</span>
-                    {{/if}}
-                  </div>
-                </div>
+      {^{for dataset.files}}
+        <div class="well well-sm">
+          <div class="dataset-file-view">
+            <div class="row">
+              <div class="col-sm-12">
+                  <span class="glyphicon glyphicon-file"></span>
+                  {{>name}} ({{datasize size/}})
+                  uploaded by <strong>{{>createdBy.fullname}}</strong>
+                  <img data-link="src{>createdBy.image}" class="icon">
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-sm-12" style="margin-left: 16px;">
+                {^{if description != null && description.length > 0}}
+                  <span data-link="description"></span>
+                {{else}}
+                  <span>(This file does not have description.)</span>
+                {{/if}}
+              </div>
+            </div>
+          </div>
+          <div class="row" style="margin-top: 4px;">
+            <div class="col-sm-12">
+              <button type="button" class="btn btn-xs" id="dataset-file-edit">edit</button>
+              <button type="button" class="btn btn-xs" id="dataset-file-replace">replace</button>
+              <button type="button" class="btn btn-xs" id="dataset-file-delete">delete</button>
+            </div>
+          </div>
 
-
-                <div>
+          <div class="row" style="margin: 4px 0 0 0; display: none;">
+            <div class="col-sm-12">
+              <form role="form">
+                <div class="form-group">
                   <input type="text" class="form-control" style="width: 300px;" data-link="name">
+                </div>
+                <div class="form-group">
                   <textarea class="form-control" placeholder="Description about this file." data-link="description"></textarea>
+                </div>
+                <div class="form-group">
                   <button type="button" class="btn btn-primary btn-sm">Save</button>
                   <button type="button" class="btn btn-default btn-sm">Cancel</button>
                 </div>
-                <!--
-                -->
-              </div>
-            {{/for}}
+              </form>
+            </div>
           </div>
+          <div class="row" style="margin: 4px 0 0 0; display: none;">
+            <div class="col-sm-12">
+              <form role="form">
+                <div class="form-group">
+                  <input type="file" style="display: inline" name="file">
+                  <button type="button" class="btn btn-primary btn-xs">Upload</button>
+                  <button type="button" class="btn btn-default btn-xs">Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      {{/for}}
+
+      <form role="form">
+        <div class="form-group">
+          <label class="control-label">Add file</label><br>
+          <input type="file" style="display: inline" name="file">
+          <button type="button" class="btn btn-primary btn-sm">Upload</button>
         </div>
       </form>
     </div>
 
     <div class="tab-pane" id="dataset-acl">
-      <form class="form-horizontal" role="form">
-        <div class="form-group">
-          <label for="form-title" class="col-sm-2 control-label">Access Control List</label>
-          <div class="col-sm-10">
-            <table class="table table-bordered table-condensed">
-              <tbody>
-                <tr>
-                  <td><p class="form-control-static">1</p></td>
-                  <td>
-                    <p class="form-control-static">
-                      <img src="images/user.jpg" class="icon"/> john001
-                    </p>
-                  </td>
-                  <td><select><option>Owner</option> <option>Full Read</option> <option>Limited Read</option> </select></td>
-                  <td> <a class="btn btn-warning btn-sm disabled">del</a> </td>
-                </tr>
-                <tr>
-                  <td><p class="form-control-static">2</p></td>
-                  <td>
-                    <p class="form-control-static">
-                      <img src="images/user.jpg" class="icon"/> paul001
-                    </p>
-                  </td>
-                  <td><select><option>Owner</option> <option selected>Full Read</option> <option>Limited Read</option> </select></td>
-                  <td> <a class="btn btn-warning btn-sm">del</a> </td>
-                </tr>
-                <tr>
-                  <td><p class="form-control-static">3</p></td>
-                  <td><p class="form-control-static">
-                      名古屋大学
-                  </p></td>
-                  <td><select><option>Provider</option> <option>Full Read</option> <option>Limited Read</option> </select></td>
-                  <td> <a class="btn btn-warning btn-sm">del</a> </td>
-                </tr>
-                <tr>
-                  <td><p class="form-control-static">*</p></td>
-                  <td><input class="form-control" placeholder="Enter new user or group"></td>
-                  <td> </td>
-                  <td><a class="btn btn-success btn-sm">add</a></td></tr>
-              </tbody>
-            </table>
-          </div>
+      <h3 style="margin-top: 0;">Access Control List</h3>
+      <table class="table table-bordered table-condensed" style="width: 600px;">
+        <tbody>
+          {^{for dataset.ownerships}}
+            <tr>
+              <td>
+                <p class="form-control-static"><img class="icon" data-link="src{>image}"> {{>name}}</p>
+              </td>
+              <td>
+                <select><option>Owner</option> <option>Full Read</option> <option>Limited Read</option> </select>
+              </td>
+              <td>
+                <a class="btn btn-warning btn-sm disabled">del</a>
+              </td>
+            </tr>
+          {{/for}}
+          <tr>
+            <td>
+              <p class="form-control-static">
+                <img src="images/user.jpg" class="icon"/> paul001
+              </p>
+            </td>
+            <td><select><option>Owner</option> <option selected>Full Read</option> <option>Limited Read</option> </select></td>
+            <td> <a class="btn btn-warning btn-sm">del</a> </td>
+          </tr>
+          <tr>
+            <td><p class="form-control-static">
+                名古屋大学
+            </p></td>
+            <td><select><option>Provider</option> <option>Full Read</option> <option>Limited Read</option> </select></td>
+            <td> <a class="btn btn-warning btn-sm">del</a> </td>
+          </tr>
+          <tr>
+            <td><input class="form-control" placeholder="Enter new user or group"></td>
+            <td> </td>
+            <td><a class="btn btn-success btn-sm">add</a></td></tr>
+        </tbody>
+      </table>
+      <div class="row" style="margin-top: 8px;">
+        <div class="col-sm-12">
+          <button type="button" class="btn btn-primary btm-sm">Save</button>
         </div>
+      </div>
 
-        <div class="form-group">
-          <label class="col-sm-2 control-label">Default Access Control</label>
-          <div class="col-sm-10">
-            <div class="radio"><label>
-                <input type="radio" name="option" checked>1. Deny
-            </label></div>
-            <div class="radio"><label>
-                <input type="radio" name="option">2. Allow LIMITED Read (Disabled Download Files)
-            </label></div>
-            <div class="radio"><label>
-                <input type="radio" name="option">3. Allow FULL Read
-            </label></div>
-          </div>
-        </div>
+      <h3>Guest Access Control</h3>
+      <form role="form">
+        <div class="radio"><label><input type="radio" name="option" value="0" data-link="{:dataset.defaultAccessLevel:toInt}">Deny</label></div>
+        <div class="radio"><label><input type="radio" name="option" value="1" data-link="{:dataset.defaultAccessLevel:toInt}">Allow LIMITED Read (Disabled Download Files)</label></div>
+        <div class="radio"><label><input type="radio" name="option" value="2" data-link="{:dataset.defaultAccessLevel:toInt}">Allow FULL Read</label></div>
       </form>
-
-      <div class="row">
-        <p class="col-sm-12 text-right">
-          <a class="btn btn-primary">Save</a>
-        </p>
+      <div class="row" style="top: 8px;">
+        <div class="col-sm-12">
+          <button type="button" class="btn btn-primary btm-sm" id="dataset-guest-access-submit">Save</button>
+        </div>
       </div>
     </div>
   </div>
