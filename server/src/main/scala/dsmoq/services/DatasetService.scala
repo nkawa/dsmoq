@@ -12,7 +12,7 @@ import dsmoq.exceptions._
 import org.joda.time.DateTime
 import org.scalatra.servlet.FileItem
 import dsmoq.forms.{AccessCrontolItem, AccessControl}
-import dsmoq.persistence.{GroupType, PresetType, AccessLevel, GroupMemberRole}
+import dsmoq.persistence.{GroupType, PresetType, AccessLevel, OwnerType}
 import scala.collection.mutable.ArrayBuffer
 import dsmoq.logic.ImageSaveLogic
 import scala.util.Failure
@@ -147,7 +147,8 @@ object DatasetService {
             organization = myself.organization,
             title = myself.title,
             image = "", //TODO
-            accessLevel = ownership.accessLevel
+            accessLevel = ownership.accessLevel,
+            ownerType = OwnerType.User
           )),
           defaultAccessLevel = persistence.AccessLevel.Deny,
           permission = ownership.accessLevel
@@ -1151,7 +1152,7 @@ object DatasetService {
                 .and.eq(g.groupType, persistence.GroupType.Personal)
                 .and.eq(m.role, persistence.GroupMemberRole.Administrator)
                 .and.isNull(m.deletedAt))
-          .innerJoin(persistence.User as u)
+          .leftJoin(persistence.User as u)
             .on(sqls.eq(m.userId, u.id).and.isNull(u.deletedAt))
           .where
             .inByUuid(o.datasetId, datasetIds)
@@ -1163,13 +1164,17 @@ object DatasetService {
         (
           rs.string(o.resultName.datasetId),
           DatasetData.DatasetOwnership(
-            id = rs.string(g.resultName.id),
+            id = rs.stringOpt(u.resultName.id).getOrElse(rs.string(g.resultName.id)),
             name = rs.stringOpt(u.resultName.name).getOrElse(rs.string(g.resultName.name)),
             fullname = rs.stringOpt(u.resultName.fullname).getOrElse(""),
             organization = rs.stringOpt(u.resultName.organization).getOrElse(""),
             title = rs.stringOpt(u.resultName.title).getOrElse(""),
             image = "", //TODO
-            accessLevel = rs.int(o.resultName.accessLevel)
+            accessLevel = rs.int(o.resultName.accessLevel),
+            ownerType = rs.stringOpt(u.resultName.id) match {
+              case Some(x) => OwnerType.User
+              case None => OwnerType.Group
+            }
           )
         )
       ).list().apply()
@@ -1196,7 +1201,7 @@ object DatasetService {
               .and.eq(g.groupType, persistence.GroupType.Personal)
               .and.eq(m.role, persistence.GroupMemberRole.Administrator)
               .and.isNull(m.deletedAt))
-        .innerJoin(persistence.User as u)
+        .leftJoin(persistence.User as u)
           .on(sqls.eq(m.userId, u.id).and.isNull(u.deletedAt))
         .where
           .eq(o.datasetId, sqls.uuid(datasetId))
@@ -1206,13 +1211,17 @@ object DatasetService {
           .isNull(o.deletedAt)
     }.map(rs =>
       DatasetData.DatasetOwnership(
-        id = rs.string(g.resultName.id),
+        id = rs.stringOpt(u.resultName.id).getOrElse(rs.string(g.resultName.id)),
         name = rs.stringOpt(u.resultName.name).getOrElse(rs.string(g.resultName.name)),
         fullname = rs.stringOpt(u.resultName.fullname).getOrElse(""),
         organization = rs.stringOpt(u.resultName.organization).getOrElse(""),
         title = rs.stringOpt(u.resultName.title).getOrElse(""),
         image = "", //TODO
-        accessLevel = rs.int(o.resultName.accessLevel)
+        accessLevel = rs.int(o.resultName.accessLevel),
+        ownerType = rs.stringOpt(u.resultName.id) match {
+          case Some(x) => OwnerType.User
+          case None => OwnerType.Group
+        }
       )
     ).list().apply()
   }
