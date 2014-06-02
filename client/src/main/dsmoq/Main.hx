@@ -335,30 +335,46 @@ class Main {
                             var binding = JsViews.objectObservable(data);
                             View.getTemplate("dataset/edit").link(container, data);
 
-                            new JqHtml(container).find("#dataset-attribute-add").on("click", function (_) {
+                            var root = new JqHtml(container);
+
+                            root.find("#dataset-attribute-add").on("click", function (_) {
                                 var attrs = JsViews.arrayObservable(data.dataset.meta.attributes);
                                 attrs.insert({ name: "", value:"" });
                             });
 
-                            new JqHtml(container).on("click", ".dataset-attribute-remove", function (e) {
+                            root.on("click", ".dataset-attribute-remove", function (e) {
                                 var index = new JqHtml(e.target).data("value");
                                 var attrs = JsViews.arrayObservable(data.dataset.meta.attributes);
                                 attrs.remove(index);
                             });
 
-                            new JqHtml(container).find("#dataset-basics-submit").on("click", function (_) {
+                            root.find("#dataset-basics-submit").on("click", function (_) {
                                 Service.instance.updateDatasetMetadata(id, data.dataset.meta);
                             });
 
-                            new JqHtml(container).find("#dataset-icon-submit").on("click", function (_) {
-                                Service.instance.changeDatasetImage(id, JQuery.find("#dataset-icon-form"));
+                            root.find("#dataset-icon-form").on("change", "input[type=file]", function (e) {
+                                if (new JqHtml(e.target).val() != "") {
+                                    root.find("#dataset-icon-submit").show();
+                                } else {
+                                    root.find("#dataset-icon-submit").hide();
+                                }
                             });
 
-                            new JqHtml(container).find("#dataset-finish-editing").on("click", function (_) {
+                            root.find("#dataset-icon-submit").on("click", function (_) {
+                                Service.instance.changeDatasetImage(id, JQuery.find("#dataset-icon-form")).then(function (res) {
+                                    var img = res.images.filter(function (x) return x.id == res.primaryImage)[0];
+                                    binding.setProperty("dataset.primaryImage.id", img.id);
+                                    binding.setProperty("dataset.primaryImage.url", img.url);
+                                    root.find("#dataset-icon-form input[type=file]").val("");
+                                    root.find("#dataset-icon-submit").hide();
+                                });
+                            });
+
+                            root.find("#dataset-finish-editing").on("click", function (_) {
                                 navigation.update(PageNavigation.Back); //TODO ヒストリーを消す
                             });
 
-                            new JqHtml(container).find("#dataset-guest-access-submit").on("click", function (_) {
+                            root.find("#dataset-guest-access-submit").on("click", function (_) {
                                 Service.instance.setDatasetGuestAccessLevel(id, data.dataset.defaultAccessLevel);
                             });
                         });
