@@ -326,6 +326,7 @@ class Main {
                         Service.instance.getDataset(id).then(function (x) {
                             // TODO clone
                             var data = {
+                                myself: Service.instance.profile,
                                 licenses: Service.instance.licenses,
                                 dataset: x,
                             };

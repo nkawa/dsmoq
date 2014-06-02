@@ -154,38 +154,36 @@
       <h3 style="margin-top: 0;">Access Control List</h3>
       <table class="table table-bordered table-condensed" style="width: 600px;">
         <tbody>
-          {^{for dataset.ownerships}}
+          {^{for dataset.ownerships ~myself=myself}}
             <tr>
               <td>
                 <p class="form-control-static"><img class="icon" data-link="src{>image}"> {{>name}}</p>
               </td>
               <td>
-                <select><option>Owner</option> <option>Full Read</option> <option>Limited Read</option> </select>
-              </td>
-              <td>
-                <a class="btn btn-warning btn-sm disabled">del</a>
+                <div class="form-group">
+                  {{if ownerType == 1}}
+                    <select class="form-control" style="width:auto;" data-link="{:accessLevel:toInt} disabled{:~myself.id == id}">
+                      <option value="3">Owner</option>
+                      <option value="2">Full Read</option>
+                      <option value="1">Limited Read</option>
+                      <option value="0">Deny</option>
+                    </select>
+                  {{else ownerType == 2}}
+                    <select class="form-control" style="width:auto;" data-link="{:accessLevel:toInt}">
+                      <option value="3">Provider</option>
+                      <option value="2">Full Read</option>
+                      <option value="1">Limited Read</option>
+                      <option value="0">Deny</option>
+                    </select>
+                  {{else}}
+                    invalid ownerType
+                  {{/if}}
+                </div>
               </td>
             </tr>
           {{/for}}
           <tr>
-            <td>
-              <p class="form-control-static">
-                <img src="images/user.jpg" class="icon"/> paul001
-              </p>
-            </td>
-            <td><select><option>Owner</option> <option selected>Full Read</option> <option>Limited Read</option> </select></td>
-            <td> <a class="btn btn-warning btn-sm">del</a> </td>
-          </tr>
-          <tr>
-            <td><p class="form-control-static">
-                名古屋大学
-            </p></td>
-            <td><select><option>Provider</option> <option>Full Read</option> <option>Limited Read</option> </select></td>
-            <td> <a class="btn btn-warning btn-sm">del</a> </td>
-          </tr>
-          <tr>
             <td><input class="form-control" placeholder="Enter new user or group"></td>
-            <td> </td>
             <td><a class="btn btn-success btn-sm">add</a></td></tr>
         </tbody>
       </table>
