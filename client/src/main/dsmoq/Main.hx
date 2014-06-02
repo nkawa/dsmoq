@@ -352,6 +352,20 @@ class Main {
                                 Service.instance.updateDatasetMetadata(id, data.dataset.meta);
                             });
 
+                            root.find("#dataset-file-add-form").on("change", "input[type=file]", function (e) {
+                                if (new JqHtml(e.target).val() != "") {
+                                    root.find("#dataset-file-add-submit").show();
+                                } else {
+                                    root.find("#dataset-file-add-submit").hide();
+                                }
+                            });
+                            root.find("#dataset-file-add-submit").on("click", function (_) {
+                                Service.instance.addDatasetFiles(id, root.find("#dataset-file-add-form")).then(function (res) {
+                                    root.find("#dataset-file-add-submit").hide();
+                                    JsViews.arrayObservable(data.dataset.files).insert(res[0]);
+                                });
+                            });
+
                             root.find("#dataset-icon-form").on("change", "input[type=file]", function (e) {
                                 if (new JqHtml(e.target).val() != "") {
                                     root.find("#dataset-icon-submit").show();
@@ -359,7 +373,6 @@ class Main {
                                     root.find("#dataset-icon-submit").hide();
                                 }
                             });
-
                             root.find("#dataset-icon-submit").on("click", function (_) {
                                 Service.instance.changeDatasetImage(id, JQuery.find("#dataset-icon-form")).then(function (res) {
                                     var img = res.images.filter(function (x) return x.id == res.primaryImage)[0];

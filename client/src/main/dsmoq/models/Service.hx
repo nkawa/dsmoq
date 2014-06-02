@@ -100,7 +100,9 @@ class Service extends Stream<ServiceEvent> {
     }
 
     public function addDatasetFiles(datasetId: String, form: JqHtml): Promise<Array<DatasetFile>> {
-        return sendForm('/api/datasets/$datasetId/files', form);
+        return sendForm('/api/datasets/$datasetId/files', form).map(function (res) {
+            return cast res.files;
+        });
     }
 
     public function replaceDatasetFile(datasetId: String, fileId: String, form: JqHtml): Promise<DatasetFile> {
