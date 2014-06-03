@@ -33,6 +33,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
   private val dummyFile = new File("README.md")
   private val dummyImage = new File("../client/www/dummy/images/nagoya.jpg")
+  private val dummyUserId = "eb7a596d-e50c-483f-bbc7-50019eea64d7"
   private val dummyUserLoginParams = Map("id" -> "kawaguti", "password" -> "password")
 
   private val host = "http://localhost:8080"
@@ -114,7 +115,6 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         }
       }
 
-      // TODO attributesつきでの検証
       "データセットの情報が編集できるか" in {
         session {
           signIn()
@@ -435,7 +435,40 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         }
       }
 
-      "データセットACLアイテム アクセスレベル設定したデータが閲覧できるか" in {
+      "データセットACLアイテム アクセスレベル設定したデータが閲覧できるか(ユーザー)" in {
+        session {
+          // データセット作成
+          signIn()
+          val datasetId = createDataset()
+
+          // アクセスレベル設定(ユーザー)
+          val params = List(
+            "id[]" -> dummyUserId,
+            "type[]" -> "1",
+            "accessLevel[]" -> "2"
+          )
+          post("/api/datasets/" + datasetId + "/acl", params) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[Seq[DatasetOwnership]]]
+            assert(result.data.map(_.id) contains(dummyUserId))
+          }
+          post("/api/signout") { checkStatus() }
+
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get("/api/datasets") {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+            result.data.summary.total should not be(0)
+          }
+          get("/api/datasets/" + datasetId) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.data.id should be(datasetId)
+          }
+        }
+      }
+
+      "データセットACLアイテム アクセスレベル設定したデータが閲覧できるか(グループ)" in {
         session {
           // データセット作成
           signIn()
@@ -451,20 +484,27 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           }
           post("/api/signout") { checkStatus() }
 
-          // アクセスレベル設定
+          // アクセスレベル設定(グループ)
           signIn()
-          val params = Map("accessLevel" -> "2")
-          put("/api/datasets/" + datasetId + "/acl/" + groupId, params) { checkStatus() }
+          val params = List(
+            "id[]" -> groupId,
+            "type[]" -> "2",
+            "accessLevel[]" -> "2"
+          )
+          post("/api/datasets/" + datasetId + "/acl", params) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[Seq[DatasetOwnership]]]
+            assert(result.data.map(_.id) contains(groupId))
+          }
           post("/api/signout") { checkStatus() }
 
-          // アクセスレベルを設定したdatasetはそのユーザーから参照できるはず
+          // アクセスレベルを設定したdatasetはそのユーザー(グループ)から参照できるはず
           post("/api/signin", dummyUserLoginParams) { checkStatus() }
           get("/api/datasets") {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
             result.data.summary.total should not be(0)
           }
-          // TODO 権限のないデータセットアクセスでNG？
           get("/api/datasets/" + datasetId) {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Dataset]]
@@ -492,8 +532,16 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
           // アクセスレベル設定
           signIn()
-          val params = Map("accessLevel" -> "2")
-          put("/api/datasets/" + datasetId + "/acl/" + groupId, params) { checkStatus() }
+          val params = Map(
+            "id[]" -> groupId,
+            "type[]" -> "2",
+            "accessLevel[]" -> "2")
+          post("/api/datasets/" + datasetId + "/acl", params) {
+            println(body)
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[Seq[DatasetOwnership]]]
+            assert(result.data.map(_.id) contains(groupId))
+          }
           post("/api/signout") { checkStatus() }
 
           // アクセスレベルを設定したdatasetはグループから参照できるはず
@@ -507,7 +555,15 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
           // アクセスレベル解除
           signIn()
-          delete("/api/datasets/" + datasetId + "/acl/" + groupId) { checkStatus() }
+          val deleteParams = Map(
+            "id[]" -> groupId,
+            "type[]" -> "2",
+            "accessLevel[]" -> "0")
+          post("/api/datasets/" + datasetId + "/acl", deleteParams) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[Seq[DatasetOwnership]]]
+            assert(result.data.map(_.id) contains(groupId))
+          }
           post("/api/signout") { checkStatus() }
 
           // アクセスレベルを解除したdatasetはグループから見えなくなるはず
@@ -526,7 +582,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
           // アクセスレベル設定
           val params = Map("accessLevel" -> "2")
-          put("/api/datasets/" + datasetId + "/acl/guest", params) { checkStatus() }
+          put("/api/datasets/" + datasetId + "/guest_access", params) { checkStatus() }
 
           // アクセスレベルを設定したdatasetはゲストから参照できるはず
           post("/api/signout") { checkStatus() }
@@ -551,7 +607,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
           // アクセスレベル設定
           val params = Map("accessLevel" -> "2")
-          put("/api/datasets/" + datasetId + "/acl/guest", params) { checkStatus() }
+          put("/api/datasets/" + datasetId + "/guest_access", params) { checkStatus() }
 
           // アクセスレベルを設定したdatasetはゲストから参照できるはず
           post("/api/signout") { checkStatus() }
@@ -563,7 +619,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
           // アクセスレベルを解除したdatasetはゲストから見えなくなるはず
           signIn()
-          delete("/api/datasets/" + datasetId + "/acl/guest") { checkStatus() }
+          val deleteParams = Map("accessLevel" -> "0")
+          put("/api/datasets/" + datasetId + "/guest_access", deleteParams) { checkStatus() }
           post("/api/signout") { checkStatus() }
           get("/api/datasets/" + datasetId) {
             val result = parse(body).extract[AjaxResponse[Dataset]]

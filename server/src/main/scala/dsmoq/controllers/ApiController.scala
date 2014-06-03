@@ -400,19 +400,32 @@ class ApiController extends ScalatraServlet
     }
   }
 
-  put("/datasets/:datasetId/acl/:groupId") {
-    setAccessControl(params("datasetId"), params("groupId"), params.get("accessLevel"))
+  post("/datasets/:datasetId/acl") {
+    val datasetId = params("datasetId")
+    val ids = multiParams("id[]")
+    val types = multiParams("type[]")
+    val accessLevels = multiParams("accessLevel[]")
+
+    (for {
+      userInfo <- getUserInfoFromSession()
+      facadeParams = AccessControlParams(datasetId, userInfo, ids, types, accessLevels)
+      result <- DatasetService.setAccessControl(facadeParams)
+    } yield {
+      result
+    }) match {
+      case Success(x) => AjaxResponse("OK", x)
+      case Failure(e) =>
+        e match {
+          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case e: NotFoundException => AjaxResponse("NotFound")
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+          case _ => AjaxResponse("NG")
+        }
+    }
   }
 
-  delete("/datasets/:datasetId/acl/:groupId") {
-    setAccessControl(params("datasetId"), params("groupId"), Some("0"))
-  }
-  put("/datasets/:datasetId/acl/guest") {
-    setAccessControl(params("datasetId"), AppConf.guestGroupId, params.get("accessLevel"))
-  }
-
-  delete("/datasets/:datasetId/acl/guest") {
-    setAccessControl(params("datasetId"), AppConf.guestGroupId, Some("0"))
+  put("/datasets/:datasetId/guest_access") {
+    setGuestAccessControl(params("datasetId"), params.get("accessLevel"))
   }
 
   delete("/datasets/:datasetId") {
@@ -733,12 +746,12 @@ class ApiController extends ScalatraServlet
     AjaxResponse("OK", accounts)
   }
 
-  private def setAccessControl(datasetId: String, groupId: String, accessLevel: Option[String]) = {
-    val aci = AccessControl(datasetId, groupId, accessLevel)
+  private def setGuestAccessControl(datasetId: String, accessLevel: Option[String]) = {
+    val aci = AccessControl(datasetId, AppConf.guestGroupId, accessLevel)
 
     (for {
       userInfo <- getUserInfoFromSession()
-      result <- DatasetService.setAccessControl(userInfo, aci)
+      result <- DatasetService.setGroupAccessControl(userInfo, aci)
     } yield {
       result
     }) match {
