@@ -81,9 +81,7 @@ class Service extends Stream<ServiceEvent> {
                                            ?attributes: Array<DatasetAttribute>,
                                            ?offset: Int,
                                            ?limit: Int}): Promise<RangeSlice<DatasetSummary>> {
-        var params = params.orElse({});
-        return send(Get, "/api/datasets", { offset: params.offset.orElse(0),
-                                            limit: params.limit.orElse(QueryLimit) });
+        return send(Get, "/api/datasets", params);
     }
 
     public function getDataset(datasetId: String): Promise<Dataset> {
@@ -179,10 +177,10 @@ class Service extends Stream<ServiceEvent> {
     }
 
     public function findGroups(?params: {?query: String,
+                                         ?user: String,
                                          ?offset: Int,
                                          ?limit: Int}): Promise<RangeSlice<DatasetSummary>> {
-        return send(Get, "/api/groups", { offset: params.offset.orElse(0),
-                                          limit: params.limit.orElse(QueryLimit) });
+        return send(Get, "/api/groups", params);
     }
 
     public function getGroup(groupId: String): Promise<Group> {

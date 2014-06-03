@@ -251,11 +251,23 @@ class Main {
                 {
                     navigation: new ControllableStream(),
                     invalidate: function (container: Element) {
-                        //Service.instance.findDatasets({o}
+                        var profile = Service.instance.profile;
+                        View.getTemplate("dashboard/show").link(container, profile);
+
+
+                        Service.instance.findDatasets({ limit: 3 }).then(function (x) {
+                            trace(x);
+                        });
+
+                        if (!profile.isGuest) {
+                            Service.instance.findDatasets( { owner: profile.id, limit: 3 } );
+                            Service.instance.findGroups( { user: profile.id } );
+                        }
 
 
 
-                        View.getTemplate("dashboard/show").link(container, {});
+
+
                     },
                     dispose: function () {
                     }
