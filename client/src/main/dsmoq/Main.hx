@@ -260,6 +260,7 @@ class Main {
                 {
                     navigation: new ControllableStream(),
                     invalidate: function (container: Element) {
+                        // TODO ページング処理
                         var x = { condition: { }, result: { } };
                         var binding = JsViews.objectObservable(x);
                         Service.instance.findDatasets().then(function (x) {
@@ -490,11 +491,12 @@ class Main {
                 {
                     navigation: new ControllableStream(),
                     invalidate: function (container: Element) {
-                        //Service.instance.
-
-
-                        var binding = JsViews.objectObservable({});
-                        View.getTemplate("group/list").link(container, binding.data());
+                        var x = { condition: { }, result: { } };
+                        var binding = JsViews.objectObservable(x);
+                        Service.instance.findGroups().then(function (res) {
+                            binding.setProperty("result", res);
+                            View.getTemplate("group/list").link(container, binding.data());
+                        });
                     },
                     dispose: function () {
                     }

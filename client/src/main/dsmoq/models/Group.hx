@@ -1,14 +1,11 @@
 package dsmoq.models;
 
 typedef Group = {
-    //"id": "xxxx",
-    //"name": "xxxx",
-    //"description": "xxx",
-    //"images": [
-        //{ "id": "xxx", "url": "http://xxxx" },
-        //...
-    //],
-    //"primaryImage": "xxx",
-    //"isMember" : true,
-    //"role" : 1
+    var id(default, never): String;
+    var name(default, never): String;
+    var description(default, never): String;
+    var images(default, never): Array<Image>;
+    var primaryImage(default, never): String;
+    var isMember(default, never): Bool;
+    var role(default, never): GroupRole;
 }

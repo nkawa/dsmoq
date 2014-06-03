@@ -1,29 +1,22 @@
 <h2>Group List</h2>
-
-<strong>Found 25 records</strong>
-<ul>
-    <li class="dataset-item">
-    <div class="row">
-        <div class="pull-left">
-            <img  src="/resources/dummy/images/group.jpg" class="img-thumbnail" />
+{^{if result.summary.total > 0}}
+  <strong>Found {^{>result.summary.total}} records</strong>
+  <ul>
+    {^{for result.results}}
+      <li class="dataset-item">
+        <div class="row">
+          <div class="pull-left">
+            <img src="{{>image}}" class="img-thumbnail">
+          </div>
+          <div class="result-list-body">
+            <h3><a href="/groups/{{>id}}">{{>name}}</a> <small>{{>members}} Members, {{>datasets}} Datasets</small></h3>
+            <p>{{>description}}</p>
+          </div>
         </div>
-        <div class="result-list-body">
-            <h3><a href="/groups/read/">オープンデータ東海</a> <small>30 members(12 data sets)</small></h3>
-            <p>
-            国や自治体等が所有する様々なデータを公開して、多様なサービスを実現する、
-            オープンデータ、オープンガバメントの取り組みが国際的に広がりつつあります。
-            しかし、日本では、実際に使えるデータやサービスが十分に浸透しているとは言えません。
-            そこで、我々は、東海地域において、オープンデータに対する取組みを...
-            </p>
-        </div>
-    </div>
-    </li>
-</ul>
-<ul class="pagination">
-    <li><a class="disabled" href="#">&laquo;</a></li>
-    <li class="active"><a href="#">1 <span class="sr-only">(current)</span></a></li>
-    <li><a href="#">2</a></li> <li><a href="#">3</a></li>
-    <li><a href="#">4</a></li> <li><a href="#">5</a></li>
-    <li><a href="#">&raquo;</a></li>
-</ul>
-
+      </li>
+    {{/for}}
+  </ul>
+  {^{pagination result.summary id="pagination" class="" style="" pagesize=20 pagedelta=5 /}}
+{{else}}
+   <p>Datasets are not exist...</p>
+{{/if}}

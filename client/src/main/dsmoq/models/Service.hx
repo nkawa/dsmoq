@@ -171,7 +171,7 @@ class Service extends Stream<ServiceEvent> {
     }
 
     // ---
-    public function createGroup(name: String): Promise<{id: String}> {
+    public function createGroup(name: String): Promise<Group> {
         // TODO descriptionをAPIパラメータから削除
         return send(Post, "/api/groups", { name: name, description: "" });
     }
