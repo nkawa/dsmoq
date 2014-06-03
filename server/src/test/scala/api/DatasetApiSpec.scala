@@ -216,8 +216,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           post("/api/datasets/" + datasetId + "/files/" + fileId, Map.empty, anotherFileParam) {
             println(body)
             checkStatus()
-            val result = parse(body).extract[AjaxResponse[DatasetAddFiles]]
-            result.data.files(0).id should be(fileId)
+            val result = parse(body).extract[AjaxResponse[DatasetModifyFile]]
+            result.data.file.id should be(fileId)
           }
 
           get("/api/datasets/" + datasetId) {
