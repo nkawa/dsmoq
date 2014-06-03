@@ -10,7 +10,7 @@ import dsmoq.services.data.RangeSliceSummary
 import scala.util.Success
 import dsmoq.services.data.RangeSlice
 import dsmoq.persistence.PostgresqlHelper._
-import dsmoq.persistence.{PresetType, GroupMemberRole, AccessLevel}
+import dsmoq.persistence.{GroupType, PresetType, GroupMemberRole, AccessLevel}
 import org.joda.time.DateTime
 import dsmoq.exceptions.{InputValidationException, NotFoundException, ValidationException, NotAuthorizedException}
 import java.util.UUID
@@ -147,37 +147,6 @@ object GroupService {
     }
   }
 
-  def getGroupDatasets(params: GroupData.GetGroupDatasetsParams) = {
-    try {
-      // FIXME input parameter check
-      val offset = try {
-        params.offset.getOrElse("0").toInt
-      } catch {
-        case e: Exception => throw new InputValidationException("offset", "wrong parameter")
-      }
-      val limit = try {
-        params.limit.getOrElse("20").toInt
-      } catch {
-        case e: Exception => throw new InputValidationException("limit", "wrong parameter")
-      }
-
-      DB readOnly { implicit s =>
-        val datasets = getDatasets(params.userInfo, params.groupId, offset, limit)
-        val count = datasets.size
-
-        val summary = RangeSliceSummary(count, limit, offset)
-        val results = if (count > offset) {
-          getGroupDatasetSummary(params.groupId, limit, offset)
-        } else {
-          List.empty
-        }
-        Success(RangeSlice(summary, results))
-      }
-    } catch {
-      case e: Exception => Failure(e)
-    }
-  }
-
   def createGroup(params: GroupData.CreateGroupParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
     // FIXME input validation
@@ -210,7 +179,7 @@ object GroupService {
           id = UUID.randomUUID.toString,
           groupId = groupId,
           userId = myself.id,
-          role = persistence.GroupMemberRole.Administrator,
+          role = persistence.GroupMemberRole.Manager,
           status = 1,
           createdBy = myself.id,
           createdAt = timestamp,
@@ -308,7 +277,8 @@ object GroupService {
         try {
           val role = x.toInt
           role match {
-            case GroupMemberRole.Administrator => role
+            case GroupMemberRole.Deny => role
+            case GroupMemberRole.Manager => role
             case GroupMemberRole.Member => role
             case _ => throw new InputValidationException("role", "role value error")
           }
@@ -394,7 +364,8 @@ object GroupService {
         try {
           val role = x.toInt
           role match {
-            case GroupMemberRole.Administrator => role
+            case GroupMemberRole.Deny => role
+            case GroupMemberRole.Manager => role
             case GroupMemberRole.Member => role
             case _ => throw new InputValidationException("role", "role value error")
           }
@@ -783,7 +754,7 @@ val g = persistence.Group.syntax("g")
         .where
         .inByUuid(o.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
         .and
-        .gt(o.accessLevel, 0)
+        .gt(o.accessLevel, AccessLevel.Deny)
         .and
         .isNull(ds.deletedAt)
         .and
@@ -900,58 +871,6 @@ val g = persistence.Group.syntax("g")
     }
   }
 
-  private def getGroupDatasetSummary(groupId: String, limit: Int, offset: Int)(implicit s: DBSession) = {
-    val datasets = findGroupDatasets(groupId, limit, offset)
-    val datasetIds = datasets.map(_._1.id)
-
-    val owners = DatasetService.getOwnerGroups(datasetIds)
-    val guestAccessLevels = DatasetService.getGuestAccessLevel(datasetIds)
-    val imageIds = DatasetService.getImageId(datasetIds)
-
-    datasets.map(x => {
-      val ds = x._1
-      val permission = x._2
-      val imageUrl = imageIds.get(ds.id) match {
-        case Some(x) => AppConf.imageDownloadRoot + x + "/48"
-        case None => ""
-      }
-      DatasetData.DatasetsSummary(
-        id = ds.id,
-        name = ds.name,
-        description = ds.description,
-        image = imageUrl,
-        attributes = DatasetService.getAttributes(ds.id),
-        ownerships = owners.get(ds.id).getOrElse(Seq.empty),
-        files = ds.filesCount,
-        dataSize = ds.filesSize,
-        defaultAccessLevel = guestAccessLevels.get(ds.id).getOrElse(0),
-        permission = permission
-      )
-    })
-  }
-
-  private def findGroupDatasets(groupId: String, limit: Int, offset: Int)(implicit s: DBSession) = {
-    val ds = persistence.Dataset.syntax("ds")
-    val o = persistence.Ownership.syntax("o")
-    withSQL {
-      select(ds.result.*, sqls.max(o.accessLevel).append(sqls"access_level"))
-        .from(persistence.Dataset as ds)
-        .innerJoin(persistence.Ownership as o).on(ds.id, o.datasetId)
-        .where
-        .eq(o.groupId, sqls.uuid(groupId))
-        .and
-        .gt(o.accessLevel, 0)
-        .and
-        .isNull(ds.deletedAt)
-        .and
-        .isNull(o.deletedAt)
-        .groupBy(ds.*)
-        .orderBy(ds.updatedAt).desc
-        .offset(offset)
-        .limit(limit)
-    }.map(rs => (persistence.Dataset(ds.resultName)(rs), rs.int("access_level"))).list().apply()
-  }
-
   private def getPrimaryImageId(groupId: String)(implicit s: DBSession) = {
     val gi = persistence.GroupImage.syntax("gi")
     val i = persistence.Image.syntax("i")
@@ -998,9 +917,9 @@ val g = persistence.Group.syntax("g")
         .where
         .eq(g.id, sqls.uuid(groupId))
         .and
-        .eq(g.groupType, 0)
+        .eq(g.groupType, GroupType.Public)
         .and
-        .eq(m.role, 1)
+        .eq(m.role, GroupMemberRole.Manager)
         .and
         .eq(m.userId, sqls.uuid(user.id))
         .and

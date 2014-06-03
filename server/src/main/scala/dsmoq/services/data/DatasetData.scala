@@ -81,6 +81,14 @@ object DatasetData {
                                 datasetId: String
                                 )
 
+  case class AccessControlParams(
+                                  datasetId: String,
+                                  userInfo: User,
+                                  ids: Seq[String],
+                                  types: Seq[String],
+                                  accessLevels: Seq[String]
+                                  )
+
   // response
   case class DatasetsSummary(
     id: String,

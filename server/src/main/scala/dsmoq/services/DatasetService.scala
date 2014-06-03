@@ -303,7 +303,7 @@ object DatasetService {
    * @param item
    * @return
    */
-  def setAccessControl(user: User, item: AccessControl): Try[AccessCrontolItem] = {
+  def setGroupAccessControl(user: User, item: AccessControl): Try[AccessCrontolItem] = {
     try {
       if (user.isGuest) throw new NotAuthorizedException
 
@@ -377,6 +377,91 @@ object DatasetService {
       }
     } catch {
       case e: RuntimeException => Failure(e)
+    }
+  }
+
+  def setAccessControl(params: DatasetData.AccessControlParams): Try[Seq[DatasetData.DatasetOwnership]] = {
+    if (params.userInfo.isGuest) throw new NotAuthorizedException
+    // input validation
+    if (params.ids.size != params.types.size || params.types.size != params.accessLevels.size) {
+      throw new InputValidationException("ids", "params are not same size")
+    }
+    val accessLevels = try {
+      params.accessLevels.map(_.toInt)
+    } catch {
+      case e: Exception => throw new InputValidationException("accessLevel", "access level is not number")
+    }
+    val types = try {
+      params.types.map(_.toInt)
+    } catch {
+      case e: Exception => throw new InputValidationException("type", "type is not number")
+    }
+
+    DB localTx { implicit s =>
+      try {
+        getDataset(params.datasetId) match {
+          case Some(x) =>
+            if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+          case None => throw new NotFoundException
+        }
+      } catch {
+        case e: NotAuthorizedException => throw e
+        case e: Exception => throw new NotFoundException
+      }
+
+      val ownerships = (0 to params.ids.length - 1).map{ i =>
+        val id = params.ids(i)
+        val accessLevel = accessLevels(i)
+        types(i) match {
+          case OwnerType.User =>
+            val u = persistence.User.syntax("u")
+            val m = persistence.Member.syntax("m")
+            val g = persistence.Group.syntax("g")
+            val groupId = withSQL {
+              select(g.result.id)
+                .from(persistence.Group as g)
+                .innerJoin(persistence.Member as m).on(sqls.eq(g.id, m.groupId).and.isNull(m.deletedAt))
+                .innerJoin(persistence.User as u).on(sqls.eq(u.id, m.userId).and.isNull(u.deletedAt))
+                .where
+                .eq(u.id, sqls.uuid(id))
+                .and
+                .eq(g.groupType, GroupType.Personal)
+                .and
+                .isNull(g.deletedAt)
+                .and
+                .isNull(m.deletedAt)
+                .limit(1)
+            }.map(rs => rs.string(g.resultName.id)).single().apply.get
+            saveOrCreateOwnerships(params.userInfo, params.datasetId, groupId, accessLevel)
+
+            val user = persistence.User.find(id).get
+            DatasetData.DatasetOwnership(
+              id = id,
+              name = user.name,
+              fullname = user.fullname,
+              organization = user.organization,
+              title = user.title,
+              image = AppConf.imageDownloadRoot + user.imageId,
+              accessLevel = accessLevel,
+              ownerType = OwnerType.User
+            )
+          case OwnerType.Group =>
+            saveOrCreateOwnerships(params.userInfo, params.datasetId, id, accessLevel)
+
+            val group = persistence.Group.find(id).get
+            DatasetData.DatasetOwnership(
+              id = id,
+              name = group.name,
+              fullname = "",
+              organization = "",
+              title = "",
+              image = "",
+              accessLevel = accessLevel,
+              ownerType = OwnerType.Group
+            )
+        }
+      }
+      Success(ownerships)
     }
   }
 
@@ -1100,7 +1185,7 @@ object DatasetService {
     }.map(_.int(o.resultName.accessLevel)).single().apply().getOrElse(0)
   }
 
-  def getGuestAccessLevel(datasetIds: Seq[String])(implicit s: DBSession): Map[String, Int] = {
+  private def getGuestAccessLevel(datasetIds: Seq[String])(implicit s: DBSession): Map[String, Int] = {
     if (datasetIds.nonEmpty) {
       val o = persistence.Ownership.syntax("o")
       withSQL {
@@ -1118,7 +1203,7 @@ object DatasetService {
     }
   }
 
-  def getImageId(datasetIds: Seq[String])(implicit s: DBSession): Map[String, String] = {
+  private def getImageId(datasetIds: Seq[String])(implicit s: DBSession): Map[String, String] = {
     if (datasetIds.nonEmpty) {
       val di = persistence.DatasetImage.syntax("di")
       withSQL {
@@ -1136,7 +1221,7 @@ object DatasetService {
     }
   }
 
-  def getOwnerGroups(datasetIds: Seq[String])(implicit s: DBSession):Map[String, Seq[DatasetData.DatasetOwnership]] = {
+  private def getOwnerGroups(datasetIds: Seq[String])(implicit s: DBSession):Map[String, Seq[DatasetData.DatasetOwnership]] = {
     if (datasetIds.nonEmpty) {
       val o = persistence.Ownership.o
       val g = persistence.Group.g
@@ -1150,7 +1235,7 @@ object DatasetService {
           .leftJoin(persistence.Member as m)
             .on(sqls.eq(g.id, m.groupId)
                 .and.eq(g.groupType, persistence.GroupType.Personal)
-                .and.eq(m.role, persistence.GroupMemberRole.Administrator)
+                .and.eq(m.role, persistence.GroupMemberRole.Manager)
                 .and.isNull(m.deletedAt))
           .leftJoin(persistence.User as u)
             .on(sqls.eq(m.userId, u.id).and.isNull(u.deletedAt))
@@ -1199,7 +1284,7 @@ object DatasetService {
         .leftJoin(persistence.Member as m)
           .on(sqls.eq(g.id, m.groupId)
               .and.eq(g.groupType, persistence.GroupType.Personal)
-              .and.eq(m.role, persistence.GroupMemberRole.Administrator)
+              .and.eq(m.role, persistence.GroupMemberRole.Manager)
               .and.isNull(m.deletedAt))
         .leftJoin(persistence.User as u)
           .on(sqls.eq(m.userId, u.id).and.isNull(u.deletedAt))
@@ -1254,7 +1339,7 @@ object DatasetService {
 
   }
 
-  def getAttributes(datasetId: String)(implicit s: DBSession) = {
+  private def getAttributes(datasetId: String)(implicit s: DBSession) = {
     val da = persistence.DatasetAnnotation.syntax("da")
     val a = persistence.Annotation.syntax("d")
     withSQL {
@@ -1431,6 +1516,48 @@ object DatasetService {
     }.map(rs => rs.string(f.resultName.id)).single().apply match {
       case Some(x) => true
       case None => false
+    }
+  }
+
+  private def saveOrCreateOwnerships(userInfo: User,datasetId: String, groupId: String, accessLevel: Int)(implicit s: DBSession) {
+    val myself = persistence.User.find(userInfo.id).get
+    val timestamp = DateTime.now()
+
+    val o = persistence.Ownership.o
+    withSQL(
+      select(o.result.*)
+        .from(persistence.Ownership as o)
+        .where
+        .eq(o.datasetId, sqls.uuid(datasetId))
+        .and
+        .eq(o.groupId, sqls.uuid(groupId))
+    ).map(persistence.Ownership(o.resultName)).single.apply match {
+      case Some(x) =>
+        if (accessLevel != x.accessLevel) {
+          persistence.Ownership(
+            id = x.id,
+            datasetId = x.datasetId,
+            groupId = x.groupId,
+            accessLevel = accessLevel,
+            createdBy = myself.id,
+            createdAt = x.createdAt,
+            updatedBy = myself.id,
+            updatedAt = timestamp
+          ).save()
+        }
+      case None =>
+        if (accessLevel > 0) {
+          persistence.Ownership.create(
+            id = UUID.randomUUID.toString,
+            datasetId = datasetId,
+            groupId = groupId,
+            accessLevel = accessLevel,
+            createdBy = myself.id,
+            createdAt = timestamp,
+            updatedBy = myself.id,
+            updatedAt = timestamp
+          )
+        }
     }
   }
 }
