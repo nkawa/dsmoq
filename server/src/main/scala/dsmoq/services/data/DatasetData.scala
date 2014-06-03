@@ -153,6 +153,7 @@ object DatasetData {
     organization: String,
     title: String,
     image: String,
-    accessLevel: Int
+    accessLevel: Int,
+    ownerType: Int
   )
 }
