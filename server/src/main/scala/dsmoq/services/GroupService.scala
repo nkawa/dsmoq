@@ -836,6 +836,8 @@ val g = persistence.Group.syntax("g")
         .where
         .eq(m.groupId, sqls.uuid(groupId))
         .and
+        .not.eq(m.role, GroupMemberRole.Deny)
+        .and
         .isNull(m.deletedAt)
         .orderBy(m.updatedAt).desc
         .offset(offset)
