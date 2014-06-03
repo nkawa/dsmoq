@@ -79,9 +79,11 @@ class Service extends Stream<ServiceEvent> {
                                            ?group: String,
                                            ?owner: String,
                                            ?attributes: Array<DatasetAttribute>,
-                                           ?page: PositiveInt}): Promise<RangeSlice<DatasetSummary>> {
+                                           ?offset: Int,
+                                           ?limit: Int}): Promise<RangeSlice<DatasetSummary>> {
         var params = params.orElse({});
-        return send(Get, "/api/datasets", { offset: toOffset(params.page.orElse(1)), limit: QueryLimit });
+        return send(Get, "/api/datasets", { offset: params.offset.orElse(0),
+                                            limit: params.limit.orElse(QueryLimit) });
     }
 
     public function getDataset(datasetId: String): Promise<Dataset> {
@@ -176,18 +178,22 @@ class Service extends Stream<ServiceEvent> {
         return send(Post, "/api/groups", { name: name, description: "" });
     }
 
-    public function findGroups(?params: {page: UInt}): Promise<RangeSlice<Group>> {
-        // TODO ページング
-        return send(Get, "/api/groups", { offset: 0, limit: 20 });
+    public function findGroups(?params: {?query: String,
+                                         ?offset: Int,
+                                         ?limit: Int}): Promise<RangeSlice<DatasetSummary>> {
+        return send(Get, "/api/groups", { offset: params.offset.orElse(0),
+                                          limit: params.limit.orElse(QueryLimit) });
     }
 
     public function getGroup(groupId: String): Promise<Group> {
         return send(Get, '/api/groups/$groupId');
     }
 
-    public function getGroupMembers(groupId: String, page: UInt): Promise<RangeSlice<GroupMember>> {
+    public function getGroupMembers(groupId: String, ?params: { ?offset: Int, ?limit: Int })
+            : Promise<RangeSlice<GroupMember>> {
         // TODO ページング
-        return send(Get, '/api/groups/$groupId/members', { offset: 0, limit: 20 });
+        return send(Get, '/api/groups/$groupId/members', { offset: params.offset.orElse(0),
+                                                           limit: params.limit.orElse(QueryLimit) });
     }
 
     public function updateGroupBasics(groupId: String, name: String, description: String): Promise<Group> {
@@ -223,7 +229,7 @@ class Service extends Stream<ServiceEvent> {
     }
 
 
-    public function getUsers(page: PositiveInt): Promise<{}> {
+    public function getUsers(page: PositiveInt): Promise<Profile> {
         return send(Get, '/api/accounts');
     }
 
@@ -240,10 +246,6 @@ class Service extends Stream<ServiceEvent> {
             isGuest: true,
             isDeleted: false,
         }
-    }
-
-    inline function toOffset(page: PositiveInt): Int {
-        return (page - 1) * QueryLimit;
     }
 
     function send<T>(method: RequestMethod, url: String, ?data: Dynamic): Promise<T> {
