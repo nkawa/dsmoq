@@ -11,6 +11,8 @@
 -resource assets/dataset/list.html@template/dataset/list
 -resource assets/dataset/show.html@template/dataset/show
 -resource assets/dataset/edit.html@template/dataset/edit
+-resource assets/dataset/file-edit.html@share/dataset/file/edit
+-resource assets/dataset/file-replace.html@share/dataset/file/replace
 -resource assets/group/list.html@template/group/list
 -resource assets/group/show.html@template/group/show
 -resource assets/group/edit.html@template/group/edit

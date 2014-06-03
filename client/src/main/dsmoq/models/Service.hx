@@ -109,7 +109,7 @@ class Service extends Stream<ServiceEvent> {
         return sendForm('/api/datasets/$datasetId/files/$fileId', form);
     }
 
-    public function updateDatatetMetadata(datasetId: String, fileId: String, name: String, description: String): Promise<Unit> {
+    public function updateDatatetFileMetadata(datasetId: String, fileId: String, name: String, description: String): Promise<DatasetFile> {
         return send(Put, '/api/datasets/$datasetId/files/$fileId/metadata', { name: name, description: description });
     }
 
@@ -236,8 +236,9 @@ class Service extends Stream<ServiceEvent> {
             organization: "",
             title: "",
             image: "",
-            email: "",
-            isGuest: true
+            mailAddress: "",
+            isGuest: true,
+            isDeleted: false,
         }
     }
 

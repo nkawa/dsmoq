@@ -366,24 +366,85 @@ class Main {
                                 });
                             });
                             root.on("click", ".dataset-file-edit-start", function (e) {
-                                new JqHtml(e.target).parents(".dataset-file")
-                                    .find(".dataset-file-edit").show().end()
-                                    .find(".dataset-file-menu").hide();
-                            });
-                            root.on("click", ".dataset-file-edit-cancel", function (e) {
-                                new JqHtml(e.target).parents(".dataset-file")
-                                    .find(".dataset-file-edit").hide().end()
-                                    .find(".dataset-file-menu").show();
+                                var fid: String = new JqHtml(e.target).data("value");
+                                var file = data.dataset.files.filter(function (x) return x.id == fid)[0];
+                                var d = { name: file.name, description: file.description };
+
+                                var target = new JqHtml(e.target).parents(".dataset-file").find(".dataset-file-edit");
+                                var menu = new JqHtml(e.target).parents(".dataset-file").find(".dataset-file-menu");
+
+                                var tpl = JsViews.template(Resource.getString("share/dataset/file/edit"));
+                                tpl.link(target, d);
+                                menu.hide();
+
+                                function close() {
+                                    target.empty();
+                                    menu.show();
+                                    tpl.unlink(target);
+                                    target.off();
+                                }
+
+                                target.on("click", ".dataset-file-edit-submit", function (_) {
+                                    Service.instance.updateDatatetFileMetadata(id, fid, d.name, d.description).then(function (res) {
+                                        var fb = JsViews.objectObservable(file);
+                                        fb.setProperty("name", res.name);
+                                        fb.setProperty("description", res.description);
+                                        fb.setProperty("url", res.url);
+                                        fb.setProperty("size", res.size);
+                                        fb.setProperty("createdAt", res.createdAt);
+                                        fb.setProperty("createdBy", res.createdBy);
+                                        fb.setProperty("updatedAt", res.updatedAt);
+                                        fb.setProperty("updatedBy", res.updatedBy);
+                                        close();
+                                    });
+                                });
+
+                                target.on("click", ".dataset-file-edit-cancel", function (_) {
+                                    close();
+                                });
                             });
                             root.on("click", ".dataset-file-replace-start", function (e) {
-                                new JqHtml(e.target).parents(".dataset-file")
-                                    .find(".dataset-file-replace").show().end()
-                                    .find(".dataset-file-menu").hide();
-                            });
-                            root.on("click", ".dataset-file-replace-cancel", function (e) {
-                                new JqHtml(e.target).parents(".dataset-file")
-                                    .find(".dataset-file-replace").hide().end()
-                                    .find(".dataset-file-menu").show();
+                                var fid: String = new JqHtml(e.target).data("value");
+                                var file = data.dataset.files.filter(function (x) return x.id == fid)[0];
+
+                                var target = new JqHtml(e.target).parents(".dataset-file").find(".dataset-file-replace");
+                                var menu = new JqHtml(e.target).parents(".dataset-file").find(".dataset-file-menu");
+
+                                target.html(Resource.getString("share/dataset/file/replace"));
+                                menu.hide();
+
+                                function close() {
+                                    target.empty();
+                                    menu.show();
+                                    target.off();
+                                }
+
+                                target.find("input[type=file]").on("change", function (e) {
+                                    if (new JqHtml(e.target).val() != "") {
+                                        target.find(".dataset-file-replace-submit").attr("disabled", false);
+                                    } else {
+                                        target.find(".dataset-file-replace-submit").attr("disabled", true);
+                                    }
+                                });
+
+                                target.on("click", ".dataset-file-replace-submit", function (_) {
+                                    Service.instance.replaceDatasetFile(id, fid, target.find("form")).then(function (res) {
+                                        var fb = JsViews.objectObservable(file);
+                                        fb.setProperty("name", res.name);
+                                        fb.setProperty("description", res.description);
+                                        fb.setProperty("url", res.url);
+                                        fb.setProperty("size", res.size);
+                                        fb.setProperty("createdAt", res.createdAt);
+                                        fb.setProperty("createdBy", res.createdBy);
+                                        fb.setProperty("updatedAt", res.updatedAt);
+                                        fb.setProperty("updatedBy", res.updatedBy);
+                                        close();
+                                    });
+                                });
+
+                                target.on("click", ".dataset-file-replace-cancel", function (_) {
+                                    close();
+                                });
                             });
                             root.on("click", ".dataset-file-delete", function (e) {
                                 var fid: String = new JqHtml(e.target).data("value");
