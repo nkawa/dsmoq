@@ -605,7 +605,7 @@ object DatasetService {
     }
   }
 
-  def modifyFilename(params: DatasetData.ModifyDatasetMetadataParams): Try[String] = {
+  def modifyFilename(params: DatasetData.ModifyDatasetMetadataParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
     val name = params.filename match {
       case Some(x) => x
@@ -641,8 +641,22 @@ object DatasetService {
             .and
             .eq(f.datasetId, sqls.uuid(params.datasetId))
         }.update().apply
+
+        val result = persistence.File.find(params.fileId).get
+        Success(DatasetData.DatasetModifyFile(
+          file = DatasetData.DatasetFile(
+            id = result.id,
+            name = result.name,
+            description = result.description,
+            size = result.fileSize,
+            url = AppConf.fileDownloadRoot + params.datasetId + "/" + result.id,
+            createdBy = params.userInfo,
+            createdAt = timestamp.toString(),
+            updatedBy = params.userInfo,
+            updatedAt = timestamp.toString()
+          )
+        ))
       }
-      Success(name)
     } catch {
       case e: Exception => Failure(e)
     }

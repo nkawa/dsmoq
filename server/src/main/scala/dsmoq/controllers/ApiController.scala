@@ -268,12 +268,12 @@ class ApiController extends ScalatraServlet
     val response = for {
       userInfo <- getUserInfoFromSession()
       facadeParams = ModifyDatasetMetadataParams(userInfo, datasetId, fileId, filename, description)
-      result <- DatasetService.modifyFilename(facadeParams)
+      files <- DatasetService.modifyFilename(facadeParams)
     } yield {
-      result
+      AjaxResponse("OK", files)
     }
     response match {
-      case Success(x) => AjaxResponse("OK")
+      case Success(x) => x
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
