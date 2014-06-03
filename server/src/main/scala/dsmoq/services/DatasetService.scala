@@ -1100,7 +1100,7 @@ object DatasetService {
     }.map(_.int(o.resultName.accessLevel)).single().apply().getOrElse(0)
   }
 
-  def getGuestAccessLevel(datasetIds: Seq[String])(implicit s: DBSession): Map[String, Int] = {
+  private def getGuestAccessLevel(datasetIds: Seq[String])(implicit s: DBSession): Map[String, Int] = {
     if (datasetIds.nonEmpty) {
       val o = persistence.Ownership.syntax("o")
       withSQL {
@@ -1118,7 +1118,7 @@ object DatasetService {
     }
   }
 
-  def getImageId(datasetIds: Seq[String])(implicit s: DBSession): Map[String, String] = {
+  private def getImageId(datasetIds: Seq[String])(implicit s: DBSession): Map[String, String] = {
     if (datasetIds.nonEmpty) {
       val di = persistence.DatasetImage.syntax("di")
       withSQL {
@@ -1136,7 +1136,7 @@ object DatasetService {
     }
   }
 
-  def getOwnerGroups(datasetIds: Seq[String])(implicit s: DBSession):Map[String, Seq[DatasetData.DatasetOwnership]] = {
+  private def getOwnerGroups(datasetIds: Seq[String])(implicit s: DBSession):Map[String, Seq[DatasetData.DatasetOwnership]] = {
     if (datasetIds.nonEmpty) {
       val o = persistence.Ownership.o
       val g = persistence.Group.g
@@ -1254,7 +1254,7 @@ object DatasetService {
 
   }
 
-  def getAttributes(datasetId: String)(implicit s: DBSession) = {
+  private def getAttributes(datasetId: String)(implicit s: DBSession) = {
     val da = persistence.DatasetAnnotation.syntax("da")
     val a = persistence.Annotation.syntax("d")
     withSQL {

@@ -22,13 +22,6 @@ object GroupData {
                                     limit: Option[String],
                                     offset: Option[String]
                                     )
-  
-  case class GetGroupDatasetsParams(
-                                    userInfo: User,
-                                    groupId: String,
-                                    limit: Option[String],
-                                    offset: Option[String]
-                                    )
 
   case class CreateGroupParams(
                                 userInfo: User,
