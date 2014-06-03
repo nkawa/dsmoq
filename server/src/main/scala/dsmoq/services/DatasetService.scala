@@ -589,8 +589,8 @@ object DatasetService {
       updateDatasetFileStatus(params.datasetId, myself.id, timestamp)
 
       val result = persistence.File.find(params.fileId).get
-      Success(DatasetData.DatasetAddFiles(
-        files = ArrayBuffer(DatasetData.DatasetFile(
+      Success(DatasetData.DatasetModifyFile(
+        file = DatasetData.DatasetFile(
           id = result.id,
           name = result.name,
           description = result.description,
@@ -600,7 +600,7 @@ object DatasetService {
           createdAt = timestamp.toString(),
           updatedBy = params.userInfo,
           updatedAt = timestamp.toString()
-        ))
+        )
       ))
     }
   }
