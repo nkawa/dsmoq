@@ -10,7 +10,7 @@ import dsmoq.services.data.RangeSliceSummary
 import scala.util.Success
 import dsmoq.services.data.RangeSlice
 import dsmoq.persistence.PostgresqlHelper._
-import dsmoq.persistence.{PresetType, GroupMemberRole, AccessLevel}
+import dsmoq.persistence.{GroupType, PresetType, GroupMemberRole, AccessLevel}
 import org.joda.time.DateTime
 import dsmoq.exceptions.{InputValidationException, NotFoundException, ValidationException, NotAuthorizedException}
 import java.util.UUID
@@ -210,7 +210,7 @@ object GroupService {
           id = UUID.randomUUID.toString,
           groupId = groupId,
           userId = myself.id,
-          role = persistence.GroupMemberRole.Administrator,
+          role = persistence.GroupMemberRole.Manager,
           status = 1,
           createdBy = myself.id,
           createdAt = timestamp,
@@ -308,7 +308,8 @@ object GroupService {
         try {
           val role = x.toInt
           role match {
-            case GroupMemberRole.Administrator => role
+            case GroupMemberRole.Deny => role
+            case GroupMemberRole.Manager => role
             case GroupMemberRole.Member => role
             case _ => throw new InputValidationException("role", "role value error")
           }
@@ -394,7 +395,8 @@ object GroupService {
         try {
           val role = x.toInt
           role match {
-            case GroupMemberRole.Administrator => role
+            case GroupMemberRole.Deny => role
+            case GroupMemberRole.Manager => role
             case GroupMemberRole.Member => role
             case _ => throw new InputValidationException("role", "role value error")
           }
@@ -783,7 +785,7 @@ val g = persistence.Group.syntax("g")
         .where
         .inByUuid(o.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
         .and
-        .gt(o.accessLevel, 0)
+        .gt(o.accessLevel, AccessLevel.Deny)
         .and
         .isNull(ds.deletedAt)
         .and
@@ -998,9 +1000,9 @@ val g = persistence.Group.syntax("g")
         .where
         .eq(g.id, sqls.uuid(groupId))
         .and
-        .eq(g.groupType, 0)
+        .eq(g.groupType, GroupType.Public)
         .and
-        .eq(m.role, 1)
+        .eq(m.role, GroupMemberRole.Manager)
         .and
         .eq(m.userId, sqls.uuid(user.id))
         .and
