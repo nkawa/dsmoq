@@ -1377,7 +1377,7 @@ object DatasetService {
           .isNull(di.deletedAt)
           .and
           .isNull(i.deletedAt)
-        .orderBy(i.name)
+        .orderBy(i.name, i.createdAt)
     }.map(rs =>
       (
         persistence.DatasetImage(di.resultName)(rs),
@@ -1409,7 +1409,7 @@ object DatasetService {
           .eq(f.datasetId, sqls.uuid(datasetId))
           .and
           .isNull(f.deletedAt)
-        .orderBy(f.name)
+        .orderBy(f.name, f.createdAt)
     }.map(rs =>
       (
         persistence.File(f.resultName)(rs),
