@@ -118,7 +118,7 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           get("/api/groups/" + groupId) {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Group]]
-            result.data.images.size should be(1)
+            result.data.images.size should be(2)
             assert(result.data.images.map(_.id).contains(imageId))
           }
         }
@@ -147,7 +147,7 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           get("/api/groups/" + groupId) {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Group]]
-            result.data.images.size should be(2)
+            result.data.images.size should be(3)
             assert(!result.data.images.map(_.id).contains(imageId))
           }
         }

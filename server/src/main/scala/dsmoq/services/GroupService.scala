@@ -189,7 +189,7 @@ object GroupService {
         persistence.GroupImage.create(
           id = UUID.randomUUID.toString,
           groupId = groupId,
-          imageId = AppConf.defaultDatasetImageId,
+          imageId = AppConf.defaultGroupImageId,
           isPrimary = true,
           createdBy = myself.id,
           createdAt = timestamp,
@@ -203,10 +203,10 @@ object GroupService {
         name = group.name,
         description = group.description,
         images = Seq(Image(
-          id = AppConf.defaultDatasetImageId,
-          url = AppConf.imageDownloadRoot + AppConf.defaultDatasetImageId
+          id = AppConf.defaultGroupImageId,
+          url = AppConf.imageDownloadRoot + AppConf.defaultGroupImageId
         )),
-        primaryImage = AppConf.defaultDatasetImageId,
+        primaryImage = AppConf.defaultGroupImageId,
         isMember = true,
         role = persistence.GroupMemberRole.Manager
       ))
