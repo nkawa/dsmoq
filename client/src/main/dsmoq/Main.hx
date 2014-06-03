@@ -251,6 +251,10 @@ class Main {
                 {
                     navigation: new ControllableStream(),
                     invalidate: function (container: Element) {
+                        //Service.instance.findDatasets({o}
+
+
+
                         View.getTemplate("dashboard/show").link(container, {});
                     },
                     dispose: function () {
@@ -505,10 +509,19 @@ class Main {
                 {
                     navigation: new ControllableStream(),
                     invalidate: function (container: Element) {
+                        var root = new JqHtml(container);
                         Service.instance.getGroup(id).then(function (res) {
-                            View.getTemplate("group/show").link(container, res);
+                            View.getTemplate("group/show").link(root, res);
 
-                            Service.instance.getGroupMembers(id, 1).then(function (x) {
+                            root.find("#group-edit").on("click", function (_) {
+                                trace("edit");
+                            });
+
+                            root.find("#group-delete").on("click", function (_) {
+                                trace("delete");
+                            });
+
+                            Service.instance.getGroupMembers(id).then(function (x) {
                                 trace(x);
                             });
                         });
