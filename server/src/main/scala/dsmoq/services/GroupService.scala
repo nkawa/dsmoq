@@ -186,16 +186,29 @@ object GroupService {
           updatedBy = myself.id,
           updatedAt = timestamp
         )
+        persistence.GroupImage.create(
+          id = UUID.randomUUID.toString,
+          groupId = groupId,
+          imageId = AppConf.defaultDatasetImageId,
+          isPrimary = true,
+          createdBy = myself.id,
+          createdAt = timestamp,
+          updatedBy = myself.id,
+          updatedAt = timestamp
+        )
         group
       }
       Success(GroupData.Group(
         id = group.id,
         name = group.name,
         description = group.description,
-        images = Seq.empty,
-        primaryImage = null,
+        images = Seq(Image(
+          id = AppConf.defaultDatasetImageId,
+          url = AppConf.imageDownloadRoot + AppConf.defaultDatasetImageId
+        )),
+        primaryImage = AppConf.defaultDatasetImageId,
         isMember = true,
-        role = 1
+        role = persistence.GroupMemberRole.Manager
       ))
     } catch {
       case e: Exception => Failure(e)
