@@ -365,6 +365,26 @@ class Main {
                                     JsViews.arrayObservable(data.dataset.files).insert(res[0]);
                                 });
                             });
+                            root.on("click", ".dataset-file-edit-start", function (e) {
+                                new JqHtml(e.target).parents(".dataset-file")
+                                    .find(".dataset-file-edit").show().end()
+                                    .find(".dataset-file-menu").hide();
+                            });
+                            root.on("click", ".dataset-file-edit-cancel", function (e) {
+                                new JqHtml(e.target).parents(".dataset-file")
+                                    .find(".dataset-file-edit").hide().end()
+                                    .find(".dataset-file-menu").show();
+                            });
+                            root.on("click", ".dataset-file-replace-start", function (e) {
+                                new JqHtml(e.target).parents(".dataset-file")
+                                    .find(".dataset-file-replace").show().end()
+                                    .find(".dataset-file-menu").hide();
+                            });
+                            root.on("click", ".dataset-file-replace-cancel", function (e) {
+                                new JqHtml(e.target).parents(".dataset-file")
+                                    .find(".dataset-file-replace").hide().end()
+                                    .find(".dataset-file-menu").show();
+                            });
                             root.on("click", ".dataset-file-delete", function (e) {
                                 var fid: String = new JqHtml(e.target).data("value");
                                 JsTools.confirm("can delete?").bind(function (_) {
