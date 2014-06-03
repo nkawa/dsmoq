@@ -268,12 +268,12 @@ class ApiController extends ScalatraServlet
     val response = for {
       userInfo <- getUserInfoFromSession()
       facadeParams = ModifyDatasetMetadataParams(userInfo, datasetId, fileId, filename, description)
-      result <- DatasetService.modifyFilename(facadeParams)
+      files <- DatasetService.modifyFilename(facadeParams)
     } yield {
-      result
+      AjaxResponse("OK", files)
     }
     response match {
-      case Success(x) => AjaxResponse("OK")
+      case Success(x) => x
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
@@ -629,39 +629,15 @@ class ApiController extends ScalatraServlet
 
   post("/groups/:groupId/members") {
     val groupId = params("groupId")
-    val userId = params.get("id")
-    val role = params.get("role")
+    val userIds = multiParams.get("id[]")
+    val roles = multiParams.get("role[]")
 
     val response = for {
       userInfo <- getUserInfoFromSession()
-      facadeParams = AddUserToGroupParams(userInfo, groupId, userId, role)
-      user <- GroupService.addUser(facadeParams)
+      facadeParams = SetUserRoleParams(userInfo, groupId, userIds, roles)
+      userIds <- GroupService.setUserRole(facadeParams)
     } yield {
-      AjaxResponse("OK", user)
-    }
-    response match {
-      case Success(x) => x
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: NotFoundException => AjaxResponse("NotFound")
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
-  }
-
-  put("/groups/:groupId/members/:memberId/role") {
-    val groupId = params("groupId")
-    val memberId = params("memberId")
-    val role = params.get("role")
-
-    val response = for {
-      userInfo <- getUserInfoFromSession()
-      facadeParams = ModifyMemberRoleParams(userInfo, groupId, memberId, role)
-      result <- GroupService.modifyMemberRole(facadeParams)
-    } yield {
-      result
+      userIds
     }
     response match {
       case Success(x) => AjaxResponse("OK")
@@ -670,28 +646,6 @@ class ApiController extends ScalatraServlet
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
           case e: NotFoundException => AjaxResponse("NotFound")
           case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
-  }
-
-  delete("/groups/:groupId/members/:memberId") {
-    val groupId = params("groupId")
-    val memberId = params("memberId")
-
-    val response = for {
-      userInfo <- getUserInfoFromSession()
-      facadeParams = DeleteMemberParams(userInfo, groupId, memberId)
-      result <- GroupService.deleteMember(facadeParams)
-    } yield {
-      result
-    }
-    response match {
-      case Success(x) => AjaxResponse("OK")
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: NotFoundException => AjaxResponse("NotFound")
           case _ => AjaxResponse("NG")
         }
     }

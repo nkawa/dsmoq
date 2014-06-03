@@ -589,8 +589,8 @@ object DatasetService {
       updateDatasetFileStatus(params.datasetId, myself.id, timestamp)
 
       val result = persistence.File.find(params.fileId).get
-      Success(DatasetData.DatasetAddFiles(
-        files = ArrayBuffer(DatasetData.DatasetFile(
+      Success(DatasetData.DatasetModifyFile(
+        file = DatasetData.DatasetFile(
           id = result.id,
           name = result.name,
           description = result.description,
@@ -600,12 +600,12 @@ object DatasetService {
           createdAt = timestamp.toString(),
           updatedBy = params.userInfo,
           updatedAt = timestamp.toString()
-        ))
+        )
       ))
     }
   }
 
-  def modifyFilename(params: DatasetData.ModifyDatasetMetadataParams): Try[String] = {
+  def modifyFilename(params: DatasetData.ModifyDatasetMetadataParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
     val name = params.filename match {
       case Some(x) => x
@@ -641,8 +641,22 @@ object DatasetService {
             .and
             .eq(f.datasetId, sqls.uuid(params.datasetId))
         }.update().apply
+
+        val result = persistence.File.find(params.fileId).get
+        Success(DatasetData.DatasetModifyFile(
+          file = DatasetData.DatasetFile(
+            id = result.id,
+            name = result.name,
+            description = result.description,
+            size = result.fileSize,
+            url = AppConf.fileDownloadRoot + params.datasetId + "/" + result.id,
+            createdBy = params.userInfo,
+            createdAt = timestamp.toString(),
+            updatedBy = params.userInfo,
+            updatedAt = timestamp.toString()
+          )
+        ))
       }
-      Success(name)
     } catch {
       case e: Exception => Failure(e)
     }
@@ -1377,7 +1391,7 @@ object DatasetService {
           .isNull(di.deletedAt)
           .and
           .isNull(i.deletedAt)
-        .orderBy(i.name)
+        .orderBy(i.name, i.createdAt)
     }.map(rs =>
       (
         persistence.DatasetImage(di.resultName)(rs),
@@ -1409,7 +1423,7 @@ object DatasetService {
           .eq(f.datasetId, sqls.uuid(datasetId))
           .and
           .isNull(f.deletedAt)
-        .orderBy(f.name)
+        .orderBy(f.name, f.createdAt)
     }.map(rs =>
       (
         persistence.File(f.resultName)(rs),

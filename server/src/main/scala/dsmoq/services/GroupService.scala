@@ -186,16 +186,29 @@ object GroupService {
           updatedBy = myself.id,
           updatedAt = timestamp
         )
+        persistence.GroupImage.create(
+          id = UUID.randomUUID.toString,
+          groupId = groupId,
+          imageId = AppConf.defaultDatasetImageId,
+          isPrimary = true,
+          createdBy = myself.id,
+          createdAt = timestamp,
+          updatedBy = myself.id,
+          updatedAt = timestamp
+        )
         group
       }
       Success(GroupData.Group(
         id = group.id,
         name = group.name,
         description = group.description,
-        images = Seq.empty,
-        primaryImage = null,
+        images = Seq(Image(
+          id = AppConf.defaultDatasetImageId,
+          url = AppConf.imageDownloadRoot + AppConf.defaultDatasetImageId
+        )),
+        primaryImage = AppConf.defaultDatasetImageId,
         isMember = true,
-        role = 1
+        role = persistence.GroupMemberRole.Manager
       ))
     } catch {
       case e: Exception => Failure(e)
@@ -264,33 +277,39 @@ object GroupService {
     }
   }
 
-  def addUser(params: GroupData.AddUserToGroupParams) = {
+  def setUserRole(params: GroupData.SetUserRoleParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
 
     // FIXME input parameter check
-    val userId = params.userId match {
+    val userIds = params.userIds match {
       case Some(x) => x
       case None => throw new InputValidationException("id", "ID is empty")
     }
-    val role = params.role match {
+    val roles = params.roles match {
       case Some(x) =>
         try {
-          val role = x.toInt
-          role match {
-            case GroupMemberRole.Deny => role
-            case GroupMemberRole.Manager => role
-            case GroupMemberRole.Member => role
-            case _ => throw new InputValidationException("role", "role value error")
+          val roles = x.map(_.toInt)
+          roles.foreach { r =>
+            r match {
+              case GroupMemberRole.Deny => // do nothing
+              case GroupMemberRole.Manager => // do nothing
+              case GroupMemberRole.Member => // do nothing
+              case _ => throw new InputValidationException("role", "role value error")
+            }
           }
+          roles
         } catch {
           case e: InputValidationException => throw e
           case e: Exception => throw new InputValidationException("role", "role format error")
         }
       case None => throw new InputValidationException("role", "role is empty")
     }
+    if (userIds.size != roles.size) {
+      throw new InputValidationException("id", "parameters are not same size")
+    }
 
     try {
-      val result = DB localTx { implicit s =>
+      DB localTx { implicit s =>
         try {
           getGroup(params.groupId) match {
             case Some(x) =>
@@ -298,158 +317,58 @@ object GroupService {
               if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
             case None => throw new NotFoundException
           }
-          if (!isValidUser(userId)) throw new NotFoundException
+          userIds.foreach { x =>
+            if (!isValidUser(x)) throw new InputValidationException("id", "ID is not found")
+          }
         } catch {
           case e: NotAuthorizedException => throw e
+          case e: InputValidationException => throw e
           case e: Exception => throw new NotFoundException
         }
 
         val myself = persistence.User.find(params.userInfo.id).get
-        val addUser = persistence.User.find(userId).get
         val timestamp = DateTime.now()
 
-        val m = persistence.Member.syntax("m")
-        withSQL {
-          select(m.result.*)
-            .from(persistence.Member as m)
-            .where
-            .eq(m.userId, sqls.uuid(userId))
-            .and
-            .eq(m.groupId, sqls.uuid(params.groupId))
-        }.map(persistence.Member(m.resultName)).single().apply match {
-          case Some(x) =>
-            // create
-            val m = persistence.Member.column
-            withSQL {
-              update(persistence.Member)
-              .set(m.role -> role, m.status -> 1, m.updatedAt -> timestamp, m.updatedBy -> sqls.uuid(myself.id),
-                  m.deletedAt -> null, m.deletedBy -> null)
+        (0 to userIds.size - 1).foreach {i =>
+          val user = persistence.User.find(userIds(i)).get
+          val m = persistence.Member.syntax("m")
+          withSQL {
+            select(m.result.*)
+              .from(persistence.Member as m)
               .where
-              .eq(m.userId, sqls.uuid(userId))
+              .eq(m.userId, sqls.uuid(userIds(i)))
               .and
               .eq(m.groupId, sqls.uuid(params.groupId))
-            }.update().apply
-          case None =>
-            // update
-            persistence.Member.create(
-              id = UUID.randomUUID.toString,
-              groupId = params.groupId,
-              userId = addUser.id,
-              role = role,
-              status = 1,
-              createdBy = myself.id,
-              createdAt = timestamp,
-              updatedBy = myself.id,
-              updatedAt = timestamp
-            )
-        }
-        addUser
-      }
-      Success(GroupData.AddMember(
-        id = result.id,
-        name = result.name,
-        organization = result.organization,
-        role = role
-      ))
-    } catch {
-      case e: Exception => Failure(e)
-    }
-  }
-
-  def modifyMemberRole(params: GroupData.ModifyMemberRoleParams) = {
-    if (params.userInfo.isGuest) throw new NotAuthorizedException
-
-    val role = params.role match {
-      case Some(x) =>
-        try {
-          val role = x.toInt
-          role match {
-            case GroupMemberRole.Deny => role
-            case GroupMemberRole.Manager => role
-            case GroupMemberRole.Member => role
-            case _ => throw new InputValidationException("role", "role value error")
-          }
-        } catch {
-          case e: InputValidationException => throw e
-          case e: Exception => throw new InputValidationException("role", "role format error")
-        }
-      case None => throw new InputValidationException("role", "role is empty")
-    }
-
-    try {
-      val result = DB localTx { implicit s =>
-        try {
-          getGroup(params.groupId) match {
+          }.map(persistence.Member(m.resultName)).single().apply match {
             case Some(x) =>
-              // 権限チェック
-              if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
-            case None => throw new NotFoundException
+              // create
+              val m = persistence.Member.column
+              withSQL {
+                update(persistence.Member)
+                  .set(m.role -> roles(i), m.status -> 1, m.updatedAt -> timestamp, m.updatedBy -> sqls.uuid(myself.id),
+                    m.deletedAt -> null, m.deletedBy -> null)
+                  .where
+                  .eq(m.userId, sqls.uuid(userIds(i)))
+                  .and
+                  .eq(m.groupId, sqls.uuid(params.groupId))
+              }.update().apply
+            case None =>
+              // update
+              persistence.Member.create(
+                id = UUID.randomUUID.toString,
+                groupId = params.groupId,
+                userId = user.id,
+                role = roles(i),
+                status = 1,
+                createdBy = myself.id,
+                createdAt = timestamp,
+                updatedBy = myself.id,
+                updatedAt = timestamp
+              )
           }
-          if (!isValidGroupMember(params.groupId, params.memberId)) throw new NotFoundException
-        } catch {
-          case e: NotAuthorizedException => throw e
-          case e: Exception => throw new NotFoundException
         }
-
-        val myself = persistence.User.find(params.userInfo.id).get
-        val timestamp = DateTime.now()
-
-        withSQL {
-          val m = persistence.Member.column
-          update(persistence.Member)
-            .set(m.role -> role,
-              m.updatedBy -> sqls.uuid(myself.id), m.updatedAt -> timestamp)
-            .where
-            .eq(m.userId, sqls.uuid(params.memberId))
-            .and
-            .eq(m.groupId, sqls.uuid(params.groupId))
-            .and
-            .isNull(m.deletedAt)
-        }.update().apply
       }
-      Success(result)
-    } catch {
-      case e: Exception => Failure(e)
-    }
-  }
-
-  def deleteMember(params: GroupData.DeleteMemberParams) = {
-    if (params.userInfo.isGuest) throw new NotAuthorizedException
-
-    try {
-      val result = DB localTx { implicit s =>
-        // 権限チェック
-//        if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
-        try {
-          getGroup(params.groupId) match {
-            case Some(x) =>
-              // 権限チェック
-              if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
-            case None => throw new NotFoundException
-          }
-          if (!isValidGroupMember(params.groupId, params.memberId)) throw new NotFoundException
-        } catch {
-          case e: NotAuthorizedException => throw e
-          case e: Exception => throw new NotFoundException
-        }
-
-        val myself = persistence.User.find(params.userInfo.id).get
-        val timestamp = DateTime.now()
-
-        withSQL {
-          val m = persistence.Member.column
-          update(persistence.Member)
-            .set(m.deletedBy -> sqls.uuid(myself.id), m.deletedAt -> timestamp,
-              m.updatedBy -> sqls.uuid(myself.id), m.updatedAt -> timestamp)
-            .where
-            .eq(m.userId, sqls.uuid(params.memberId))
-            .and
-            .eq(m.groupId, sqls.uuid(params.groupId))
-            .and
-            .isNull(m.deletedAt)
-        }.update().apply
-      }
-      Success(result)
+      Success(userIds)
     } catch {
       case e: Exception => Failure(e)
     }
@@ -835,6 +754,8 @@ val g = persistence.Group.syntax("g")
         .innerJoin(persistence.Group as g).on(sqls.eq(g.id, m.groupId).and.isNull(g.deletedAt))
         .where
         .eq(m.groupId, sqls.uuid(groupId))
+        .and
+        .not.eq(m.role, GroupMemberRole.Deny)
         .and
         .isNull(m.deletedAt)
         .orderBy(m.updatedAt).desc

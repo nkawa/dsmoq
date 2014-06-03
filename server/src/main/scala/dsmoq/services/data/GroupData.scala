@@ -36,25 +36,12 @@ object GroupData {
                                 description: Option[String]
                                 )
 
-  case class AddUserToGroupParams(
+  case class SetUserRoleParams(
                                    userInfo: User,
                                    groupId: String,
-                                   userId: Option[String],
-                                   role: Option[String]
+                                   userIds: Option[Seq[String]],
+                                   roles: Option[Seq[String]]
                                    )
-
-  case class ModifyMemberRoleParams(
-                                     userInfo: User,
-                                     groupId: String,
-                                     memberId: String,
-                                     role: Option[String]
-                                     )
-
-  case class DeleteMemberParams(
-                                 userInfo: User,
-                                 groupId: String,
-                                 memberId: String
-                                 )
 
   case class DeleteGroupParams(
                                 userInfo: User,

@@ -16,6 +16,7 @@ import dsmoq.services.data.GroupData.GroupsSummary
 import dsmoq.controllers.AjaxResponse
 import dsmoq.services.data.{User, RangeSlice}
 import dsmoq.services.data.DatasetData.{DatasetsSummary, Dataset}
+import dsmoq.persistence.GroupMemberRole
 
 class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
@@ -202,12 +203,8 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val groupId = createGroup()
-          val params = Map("id" -> dummyUserUUID, "role" -> "0")
-          post("/api/groups/" + groupId + "/members", params) {
-            checkStatus()
-            val result = parse(body).extract[AjaxResponse[AddMember]]
-            result.data.id should be(dummyUserUUID)
-          }
+          val params = Map("id[]" -> dummyUserUUID, "role[]" -> GroupMemberRole.Member.toString)
+          post("/api/groups/" + groupId + "/members", params) { checkStatus() }
 
           get("/api/groups/" + groupId + "/members") {
             checkStatus()
@@ -221,15 +218,12 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val groupId = createGroup()
-          val params = Map("id" -> dummyUserUUID, "role" -> "0")
-          post("/api/groups/" + groupId + "/members", params) {
-            checkStatus()
-            val result = parse(body).extract[AjaxResponse[AddMember]]
-            result.data.id should be(dummyUserUUID)
-          }
+          val params = Map("id[]" -> dummyUserUUID, "role[]" -> GroupMemberRole.Member.toString)
+          post("/api/groups/" + groupId + "/members", params) { checkStatus() }
 
-          val changeParams = Map("role" -> "1")
-          put("/api/groups/" + groupId + "/members/" + dummyUserUUID + "/role", changeParams) { checkStatus() }
+          // ロール変更
+          val changeParams = Map("id[]" -> dummyUserUUID, "role[]" -> GroupMemberRole.Manager.toString)
+          post("/api/groups/" + groupId + "/members", changeParams) { checkStatus() }
 
           get("/api/groups/" + groupId + "/members") {
             checkStatus()
@@ -237,7 +231,7 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             assert(result.data.results.map(_.id).contains(dummyUserUUID))
             result.data.results.map {x =>
               if (x.id == dummyUserUUID) {
-                x.role should be(1)
+                x.role should be(GroupMemberRole.Manager)
               }
             }
           }
@@ -248,17 +242,16 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val groupId = createGroup()
-          val params = Map("id" -> dummyUserUUID, "role" -> "0")
-          post("/api/groups/" + groupId + "/members", params) {
-            checkStatus()
-            val result = parse(body).extract[AjaxResponse[AddMember]]
-            result.data.id should be(dummyUserUUID)
-          }
+          val params = Map("id[]" -> dummyUserUUID, "role[]" -> GroupMemberRole.Member.toString)
+          post("/api/groups/" + groupId + "/members", params) { checkStatus() }
 
-          delete("/api/groups/" + groupId + "/members/" + dummyUserUUID) { checkStatus() }
+          // ロール削除(Denyに変更)
+          val deleteParams = Map("id[]" -> dummyUserUUID, "role[]" -> GroupMemberRole.Deny.toString)
+          post("/api/groups/" + groupId + "/members", deleteParams) { checkStatus() }
 
           get("/api/groups/" + groupId + "/members") {
             checkStatus()
+            println(groupId)
             val result = parse(body).extract[AjaxResponse[RangeSlice[MemberSummary]]]
             assert(!result.data.results.map(_.id).contains(dummyUserUUID))
           }

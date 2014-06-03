@@ -24,6 +24,7 @@ class ImageController extends ScalatraServlet with SessionTrait {
     ImageService.getFile(imageId, size) match {
       case Success(x) =>
         response.setHeader("Content-Disposition", "inline; filename=" + x._2)
+        response.setHeader("Content-Type", "application/octet-stream;charset=binary")
         x._1
       case Failure(e) =>
         NotFound("file not found.")
