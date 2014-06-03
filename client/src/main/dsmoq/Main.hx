@@ -505,8 +505,13 @@ class Main {
                 {
                     navigation: new ControllableStream(),
                     invalidate: function (container: Element) {
-                        var binding = JsViews.objectObservable({});
-                        View.getTemplate("group/show").link(container, binding.data());
+                        Service.instance.getGroup(id).then(function (res) {
+                            View.getTemplate("group/show").link(container, res);
+
+                            Service.instance.getGroupMembers(id, 1).then(function (x) {
+                                trace(x);
+                            });
+                        });
                     },
                     dispose: function () {
                     }

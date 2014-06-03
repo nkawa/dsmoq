@@ -1,55 +1,3 @@
-<div class="panel panel-default">
-  <div class="panel-body">
-    <div class="row">
-      <div class="col-sm-10">
-        <h1>
-          <img src="{{>image}}">
-          {{>name}} {{if isMember}}<small>joined</small>{{/if}}
-        </h1>
-        <p>{{>description}}</p>
-      </div>
-      <div class="col-sm-2 text-right">
-        <div class="btn-group-vertical">
-          <button type="button"  class="btn btn-default"><span class="glyphicon glyphicon-edit"></span> Edit</button>
-          <button type="button" class="btn btn-default"><span class="glyphicon glyphicon-trash"></span> Delete</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-<div class="panel panel-default panel-with-pagination">
-    <div class="panel-heading">
-        <div class="row">
-            <div class="col-sm-6"> Members(30)</div>
-            <div class="col-sm-6 text-right">
-                <ul class="pagination pagination-sm">
-                    <li><a class="disabled" href="#">&laquo;</a></li>
-                    <li class="active"><a href="#">1 <span class="sr-only">(current)</span></a></li>
-                    <li><a href="#">2</a></li> <li><a href="#">3</a></li>
-                    <li><a href="#">4</a></li> <li><a href="#">5</a></li>
-                    <li><a href="#">&raquo;</a></li>
-                </ul>
-            </div>
-        </div>
-    </div>
-    <table class="table">
-        <thead>
-            <tr><th>Name</th><th>Organization</th><th>Access</th></tr>
-        </thead>
-        <tbody>
-        <tr><td><img src="/resources/dummy/images/user.jpg" class="icon">john001</td>
-            <td>Nagoya Univ.</td><td>Reader</td></tr>
-        <tr><td><img src="/resources/dummy/images/user.jpg" class="icon">paul001</td>
-            <td>Nagoya Univ.</td><td>Manager</td></tr>
-        <tr><td><img src="/resources/dummy/images/user.jpg" class="icon">george001</td>
-            <td>Nagoya Univ.</td><td>Reader</td></tr>
-        <tr><td><img src="/resources/dummy/images/user.jpg" class="icon">ringo001</td>
-            <td>Nagoya Univ.</td><td>Reader</td></tr>
-        <tr><td><img src="/resources/dummy/images/user.jpg" class="icon">martin001</td>
-            <td>Nagoya Univ.</td><td>Manager</td></tr>
-        </tbody>
-    </table>
-</div>
 <div class="panel panel-default panel-with-pagination">
     <div class="panel-heading">
         <div class="row">
@@ -179,4 +127,3 @@
         </li>
     </ul>
 </div>
-

@@ -15,6 +15,8 @@
 -resource assets/dataset/file-replace.html@share/dataset/file/replace
 -resource assets/group/list.html@template/group/list
 -resource assets/group/show.html@template/group/show
+-resource assets/group/member-list.html@share/group/member/list
+-resource assets/group/dataset-list.html@share/group/dataset/list
 -resource assets/group/edit.html@template/group/edit
 -resource assets/profile/edit.html@template/profile/edit
 -debug
