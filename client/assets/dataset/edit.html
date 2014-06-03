@@ -72,7 +72,7 @@
       </div>
       <form role="form" id="dataset-icon-form">
         <div class="form-group">
-          <div><label class="control-label">Replace icon</label></div>
+          <div><label class="control-label">Change icon</label></div>
           <div>
             <input type="file" name="images[]" style="display:inline;">
             <a href="javascript:void 0;" class="btn btn-primary btn-sm" id="dataset-icon-submit" style="display:none;">Upload</a>
@@ -105,9 +105,9 @@
           </div>
           <div class="row" style="margin-top: 4px;">
             <div class="col-sm-12">
-              <button type="button" class="btn btn-xs" id="dataset-file-edit">edit</button>
-              <button type="button" class="btn btn-xs" id="dataset-file-replace">replace</button>
-              <button type="button" class="btn btn-xs" id="dataset-file-delete">delete</button>
+              <button type="button" class="btn btn-xs dataset-file-edit" data-value="{{>id}}">edit</button>
+              <button type="button" class="btn btn-xs dataset-file-replace" data-value="{{>id}}">replace</button>
+              <button type="button" class="btn btn-xs dataset-file-delete" data-value="{{>id}}">delete</button>
             </div>
           </div>
 

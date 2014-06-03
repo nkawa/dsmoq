@@ -1,6 +1,7 @@
 package js.support;
 
 import js.Browser;
+import js.Error;
 
 class JsTools {
     static function __init__() {
@@ -51,5 +52,16 @@ class JsTools {
 
     public static inline function encodeURI(x: String): String {
         return untyped __js__("encodeURI")(x);
+    }
+
+    public static inline function confirm(msg: String): Promise<Unit> {
+        return new Promise(function (resolve, reject) {
+            if (Browser.window.confirm(msg)) {
+                resolve(Unit._);
+            } else {
+                reject(new Error("Canceled"));
+            }
+            return function () { };
+        });
     }
 }
