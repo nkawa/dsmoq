@@ -12,10 +12,13 @@ import org.scalatra.servlet.MultipartConfig
 import dsmoq.persistence.SuggestType
 import dsmoq.services.data.GroupData.Group
 import java.util.UUID
+import dsmoq.AppConf
+import dsmoq.services.data.DatasetData.Dataset
 
 class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
 
+  private val dummyFile = new File("README.md")
   private val dummyImage = new File("../client/www/dummy/images/nagoya.jpg")
 
   // multi-part file upload config
@@ -218,6 +221,36 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               case _ => fail()
             }
           }
+        }
+      }
+
+      "属性候補一覧を取得できるか" in {
+        // データセットを作成し、attributesを設定(作成)しておく
+        val attributeName = UUID.randomUUID().toString
+        session {
+          signIn()
+          val files = Map("file[]" -> dummyFile)
+          val datasetId = post("/api/datasets", Map.empty, files) {
+            checkStatus()
+            parse(body).extract[AjaxResponse[Dataset]].data.id
+          }
+
+          val params = List(
+            "name" -> "変更後データセット",
+            "description" -> "change description",
+            "license" -> AppConf.defaultLicenseId,
+            "attributes[][name]" -> attributeName,
+            "attributes[][value]" -> "attr_value"
+          )
+          put("/api/datasets/" + datasetId + "/metadata", params) { checkStatus() }
+        }
+
+        // 属性候補から作成したattributesが取得できるか
+        val query = Map("query" -> attributeName)
+        get("/api/suggests/attributes", query) {
+          checkStatus()
+          val result = parse(body).extract[AjaxResponse[Seq[String]]]
+          assert(result.data.contains(attributeName))
         }
       }
     }

@@ -379,6 +379,28 @@ object AccountService extends SessionTrait {
     }
   }
 
+  def getAttributes(param: Option[String]) = {
+    val query = param match {
+      case Some(x) => x + "%"
+      case None => ""
+    }
+
+    val a = persistence.Annotation.a
+    DB readOnly { implicit s =>
+      val attributes = withSQL {
+        select(a.result.*)
+          .from(persistence.Annotation as a)
+          .where
+          .like(a.name, query)
+          .and
+          .isNull(a.deletedAt)
+          .orderBy(a.name)
+          .limit(100)
+      }.map(rs => rs.string(a.resultName.name)).list().apply
+      attributes
+    }
+  }
+
   private def createPasswordHash(password: String) = {
     MessageDigest.getInstance("SHA-256").digest(password.getBytes("UTF-8")).map("%02x".format(_)).mkString
   }
