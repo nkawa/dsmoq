@@ -8,17 +8,20 @@
             <span>{^{>meta.name}}</span> {^{if defaultAccessLevel == 0}}<span class="status text-danger">(private)</span>{{/if}}
           </div>
           <div class="title-owners text-muted">
+            Owner:
             {^{for ownerships}}
-              <span>{{>name}}</span>
+              <span>{{>fullname}}</span>
             {{/for}}
           </div>
         </h1>
       </div>
       <div class="col-sm-2 text-right">
+        {^{if permission >= 3}}
         <div class="btn-group-vertical">
           <button type="button" class="btn btn-default" id="dataset-edit"><span class="glyphicon glyphicon-edit"></span> Edit</button>
           <button type="button" class="btn btn-default" id="dataset-delete"><span class="glyphicon glyphicon-trash"></span> Delete</button>
         </div>
+        {{/if}}
       </div>
     </div>
     <p class="view-description">{^{>meta.description}}</p>
