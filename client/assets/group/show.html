@@ -3,184 +3,93 @@
     <div class="row">
       <div class="col-sm-10">
         <h1>
-          <img src="{{>image}}">
-          {{>name}} {{if isMember}}<small>joined</small>{{/if}}
+          <img data-link="src{>group.primaryImage.url}">
+          {^{>group.name}} {^{if group.role >= 1}}<small>joined</small>{{/if}}
         </h1>
-        <p>{{>description}}</p>
+        <p>{^{>group.description}}</p>
       </div>
       <div class="col-sm-2 text-right">
-        <div class="btn-group-vertical">
-          <button type="button" class="btn btn-default" id="group-edit"><span class="glyphicon glyphicon-edit"></span> Edit</button>
-          <button type="button" class="btn btn-default" id="group-delete"><span class="glyphicon glyphicon-trash"></span> Delete</button>
-        </div>
+        {^{if group.role >= 2}}
+          <div class="btn-group-vertical">
+            <button type="button" class="btn btn-default" id="group-edit"><span class="glyphicon glyphicon-edit"></span> Edit</button>
+            <button type="button" class="btn btn-default" id="group-delete"><span class="glyphicon glyphicon-trash"></span> Delete</button>
+          </div>
+        {{/if}}
       </div>
     </div>
   </div>
 </div>
-<div id="group-members"></div>
-<div id="group-datasets"></div>
 
-
-<div class="panel panel-default panel-with-pagination">
+{^{async members}}
+  <div class="panel panel-default panel-with-pagination">
     <div class="panel-heading">
-        <div class="row">
-            <div class="col-sm-6"> Members(30)</div>
-            <div class="col-sm-6 text-right">
-                <ul class="pagination pagination-sm">
-                    <li><a class="disabled" href="#">&laquo;</a></li>
-                    <li class="active"><a href="#">1 <span class="sr-only">(current)</span></a></li>
-                    <li><a href="#">2</a></li> <li><a href="#">3</a></li>
-                    <li><a href="#">4</a></li> <li><a href="#">5</a></li>
-                    <li><a href="#">&raquo;</a></li>
-                </ul>
-            </div>
+      <div class="row">
+        <div class="col-sm-6">Members: {{>summary.total}} records</div>
+        <div class="col-sm-6 text-right">
+          {^{pagination summary id="members-pagination" class="pagination-sm" pagesize=20 pagedelta=5 /}}
         </div>
+      </div>
     </div>
     <table class="table">
-        <thead>
-            <tr><th>Name</th><th>Organization</th><th>Access</th></tr>
-        </thead>
-        <tbody>
-        <tr><td><img src="/resources/dummy/images/user.jpg" class="icon">john001</td>
-            <td>Nagoya Univ.</td><td>Reader</td></tr>
-        <tr><td><img src="/resources/dummy/images/user.jpg" class="icon">paul001</td>
-            <td>Nagoya Univ.</td><td>Manager</td></tr>
-        <tr><td><img src="/resources/dummy/images/user.jpg" class="icon">george001</td>
-            <td>Nagoya Univ.</td><td>Reader</td></tr>
-        <tr><td><img src="/resources/dummy/images/user.jpg" class="icon">ringo001</td>
-            <td>Nagoya Univ.</td><td>Reader</td></tr>
-        <tr><td><img src="/resources/dummy/images/user.jpg" class="icon">martin001</td>
-            <td>Nagoya Univ.</td><td>Manager</td></tr>
-        </tbody>
+      <tbody>
+        {^{for results}}
+          <tr>
+            <td><img src="{{>image}}" class="icon">{{>fullname}}</td>
+            <td>{{>organization}}</td>
+            <td>
+              {{if role == 2}}
+                Manager
+              {{else role == 1}}
+                Member
+              {{/if}}
+            </td>
+          </tr>
+        {{/for}}
+      </tbody>
     </table>
-</div>
-<div class="panel panel-default panel-with-pagination">
+  </div>
+{{/async}}
+
+{^{async datasets}}
+  <div class="panel panel-default panel-with-pagination">
     <div class="panel-heading">
-        <div class="row">
-            <div class="col-sm-6"> Data Sets(12)</div>
-            <div class="col-sm-6 text-right">
-                <div class="form-inline">
-                    <div class="form-group">
-                        <div class="input-group">
-                            <input class="form-control input-sm" placeholder="Search">
-                            <span class="input-group-addon glyphicon glyphicon-search"></span>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <ul class="pagination pagination-sm">
-                            <li><a class="disabled" href="#">&laquo;</a></li>
-                            <li class="active">
-                            <a href="#">1 <span class="sr-only">(current)</span></a>
-                            </li>
-                            <li><a href="#">2</a></li>
-                            <li><a href="#">&raquo;</a></li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
+      <div class="row">
+        <div class="col-sm-6">Datasets: {{>summary.total}} records</div>
+        <div class="col-sm-6 text-right">
+          {^{pagination summary id="groups-pagination" class="pagination-sm" pagesize=20 pagedelta=5 /}}
         </div>
+      </div>
     </div>
     <ul>
+      {{for results}}
         <li class="dataset-item">
-        <div class="row">
-            <div class="pull-left">
-                <image  src="/resources/dummy/images/nagoya.jpg" class="img-thumbnail"></image>            </div>
+          <div class="row">
+            <div class="pull-left"><img src="{{>image}}"></div>
             <div class="result-list-body">
-                <h3>
-                    <a>名古屋の施設データ</a> <small>3 files(121 k)</small>
-                </h3>
-                <p>
-                愛知県名古屋市の色々な施設のデータが登録されています。
-                </p>
-                <p>
-                Group: <strong>オープンデータ東海</strong>
+              <h3>
+                {{a href="/datasets/"+id}}{{>name}}{{/a}}
+                <small>{{>files}} files, {{datasize dataSize/}}</small>
+              </h3>
+              <p>{{>description}}</p>
+              <p>
+                <span>Owner:</span>
+                {{for ownerships}}
+                  <strong>{{>fullname}}</strong>
+                  {{if #index == (#parent.length - 1)}}, {{/if}}
+                {{/for}}
                 <span class="meta-data text-muted">
-                    <span>AUTHOR:y.maeda</span> <span>VERSION:1.0.0</span>
+                  {{for attributes}}
+                    <span>{{>name}}: {{>value}}</span>
+                    {{if #index == (#parent.length - 1)}}, {{/if}}
+                  {{else}}
+                    No attributes
+                  {{/for}}
                 </span>
-                </p>
+              </p>
             </div>
-        </div>
+          </div>
         </li>
-        <li class="dataset-item">
-        <div class="row">
-            <div class="pull-left">
-                <image  src="/resources/dummy/images/earth_150.jpg" class="img-thumbnail"></image>            </div>
-            <div class="result-list-body">
-                <h3> <a>Data Set Title</a> <small>X files(XXX k)</small> </h3>
-                <p>
-                description. description. description. description. description. description.
-                description. description. description. description. description. description.
-                description. description. description. description. description. description.
-                description. description. description. description. description. description.
-                </p>
-                <p> Group: <strong>Group Name</strong>
-                <span class="meta-data text-muted">
-                    <span>key:value</span><span>key:value</span><span>key:value</span>
-                </span>
-                </p>
-            </div>
-        </div>
-        </li>
-        <li class="dataset-item">
-        <div class="row">
-            <div class="pull-left">
-                <image  src="/resources/dummy/images/earth_150.jpg" class="img-thumbnail"></image>            </div>
-            <div class="result-list-body">
-                <h3> <a>Data Set Title</a> <small>X files(XXX k)</small> </h3>
-                <p>
-                description. description. description. description. description. description.
-                description. description. description. description. description. description.
-                description. description. description. description. description. description.
-                description. description. description. description. description. description.
-                </p>
-                <p> Group: <strong>Group Name</strong>
-                <span class="meta-data text-muted">
-                    <span>key:value</span><span>key:value</span><span>key:value</span>
-                </span>
-                </p>
-            </div>
-        </div>
-        </li>
-        <li class="dataset-item">
-        <div class="row">
-            <div class="pull-left">
-                <image  src="/resources/dummy/images/earth_150.jpg" class="img-thumbnail"></image>            </div>
-            <div class="result-list-body">
-                <h3> <a>Data Set Title</a> <small>X files(XXX k)</small> </h3>
-                <p>
-                description. description. description. description. description. description.
-                description. description. description. description. description. description.
-                description. description. description. description. description. description.
-                description. description. description. description. description. description.
-                </p>
-                <p> Group: <strong>Group Name</strong>
-                <span class="meta-data text-muted">
-                    <span>key:value</span><span>key:value</span><span>key:value</span>
-                </span>
-                </p>
-            </div>
-        </div>
-        </li>
-        <li class="dataset-item">
-        <div class="row">
-            <div class="pull-left">
-                <image  src="/resources/dummy/images/earth_150.jpg" class="img-thumbnail"></image>            </div>
-            <div class="result-list-body">
-                <h3> <a>Data Set Title</a> <small>X files(XXX k)</small> </h3>
-                <p>
-                description. description. description. description. description. description.
-                description. description. description. description. description. description.
-                description. description. description. description. description. description.
-                description. description. description. description. description. description.
-                </p>
-                <p> Group: <strong>Group Name</strong>
-                <span class="meta-data text-muted">
-                    <span>key:value</span><span>key:value</span><span>key:value</span>
-                </span>
-                </p>
-            </div>
-        </div>
-        </li>
+      {{/for}}
     </ul>
-</div>
-
+  </div>
+{{/async}}

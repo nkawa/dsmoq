@@ -5,7 +5,7 @@ typedef Group = {
     var name(default, never): String;
     var description(default, never): String;
     var images(default, never): Array<Image>;
-    var primaryImage(default, never): String;
+    var primaryImage(default, never): Image;
     var isMember(default, never): Bool;
     var role(default, never): GroupRole;
 }

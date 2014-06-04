@@ -13,11 +13,18 @@
             <p>{{>description}}</p>
             <p>
               Owner:
+              <span>Owner:</span>
               {{for ownerships}}
-                <strong>{{>name}}</strong>
+                <strong>{{>fullname}}</strong>
+                {{if #index == (#parent.length - 1)}}, {{/if}}
               {{/for}}
               <span class="meta-data text-muted">
-                <span>VERSION:1.0.0</span>
+                {{for attributes}}
+                  <span>{{>name}}: {{>value}}</span>
+                  {{if #index == (#parent.length - 1)}}, {{/if}}
+                {{else}}
+                  No attributes
+                {{/for}}
               </span>
             </p>
           </div>

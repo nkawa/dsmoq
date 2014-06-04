@@ -184,12 +184,22 @@ class Service extends Stream<ServiceEvent> {
     }
 
     public function getGroup(groupId: String): Promise<Group> {
-        return send(Get, '/api/groups/$groupId');
+        return send(Get, '/api/groups/$groupId').map(function (a) {
+            return {
+                id: cast a.id,
+                name: cast a.name,
+                description: cast a.description,
+                images: cast a.images,
+                primaryImage: cast Lambda.find(a.images, function (x) return x.id == a.primaryImage),
+                isMember: cast a.isMember,
+                role: cast a.role,
+            };
+        });
     }
 
     public function getGroupMembers(groupId: String, ?params: { ?offset: Int, ?limit: Int })
             : Promise<RangeSlice<GroupMember>> {
-        // TODO ページング
+        var params = params.orElse({});
         return send(Get, '/api/groups/$groupId/members', { offset: params.offset.orElse(0),
                                                            limit: params.limit.orElse(QueryLimit) });
     }

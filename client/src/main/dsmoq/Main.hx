@@ -50,6 +50,21 @@ class Main {
             return "";
         });
 
+        JsViews.views.tags("async", cast {
+            dataBoundOnly: true,
+			flow: true,
+			autoBind: true,
+            render: function(val) {
+                var tag = JsViewsTools.tag();
+                return switch (val) {
+                    case Async.Pending:
+                        "<img src='/resources/loading-large.gif'>";
+                    case Async.Completed(x):
+                        tag.tagCtx.render(x);
+                };
+            }
+        });
+
         JsViews.views.tags("a", function (_) {
             var ctx = JsViewsTools.tag().tagCtx;
             var props = ctx.props;
@@ -108,8 +123,7 @@ class Main {
         });
 
         var pagenationTemplate = JsViews.template(Resource.getString("share/pagination"));
-        JsViews.views.tags("pagination", cast {
-            template: "<div></div>",
+        JsViews.views.tags("pagination", {
             dataBoundOnly: true,
             //init: function (tag, link) {
             //    trace("init");
@@ -118,10 +132,11 @@ class Main {
                 //trace("onBeforeLink");
                 //return true;
             //},
-            onAfterLink: function(tag, link) {
+            render: function (val) {
                 var tag = JsViewsTools.tag();
-                var root = tag.contents("*:first");
 
+                var id: String = tag.tagCtx.props["id"];
+                var cls: String = tag.tagCtx.props["class"];
                 var pageSize: Int = tag.tagCtx.props["pagesize"];
                 var pageDelta: Int = tag.tagCtx.props["pagedelta"];
                 var pageDeltaCenter = Math.floor(pageDelta / 2);
@@ -140,23 +155,27 @@ class Main {
                     (left)...(left + pageDelta);
                 }) i];
 
-                root.html(pagenationTemplate.render({ page: page, range: range, last: last }));
+                return pagenationTemplate.render({ id: id, cls: cls, page: page, range: range, last: last });
+            },
+            onAfterLink: function(tag, link) {
+                var tag = JsViewsTools.tag();
+                var root = tag.contents("*:first");
                 root.on("click", "a[data-value]", function (e) {
                     root.attr("data-value", new JqHtml(e.target).attr("data-value"));
                     root.trigger("change.dsmoq.pagination");
                 });
+            },
+            onUpdate: function(ev, eventArgs, tag) { // binding.onchange
+                trace("onUpdate");
+                return true;
+            },
+            onBeforeChange: function(ev, eventArgs) { //input.onchange
+                trace("onBeforeChange");
+                return true;
+            },
+            onDispose: function() {
+                trace("onDispose");
             }
-            //onUpdate: function(ev, eventArgs, tag) { // binding.onchange
-                //trace("onUpdate");
-                //return true;
-            //},
-            //onBeforeChange: function(ev, eventArgs) { //input.onchange
-                //trace("onBeforeChange");
-                //return true;
-            //},
-            //onDispose: function() {
-                //trace("onDispose");
-            //}
         });
 
         Engine.start(new Main());
@@ -538,8 +557,16 @@ class Main {
                     navigation: new ControllableStream(),
                     invalidate: function (container: Element) {
                         var root = new JqHtml(container);
+
                         Service.instance.getGroup(id).then(function (res) {
-                            View.getTemplate("group/show").link(root, res);
+                            var data = {
+                                group: res,
+                                members: Async.Pending,
+                                datasets: Async.Pending,
+                            };
+                            var binding = JsViews.objectObservable(data);
+
+                            View.getTemplate("group/show").link(root, data);
 
                             root.find("#group-edit").on("click", function (_) {
                                 trace("edit");
@@ -550,7 +577,11 @@ class Main {
                             });
 
                             Service.instance.getGroupMembers(id).then(function (x) {
-                                trace(x);
+                                binding.setProperty("members", Async.Completed(x));
+                            });
+
+                            Service.instance.findDatasets({group: id}).then(function (x) {
+                                binding.setProperty("datasets", Async.Completed(x));
                             });
                         });
                     },
