@@ -761,7 +761,7 @@ val g = persistence.Group.syntax("g")
         .not.eq(m.role, GroupMemberRole.Deny)
         .and
         .isNull(m.deletedAt)
-        .orderBy(m.updatedAt).desc
+        .orderBy(m.role).desc
         .offset(offset)
         .limit(limit)
     }.map(rs => (persistence.User(u.resultName)(rs), rs.int(persistence.Member.column.role))).list().apply()
