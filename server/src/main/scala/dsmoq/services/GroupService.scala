@@ -131,9 +131,10 @@ object GroupService {
             GroupData.MemberSummary(
               id = x._1.id,
               name = x._1.name,
+              fullname = x._1.fullname,
               organization = x._1.organization,
               title = x._1.title,
-              image = "",
+              image = AppConf.imageDownloadRoot + x._1.imageId,
               role = x._2
             )
           })
