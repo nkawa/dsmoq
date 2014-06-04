@@ -8,8 +8,6 @@
 -resource assets/_share/pagination.html@share/pagination
 -resource assets/header.html@template/header
 -resource assets/dashboard/show.html@template/dashboard/show
--resource assets/dashboard/dataset-list.html@share/dashboard/dataset/list
--resource assets/dashboard/group-list.html@share/dashboard/group/list
 -resource assets/dataset/list.html@template/dataset/list
 -resource assets/dataset/show.html@template/dataset/show
 -resource assets/dataset/edit.html@template/dataset/edit
