@@ -252,22 +252,38 @@ class Main {
                     navigation: new ControllableStream(),
                     invalidate: function (container: Element) {
                         var profile = Service.instance.profile;
-                        View.getTemplate("dashboard/show").link(container, profile);
 
+                        var data = {
+                            isGuest: profile.isGuest,
+
+                            isRecentDatasetsLoading: true,
+                            recentDatasets: [],
+
+                            isMyDatasetsLoading: true,
+                            myDatasets: [],
+
+                            isMyGroupsLoading: true,
+                            myGroups: []
+                        };
+
+                        var binding = JsViews.objectObservable(data);
+                        View.getTemplate("dashboard/show").link(container, data);
 
                         Service.instance.findDatasets({ limit: 3 }).then(function (x) {
-                            trace(x);
+                            binding.setProperty("isRecentDatasetsLoading", false);
+                            JsViews.arrayObservable(data.recentDatasets).refresh(x.results);
                         });
 
                         if (!profile.isGuest) {
-                            Service.instance.findDatasets( { owner: profile.id, limit: 3 } );
-                            Service.instance.findGroups( { user: profile.id } );
+                            Service.instance.findDatasets({owner: profile.id, limit: 3}).then(function (x) {
+                                binding.setProperty("isMyDatasetsLoading", false);
+                                JsViews.arrayObservable(data.myDatasets).refresh(x.results);
+                            });
+                            Service.instance.findGroups({user: profile.id, limit: 3}).then(function (x) {
+                                binding.setProperty("isMyGroupsLoading", false);
+                                JsViews.arrayObservable(data.myGroups).refresh(x.results);
+                            });
                         }
-
-
-
-
-
                     },
                     dispose: function () {
                     }

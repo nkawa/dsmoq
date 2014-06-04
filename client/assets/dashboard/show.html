@@ -3,7 +3,40 @@
 <div class="panel panel-default recent-data-set">
   <div class="panel-heading">Recent Datasets</div>
   <div class="panel-body" id="recent-datasets">
-    <img src="/resources/loading-large.gif" alt="loading">
+    {^{if isRecentDatasetsLoading}}
+      <img src="/resources/loading-large.gif" alt="loading">
+    {{else}}
+      {^{for recentDatasets}}
+        <ul>
+          <li class="dataset-item">
+            <div class="row">
+              <div class="pull-left">{{a href="/datasets/"+id}}<img src="{{>image}}">{{/a}}</div>
+              <div class="result-list-body">
+                <h3>{{a href="/datasets/"+id}}{{>name}}{{/a}} <small>{{>files}} file, {{datasize dataSize/}}</small></h3>
+                <p>{{>description}}</p>
+                <p>
+                  <span>Owner:</span>
+                  {{for ownerships}}
+                    <strong>{{>fullname}}</strong>
+                    {{if #index == (#parent.length - 1)}}, {{/if}}
+                  {{/for}}
+                  <span class="meta-data text-muted">
+                    {{for attributes}}
+                      <span>{{>name}}: {{>value}}</span>
+                      {{if #index == (#parent.length - 1)}}, {{/if}}
+                    {{else}}
+                      No attributes
+                    {{/for}}
+                  </span>
+                </p>
+              </div>
+            </div>
+          </li>
+        </ul>
+      {{else}}
+        No datasets
+      {{/for}}
+    {{/if}}
   </div>
 </div>
 
@@ -11,14 +44,67 @@
   <div class="panel panel-default recent-data-set">
     <div class="panel-heading">My Datasets</div>
     <div class="panel-body" id="my-datasets">
-      <img src="/resources/loading-large.gif" alt="loading">
+      {^{if isMyDatasetsLoading}}
+        <img src="/resources/loading-large.gif" alt="loading">
+      {{else}}
+        {^{for recentDatasets}}
+          <ul>
+            <li class="dataset-item">
+              <div class="row">
+                <div class="pull-left">{{a href="/datasets/"+id}}<img src="{{>image}}">{{/a}}</div>
+                <div class="result-list-body">
+                  <h3>{{a href="/datasets/"+id}}{{>name}}{{/a}} <small>{{>files}} file, {{datasize dataSize/}}</small></h3>
+                  <p>{{>description}}</p>
+                  <p>
+                    <span>Owner:</span>
+                    {{for ownerships}}
+                      <strong>{{>fullname}}</strong>
+                      {{if #index == (#parent.length - 1)}}, {{/if}}
+                    {{/for}}
+                    <span class="meta-data text-muted">
+                      {{for attributes}}
+                        <span>{{>name}}: {{>value}}</span>
+                        {{if #index == (#parent.length - 1)}}, {{/if}}
+                      {{else}}
+                        No attributes
+                      {{/for}}
+                    </span>
+                  </p>
+                </div>
+              </div>
+            </li>
+          </ul>
+        {{else}}
+          No datasets
+        {{/for}}
+      {{/if}}
     </div>
   </div>
 
   <div class="panel panel-default">
     <div class="panel-heading">My Groups</div>
     <div class="panel-body" id="my-groups">
-      <img src="/resources/loading-large.gif" alt="loading">
+      {^{if isMyGroupsLoading}}
+        <img src="/resources/loading-large.gif" alt="loading">
+      {{else}}
+        {^{if myGroups.length > 0}}
+          <ul>
+            {^{for myGroups}}
+              <li class="dataset-item">
+                <div class="row">
+                  <div class="pull-left"><img src="{{>image}}"></div>
+                  <div class="result-list-body">
+                    <h3>{{a href="/groups/"+id}}{{>name}}{{/a}} <small>{{>members}} members, {{>datasets}} datasets</small></h3>
+                    <p>{{>description}}</p>
+                  </div>
+                </div>
+              </li>
+            {{/for}}
+          </ul>
+        {{else}}
+          No groups
+        {{/if}}
+      {{/if}}
     </div>
   </div>
 {{/if}}
