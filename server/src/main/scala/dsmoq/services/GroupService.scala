@@ -690,6 +690,8 @@ val g = persistence.Group.syntax("g")
         .where
         .inByUuid(m.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
         .and
+        .not.eq(m.role, GroupMemberRole.Deny)
+        .and
         .isNull(m.deletedAt)
         .groupBy(m.groupId)
     }.map(rs => (rs.string(persistence.Member.column.groupId), rs.int("count"))).list().apply.toMap
