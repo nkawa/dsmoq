@@ -27,7 +27,8 @@ class ApiController extends ScalatraServlet
     if (!isValidSession()) {
       if (!((request.getRequestURI == "/api/profile" && request.getMethod == "GET") ||
           (request.getRequestURI == "/api/licenses" && request.getMethod == "GET") ||
-          (request.getRequestURI == "/api/accounts" && request.getMethod == "GET"))) {
+          (request.getRequestURI == "/api/accounts" && request.getMethod == "GET") ||
+          (request.getRequestURI == "/api/suggests/attributes" && request.getMethod == "GET"))) {
         cookies.get(sessionId) match {
           case Some(x) =>
             clearSessionCookie()
@@ -698,6 +699,18 @@ class ApiController extends ScalatraServlet
   get("/accounts") {
     val accounts = AccountService.getAccounts()
     AjaxResponse("OK", accounts)
+  }
+
+  get("/suggests/users_and_groups") {
+    val query = params.get("query")
+    val result = AccountService.getUsersAndGroups(query)
+    AjaxResponse("OK", result)
+  }
+
+  get("/suggests/attributes") {
+    val query = params.get("query")
+    val attributes = AccountService.getAttributes(query)
+    AjaxResponse("OK", attributes)
   }
 
   private def setGuestAccessControl(datasetId: String, accessLevel: Option[String]) = {
