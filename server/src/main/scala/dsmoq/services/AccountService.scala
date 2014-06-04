@@ -15,8 +15,7 @@ import java.util.UUID
 import java.awt.image.BufferedImage
 import org.scalatra.servlet.FileItem
 import dsmoq.logic.ImageSaveLogic
-import dsmoq.persistence.PresetType
-import org.scalatra.servlet.FileItem
+import dsmoq.persistence.{SuggestType, GroupType, PresetType}
 import scala.util.Failure
 import scala.Some
 import dsmoq.services.data.ProfileData.UpdateProfileParams
@@ -324,6 +323,59 @@ object AccountService extends SessionTrait {
           .orderBy(u.name)
       }.map(rs => (persistence.User(u.resultName)(rs), rs.string(ma.resultName.address))).list().apply
       .map(x => User(x._1, x._2))
+    }
+  }
+
+  def getUsersAndGroups(param: Option[String]) = {
+    val query = param match {
+      case Some(x) => x + "%"
+      case None => ""
+    }
+
+    DB readOnly { implicit s =>
+      val u = persistence.User.u
+      val users = withSQL {
+        select(u.result.*)
+          .from(persistence.User as u)
+          .where
+          .like(u.name, query)
+          .or
+          .like(u.fullname, query)
+          .and
+          .isNull(u.deletedAt)
+          .limit(100)
+      }.map(persistence.User(u.resultName)).list().apply
+      .map(x => SuggestData.User(
+        dataType = SuggestType.User,
+        id = x.id,
+        name = x.name,
+        fullname = x.fullname,
+        organization = x.organization,
+        image = AppConf.imageDownloadRoot + x.imageId
+      ))
+
+      val g = persistence.Group.g
+      val gi = persistence.GroupImage.gi
+      val groups = withSQL {
+        select(g.result.*, gi.result.*)
+          .from(persistence.Group as g)
+          .innerJoin(persistence.GroupImage as gi).on(sqls.eq(g.id, gi.groupId).and.isNull(gi.deletedAt))
+          .where
+          .like(g.name, query)
+          .and
+          .eq(g.groupType, GroupType.Public)
+          .and
+          .isNull(g.deletedAt)
+          .limit(100)
+      }.map(rs => (persistence.Group(g.resultName)(rs), persistence.GroupImage(gi.resultName)(rs))).list().apply
+      .map(x => SuggestData.Group(
+        dataType = SuggestType.Group,
+        id = x._1.id,
+        name = x._1.name,
+        image = AppConf.imageDownloadRoot + x._2.imageId
+      ))
+
+      List.concat(users, groups)
     }
   }
 

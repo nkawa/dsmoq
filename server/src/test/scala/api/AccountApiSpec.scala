@@ -9,6 +9,9 @@ import org.json4s.jackson.JsonMethods._
 import dsmoq.services.data.{MailValidationResult, License, User}
 import java.io.File
 import org.scalatra.servlet.MultipartConfig
+import dsmoq.persistence.SuggestType
+import dsmoq.services.data.GroupData.Group
+import java.util.UUID
 
 class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
@@ -175,6 +178,46 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[Seq[User]]]
           assert(result.data.size > 0)
+        }
+      }
+
+      "ユーザー/グループの候補一覧を取得できるか" in {
+        // t_okada + UUID という名前のグループを作成し、候補に表示されるか調べる
+        session {
+          signIn()
+          val groupName = "t_okada" + UUID.randomUUID()
+          val params = Map("name" -> groupName, "description" -> "description")
+          post("/api/groups", params) {
+            checkStatus()
+            parse(body).extract[AjaxResponse[Group]].data.id
+          }
+        }
+
+        val regex = "\\At_okada.*\\z".r
+        val query = Map("query" -> "t_okada")
+        get("/api/suggests/users_and_groups", query) {
+          checkStatus()
+          // データパースしてチェック
+          val valueMap = (parse(body) \ "data").values.asInstanceOf[List[Map[String, Any]]]
+          valueMap.foreach {x =>
+            val t = x("dataType")
+            t match {
+              case SuggestType.User =>
+                x("name") match {
+                  case regex() => // OK
+                  case _ => x("fullname") match {
+                    case regex() => // OK
+                    case _ => fail()
+                  }
+                }
+              case SuggestType.Group =>
+                x("name") match {
+                  case regex() => // OK
+                  case _ => fail()
+                }
+              case _ => fail()
+            }
+          }
         }
       }
     }
