@@ -553,8 +553,9 @@ class Main {
                     }
                 }
             case GroupShow(id):
+                var navigation = new ControllableStream();
                 {
-                    navigation: new ControllableStream(),
+                    navigation: navigation,
                     invalidate: function (container: Element) {
                         var root = new JqHtml(container);
 
@@ -568,20 +569,20 @@ class Main {
 
                             View.getTemplate("group/show").link(root, data);
 
-                            root.find("#group-edit").on("click", function (_) {
-                                trace("edit");
-                            });
-
-                            root.find("#group-delete").on("click", function (_) {
-                                trace("delete");
-                            });
-
                             Service.instance.getGroupMembers(id).then(function (x) {
                                 binding.setProperty("members", Async.Completed(x));
                             });
 
                             Service.instance.findDatasets({group: id}).then(function (x) {
                                 binding.setProperty("datasets", Async.Completed(x));
+                            });
+
+                            root.find("#group-edit").on("click", function (_) {
+                                navigation.update(PageNavigation.Navigate(GroupEdit(id)));
+                            });
+
+                            root.find("#group-delete").on("click", function (_) {
+                                trace("delete");
                             });
                         });
                     },
@@ -709,8 +710,10 @@ class Main {
 
             case GroupList(page):
                 { path: "/groups" };
-            case GroupShow(id), GroupEdit(id):
+            case GroupShow(id):
                 { path: '/groups/$id' };
+            case GroupEdit(id):
+                { path: '/groups/$id/edit' };
 
             case Profile:
                 { path: "/profile" };
