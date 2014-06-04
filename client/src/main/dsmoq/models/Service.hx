@@ -148,6 +148,11 @@ class Service extends Stream<ServiceEvent> {
         return send(Delete, '/api/datasets/$datasetId/images/$imageId');
     }
 
+    // TODO パラメータの見直し
+    public function updateDatasetACL(datasetId: String, acl: Array<{id: String, ownerType: DatasetOwnershipType, permission: DatasetPermission}>): Promise<Unit> {
+        return null;
+    }
+
     public function setDatasetAccessLevel(datasetId: String, groupId: String, accessLevel: DatasetPermission): Promise<Unit> {
         return send(Put, '/api/datasets/$datasetId/acl/$groupId', accessLevel);
     }
@@ -220,16 +225,11 @@ class Service extends Stream<ServiceEvent> {
         return send(Delete, '/api/groups/$groupId/iamges/$imageId');
     }
 
-    //public function addGroupMember(groupId: String, userId: String, role: Int): Promise<Unit> {
-        //return send(Post, '/api/groups/$groupId/members', { id: userId, role: role });
-    //}
-
-    public function setGroupMemberRole(groupId: String, userId: String, role: Int): Promise<Unit> {
-        return send(Put, '/api/groups/$groupId/members', { id: userId, role: role });
-    }
-
-    public function removeGroupMember(groupId: String, userId: String): Promise<Unit> {
-        return send(Delete, '/api/groups/$groupId/members/$userId');
+    public function updateGroupMemberRoles(groupId: String, memberRoles: Array<{id: String, role: GroupRole}>): Promise<Unit> {
+        return send(Post, '/api/groups/$groupId/members', {
+            "id[]": memberRoles.map(function (x) return x.id),
+            "role[]": memberRoles.map(function (x) return x.role)
+        });
     }
 
     public function deleteGroup(groupId: String): Promise<Unit> {
