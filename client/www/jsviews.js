@@ -1546,10 +1546,6 @@ informal pre V1.0 commit counter: 53 (Beta Candidate) */
 						val = tagCtx.view.data; // For the final else, defaults to current data without iteration.
 					}
 					if (val !== undefined) {
-                        console.log(tagCtx.tmpl.markup);
-                        console.log(val);
-
-
 						result += tagCtx.render(val, finalElse); // Iterates except on final else, if data is an array. (Use {{include}} to compose templates without array iteration)
 						done += $.isArray(val) ? val.length : 1;
 					}
