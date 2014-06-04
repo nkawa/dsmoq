@@ -645,7 +645,7 @@ val g = persistence.Group.syntax("g")
       withSQL {
         select(g.result.*)
           .from(persistence.Group as g)
-          .innerJoin(persistence.Member as m)
+          .innerJoin(persistence.Member as m).on(g.id, m.groupId)
           .where
           .eq(g.groupType, persistence.GroupType.Public)
           .and
