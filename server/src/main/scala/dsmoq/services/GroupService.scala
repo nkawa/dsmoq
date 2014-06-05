@@ -131,9 +131,10 @@ object GroupService {
             GroupData.MemberSummary(
               id = x._1.id,
               name = x._1.name,
+              fullname = x._1.fullname,
               organization = x._1.organization,
               title = x._1.title,
-              image = "",
+              image = AppConf.imageDownloadRoot + x._1.imageId,
               role = x._2
             )
           })
@@ -690,6 +691,8 @@ val g = persistence.Group.syntax("g")
         .where
         .inByUuid(m.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
         .and
+        .not.eq(m.role, GroupMemberRole.Deny)
+        .and
         .isNull(m.deletedAt)
         .groupBy(m.groupId)
     }.map(rs => (rs.string(persistence.Member.column.groupId), rs.int("count"))).list().apply.toMap
@@ -758,7 +761,7 @@ val g = persistence.Group.syntax("g")
         .not.eq(m.role, GroupMemberRole.Deny)
         .and
         .isNull(m.deletedAt)
-        .orderBy(m.updatedAt).desc
+        .orderBy(m.role).desc
         .offset(offset)
         .limit(limit)
     }.map(rs => (persistence.User(u.resultName)(rs), rs.int(persistence.Member.column.role))).list().apply()
