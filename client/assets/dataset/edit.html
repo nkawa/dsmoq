@@ -45,8 +45,8 @@
             <tbody>
               {^{for dataset.meta.attributes}}
                 <tr>
-                  <td><input class="form-control" data-link="name"></td>
-                  <td><input class="form-control" data-link="value"></td>
+                  <td><input type="text" class="form-control attribute-typeahead" data-link="name"></td>
+                  <td><input type="text" class="form-control" data-link="value"></td>
                   <td><a class="btn btn-warning btn-sm dataset-attribute-remove" data-value="{{>#index}}">del</a></td>
                 </tr>
               {{/for}}

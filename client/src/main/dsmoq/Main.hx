@@ -6,6 +6,7 @@ import dsmoq.framework.types.PositiveInt;
 import dsmoq.framework.View;
 import dsmoq.models.DatasetGuestAccessLevel;
 import dsmoq.models.Profile;
+import js.Boot;
 import js.support.ControllablePromise;
 import js.support.ControllableStream;
 import js.support.Promise;
@@ -34,6 +35,8 @@ import js.jqhx.JqHtml;
 import dsmoq.framework.LocationTools;
 import js.jsviews.JsViews;
 import js.support.JsTools;
+import js.typeahead.Bloodhound;
+import js.typeahead.Typeahead;
 using StringTools;
 using js.support.OptionTools;
 using dsmoq.framework.helper.JQueryTools;
@@ -376,6 +379,8 @@ class Main {
                     navigation: navigation,
                     invalidate: function (container: Element) {
                         Service.instance.getDataset(id).then(function (x) {
+                            var root = new JqHtml(container);
+
                             // TODO clone
                             var data = {
                                 myself: Service.instance.profile,
@@ -384,20 +389,49 @@ class Main {
                             };
 
                             trace(data);
-                            var binding = JsViews.objectObservable(data);
-                            View.getTemplate("dataset/edit").link(container, data);
 
-                            var root = new JqHtml(container);
+                            var binding = JsViews.objectObservable(data);
+                            View.getTemplate("dataset/edit").link(root, data);
+
+                            var engine = new Bloodhound({
+                                datumTokenizer: Bloodhound.tokenizers.obj.whitespace("value"),
+                                queryTokenizer: Bloodhound.tokenizers.whitespace,
+                                remote: {
+                                    url: "/api/suggests/attributes",
+                                    replace: function (url, query) {
+                                        return '$url?query=$query';
+                                    },
+                                    filter: function (x: {status: String, data: Array<String>}) {
+                                        return (x.status == "OK") ? x.data.map(function (x) return {value: x}) : [];
+                                    }
+                                }
+                            });
+                            engine.initialize();
+
+                            function setAttributeTypeahead() {
+                                Typeahead.initialize(root.find(".attribute-typeahead"), {
+                                    source: engine.ttAdapter()
+                                });
+                            }
+                            function removeAttributeTypeahead() {
+                                Typeahead.destroy(root.find(".attribute-typeahead"));
+                            }
+
+                            setAttributeTypeahead();
 
                             root.find("#dataset-attribute-add").on("click", function (_) {
+                                removeAttributeTypeahead();
                                 var attrs = JsViews.arrayObservable(data.dataset.meta.attributes);
                                 attrs.insert({ name: "", value:"" });
+                                setAttributeTypeahead();
                             });
 
                             root.on("click", ".dataset-attribute-remove", function (e) {
+                                removeAttributeTypeahead();
                                 var index = new JqHtml(e.target).data("value");
                                 var attrs = JsViews.arrayObservable(data.dataset.meta.attributes);
                                 attrs.remove(index);
+                                setAttributeTypeahead();
                             });
 
                             root.find("#dataset-basics-submit").on("click", function (_) {

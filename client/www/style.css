@@ -6,6 +6,7 @@ body, h1, h2, h3, h4, h5, h6 {
   font-family: "Segoe UI", "游ゴシック", YuGothic, Verdana, "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
 }
 
+
 .page-heading {
   margin-top: 0px;
   margin-bottom: 16px;
@@ -162,4 +163,41 @@ select.disabled, .can-disable.disabled {
   filter: alpha(opacity=65);
   -webkit-box-shadow: none;
           box-shadow: none;
+}
+
+
+
+// for twitter typeahead.js
+.tt-hint {
+  color: #999
+}
+
+.tt-dropdown-menu {
+  width: 422px;
+  margin-top: 12px;
+  padding: 8px 0;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  -webkit-border-radius: 8px;
+    -moz-border-radius: 8px;
+          border-radius: 8px;
+  -webkit-box-shadow: 0 5px 10px rgba(0,0,0,.2);
+    -moz-box-shadow: 0 5px 10px rgba(0,0,0,.2);
+          box-shadow: 0 5px 10px rgba(0,0,0,.2);
+}
+
+.tt-suggestion {
+  padding: 3px 20px;
+  font-size: 16px;
+  line-height: 22px;
+}
+
+.tt-suggestion.tt-cursor {
+  color: #fff;
+  background-color: #0097cf;
+}
+
+.tt-suggestion p {
+  margin: 0;
 }
