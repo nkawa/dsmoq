@@ -205,6 +205,20 @@ object AccountService extends SessionTrait {
       }
 
       DB localTx { implicit s =>
+        // 同名チェック
+        val u = persistence.User.syntax("u")
+        val users = withSQL {
+          select(u.result.id)
+            .from(persistence.User as u)
+            .where
+            .eq(u.name, name)
+            .and
+            .ne(u.id, sqls.uuid(user.id))
+        }.map(_.string(u.resultName.id)).list().apply
+        if (users.size != 0) {
+          throw new InputValidationException("name", "same name")
+        }
+
         withSQL {
           val u = persistence.User.column
           update(persistence.User)
@@ -249,7 +263,6 @@ object AccountService extends SessionTrait {
         }
 
         // 新しいユーザー情報を取得
-        val u = persistence.User.u
         val ma = persistence.MailAddress.ma
         val newUser = withSQL {
           select(u.result.*, ma.result.address)
