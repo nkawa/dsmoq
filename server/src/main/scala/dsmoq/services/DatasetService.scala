@@ -1657,9 +1657,11 @@ object DatasetService {
     select(sqls.distinct(o.result.*))
       .from(persistence.Ownership as o)
       .innerJoin(persistence.Ownership as o1).on(sqls.eq(o.datasetId, o1.datasetId).and.isNull(o1.deletedAt))
-      .innerJoin(persistence.Group as g).on(sqls.eq(o.groupId, g.id).and.isNull(g.deletedAt))
+      .innerJoin(persistence.Group as g).on(sqls.eq(o1.groupId, g.id).and.isNull(g.deletedAt))
       .where
       .eq(g.id, sqls.uuid(group))
+      .and
+      .eq(g.groupType, GroupType.Public)
       .and
       .eq(o1.accessLevel, AccessLevel.AllowAll)
       .and
@@ -1679,16 +1681,18 @@ object DatasetService {
     select(sqls.distinct(o.result.*))
       .from(persistence.Ownership as o)
       .innerJoin(persistence.Ownership as o1).on(sqls.eq(o.datasetId, o1.datasetId).and.isNull(o1.deletedAt))
-      .innerJoin(persistence.Group as g1).on(sqls.eq(o.groupId, g1.id).and.isNull(g1.deletedAt))
+      .innerJoin(persistence.Group as g1).on(sqls.eq(o1.groupId, g1.id).and.isNull(g1.deletedAt))
       .innerJoin(persistence.Member as m).on(sqls.eq(g1.id, m.groupId).and.isNull(m.deletedAt))
       .innerJoin(persistence.Ownership as o2).on(sqls.eq(o1.datasetId, o2.datasetId).and.isNull(o2.deletedAt))
-      .innerJoin(persistence.Group as g2).on(sqls.eq(o1.groupId, g2.id).and.isNull(g2.deletedAt))
+      .innerJoin(persistence.Group as g2).on(sqls.eq(o2.groupId, g2.id).and.isNull(g2.deletedAt))
       .where
       .eq(m.userId, sqls.uuid(owner))
       .and
       .eq(o1.accessLevel, AccessLevel.AllowAll)
       .and
       .eq(g2.id, sqls.uuid(group))
+      .and
+      .eq(g2.groupType, GroupType.Public)
       .and
       .eq(o2.accessLevel, AccessLevel.AllowAll)
       .and
