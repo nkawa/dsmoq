@@ -146,7 +146,7 @@ object DatasetService {
             fullname = myself.fullname,
             organization = myself.organization,
             title = myself.title,
-            image = "", //TODO
+            image = AppConf.imageDownloadRoot + myself.imageId,
             accessLevel = ownership.accessLevel,
             ownerType = OwnerType.User
           )),
@@ -1294,8 +1294,9 @@ object DatasetService {
       val g = persistence.Group.g
       val m = persistence.Member.m
       val u = persistence.User.u
+      val gi = persistence.GroupImage.gi
       withSQL {
-        select(o.result.*, g.result.*, u.result.*)
+        select(o.result.*, g.result.*, u.result.*, gi.result.*)
           .from(persistence.Ownership as o)
           .innerJoin(persistence.Group as g)
             .on(sqls.eq(g.id, o.groupId).and.isNull(g.deletedAt))
@@ -1306,6 +1307,8 @@ object DatasetService {
                 .and.isNull(m.deletedAt))
           .leftJoin(persistence.User as u)
             .on(sqls.eq(m.userId, u.id).and.isNull(u.deletedAt))
+          .leftJoin(persistence.GroupImage as gi)
+            .on(sqls.eq(g.id, gi.groupId).and.isNull(gi.deletedAt))
           .where
             .inByUuid(o.datasetId, datasetIds)
             .and
@@ -1321,7 +1324,7 @@ object DatasetService {
             fullname = rs.stringOpt(u.resultName.fullname).getOrElse(""),
             organization = rs.stringOpt(u.resultName.organization).getOrElse(""),
             title = rs.stringOpt(u.resultName.title).getOrElse(""),
-            image = "", //TODO
+            image = AppConf.imageDownloadRoot + rs.stringOpt(u.resultName.imageId).getOrElse(rs.string(gi.resultName.imageId)),
             accessLevel = rs.int(o.resultName.accessLevel),
             ownerType = rs.stringOpt(u.resultName.id) match {
               case Some(x) => OwnerType.User
@@ -1343,8 +1346,9 @@ object DatasetService {
     val g = persistence.Group.g
     val m = persistence.Member.m
     val u = persistence.User.u
+    val gi = persistence.GroupImage.gi
     withSQL {
-      select(o.result.*, g.result.*, u.result.*)
+      select(o.result.*, g.result.*, u.result.*, gi.result.*)
         .from(persistence.Ownership as o)
         .innerJoin(persistence.Group as g)
           .on(sqls.eq(g.id, o.groupId).and.isNull(g.deletedAt))
@@ -1355,6 +1359,8 @@ object DatasetService {
               .and.isNull(m.deletedAt))
         .leftJoin(persistence.User as u)
           .on(sqls.eq(m.userId, u.id).and.isNull(u.deletedAt))
+        .leftJoin(persistence.GroupImage as gi)
+          .on(sqls.eq(g.id, gi.groupId).and.isNull(gi.deletedAt))
         .where
           .eq(o.datasetId, sqls.uuid(datasetId))
           .and
@@ -1368,7 +1374,7 @@ object DatasetService {
         fullname = rs.stringOpt(u.resultName.fullname).getOrElse(""),
         organization = rs.stringOpt(u.resultName.organization).getOrElse(""),
         title = rs.stringOpt(u.resultName.title).getOrElse(""),
-        image = "", //TODO
+        image = AppConf.imageDownloadRoot +  rs.stringOpt(u.resultName.imageId).getOrElse(rs.string(gi.resultName.imageId)),
         accessLevel = rs.int(o.resultName.accessLevel),
         ownerType = rs.stringOpt(u.resultName.id) match {
           case Some(x) => OwnerType.User
