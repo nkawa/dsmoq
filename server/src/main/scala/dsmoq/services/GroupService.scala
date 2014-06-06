@@ -245,7 +245,7 @@ object GroupService {
     }
 
     try {
-      val result = DB localTx { implicit s =>
+      DB localTx { implicit s =>
         try {
           getGroup(params.groupId) match {
             case Some(x) =>
@@ -256,6 +256,24 @@ object GroupService {
         } catch {
           case e: NotAuthorizedException => throw e
           case e: Exception => throw new NotFoundException
+        }
+
+        // 同名チェック
+        val g = persistence.Group.syntax("g")
+        val sameNameGroups = withSQL {
+          select(g.result.id)
+            .from(persistence.Group as g)
+            .where
+            .eq(g.name, name)
+            .and
+            .ne(g.id, sqls.uuid(params.groupId))
+            .and
+            .eq(g.groupType, GroupType.Public)
+            .and
+            .isNull(g.deletedAt)
+        }.map(_.string(g.resultName.id)).list().apply
+        if (sameNameGroups.size != 0) {
+          throw new InputValidationException("name", "same name")
         }
 
         val myself = persistence.User.find(params.userInfo.id).get
@@ -275,20 +293,20 @@ object GroupService {
         val group = persistence.Group.find(params.groupId)
         val images = getGroupImage(params.groupId)
         val primaryImage = getGroupPrimaryImageId(params.groupId)
-        (group, images, primaryImage)
+
+        Success(GroupData.Group(
+          id = group.get.id,
+          name = group.get.name,
+          description = group.get.description,
+          images = images.map(x => Image(
+            id = x.id,
+            url = AppConf.imageDownloadRoot + x.id
+          )),
+          primaryImage = primaryImage.getOrElse(""),
+          isMember = true,
+          role = getGroupRole(params.userInfo, group.get.id).getOrElse(0)
+        ))
       }
-      Success(GroupData.Group(
-        id = result._1.get.id,
-        name = result._1.get.name,
-        description = result._1.get.description,
-        images = result._2.map(x => Image(
-          id = x.id,
-          url = AppConf.imageDownloadRoot + x.id
-        )),
-        primaryImage = result._3.getOrElse(""),
-        isMember = true,
-        role = 1
-      ))
     } catch {
       case e: Exception => Failure(e)
     }
