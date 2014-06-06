@@ -211,7 +211,7 @@ class Service extends Stream<ServiceEvent> {
     }
 
     public function updateGroupBasics(groupId: String, name: String, description: String): Promise<Group> {
-        return send(Post, '/api/groups/$groupId', { name: name, description: description });
+        return send(Put, '/api/groups/$groupId', { name: name, description: description });
     }
 
     public function addGroupImages(groupId: String, form: JqHtml): Promise<Unit> {

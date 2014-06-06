@@ -682,8 +682,16 @@ class Main {
                 {
                     navigation: new ControllableStream(),
                     invalidate: function (container: Element) {
-                        var binding = JsViews.objectObservable({});
-                        View.getTemplate("group/edit").link(container, binding.data());
+                        var root = new JqHtml(container);
+
+                        Service.instance.getGroup(id).then(function (data) {
+                            var binding = JsViews.objectObservable(data);
+                            View.getTemplate("group/edit").link(container, binding.data());
+
+                            root.find("#group-basics-submit").on("click", function (_) {
+                                Service.instance.updateGroupBasics(id, data.name, data.description);
+                            });
+                        });
                     },
                     dispose: function () {
                     }
