@@ -1308,7 +1308,7 @@ object DatasetService {
           .leftJoin(persistence.User as u)
             .on(sqls.eq(m.userId, u.id).and.isNull(u.deletedAt))
           .leftJoin(persistence.GroupImage as gi)
-            .on(sqls.eq(g.id, gi.groupId).and.isNull(gi.deletedAt))
+            .on(sqls.eq(g.id, gi.groupId).and.eq(gi.isPrimary, true).and.isNull(gi.deletedAt))
           .where
             .inByUuid(o.datasetId, datasetIds)
             .and
@@ -1360,7 +1360,7 @@ object DatasetService {
         .leftJoin(persistence.User as u)
           .on(sqls.eq(m.userId, u.id).and.isNull(u.deletedAt))
         .leftJoin(persistence.GroupImage as gi)
-          .on(sqls.eq(g.id, gi.groupId).and.isNull(gi.deletedAt))
+          .on(sqls.eq(g.id, gi.groupId).and.eq(gi.isPrimary, true).and.isNull(gi.deletedAt))
         .where
           .eq(o.datasetId, sqls.uuid(datasetId))
           .and
