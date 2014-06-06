@@ -334,8 +334,11 @@ object AccountService extends SessionTrait {
 
     DB readOnly { implicit s =>
       val u = persistence.User.u
-      val users = withSQL {
-        select(u.result.*)
+      val g = persistence.Group.g
+      val gi = persistence.GroupImage.gi
+
+      withSQL {
+        select(u.id, u.name, u.imageId, u.fullname, u.organization, sqls"'1' as type")
           .from(persistence.User as u)
           .where
           .like(u.name, query)
@@ -343,39 +346,44 @@ object AccountService extends SessionTrait {
           .like(u.fullname, query)
           .and
           .isNull(u.deletedAt)
+          .union(
+            select(g.id, g.name,gi.imageId, sqls"null, null, '2' as type")
+              .from(persistence.Group as g)
+              .innerJoin(persistence.GroupImage as gi).on(sqls.eq(g.id, gi.groupId).and.isNull(gi.deletedAt))
+              .where
+              .like(g.name, query)
+              .and
+              .eq(g.groupType, GroupType.Public)
+              .and
+              .isNull(g.deletedAt)
+          )
+          .orderBy(sqls"name")
           .limit(100)
-      }.map(persistence.User(u.resultName)).list().apply
-      .map(x => SuggestData.User(
-        dataType = SuggestType.User,
-        id = x.id,
-        name = x.name,
-        fullname = x.fullname,
-        organization = x.organization,
-        image = AppConf.imageDownloadRoot + x.imageId
-      ))
-
-      val g = persistence.Group.g
-      val gi = persistence.GroupImage.gi
-      val groups = withSQL {
-        select(g.result.*, gi.result.*)
-          .from(persistence.Group as g)
-          .innerJoin(persistence.GroupImage as gi).on(sqls.eq(g.id, gi.groupId).and.isNull(gi.deletedAt))
-          .where
-          .like(g.name, query)
-          .and
-          .eq(g.groupType, GroupType.Public)
-          .and
-          .isNull(g.deletedAt)
-          .limit(100)
-      }.map(rs => (persistence.Group(g.resultName)(rs), persistence.GroupImage(gi.resultName)(rs))).list().apply
-      .map(x => SuggestData.Group(
-        dataType = SuggestType.Group,
-        id = x._1.id,
-        name = x._1.name,
-        image = AppConf.imageDownloadRoot + x._2.imageId
-      ))
-
-      List.concat(users, groups)
+      }.map(rs => (rs.string("id"),
+        rs.string("name"),
+        rs.string("image_id"),
+        rs.string("fullname"),
+        rs.string("organization"),
+        rs.int("type"))).list().apply
+      .map {x =>
+        if(x._6 == SuggestType.User) {
+          SuggestData.User(
+            dataType = SuggestType.User,
+            id = x._1,
+            name = x._2,
+            fullname = x._4,
+            organization = x._5,
+            image = AppConf.imageDownloadRoot + x._3
+          )
+        } else if (x._6 == SuggestType.Group){
+          SuggestData.Group(
+            dataType = SuggestType.Group,
+            id = x._1,
+            name = x._2,
+            image = AppConf.imageDownloadRoot + x._3
+          )
+        }
+      }
     }
   }
 
