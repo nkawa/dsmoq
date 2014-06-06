@@ -393,7 +393,7 @@ class Main {
                             var binding = JsViews.objectObservable(data);
                             View.getTemplate("dataset/edit").link(root, data);
 
-                            var engine = new Bloodhound({
+                            var attrbuteEngine = new Bloodhound({
                                 datumTokenizer: Bloodhound.tokenizers.obj.whitespace("value"),
                                 queryTokenizer: Bloodhound.tokenizers.whitespace,
                                 remote: {
@@ -406,11 +406,26 @@ class Main {
                                     }
                                 }
                             });
-                            engine.initialize();
+                            attrbuteEngine.initialize();
+
+                            var ownerEngine = new Bloodhound({
+                                datumTokenizer: Bloodhound.tokenizers.obj.whitespace("name"),
+                                queryTokenizer: Bloodhound.tokenizers.whitespace,
+                                remote: {
+                                    url: "/api/suggests/users_and_groups",
+                                    replace: function (url, query) {
+                                        return '$url?query=$query';
+                                    },
+                                    filter: function (x: {status: String, data: Array<Dynamic>}) {
+                                        return (x.status == "OK") ? x.data : [];
+                                    }
+                                }
+                            });
+                            ownerEngine.initialize();
 
                             function setAttributeTypeahead() {
                                 Typeahead.initialize(root.find(".attribute-typeahead"), {
-                                    source: engine.ttAdapter()
+                                    source: attrbuteEngine.ttAdapter(),
                                 });
                             }
                             function removeAttributeTypeahead() {
@@ -418,6 +433,46 @@ class Main {
                             }
 
                             setAttributeTypeahead();
+
+                            Typeahead.initialize(root.find("#dataset-owner-typeahead"), {}, {
+                                source: ownerEngine.ttAdapter(),
+                                displayKey: "name",
+                                templates: {
+                                    suggestion: function (x) {
+                                        return '<p>${x.name}</p>';
+                                    },
+                                    empty: null,
+                                    footer: null,
+                                    header: null
+                                }
+                            });
+                            root.find("#dataset-owner-add").on("click", function (_) {
+                                var name = Typeahead.getVal(root.find("#dataset-owner-typeahead"));
+                                Service.instance.getOwner(name).then(function (owner) {
+                                    var ownerships = JsViews.arrayObservable(data.dataset.ownerships);
+                                    ownerships.insert({
+                                        id: owner.id,
+                                        name: owner.name,
+                                        fullname: owner.fullname,
+                                        organization: owner.organization,
+                                        image: owner.image,
+                                        ownerType: owner.dataType,
+                                        accessLevel: 1,
+                                    });
+                                });
+                            });
+
+                            root.find("#dataset-ownership-submit").on("click", function (_) {
+                                Service.instance.updateDatasetACL(id, data.dataset.ownerships.map(function (x) {
+                                    return {
+                                        id: x.id,
+                                        type: x.ownerType,
+                                        accessLevel: x.accessLevel
+                                    }
+                                }));
+                            });
+
+
 
                             root.find("#dataset-attribute-add").on("click", function (_) {
                                 removeAttributeTypeahead();

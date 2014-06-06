@@ -130,9 +130,10 @@
       <table class="table table-bordered table-condensed" style="width: 600px;">
         <tbody>
           {^{for dataset.ownerships ~myself=myself}}
+            {{debug #data/}}
             <tr>
               <td>
-                <p class="form-control-static"><img class="icon" data-link="src{>image}"> {{>name}}</p>
+                <p class="form-control-static"><img class="icon" src="{{>image}}"> {{>name}}</p>
               </td>
               <td>
                 <div class="form-group">
@@ -141,14 +142,14 @@
                       <option value="3">Owner</option>
                       <option value="2">Full Read</option>
                       <option value="1">Limited Read</option>
-                      <option value="0">Deny</option>
+                      <option value="0">Remove</option>
                     </select>
                   {{else ownerType == 2}}
                     <select class="form-control" style="width:auto;" data-link="{:accessLevel:toInt}">
                       <option value="3">Provider</option>
                       <option value="2">Full Read</option>
                       <option value="1">Limited Read</option>
-                      <option value="0">Deny</option>
+                      <option value="0">Remove</option>
                     </select>
                   {{else}}
                     invalid ownerType
@@ -158,13 +159,13 @@
             </tr>
           {{/for}}
           <tr>
-            <td><input class="form-control" placeholder="Enter new user or group"></td>
-            <td><a class="btn btn-success btn-sm">add</a></td></tr>
+            <td><input class="form-control" id="dataset-owner-typeahead" placeholder="Enter new user or group"></td>
+            <td><a class="btn btn-success btn-sm" id="dataset-owner-add">add</a></td></tr>
         </tbody>
       </table>
       <div class="row" style="margin-top: 8px;">
         <div class="col-sm-12">
-          <button type="button" class="btn btn-primary btm-sm">Save</button>
+          <button type="button" class="btn btn-primary btm-sm" id="dataset-ownership-submit">Save</button>
         </div>
       </div>
 

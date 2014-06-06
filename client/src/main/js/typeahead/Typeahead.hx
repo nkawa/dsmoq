@@ -3,8 +3,8 @@ package js.typeahead;
 import js.jqhx.JqHtml;
 
 class Typeahead {
-    public static function initialize(
-            html: JqHtml, ?options: TypeaheadOptions, ?dataset: TypeaheadDataset): JqHtml {
+    public static function initialize<T>(
+            html: JqHtml, ?options: TypeaheadOptions, ?dataset: TypeaheadDataset<T>): JqHtml {
         return untyped html.typeahead.apply(html, [cast options].concat(dataset));
     }
 
@@ -35,21 +35,21 @@ typedef TypeaheadOptions = {
     ?minLength: Int
 }
 
-typedef TypeaheadDatasetOptions = {
-    source : String -> (Array<Dynamic> -> Void) -> Void,
+typedef TypeaheadDatasetOptions<T> = {
+    source : String -> (Array<T> -> Void) -> Void,
     ?name: String,
     ?displayKey: String,
     ?templates: {
-        ?empty: Dynamic -> String,
-        ?footer: Dynamic -> String,
-        ?header: Dynamic -> String,
-        ?suggestion: Dynamic -> String
+        ?empty: { query: String } -> String,
+        ?footer: { query: String, isEmpty: Bool } -> String,
+        ?header: { query: String, isEmpty: Bool } -> String,
+        ?suggestion: T -> String
     }
 }
 
-abstract TypeaheadDataset(Array<TypeaheadDatasetOptions>)
-        from Array<TypeaheadDatasetOptions> to Array<TypeaheadDatasetOptions> {
-    @:from static public inline function from(a: TypeaheadDatasetOptions) {
+abstract TypeaheadDataset<T>(Array<TypeaheadDatasetOptions<T>>)
+        from Array<TypeaheadDatasetOptions<T>> to Array<TypeaheadDatasetOptions<T>> {
+    @:from static public inline function from(a: TypeaheadDatasetOptions<T>) {
         return [a];
     }
 }

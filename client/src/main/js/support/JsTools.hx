@@ -48,6 +48,14 @@ class JsTools {
         }
     }
 
+    public static inline function getArguments(): Dynamic {
+        return untyped __js__("arguments");
+    }
+
+    public static inline function getArgument<T>(i: Int): Null<T> {
+        return untyped __js__("arguments")[i];
+    }
+
     public static var setImmediate(default, null): (Void -> Void) -> { function cancel(): Void; };
 
     public static inline function encodeURI(x: String): String {

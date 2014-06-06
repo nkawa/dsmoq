@@ -1,5 +1,6 @@
 package dsmoq.models;
 
+import haxe.ds.Option;
 import js.Cookie;
 import js.Error;
 import js.jqhx.JqHtml;
@@ -149,12 +150,12 @@ class Service extends Stream<ServiceEvent> {
     }
 
     // TODO パラメータの見直し
-    public function updateDatasetACL(datasetId: String, acl: Array<{id: String, ownerType: DatasetOwnershipType, permission: DatasetPermission}>): Promise<Unit> {
-        return null;
-    }
-
-    public function setDatasetAccessLevel(datasetId: String, groupId: String, accessLevel: DatasetPermission): Promise<Unit> {
-        return send(Put, '/api/datasets/$datasetId/acl/$groupId', accessLevel);
+    public function updateDatasetACL(datasetId: String, acl: Array<{id: String, type: DatasetOwnershipType, accessLevel: DatasetPermission}>): Promise<Unit> {
+        return send(Post, '/api/datasets/$datasetId/acl', {
+            "id[]": acl.map(function (x) return x.id),
+            "type[]": acl.map(function (x) return x.type),
+            "accessLevel[]": acl.map(function (x) return x.accessLevel),
+        });
     }
 
     // setで代用可能
@@ -239,6 +240,16 @@ class Service extends Stream<ServiceEvent> {
 
     public function getUsers(page: PositiveInt): Promise<Profile> {
         return send(Get, '/api/accounts');
+    }
+
+    public function getOwner(name: String): Promise<SuggestedOwner> {
+        return send(Get, '/api/suggests/users_and_groups', {query: name}).bind(function (list: Array<SuggestedOwner>) {
+            return if (list.length > 0 && list[0].name == name) {
+                Promise.resolved(list[0]);
+            } else {
+                Promise.rejected(new Error("NotFound"));
+            }
+        });
     }
 
 
