@@ -189,15 +189,25 @@ object DatasetService {
       }
 
       DB readOnly { implicit s =>
-        val groups = params.owner match {
-          case Some(x) => getPrivateGroups(params.userInfo, x)
-          case None => getJoinedGroups(params.userInfo)
+        val groups = getJoinedGroups(params.userInfo)
+        // サブクエリ決定(条件とかちゃんと書き直す)
+        val subQuery = if (params.owner.isDefined && params.group.isDefined) {
+          filterOwnerAndGroup(params.owner.get, params.group.get)
+        } else {
+          params.owner match {
+            case Some(x) => filterOwner(x)
+            case None => params.group match {
+              case Some(y) => filterGroup(y)
+              case None => allOwnerships()
+            }
+          }
         }
-        val count = countDatasets(groups)
+        // FIXME ここもSQL変更する
+        val count = countDatasets(groups, subQuery)
 
         val summary = RangeSliceSummary(count, limit, offset)
         val results = if (count > offset) {
-          getDatasetSummary(groups, limit, offset)
+          getDatasetSummary(groups, subQuery, limit, offset)
         } else {
           List.empty
         }
@@ -208,8 +218,9 @@ object DatasetService {
     }
   }
 
-  def getDatasetSummary(groups: Seq[String], limit: Int, offset: Int)(implicit s: DBSession) = {
-    val datasets = findDatasets(groups, limit, offset)
+  def getDatasetSummary(groups: Seq[String], subQuery: TableAsAliasSQLSyntax, limit: Int, offset: Int)(implicit s: DBSession) = {
+    // FIXME
+    val datasets = findDatasets(groups, subQuery, limit, offset)
     val datasetIds = datasets.map(_._1.id)
 
     val owners = getOwnerGroups(datasetIds)
@@ -1151,39 +1162,41 @@ object DatasetService {
     }
   }
 
-  private def countDatasets(groups : Seq[String])(implicit s: DBSession) = {
+  private def countDatasets(groups : Seq[String], subQuery: TableAsAliasSQLSyntax)(implicit s: DBSession) = {
     val ds = persistence.Dataset.syntax("ds")
     val o = persistence.Ownership.syntax("o")
+    val x = SubQuery.syntax("o", o.resultName)
     withSQL {
       select(sqls.count(sqls.distinct(ds.id)).append(sqls"count"))
         .from(persistence.Dataset as ds)
-        .innerJoin(persistence.Ownership as o).on(o.datasetId, ds.id)
+        .innerJoin(subQuery).on(x(o).datasetId, ds.id)
         .where
-        .inByUuid(o.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
+        .inByUuid(x(o).groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
         .and
-        .gt(o.accessLevel, 0)
+        .gt(x(o).accessLevel, 0)
         .and
         .isNull(ds.deletedAt)
         .and
-        .isNull(o.deletedAt)
+        .isNull(x(o).deletedAt)
     }.map(implicit rs => rs.int("count")).single().apply().get
   }
 
-  private def findDatasets(groups: Seq[String], limit: Int, offset: Int)(implicit s: DBSession) = {
+  private def findDatasets(groups: Seq[String], subQuery: TableAsAliasSQLSyntax, limit: Int, offset: Int)(implicit s: DBSession) = {
     val ds = persistence.Dataset.syntax("ds")
     val o = persistence.Ownership.syntax("o")
+    val x = SubQuery.syntax("o", o.resultName)
     withSQL {
-      select(ds.result.*, sqls.max(o.accessLevel).append(sqls"access_level"))
+      select(ds.result.*, sqls.max(x(o).accessLevel).append(sqls"access_level"))
         .from(persistence.Dataset as ds)
-        .innerJoin(persistence.Ownership as o).on(ds.id, o.datasetId)
+        .innerJoin(subQuery).on(ds.id, x(o).datasetId)
         .where
-          .inByUuid(o.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
-          .and
-          .gt(o.accessLevel, 0)
-          .and
-          .isNull(ds.deletedAt)
-          .and
-          .isNull(o.deletedAt)
+        .inByUuid(x(o).groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
+        .and
+        .gt(x(o).accessLevel, 0)
+        .and
+        .isNull(ds.deletedAt)
+        .and
+        .isNull(x(o).deletedAt)
         .groupBy(ds.*)
         .orderBy(ds.updatedAt).desc
         .offset(offset)
@@ -1603,5 +1616,81 @@ object DatasetService {
           )
         }
     }
+  }
+
+  // データセット一覧ownershipサブクエリ 絞り込み条件なし
+  private def allOwnerships() = {
+    val o = persistence.Ownership.syntax("o")
+    val x = SubQuery.syntax("o", o.resultName)
+    select(o.result.*).from(persistence.Ownership as o).where.isNull(o.deletedAt)as(x)
+  }
+
+  // データセット一覧ownershipサブクエリ onwer(user_id)で絞り込み
+  private def filterOwner(owner: String) = {
+    val o = persistence.Ownership.syntax("o")
+    val o1 = persistence.Ownership.syntax("o1")
+    val g = persistence.Group.syntax("g")
+    val m = persistence.Member.syntax("m")
+    val x = SubQuery.syntax("o", o.resultName)
+    select(sqls.distinct(o.result.*))
+      .from(persistence.Ownership as o)
+      .innerJoin(persistence.Ownership as o1).on(sqls.eq(o.datasetId, o1.datasetId).and.isNull(o1.deletedAt))
+      .innerJoin(persistence.Group as g).on(sqls.eq(o.groupId, g.id).and.isNull(g.deletedAt))
+      .innerJoin(persistence.Member as m).on(sqls.eq(g.id, m.groupId).and.isNull(m.deletedAt))
+      .where
+      .eq(m.userId, sqls.uuid(owner))
+      .and
+      .eq(o1.accessLevel, AccessLevel.AllowAll)
+      .and
+      .isNull(o.deletedAt)
+      .as(x)
+  }
+
+  // データセット一覧ownershipサブクエリ groupで絞り込み
+  private def filterGroup(group: String) = {
+    val o = persistence.Ownership.syntax("o")
+    val o1 = persistence.Ownership.syntax("o2")
+    val g = persistence.Group.syntax("g")
+    val x = SubQuery.syntax("o", o.resultName)
+    select(sqls.distinct(o.result.*))
+      .from(persistence.Ownership as o)
+      .innerJoin(persistence.Ownership as o1).on(sqls.eq(o.datasetId, o1.datasetId).and.isNull(o1.deletedAt))
+      .innerJoin(persistence.Group as g).on(sqls.eq(o.groupId, g.id).and.isNull(g.deletedAt))
+      .where
+      .eq(g.id, sqls.uuid(group))
+      .and
+      .eq(o1.accessLevel, AccessLevel.AllowAll)
+      .and
+      .isNull(o.deletedAt)
+      .as(x)
+  }
+
+  // データセット一覧ownershipサブクエリ onwer(user_id), groupで絞り込み
+  private def filterOwnerAndGroup(owner: String, group: String) = {
+    val o = persistence.Ownership.syntax("o")
+    val o1 = persistence.Ownership.syntax("o1")
+    val o2 = persistence.Ownership.syntax("o2")
+    val g1 = persistence.Group.syntax("g1")
+    val g2 = persistence.Group.syntax("g2")
+    val m = persistence.Member.syntax("m")
+    val x = SubQuery.syntax("o", o.resultName)
+    select(sqls.distinct(o.result.*))
+      .from(persistence.Ownership as o)
+      .innerJoin(persistence.Ownership as o1).on(sqls.eq(o.datasetId, o1.datasetId).and.isNull(o1.deletedAt))
+      .innerJoin(persistence.Group as g1).on(sqls.eq(o.groupId, g1.id).and.isNull(g1.deletedAt))
+      .innerJoin(persistence.Member as m).on(sqls.eq(g1.id, m.groupId).and.isNull(m.deletedAt))
+      .innerJoin(persistence.Ownership as o2).on(sqls.eq(o1.datasetId, o2.datasetId).and.isNull(o2.deletedAt))
+      .innerJoin(persistence.Group as g2).on(sqls.eq(o1.groupId, g2.id).and.isNull(g2.deletedAt))
+      .where
+      .eq(m.userId, sqls.uuid(owner))
+      .and
+      .eq(o1.accessLevel, AccessLevel.AllowAll)
+      .and
+      .eq(g2.id, sqls.uuid(group))
+      .and
+      .eq(o2.accessLevel, AccessLevel.AllowAll)
+      .and
+      .isNull(o.deletedAt)
+      .as(x)
   }
 }
