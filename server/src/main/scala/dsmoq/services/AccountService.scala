@@ -362,7 +362,8 @@ object AccountService extends SessionTrait {
           .union(
             select(g.id, g.name,gi.imageId, sqls"null, null, '2' as type")
               .from(persistence.Group as g)
-              .innerJoin(persistence.GroupImage as gi).on(sqls.eq(g.id, gi.groupId).and.isNull(gi.deletedAt))
+              .innerJoin(persistence.GroupImage as gi)
+                .on(sqls.eq(g.id, gi.groupId).and.eq(gi.isPrimary, true).and.isNull(gi.deletedAt))
               .where
               .like(g.name, query)
               .and
@@ -434,7 +435,8 @@ object AccountService extends SessionTrait {
       withSQL {
         select(g.result.*, gi.result.*)
           .from(persistence.Group as g)
-          .innerJoin(persistence.GroupImage as gi).on(sqls.eq(g.id, gi.groupId).and.isNull(gi.deletedAt))
+          .innerJoin(persistence.GroupImage as gi)
+            .on(sqls.eq(g.id, gi.groupId).and.eq(gi.isPrimary, true).and.isNull(gi.deletedAt))
           .where
           .like(g.name, query)
           .and
@@ -448,7 +450,7 @@ object AccountService extends SessionTrait {
         SuggestData.GroupWithoutType(
           id = x._1.id,
           name = x._1.name,
-          image = AppConf.imageDir + x._2.imageId
+          image = AppConf.imageDownloadRoot + x._2.imageId
         )
       }
     }
