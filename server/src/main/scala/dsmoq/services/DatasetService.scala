@@ -190,19 +190,27 @@ object DatasetService {
 
       DB readOnly { implicit s =>
         val groups = getJoinedGroups(params.userInfo)
-        // サブクエリ決定(条件とかちゃんと書き直す)
+        // サブクエリ決定
         val subQuery = if (params.owner.isDefined && params.group.isDefined) {
-          filterOwnerAndGroup(params.owner.get, params.group.get)
+          if (params.userInfo.isGuest) {
+            filterOwnerAndGroup(params.owner.get, params.group.get)
+          } else {
+            filterOwnerAndGroupForUser(params.owner.get, params.group.get)
+          }
         } else {
           params.owner match {
             case Some(x) => filterOwner(x)
             case None => params.group match {
-              case Some(y) => filterGroup(y)
+              case Some(y) =>
+                if (params.userInfo.isGuest) {
+                  filterGroup(y)
+                } else {
+                  filterGroupForUser(y)
+                }
               case None => allOwnerships()
             }
           }
         }
-        // FIXME ここもSQL変更する
         val count = countDatasets(groups, subQuery)
 
         val summary = RangeSliceSummary(count, limit, offset)
@@ -1648,7 +1656,7 @@ object DatasetService {
       .as(x)
   }
 
-  // データセット一覧ownershipサブクエリ groupで絞り込み
+  // データセット一覧ownershipサブクエリ groupで絞り込み(ユーザー非ログイン時)
   private def filterGroup(group: String) = {
     val o = persistence.Ownership.syntax("o")
     val o1 = persistence.Ownership.syntax("o2")
@@ -1669,7 +1677,28 @@ object DatasetService {
       .as(x)
   }
 
-  // データセット一覧ownershipサブクエリ onwer(user_id), groupで絞り込み
+  // データセット一覧ownershipサブクエリ groupで絞り込み(ユーザーログイン時)
+  private def filterGroupForUser(group: String) = {
+    val o = persistence.Ownership.syntax("o")
+    val o1 = persistence.Ownership.syntax("o2")
+    val g = persistence.Group.syntax("g")
+    val x = SubQuery.syntax("o", o.resultName)
+    select(sqls.distinct(o.result.*))
+      .from(persistence.Ownership as o)
+      .innerJoin(persistence.Ownership as o1).on(sqls.eq(o.datasetId, o1.datasetId).and.isNull(o1.deletedAt))
+      .innerJoin(persistence.Group as g).on(sqls.eq(o1.groupId, g.id).and.isNull(g.deletedAt))
+      .where
+      .eq(g.id, sqls.uuid(group))
+      .and
+      .eq(g.groupType, GroupType.Public)
+      .and
+      .gt(o1.accessLevel, AccessLevel.Deny)
+      .and
+      .isNull(o.deletedAt)
+      .as(x)
+  }
+
+  // データセット一覧ownershipサブクエリ onwer(user_id), groupで絞り込み(ユーザー非ログイン時)
   private def filterOwnerAndGroup(owner: String, group: String) = {
     val o = persistence.Ownership.syntax("o")
     val o1 = persistence.Ownership.syntax("o1")
@@ -1695,6 +1724,37 @@ object DatasetService {
       .eq(g2.groupType, GroupType.Public)
       .and
       .eq(o2.accessLevel, AccessLevel.AllowAll)
+      .and
+      .isNull(o.deletedAt)
+      .as(x)
+  }
+
+  // データセット一覧ownershipサブクエリ onwer(user_id), groupで絞り込み, ユーザーログイン状態
+  private def filterOwnerAndGroupForUser(owner: String, group: String) = {
+    val o = persistence.Ownership.syntax("o")
+    val o1 = persistence.Ownership.syntax("o1")
+    val o2 = persistence.Ownership.syntax("o2")
+    val g1 = persistence.Group.syntax("g1")
+    val g2 = persistence.Group.syntax("g2")
+    val m = persistence.Member.syntax("m")
+    val x = SubQuery.syntax("o", o.resultName)
+    select(sqls.distinct(o.result.*))
+      .from(persistence.Ownership as o)
+      .innerJoin(persistence.Ownership as o1).on(sqls.eq(o.datasetId, o1.datasetId).and.isNull(o1.deletedAt))
+      .innerJoin(persistence.Group as g1).on(sqls.eq(o1.groupId, g1.id).and.isNull(g1.deletedAt))
+      .innerJoin(persistence.Member as m).on(sqls.eq(g1.id, m.groupId).and.isNull(m.deletedAt))
+      .innerJoin(persistence.Ownership as o2).on(sqls.eq(o1.datasetId, o2.datasetId).and.isNull(o2.deletedAt))
+      .innerJoin(persistence.Group as g2).on(sqls.eq(o2.groupId, g2.id).and.isNull(g2.deletedAt))
+      .where
+      .eq(m.userId, sqls.uuid(owner))
+      .and
+      .eq(o1.accessLevel, AccessLevel.AllowAll)
+      .and
+      .eq(g2.id, sqls.uuid(group))
+      .and
+      .eq(g2.groupType, GroupType.Public)
+      .and
+      .gt(o2.accessLevel, AccessLevel.Deny)
       .and
       .isNull(o.deletedAt)
       .as(x)
