@@ -401,6 +401,38 @@ object AccountService extends SessionTrait {
     }
   }
 
+  def getGroups(param: Option[String]) = {
+    val query = param match {
+      case Some(x) => x + "%"
+      case None => ""
+    }
+
+    val g = persistence.Group.g
+    val gi = persistence.GroupImage.gi
+    DB readOnly { implicit s =>
+      withSQL {
+        select(g.result.*, gi.result.*)
+          .from(persistence.Group as g)
+          .innerJoin(persistence.GroupImage as gi).on(sqls.eq(g.id, gi.groupId).and.isNull(gi.deletedAt))
+          .where
+          .like(g.name, query)
+          .and
+          .eq(g.groupType, GroupType.Public)
+          .and
+          .isNull(g.deletedAt)
+          .orderBy(g.name, g.createdAt).desc
+          .limit(100)
+      }.map(rs => (persistence.Group(g.resultName)(rs), persistence.GroupImage(gi.resultName)(rs))).list().apply
+      .map{ x =>
+        SuggestData.GroupWithoutType(
+          id = x._1.id,
+          name = x._1.name,
+          image = AppConf.imageDir + x._2.imageId
+        )
+      }
+    }
+  }
+
   private def createPasswordHash(password: String) = {
     MessageDigest.getInstance("SHA-256").digest(password.getBytes("UTF-8")).map("%02x".format(_)).mkString
   }
