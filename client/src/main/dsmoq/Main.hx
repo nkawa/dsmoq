@@ -650,6 +650,7 @@ class Main {
 
                         Service.instance.getGroup(id).then(function (res) {
                             var data = {
+                                myself: Service.instance.profile,
                                 group: res,
                                 members: Async.Pending,
                                 datasets: Async.Pending,
@@ -684,12 +685,71 @@ class Main {
                     invalidate: function (container: Element) {
                         var root = new JqHtml(container);
 
-                        Service.instance.getGroup(id).then(function (data) {
+                        Service.instance.getGroup(id).then(function (res) {
+                            var data = {
+                                group: res,
+                                isMembersLoading: true,
+                                members: {
+                                    summary: { count: 0, offset: 0, total: 0 },
+                                    results: []
+                                },
+                            };
                             var binding = JsViews.objectObservable(data);
+
                             View.getTemplate("group/edit").link(container, binding.data());
 
+                            var engine = new Bloodhound({
+                                datumTokenizer: Bloodhound.tokenizers.obj.whitespace("name"),
+                                queryTokenizer: Bloodhound.tokenizers.whitespace,
+                                prefetch: {
+                                    url: "/api/accounts",
+                                    filter: function (x) {
+                                        return x.data;
+                                    }
+                                }
+                            });
+                            engine.initialize();
+
+                            Typeahead.initialize(root.find("#group-user-typeahead"), {}, {
+                                source: engine.ttAdapter(),
+                                displayKey: "name",
+                                templates: {
+                                    suggestion: function (x) {
+                                        return '<p>${x.name}</p>';
+                                    },
+                                    empty: null,
+                                    footer: null,
+                                    header: null
+                                }
+                            });
+
+                            Service.instance.getGroupMembers(id).then(function (res) {
+                                binding.setProperty("members.summary.count", res.summary.count);
+                                binding.setProperty("members.summary.offset", res.summary.offset);
+                                binding.setProperty("members.summary.total", res.summary.total);
+                                JsViews.arrayObservable(data.members.results).refresh(res.results);
+                                binding.setProperty("isMembersLoading", false);
+                            });
+
                             root.find("#group-basics-submit").on("click", function (_) {
-                                Service.instance.updateGroupBasics(id, data.name, data.description);
+                                Service.instance.updateGroupBasics(id, data.group.name, data.group.description);
+                            });
+
+                            root.find("#group-icon-form").on("change", "input[type=file]", function (e) {
+                                if (new JqHtml(e.target).val() != "") {
+                                    root.find("#group-icon-submit").show();
+                                } else {
+                                    root.find("#group-icon-submit").hide();
+                                }
+                            });
+                            root.find("#group-icon-submit").on("click", function (_) {
+                                Service.instance.changeGroupImage(id, JQuery.find("#group-icon-form")).then(function (res) {
+                                    var img = res.images.filter(function (x) return x.id == res.primaryImage)[0];
+                                    binding.setProperty("group.primaryImage.id", img.id);
+                                    binding.setProperty("group.primaryImage.url", img.url);
+                                    root.find("#group-icon-form input[type=file]").val("");
+                                    root.find("#group-icon-submit").hide();
+                                });
                             });
                         });
                     },

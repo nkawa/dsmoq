@@ -214,13 +214,23 @@ class Service extends Stream<ServiceEvent> {
         return send(Put, '/api/groups/$groupId', { name: name, description: description });
     }
 
-    public function addGroupImages(groupId: String, form: JqHtml): Promise<Unit> {
-        return sendForm('/api/groups/$groupId/images', form);
+    public function changeGroupImage(groupId: String, form: JqHtml): Promise<{images: Array<Image>, primaryImage: String}> {
+        // TODO 既存イメージ削除
+        return sendForm('/api/groups/$groupId/images', form).bind(function (res) {
+            return send(Put, '/api/groups/$groupId/images/primary', { id: res.images[0].id } ).map(function (_) {
+                return { images: cast res.images, primaryImage: cast res.images[0].id };
+            });
+        });
+
     }
 
-    public function setGroupPrimaryImage(groupId: String, imageId: String): Promise<Unit> {
-        return send(Put, '/api/groups/$groupId/iamges/primary', {id: imageId});
-    }
+    //public function addGroupImages(groupId: String, form: JqHtml): Promise<Unit> {
+        //return sendForm('/api/groups/$groupId/images', form);
+    //}
+//
+    //public function setGroupPrimaryImage(groupId: String, imageId: String): Promise<Unit> {
+        //return send(Put, '/api/groups/$groupId/iamges/primary', {id: imageId});
+    //}
 
     public function removeGroupImage(groupId: String, imageId: String): Promise<Unit> {
         return send(Delete, '/api/groups/$groupId/iamges/$imageId');

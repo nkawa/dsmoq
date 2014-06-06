@@ -21,16 +21,16 @@
       <form role="form">
         <div class="form-group">
           <label for="form-title" class="control-label">Name</label>
-          <input type="text" style="width:300px;" class="form-control" placeholder="Group name" data-link="name">
+          <input type="text" style="width:300px;" class="form-control" placeholder="Group name" data-link="group.name">
         </div>
         <div class="form-group">
           <label for="form-description" class="control-label">Description</label>
-          <textarea class="form-control" row="3" style="width: 600px;" data-link="description"></textarea>
+          <textarea class="form-control" row="3" style="width: 600px;" data-link="group.description"></textarea>
         </div>
       </form>
       <div class="row">
         <p class="col-sm-12">
-          <a class="btn btn-primary" id="group-basics-submit">Save</a>
+          <a href="javascript:void 0;" class="btn btn-primary" id="group-basics-submit">Save</a>
         </p>
       </div>
     </div>
@@ -38,10 +38,10 @@
     <div class="tab-pane" id="group-icon">
       <div class="form-group">
         <div>
-          <img data-link="src{>dataset.primaryImage.url}" alt="icon">
+          <img data-link="src{>group.primaryImage.url}" alt="icon">
         </div>
       </div>
-      <form role="form" id="dataset-icon-form">
+      <form role="form" id="group-icon-form">
         <div class="form-group">
           <div><label class="control-label">Change icon</label></div>
           <div>
@@ -53,78 +53,30 @@
     </div>
 
     <div class="tab-pane" id="group-members">
+      <img src="/resources/loading-large.gif" alt="loading" data-link="style{>isMembersLoading ? '' : 'display:none'}">
+      <table class="table table-bordered" data-link="style{>isMembersLoading ? 'display:none' : ''}">
+        <thead>
+          <tr><td>Name</td><td>Role</td></tr>
+        </thead>
+        <tbody>
+          {^{for members.results}}
+            <tr>
+              <td><img src="{{>image}}" class="icon">{{>fullname}} / {{>organization}}</td>
+              <td>
+                <select class="form-control" style="width:auto;" data-link="{:role:toInt} disabled{:~myself.id == id}">
+                  <option value="2">Manger</option>
+                  <option value="1">Member</option>
+                  <option value="0">Remove</option>
+                </select>
+              </td>
+            </tr>
+          {{/for}}
+          <tr>
+            <td><input type="text" class="form-control" placeholder="Enter new user" id="group-user-typeahead"></td>
+            <td><a class="btn btn-success btn-sm" id="group-user-add">add</a></td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
-
-
-
-
-<form class="form-horizontal" role="form">
-    <div class="form-group">
-        <label for="form-name" class="col-sm-2 control-label">Group Name</label>
-        <div class="col-sm-10"> <input type="text" class="form-control" id="form-name" value="オープンデータ東海"> </div>
-    </div>
-    <div class="form-group">
-        <label for="form-description" class="col-sm-2 control-label">Description</label>
-        <div class="col-sm-10"> <textarea class="form-control" row="3"></textarea> </div>
-    </div>
-    <div class="form-group">
-        <label class="col-sm-2 control-label">Icon</label>
-        <div class="col-sm-10">
-            <div class="pull-left">
-                <img src="/resources/dummy/images/group.jpg">
-            </div>
-            <input type="file">
-        </div>
-    </div>
-    <div class="form-group">
-        <label class="col-sm-2 control-label">Members(25)</label>
-        <div class="col-sm-10">
-            <table class="table table-bordered">
-                <thead>
-                    <tr><td>#</td><td>Name</td><td>Organization</td><td>Access</td><td></td></tr>
-                </thead>
-                <tbody>
-                <tr><td>1</td><td><img src="/resources/dummy/images/user.jpg" class="icon"/>john001</td><td>Nagoya Univ.</td>
-                    <td><select class="form-control" > <option>Manger</option>
-                            <option>Reader</option> </select> </td>
-                    <td><a class="btn btn-warning btn-sm">del</a></td></tr>
-                <tr><td>2</td><td><img src="/resources/dummy/images/user.jpg" class="icon"/>paul001</td><td>Nagoya Univ.</td>
-                    <td><select class="form-control"> <option>Manger</option>
-                            <option>Reader</option> </select> </td>
-                    <td><a class="btn btn-warning btn-sm">del</a></td></tr>
-                <tr><td>3</td><td><img src="/resources/dummy/images/user.jpg" class="icon"/>george001</td><td>Nagoya Univ.</td>
-                    <td><select class="form-control"> <option>Manger</option> <option selected>Reader</option> </select> </td>
-                    <td><a class="btn btn-warning btn-sm">del</a></td></tr>
-                <tr><td>4</td><td><img src="/resources/dummy/images/user.jpg" class="icon"/>ringo001</td><td>Nagoya Univ.</td>
-                    <td><select class="form-control"> <option>Manger</option> <option selected>Reader</option> </select> </td>
-                    <td><a class="btn btn-warning btn-sm">del</a></td></tr>
-                <tr><td>5</td><td><img src="/resources/dummy/images/user.jpg" class="icon"/>martin001</td><td>Nagoya Univ.</td>
-                    <td><select class="form-control"> <option>Manger</option> <option>Reader</option> </select> </td>
-                    <td><a class="btn btn-warning btn-sm">del</a></td></tr>
-
-                <tr><td>*</td>
-                    <td><input class="form-control" placeholder="Enter new user"></td>
-                    <td></td><td>
-                        <select class="form-control">
-                            <option>Manger</option>
-                            <option>Editor</option>
-                            <option>Reader</option>
-                        </select>
-                    </td>
-                    <td><a class="btn btn-success btn-sm">add</a></td></tr>
-                </tbody>
-            </table>
-            <ul class="pagination">
-                <li><a class="disabled" href="#">&laquo;</a></li>
-                <li class="active"><a href="#">1 <span class="sr-only">(current)</span></a></li>
-                <li><a href="#">2</a></li> <li><a href="#">3</a></li>
-                <li><a href="#">4</a></li> <li><a href="#">5</a></li>
-                <li><a href="#">&raquo;</a></li>
-            </ul>
-
-        </div>
-    </div>
-</form>
-
