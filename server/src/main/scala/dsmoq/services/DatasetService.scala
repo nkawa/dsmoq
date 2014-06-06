@@ -792,33 +792,35 @@ object DatasetService {
             .where
             .isNull(a.deletedAt)
         }.map(rs => (rs.string(a.resultName.name), rs.string(a.resultName.id))).list().apply.toMap
-        params.attributes.foreach {x =>
-          val annotationId = if (annotationMap.keySet.contains(x._1)) {
-            annotationMap(x._1)
-          } else {
-            val annotationId = UUID.randomUUID().toString
-            persistence.Annotation.create(
-              id = annotationId,
-              name = x._1,
-              createdBy =  myself.id,
-              createdAt =  timestamp,
-              updatedBy =  myself.id,
-              updatedAt =  timestamp
-            )
-            annotationId
-          }
+        params.attributes.foreach { x =>
+          if (x._1.length != 0) {
+            val annotationId = if (annotationMap.keySet.contains(x._1)) {
+              annotationMap(x._1)
+            } else {
+              val annotationId = UUID.randomUUID().toString
+              persistence.Annotation.create(
+                id = annotationId,
+                name = x._1,
+                createdBy = myself.id,
+                createdAt = timestamp,
+                updatedBy = myself.id,
+                updatedAt = timestamp
+              )
+              annotationId
+            }
 
-          // DatasetAnnotation再作成
-          persistence.DatasetAnnotation.create(
-            id = UUID.randomUUID().toString,
-            datasetId = params.datasetId,
-            annotationId = annotationId,
-            data = x._2,
-            createdBy = myself.id,
-            createdAt = timestamp,
-            updatedBy = myself.id,
-            updatedAt = timestamp
-          )
+            // DatasetAnnotation再作成
+            persistence.DatasetAnnotation.create(
+              id = UUID.randomUUID().toString,
+              datasetId = params.datasetId,
+              annotationId = annotationId,
+              data = x._2,
+              createdBy = myself.id,
+              createdAt = timestamp,
+              updatedBy = myself.id,
+              updatedAt = timestamp
+            )
+          }
         }
 
         // データ追加前のnameが他で使われているかチェック 使われていなければ削除
