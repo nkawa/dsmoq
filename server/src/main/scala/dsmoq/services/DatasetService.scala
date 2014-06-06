@@ -754,41 +754,50 @@ object DatasetService {
             .eq(d.id, sqls.uuid(params.datasetId))
         }.update().apply
 
-        // attributesデータ削除(物理削除)
         val da = persistence.DatasetAnnotation.syntax("da")
         val a = persistence.Annotation.syntax("a")
-        val annotationIdList = withSQL {
-          select(da.result.annotationId)
-            .from(persistence.DatasetAnnotation as da)
+        // 先に指定datasetに関連するannotation(name)を取得(あとで差分チェックするため)
+        val oldAnnotations = withSQL {
+          select(a.result.*)
+            .from(persistence.Annotation as a)
+            .innerJoin(persistence.DatasetAnnotation as da).on(sqls.eq(da.annotationId, a.id).and.isNull(da.deletedAt))
             .where
             .eq(da.datasetId, sqls.uuid(params.datasetId))
             .and
-            .isNull(da.deletedAt)
-        }.map(rs => rs.string(da.resultName.annotationId)).list().apply
+            .isNull(a.deletedAt)
+        }.map(rs => (rs.string(a.resultName.name), rs.string(a.resultName.id))).list().apply
+
+        // 既存DatasetAnnotation全削除
         withSQL {
           delete.from(persistence.DatasetAnnotation as da)
             .where
             .eq(da.datasetId, sqls.uuid(params.datasetId))
         }.update().apply
-        if (annotationIdList.nonEmpty) {
-          withSQL {
-            delete.from(persistence.Annotation as a)
-              .where
-              .inByUuid(a.id, annotationIdList)
-          }.update().apply
-        }
 
-        // attributesデータ作成
-        params.attributes.foreach { x =>
-          val annotationId = UUID.randomUUID().toString
-          persistence.Annotation.create(
-            id = annotationId,
-            name = x._1,
-            createdBy =  myself.id,
-            createdAt =  timestamp,
-            updatedBy =  myself.id,
-            updatedAt =  timestamp
-          )
+        // annotation(name)が既存のものかチェック なければ作る
+        val annotationMap = withSQL {
+          select(a.result.*)
+            .from(persistence.Annotation as a)
+            .where
+            .isNull(a.deletedAt)
+        }.map(rs => (rs.string(a.resultName.name), rs.string(a.resultName.id))).list().apply.toMap
+        params.attributes.foreach {x =>
+          val annotationId = if (annotationMap.keySet.contains(x._1)) {
+            annotationMap(x._1)
+          } else {
+            val annotationId = UUID.randomUUID().toString
+            persistence.Annotation.create(
+              id = annotationId,
+              name = x._1,
+              createdBy =  myself.id,
+              createdAt =  timestamp,
+              updatedBy =  myself.id,
+              updatedAt =  timestamp
+            )
+            annotationId
+          }
+
+          // DatasetAnnotation再作成
           persistence.DatasetAnnotation.create(
             id = UUID.randomUUID().toString,
             datasetId = params.datasetId,
@@ -799,6 +808,27 @@ object DatasetService {
             updatedBy = myself.id,
             updatedAt = timestamp
           )
+        }
+
+        // データ追加前のnameが他で使われているかチェック 使われていなければ削除
+        oldAnnotations.foreach {x =>
+          if (!params.attributes.map(_._1).contains(x._1)) {
+            val datasetAnnotations = withSQL {
+              select(da.result.id)
+                .from(persistence.DatasetAnnotation as da)
+                .where
+                .eq(da.annotationId, sqls.uuid(x._2))
+                .and
+                .isNull(da.deletedAt)
+            }.map(rs => rs.string(da.resultName.id)).list().apply
+            if (datasetAnnotations.size == 0) {
+              withSQL {
+                delete.from(persistence.Annotation as a)
+                  .where
+                  .eq(a.id, sqls.uuid(x._2))
+              }.update().apply
+            }
+          }
         }
       }
       Success(params.datasetId)
