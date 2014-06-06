@@ -17,7 +17,7 @@ object ImageService {
 
       // ファイルサイズ指定が合致すればその画像サイズ
       val fileName = size match {
-        case Some(x) => if (ImageSaveLogic.imageSizes.contains(x)) {
+        case Some(x) => if (ImageSaveLogic.imageSizes.contains(x.toInt)) {
           x
         } else {
           ImageSaveLogic.defaultFileName
