@@ -192,20 +192,20 @@ object DatasetService {
         val groups = getJoinedGroups(params.userInfo)
         // サブクエリ決定
         val subQuery = if (params.owner.isDefined && params.group.isDefined) {
-          if (params.userInfo.isGuest) {
-            filterOwnerAndGroup(params.owner.get, params.group.get)
-          } else {
+          if (!params.userInfo.isGuest && isGroupMember(params.userInfo, params.group.get)) {
             filterOwnerAndGroupForUser(params.owner.get, params.group.get)
+          } else {
+            filterOwnerAndGroup(params.owner.get, params.group.get)
           }
         } else {
           params.owner match {
             case Some(x) => filterOwner(x)
             case None => params.group match {
               case Some(y) =>
-                if (params.userInfo.isGuest) {
-                  filterGroup(y)
-                } else {
+                if (!params.userInfo.isGuest && isGroupMember(params.userInfo, params.group.get)) {
                   filterGroupForUser(y)
+                } else {
+                  filterGroup(y)
                 }
               case None => allOwnerships()
             }
@@ -1758,5 +1758,24 @@ object DatasetService {
       .and
       .isNull(o.deletedAt)
       .as(x)
+  }
+
+  private def isGroupMember(user: User, groupId: String)(implicit s: DBSession) = {
+    val g = persistence.Group.syntax("g")
+    val m = persistence.Member.syntax("m")
+    withSQL {
+      select(g.result.id)
+      .from(persistence.Group as g)
+      .innerJoin(persistence.Member as m).on(sqls.eq(g.id, m.groupId).and.isNull(m.deletedAt))
+      .where
+      .eq(g.id, sqls.uuid(groupId))
+      .and
+      .eq(m.userId, sqls.uuid(user.id))
+      .and
+      .isNull(g.deletedAt)
+  }.map(_.string(g.resultName.id)).single().apply() match {
+      case Some(x) => true
+      case None => false
+    }
   }
 }
