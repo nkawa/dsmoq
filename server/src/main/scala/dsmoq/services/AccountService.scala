@@ -205,6 +205,20 @@ object AccountService extends SessionTrait {
       }
 
       DB localTx { implicit s =>
+        // 同名チェック
+        val u = persistence.User.syntax("u")
+        val users = withSQL {
+          select(u.result.id)
+            .from(persistence.User as u)
+            .where
+            .eq(u.name, name)
+            .and
+            .ne(u.id, sqls.uuid(user.id))
+        }.map(_.string(u.resultName.id)).list().apply
+        if (users.size != 0) {
+          throw new InputValidationException("name", "same name")
+        }
+
         withSQL {
           val u = persistence.User.column
           update(persistence.User)
@@ -249,7 +263,6 @@ object AccountService extends SessionTrait {
         }
 
         // 新しいユーザー情報を取得
-        val u = persistence.User.u
         val ma = persistence.MailAddress.ma
         val newUser = withSQL {
           select(u.result.*, ma.result.address)
@@ -334,8 +347,11 @@ object AccountService extends SessionTrait {
 
     DB readOnly { implicit s =>
       val u = persistence.User.u
-      val users = withSQL {
-        select(u.result.*)
+      val g = persistence.Group.g
+      val gi = persistence.GroupImage.gi
+
+      withSQL {
+        select(u.id, u.name, u.imageId, u.fullname, u.organization, sqls"'1' as type")
           .from(persistence.User as u)
           .where
           .like(u.name, query)
@@ -343,39 +359,44 @@ object AccountService extends SessionTrait {
           .like(u.fullname, query)
           .and
           .isNull(u.deletedAt)
+          .union(
+            select(g.id, g.name,gi.imageId, sqls"null, null, '2' as type")
+              .from(persistence.Group as g)
+              .innerJoin(persistence.GroupImage as gi).on(sqls.eq(g.id, gi.groupId).and.isNull(gi.deletedAt))
+              .where
+              .like(g.name, query)
+              .and
+              .eq(g.groupType, GroupType.Public)
+              .and
+              .isNull(g.deletedAt)
+          )
+          .orderBy(sqls"name")
           .limit(100)
-      }.map(persistence.User(u.resultName)).list().apply
-      .map(x => SuggestData.User(
-        dataType = SuggestType.User,
-        id = x.id,
-        name = x.name,
-        fullname = x.fullname,
-        organization = x.organization,
-        image = AppConf.imageDownloadRoot + x.imageId
-      ))
-
-      val g = persistence.Group.g
-      val gi = persistence.GroupImage.gi
-      val groups = withSQL {
-        select(g.result.*, gi.result.*)
-          .from(persistence.Group as g)
-          .innerJoin(persistence.GroupImage as gi).on(sqls.eq(g.id, gi.groupId).and.isNull(gi.deletedAt))
-          .where
-          .like(g.name, query)
-          .and
-          .eq(g.groupType, GroupType.Public)
-          .and
-          .isNull(g.deletedAt)
-          .limit(100)
-      }.map(rs => (persistence.Group(g.resultName)(rs), persistence.GroupImage(gi.resultName)(rs))).list().apply
-      .map(x => SuggestData.Group(
-        dataType = SuggestType.Group,
-        id = x._1.id,
-        name = x._1.name,
-        image = AppConf.imageDownloadRoot + x._2.imageId
-      ))
-
-      List.concat(users, groups)
+      }.map(rs => (rs.string("id"),
+        rs.string("name"),
+        rs.string("image_id"),
+        rs.string("fullname"),
+        rs.string("organization"),
+        rs.int("type"))).list().apply
+      .map {x =>
+        if(x._6 == SuggestType.User) {
+          SuggestData.User(
+            dataType = SuggestType.User,
+            id = x._1,
+            name = x._2,
+            fullname = x._4,
+            organization = x._5,
+            image = AppConf.imageDownloadRoot + x._3
+          )
+        } else if (x._6 == SuggestType.Group){
+          SuggestData.Group(
+            dataType = SuggestType.Group,
+            id = x._1,
+            name = x._2,
+            image = AppConf.imageDownloadRoot + x._3
+          )
+        }
+      }
     }
   }
 
@@ -398,6 +419,38 @@ object AccountService extends SessionTrait {
           .limit(100)
       }.map(rs => rs.string(a.resultName.name)).list().apply
       attributes
+    }
+  }
+
+  def getGroups(param: Option[String]) = {
+    val query = param match {
+      case Some(x) => x + "%"
+      case None => ""
+    }
+
+    val g = persistence.Group.g
+    val gi = persistence.GroupImage.gi
+    DB readOnly { implicit s =>
+      withSQL {
+        select(g.result.*, gi.result.*)
+          .from(persistence.Group as g)
+          .innerJoin(persistence.GroupImage as gi).on(sqls.eq(g.id, gi.groupId).and.isNull(gi.deletedAt))
+          .where
+          .like(g.name, query)
+          .and
+          .eq(g.groupType, GroupType.Public)
+          .and
+          .isNull(g.deletedAt)
+          .orderBy(g.name, g.createdAt).desc
+          .limit(100)
+      }.map(rs => (persistence.Group(g.resultName)(rs), persistence.GroupImage(gi.resultName)(rs))).list().apply
+      .map{ x =>
+        SuggestData.GroupWithoutType(
+          id = x._1.id,
+          name = x._1.name,
+          image = AppConf.imageDir + x._2.imageId
+        )
+      }
     }
   }
 

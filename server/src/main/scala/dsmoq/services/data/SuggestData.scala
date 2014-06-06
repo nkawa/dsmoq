@@ -15,4 +15,10 @@ object SuggestData {
                            name: String,
                            image: String
                            )
+
+  case class GroupWithoutType(
+   id: String,
+   name: String,
+   image: String
+  )
 }

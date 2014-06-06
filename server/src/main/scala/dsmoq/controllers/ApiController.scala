@@ -713,6 +713,12 @@ class ApiController extends ScalatraServlet
     AjaxResponse("OK", attributes)
   }
 
+  get("/suggests/groups") {
+    val query = params.get("query")
+    val groups = AccountService.getGroups(query)
+    AjaxResponse("OK", groups)
+  }
+
   private def setGuestAccessControl(datasetId: String, accessLevel: Option[String]) = {
     val aci = AccessControl(datasetId, AppConf.guestGroupId, accessLevel)
 
