@@ -161,7 +161,23 @@ object GroupService {
     }
 
     try {
-      val group = DB localTx { implicit s =>
+      DB localTx { implicit s =>
+        // 同名チェック
+        val g = persistence.Group.syntax("g")
+        val sameNameGroups = withSQL {
+          select(g.result.id)
+          .from(persistence.Group as g)
+          .where
+          .eq(g.name, name)
+          .and
+          .eq(g.groupType, GroupType.Public)
+          .and
+          .isNull(g.deletedAt)
+        }.map(_.string(g.resultName.id)).list().apply
+        if (sameNameGroups.size != 0) {
+          throw new InputValidationException("name", "same name")
+        }
+
         val myself = persistence.User.find(params.userInfo.id).get
         val timestamp = DateTime.now()
         val groupId = UUID.randomUUID.toString
@@ -197,20 +213,20 @@ object GroupService {
           updatedBy = myself.id,
           updatedAt = timestamp
         )
-        group
+
+        Success(GroupData.Group(
+          id = group.id,
+          name = group.name,
+          description = group.description,
+          images = Seq(Image(
+            id = AppConf.defaultGroupImageId,
+            url = AppConf.imageDownloadRoot + AppConf.defaultGroupImageId
+          )),
+          primaryImage = AppConf.defaultGroupImageId,
+          isMember = true,
+          role = persistence.GroupMemberRole.Manager
+        ))
       }
-      Success(GroupData.Group(
-        id = group.id,
-        name = group.name,
-        description = group.description,
-        images = Seq(Image(
-          id = AppConf.defaultGroupImageId,
-          url = AppConf.imageDownloadRoot + AppConf.defaultGroupImageId
-        )),
-        primaryImage = AppConf.defaultGroupImageId,
-        isMember = true,
-        role = persistence.GroupMemberRole.Manager
-      ))
     } catch {
       case e: Exception => Failure(e)
     }
