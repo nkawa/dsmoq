@@ -10,24 +10,18 @@
         <ul>
           <li class="dataset-item">
             <div class="row">
-              <div class="pull-left">{{a href="/datasets/"+id}}<img src="{{>image}}">{{/a}}</div>
+              <div class="pull-left">{{a href="/datasets/"+id}}<img src="{{>image+'/64'}}">{{/a}}</div>
               <div class="result-list-body">
                 <h3>{{a href="/datasets/"+id}}{{>name}}{{/a}} <small>{{>files}} file, {{datasize dataSize/}}</small></h3>
                 <p>{{>description}}</p>
                 <p>
-                  <span>Owner:</span>
-                  {{for ownerships}}
-                    <strong>{{>fullname}}</strong>
-                    {{if #index == (#parent.length - 1)}}, {{/if}}
+                  {{for ownerships ~last=(ownerships.length-1)}}
+                    {{if ownerType == 1}}
+                      <img src="{{>image+'/16'}}" class="icon"><strong>{{>fullname}}</strong>
+                    {{else ownerType == 2}}
+                      <img src="{{>image+'/16'}}" class="icon"><strong>{{>name}}</strong>
+                    {{/if}}
                   {{/for}}
-                  <span class="meta-data text-muted">
-                    {{for attributes}}
-                      <span>{{>name}}: {{>value}}</span>
-                      {{if #index == (#parent.length - 1)}}, {{/if}}
-                    {{else}}
-                      No attributes
-                    {{/for}}
-                  </span>
                 </p>
               </div>
             </div>
@@ -51,24 +45,18 @@
           <ul>
             <li class="dataset-item">
               <div class="row">
-                <div class="pull-left">{{a href="/datasets/"+id}}<img src="{{>image}}">{{/a}}</div>
+                <div class="pull-left">{{a href="/datasets/"+id}}<img src="{{>image+'/64'}}">{{/a}}</div>
                 <div class="result-list-body">
                   <h3>{{a href="/datasets/"+id}}{{>name}}{{/a}} <small>{{>files}} file, {{datasize dataSize/}}</small></h3>
                   <p>{{>description}}</p>
                   <p>
-                    <span>Owner:</span>
-                    {{for ownerships}}
-                      <strong>{{>fullname}}</strong>
-                      {{if #index == (#parent.length - 1)}}, {{/if}}
+                    {{for ownerships ~last=(ownerships.length-1)}}
+                      {{if ownerType == 1}}
+                        <img src="{{>image+'/16'}}" class="icon"><strong>{{>fullname}}</strong>
+                      {{else ownerType == 2}}
+                        <img src="{{>image+'/16'}}" class="icon"><strong>{{>name}}</strong>
+                      {{/if}}
                     {{/for}}
-                    <span class="meta-data text-muted">
-                      {{for attributes}}
-                        <span>{{>name}}: {{>value}}</span>
-                        {{if #index == (#parent.length - 1)}}, {{/if}}
-                      {{else}}
-                        No attributes
-                      {{/for}}
-                    </span>
                   </p>
                 </div>
               </div>

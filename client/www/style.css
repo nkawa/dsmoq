@@ -71,21 +71,23 @@ hr {
     margin-bottom: 7px;
 }
 
+.dataset-item  {
+    padding-bottom: 8px;
+}
 .dataset-item img {
-    width: 120px;
+    width: 64px;
+	height: 64px;
 }
 .dataset-item .result-list-body {
     margin-left:125px;
 }
 
 .panel .dataset-item .result-list-body {
-    margin-left:90px;
-}
-.panel img  {
-    width:80px;
+    margin-left: 72px;
 }
 .panel img.icon, .table img.icon, .well img.icon, .form-control img.icon{
     width:16px;
+	height:16px;
     margin-right:2px;
 }
 .panel ul {
