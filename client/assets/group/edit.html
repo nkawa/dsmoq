@@ -59,9 +59,9 @@
           <tr><td>Name</td><td>Role</td></tr>
         </thead>
         <tbody>
-          {^{for members.results}}
+          {^{for members.results ~myself=myself}}
             <tr>
-              <td><img src="{{>image}}" class="icon">{{>fullname}} / {{>organization}}</td>
+              <td><img src="{{>image}}" class="icon">{{>fullname}} <span class="text-muted">{{>name}}, {{>organization}}</span></td>
               <td>
                 <select class="form-control" style="width:auto;" data-link="{:role:toInt} disabled{:~myself.id == id}">
                   <option value="2">Manger</option>
@@ -73,10 +73,15 @@
           {{/for}}
           <tr>
             <td><input type="text" class="form-control" placeholder="Enter new user" id="group-user-typeahead"></td>
-            <td><a class="btn btn-success btn-sm" id="group-user-add">add</a></td>
+            <td><button type="button" class="btn btn-success btn-sm" id="group-user-add">add</button></td>
           </tr>
         </tbody>
       </table>
+      <div class="row" style="margin-top: 8px;">
+        <div class="col-sm-12">
+          <button type="button" class="btn btn-primary btm-sm" id="group-member-submit">Save</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>

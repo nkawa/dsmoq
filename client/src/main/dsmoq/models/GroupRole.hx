@@ -1,9 +1,6 @@
 package dsmoq.models;
 
-/**
- * @author terurou
- */
-
-typedef GroupRole ={
-    	
+@:enum abstract GroupRole(Int) {
+    var Member = 1;
+    var Manager = 2;
 }

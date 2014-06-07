@@ -5,6 +5,8 @@ import dsmoq.framework.Engine;
 import dsmoq.framework.types.PositiveInt;
 import dsmoq.framework.View;
 import dsmoq.models.DatasetGuestAccessLevel;
+import dsmoq.models.GroupMember;
+import dsmoq.models.GroupRole;
 import dsmoq.models.Profile;
 import js.Boot;
 import js.support.ControllablePromise;
@@ -687,6 +689,7 @@ class Main {
 
                         Service.instance.getGroup(id).then(function (res) {
                             var data = {
+                                myself: Service.instance.profile,
                                 group: res,
                                 isMembersLoading: true,
                                 members: {
@@ -698,7 +701,7 @@ class Main {
 
                             View.getTemplate("group/edit").link(container, binding.data());
 
-                            var engine = new Bloodhound({
+                            var engine = new Bloodhound<Profile>({
                                 datumTokenizer: Bloodhound.tokenizers.obj.whitespace("name"),
                                 queryTokenizer: Bloodhound.tokenizers.whitespace,
                                 prefetch: {
@@ -714,8 +717,8 @@ class Main {
                                 source: engine.ttAdapter(),
                                 displayKey: "name",
                                 templates: {
-                                    suggestion: function (x) {
-                                        return '<p>${x.name}</p>';
+                                    suggestion: function (x: Profile) {
+                                        return '<p><img src="${x.image}/16"> ${x.name} <span class="text-muted">${x.fullname}, ${x.organization}</span></p>';
                                     },
                                     empty: null,
                                     footer: null,
@@ -750,6 +753,28 @@ class Main {
                                     root.find("#group-icon-form input[type=file]").val("");
                                     root.find("#group-icon-submit").hide();
                                 });
+                            });
+
+                            root.find("#group-user-add").on("click", function (_) {
+                                var name = Typeahead.getVal(root.find("#group-user-typeahead"));
+                                engine.get(name, function (res) {
+                                    if (res.length == 1) {
+                                        var item: GroupMember = {
+                                            id: res[0].id,
+                                            name: res[0].name,
+                                            fullname: res[0].fullname,
+                                            organization: res[0].organization,
+                                            title: res[0].title,
+                                            image: res[0].image,
+                                            role: dsmoq.models.GroupRole.Member
+                                        };
+                                        JsViews.arrayObservable(data.members.results).insert(item);
+                                    }
+                                    Typeahead.setVal(root.find("#group-user-typeahead"), "");
+                                });
+                            });
+                            root.find("#group-member-submit").on("click", function (_) {
+                                Service.instance.updateGroupMemberRoles(id, data.members.results);
                             });
                         });
                     },
