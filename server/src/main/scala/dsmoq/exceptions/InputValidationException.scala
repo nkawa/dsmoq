@@ -5,6 +5,6 @@ class InputValidationException(id: String, message: String) extends RuntimeExcep
   val msg = message
 
   def getErrorMessage() = {
-    Map(name -> msg)
+    List(Map("name" -> name, "message" -> msg))
   }
 }

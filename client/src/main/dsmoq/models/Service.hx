@@ -336,9 +336,9 @@ enum ServiceEvent {
 }
 
 class ServiceError extends Error {
-    public var detail(default, null): Dynamic<String>;
+    public var detail(default, null): Array<{name: String, message: String}>;
 
-    public function new(message:String, type: ServiceErrorType, ?detail: Dynamic<String>) {
+    public function new(message:String, type: ServiceErrorType, ?detail: Array<{name: String, message: String}>) {
         super(message);
         this.name = type;
         this.detail = detail;

@@ -6,13 +6,15 @@ import js.Error;
  * @author terurou
  */
 class Promise<A> {
-    @:allow(dsmoq.framework.types) @:noCompletion
+    @:allow(js.support) @:noCompletion
     var _state: _PromiseState<A>;
-    @:allow(dsmoq.framework.types) @:noCompletion
+    @:allow(js.support) @:noCompletion
     var _resolvedHandlers: Array<A -> Void>;
-    @:allow(dsmoq.framework.types) @:noCompletion
+    @:allow(js.support) @:noCompletion
     var _rejectedHandlers: Array<Dynamic -> Void>;
-    @:allow(dsmoq.framework.types) @:noCompletion
+    @:allow(js.support) @:noCompletion
+    var _finallyHandlers: Array<Void -> Void>;
+    @:allow(js.support) @:noCompletion
     var _abort: Void -> Void;
 
     public function new(executor: (A -> Void) -> (Dynamic -> Void) -> (Void -> Void)) {
@@ -26,18 +28,20 @@ class Promise<A> {
         }
     }
 
-    @:allow(dsmoq.framework.types) @:noCompletion
+    @:allow(js.support) @:noCompletion
     inline function _clear(): Void {
         _resolvedHandlers = [];
         _rejectedHandlers = [];
+        _finallyHandlers = [];
         _abort = function () { };
     }
 
-    @:allow(dsmoq.framework.types) @:noCompletion
+    @:allow(js.support) @:noCompletion
     function _invokeResolved(value: A): Void {
         JsTools.setImmediate(function () {
             try {
                 for (f in _resolvedHandlers) f(value);
+                _invokeFinally();
                 _clear();
                 _state = Resolved(value);
             } catch (e: Dynamic) {
@@ -46,14 +50,23 @@ class Promise<A> {
         });
     }
 
-    @:allow(dsmoq.framework.types) @:noCompletion
+    @:allow(js.support) @:noCompletion
     function _invokeRejected(error: Dynamic): Void {
         JsTools.setImmediate(function () {
-            for (f in _rejectedHandlers)
+            for (f in _rejectedHandlers) {
                 try f(error) catch (e: Dynamic) trace(e); //TODO エラーダンプ
+            }
+            _invokeFinally();
             _clear();
             _state = Rejected(error);
         });
+    }
+
+    @:allow(js.support) @:noCompletion
+    function _invokeFinally(): Void {
+        for (f in _finallyHandlers) {
+            try f() catch (e: Dynamic) trace(e); //TODO エラーダンプ
+        }
     }
 
     function resolve(x: A): Void {
@@ -87,21 +100,32 @@ class Promise<A> {
         }
     }
 
-    public function then(resolved: A -> Void, ?rejected: Dynamic -> Void): Promise<A> {
+    public function then(resolved: A -> Void, ?rejected: Dynamic -> Void, ?finally: Void -> Void): Promise<A> {
         switch (_state) {
             case Pending, Sealed:
                 if (resolved != null) _resolvedHandlers.push(resolved);
                 if (rejected != null) _rejectedHandlers.push(rejected);
+                if (finally != null) _finallyHandlers.push(finally);
             case Resolved(v):
-                if (resolved != null) JsTools.setImmediate(resolved.bind(v));
+                JsTools.setImmediate(function () {
+                    if (resolved != null) try resolved(v) catch (e: Dynamic) trace(e);
+                    if (finally != null) try finally() catch (e: Dynamic) trace(e);
+                });
             case Rejected(e):
-                if (rejected != null) JsTools.setImmediate(rejected.bind(e));
+                JsTools.setImmediate(function () {
+                    if (rejected != null) try rejected(e) catch (_e: Dynamic) trace(_e);
+                    if (finally != null) try finally() catch (e: Dynamic) trace(e);
+                });
         }
         return this;
     }
 
     public function thenError(rejected: Dynamic -> Void): Promise<A> {
         return then(null, rejected);
+    }
+
+    public function thenFinally(finally: Void -> Void): Promise<A> {
+        return then(null, null, finally);
     }
 
     public function map<B>(f: A -> B): Promise<B> {

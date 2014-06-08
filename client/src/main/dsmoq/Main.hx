@@ -205,8 +205,11 @@ class Main {
 
         var data = {
             profile: Service.instance.profile,
-            id: "",
-            password: "",
+            signinData: {
+                id: "",
+                password: "",
+                error: ""
+            },
             location: url(LocationTools.currentLocation())
         };
 
@@ -231,15 +234,25 @@ class Main {
             event.preventDefault();
 
             BootstrapButton.setLoading(JQuery.find("#signin-submit"));
-            Service.instance.signin(data.id, data.password).thenError(function (e) {
-                switch (e.name) {
-                    case ServiceErrorType.BadRequest:
-                        var detail = cast(e, ServiceError).detail;
-
+            JQuery.find("#signin-with-google").attr("disabled", true);
+            Service.instance.signin(data.signinData.id, data.signinData.password).then(
+                function (_) {
+                    binding.setProperty("signinData.id", "");
+                    binding.setProperty("signinData.password", "");
+                    binding.setProperty("signinData.error", "");
+                },
+                function (e) {
+                    switch (e.name) {
+                        case ServiceErrorType.BadRequest:
+                            var detail = cast(e, ServiceError).detail;
+                            binding.setProperty("signinData.error", detail[0].message);
+                    }
+                },
+                function () {
+                    BootstrapButton.reset(JQuery.find("#signin-submit"));
+                    JQuery.find("#signin-with-google").removeAttr("disabled");
                 }
-
-                trace(e);
-            });
+            );
         });
 
         header.on("click", "#settings-button", function (event: Event) {
