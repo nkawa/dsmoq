@@ -20,7 +20,7 @@
       <ul class="nav navbar-nav navbar-right">
         {^{if profile != null && profile.isGuest !== false}}
           <li class="dropdown login-form">
-            <a class="btn dropdown-toggle" data-toggle="dropdown">Login <span class="caret"></span></a>
+            <a class="btn dropdown-toggle" data-toggle="dropdown">Signin <span class="caret"></span></a>
             <div class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu1">
               <form method="POST" class="form-horizontal" role="form" id="signin-form">
                 <div class="form-group">
@@ -34,16 +34,17 @@
                 <div class="form-group">
                   <label class="col-sm-4 control-label"></label>
                   <div class="col-sm-8">
-                    <button type="submit" class="btn btn-primary btn-sm">Login</button>
+                    <button type="submit" class="btn btn-primary btn-sm" id="signin-submit" data-loading-text="Loading...">Submit</button>
                     <span class="login-failure"></span>
                   </div>
                 </div>
               </form>
+              <hr/>
 		  	  <form method="GET" class="form-horizontal" role="form">
                 <div class="form-group">
                   <label class="col-sm-4 control-label"></label>
                   <div class="col-sm-8">
-                    <a data-link="href{:location}" class="btn btn-primary btn-sm" id="signin-with-google-button">Login with Google Account</a>
+                    <a data-link="href{:location}" class="btn btn-success btn-sm" id="signin-with-google">Signin with Google Account</a>
                   </div>
                 </div>
               </form>

@@ -9,6 +9,7 @@ import dsmoq.models.GroupMember;
 import dsmoq.models.GroupRole;
 import dsmoq.models.Profile;
 import js.Boot;
+import js.bootstrap.BootstrapButton;
 import js.support.ControllablePromise;
 import js.support.ControllableStream;
 import js.support.Promise;
@@ -193,7 +194,6 @@ class Main {
         return Service.instance.bootstrap;
     }
 
-    // これ自体がViewModelだよね…
     public function frame(context: ApplicationContext): PageFrame<Page> {
         var navigation = new ControllableStream();
 
@@ -227,10 +227,19 @@ class Main {
             }
         });
 
-
         header.on("submit", "#signin-form", function (event: Event) {
             event.preventDefault();
-            Service.instance.signin(data.id, data.password);
+
+            BootstrapButton.setLoading(JQuery.find("#signin-submit"));
+            Service.instance.signin(data.id, data.password).thenError(function (e) {
+                switch (e.name) {
+                    case ServiceErrorType.BadRequest:
+                        var detail = cast(e, ServiceError).detail;
+
+                }
+
+                trace(e);
+            });
         });
 
         header.on("click", "#settings-button", function (event: Event) {
@@ -323,10 +332,7 @@ class Main {
                             binding.setProperty("result", x);
                             View.getTemplate("dataset/list").link(container, binding.data());
                         }, function (err) {
-                            switch (err) {
-                                case UnauthorizedError: trace("UnauthorizedError");
-                                case _: trace("xxx");
-                            }
+                            // TODO
                         });
                     },
                     dispose: function () {
@@ -362,7 +368,7 @@ class Main {
                             });
                         }, function (err) {
                             switch (err.name) {
-                                case ErrorType.Unauthorized:
+                                case ServiceErrorType.Unauthorized:
                                     container.innerHTML = "Permission denied";
                                     trace("UnauthorizedError");
                                 case _:

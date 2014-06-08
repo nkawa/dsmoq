@@ -5,6 +5,7 @@ import js.Cookie;
 import js.Error;
 import js.jqhx.JqHtml;
 import js.jqhx.JQuery;
+import js.support.ArrayTools;
 import js.support.ControllablePromise;
 import js.support.Promise;
 import js.support.Stream;
@@ -284,13 +285,13 @@ class Service extends Stream<ServiceEvent> {
                     case ApiStatus.OK:
                         Promise.resolved(cast response.data);
                     case ApiStatus.BadRequest:
-                        Promise.rejected(new BadRequestError("TODO error message"));
+                        Promise.rejected(new ServiceError(response.status, BadRequest, response.data));
                     case ApiStatus.Unauthorized:
                         profile = guest();
                         update(SignedOut);
-                        Promise.rejected(new UnauthorizedError("TODO error message"));
+                        Promise.rejected(new ServiceError(response.status, Unauthorized));
                     case _:
-                        Promise.rejected(new Error("response error"));
+                        Promise.rejected(new ServiceError("Unknown", Unknown));
                 }
             });
     }
@@ -305,15 +306,15 @@ class Service extends Stream<ServiceEvent> {
             success: function (response) {
                 switch (response.status) {
                     case ApiStatus.OK:
-                        promise.resolve(cast response.data);
+                        Promise.resolved(cast response.data);
                     case ApiStatus.BadRequest:
-                        promise.reject(new BadRequestError("TODO error message"));
+                        Promise.rejected(new ServiceError(response.status, BadRequest, response.data));
                     case ApiStatus.Unauthorized:
                         profile = guest();
                         update(SignedOut);
-                        promise.reject(new UnauthorizedError("TODO error message"));
+                        Promise.rejected(new ServiceError(response.status, Unauthorized));
                     case _:
-                        promise.reject(new Error("response error"));
+                        Promise.rejected(new ServiceError("Unknown", Unknown));
                 }
             },
             error: promise.reject
@@ -327,27 +328,24 @@ enum ServiceEvent {
     SignedOut;
 }
 
-@:enum abstract ErrorType(String) to String {
+@:enum abstract ServiceErrorType(String) to String {
+    var NotFound = "NotFoundError";
     var BadRequest = "BadRequestError";
     var Unauthorized = "UnauthorizedError";
+    var Unknown = "Unknown";
 }
 
-class BadRequestError extends Error {
-    public function new(?message: String) {
+class ServiceError extends Error {
+    public var detail(default, null): Dynamic<String>;
+
+    public function new(message:String, type: ServiceErrorType, ?detail: Dynamic<String>) {
         super(message);
-        name = ErrorType.BadRequest;
+        this.name = type;
+        this.detail = detail;
     }
 }
 
-class UnauthorizedError extends Error {
-    public function new(?message: String) {
-        super(message);
-        name = ErrorType.Unauthorized;
-    }
-}
-
-@:enum
-private abstract RequestMethod(String) {
+@:enum private abstract RequestMethod(String) {
     var Get = "get";
     var Post = "post";
     var Head = "head";
@@ -360,8 +358,7 @@ private typedef ApiResponse = {
     var data: Dynamic;
 }
 
-@:enum
-private abstract ApiStatus(String) {
+@:enum private abstract ApiStatus(String) to String {
     var OK = "OK";
     var NotFound = "NotFound";
     var BadRequest = "BadRequest";
