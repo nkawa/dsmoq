@@ -8,6 +8,8 @@ import dsmoq.models.DatasetGuestAccessLevel;
 import dsmoq.models.GroupMember;
 import dsmoq.models.GroupRole;
 import dsmoq.models.Profile;
+import dsmoq.pages.Frame;
+import dsmoq.pages.ProfilePage;
 import js.Boot;
 import js.bootstrap.BootstrapButton;
 import js.support.ControllablePromise;
@@ -36,6 +38,7 @@ import js.html.Node;
 import js.jqhx.JQuery;
 import js.jqhx.JqHtml;
 import dsmoq.framework.LocationTools;
+import dsmoq.Page;
 import js.jsviews.JsViews;
 import js.support.JsTools;
 import js.typeahead.Bloodhound;
@@ -51,6 +54,10 @@ using dsmoq.framework.helper.JQueryTools;
 class Main {
     public static function main() {
         // TODO frameworkで管理すべき
+        JsViews.views.helpers("isEmpty", function (x) {
+            return (x == null) || (x.length <= 0);
+        });
+
         JsViews.views.tags("debug", function (x) {
             trace(x);
             return "";
@@ -195,100 +202,7 @@ class Main {
     }
 
     public function frame(context: ApplicationContext): PageFrame<Page> {
-        var navigation = new ControllableStream();
-
-        var body = JQuery.wrap(Browser.document.body);
-
-        function url(location) {
-            return "/oauth/signin_google?location=" + LocationTools.toUrl(location).urlEncode();
-        }
-
-        var data = {
-            profile: Service.instance.profile,
-            signinData: {
-                id: "",
-                password: "",
-                error: ""
-            },
-            location: url(LocationTools.currentLocation())
-        };
-
-        var binding = JsViews.objectObservable(data);
-
-        var header = JQuery.find("#header");
-        View.link("header", header, data);
-
-        context.location.then(function (location) {
-            binding.setProperty("location", url(location));
-        });
-
-        Service.instance.then(function (event) {
-            switch (event) {
-                case SignedIn, SignedOut:
-                    binding.setProperty("profile", Service.instance.profile);
-                    navigation.update(PageNavigation.Reload);
-            }
-        });
-
-        header.on("submit", "#signin-form", function (event: Event) {
-            event.preventDefault();
-
-            BootstrapButton.setLoading(JQuery.find("#signin-submit"));
-            JQuery.find("#signin-with-google").attr("disabled", true);
-            Service.instance.signin(data.signinData.id, data.signinData.password).then(
-                function (_) {
-                    binding.setProperty("signinData.id", "");
-                    binding.setProperty("signinData.password", "");
-                    binding.setProperty("signinData.error", "");
-                },
-                function (e) {
-                    switch (e.name) {
-                        case ServiceErrorType.BadRequest:
-                            var detail = cast(e, ServiceError).detail;
-                            binding.setProperty("signinData.error", detail[0].message);
-                    }
-                },
-                function () {
-                    BootstrapButton.reset(JQuery.find("#signin-submit"));
-                    JQuery.find("#signin-with-google").removeAttr("disabled");
-                }
-            );
-        });
-
-        header.on("click", "#settings-button", function (event: Event) {
-            event.preventDefault();
-            trace(event);
-        });
-
-        header.on("click", "#signout-button", function (event: Event) {
-            event.preventDefault();
-            Service.instance.signout();
-        });
-
-        JQuery.find("#new-dataset-dialog-submit").on("click", function (event: Event) {
-            // TODO ui block
-            Service.instance.createDataset(JQuery.find("#new-dataset-dialog form")).then(function (data) {
-                untyped JQuery.find("#new-dataset-dialog").modal("hide");
-                navigation.update(PageNavigation.Navigate(DatasetShow(data.id)));
-            });
-        });
-
-        JQuery.find("#new-group-dialog-submit").on("click", function (event: Event) {
-            // TODO ui block
-            var name = JQuery.find("#new-group-dialog input[name=name]").val();
-            Service.instance.createGroup(name).then(function (data) {
-                untyped JQuery.find("#new-group-dialog").modal("hide");
-                navigation.update(PageNavigation.Navigate(GroupShow(data.id)));
-                // TODO form clear
-            });
-        });
-
-        body.removeClass("loading");
-
-        return PageHelper.toFrame({
-            html: cast JQuery.find("#main")[0],
-            navigation: navigation
-        });
+        return Frame.create(context);
     }
 
     public function content(page: Page): PageContent<Page> {
@@ -801,66 +715,7 @@ class Main {
                     }
                 }
 
-            case Profile:
-                {
-                    navigation: new ControllableStream(),
-                    invalidate: function (container: Element) {
-                        // TODO ログインしてなかったらエラー画面
-
-                        var data = {
-                            basics: {
-                                name: Service.instance.profile.name,
-                                fullname: Service.instance.profile.fullname,
-                                organization: Service.instance.profile.organization,
-                                title: Service.instance.profile.title,
-                                description: "", //Service.instance.profile.
-                                image: Service.instance.profile.image
-                            },
-                            email: {
-                                value: ""
-                            },
-                            password: {
-                                currentValue: "",
-                                newValue: "",
-                                verifyValue: ""
-                            }
-                        };
-
-                        var binding = JsViews.objectObservable(data);
-                        View.getTemplate("profile/edit").link(container, data);
-
-                        new JqHtml(container).find("#basics-form-submit").on("click", function (_) {
-                            Service.instance.updateProfile(new JqHtml(container).find("#basics-form")).then(function (x) {
-                                binding.setProperty("basics.name", x.name);
-                                binding.setProperty("basics.fullname", x.fullname);
-                                binding.setProperty("basics.organization", x.organization);
-                                binding.setProperty("basics.title", x.title);
-                                //binding.setProperty("basics.description", x.description);
-                                binding.setProperty("basics.image", x.image);
-                            });
-                        });
-
-                        new JqHtml(container).find("#email-form-submit").on("click", function (_) {
-                            Service.instance.sendEmailChangeRequests(data.email.value).then(function (_) {
-                                binding.setProperty("email.value", "");
-                            }, function (err) {
-                                // TODO エラー処理
-                            });
-                        });
-
-                        new JqHtml(container).find("#password-form-submit").on("click", function (_) {
-                            Service.instance.updatePassword(data.password.currentValue, data.password.newValue).then(function (_) {
-                                binding.setProperty("password.currentValue", "");
-                                binding.setProperty("password.newValue", "");
-                                binding.setProperty("password.verifyValue", "");
-                            }, function (err) {
-                                // TODO エラー処理
-                            });
-                        });
-                    },
-                    dispose: function () {
-                    }
-                }
+            case Profile: ProfilePage.create();
         };
     }
 
@@ -920,20 +775,4 @@ class Main {
                 { path: "/profile" };
         };
     }
-}
-
-enum Page {
-    Dashboard;
-
-    //DatasetNew;
-    DatasetList(page: PositiveInt);
-    DatasetShow(id: String);
-    DatasetEdit(id: String);
-
-    //GroupNew;
-    GroupList(page: PositiveInt);
-    GroupShow(id: String);
-    GroupEdit(id: String);
-
-    Profile;
 }

@@ -8,7 +8,6 @@ import dsmoq.framework.types.PageNavigation;
 import js.support.Stream;
 import js.support.Unit;
 import js.support.Option;
-import dsmoq.Main.Page;
 import js.Browser;
 import js.Error;
 import js.html.AnchorElement;

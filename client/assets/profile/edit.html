@@ -10,39 +10,102 @@
 
   <div class="panel-body">
     <form class="form-horizontal" role="form" id="basics-form">
-      <div class="form-group">
-        <label for="form-name" class="col-sm-2 control-label">Account Name</label>
-        <div class="col-sm-10"><input name="name" type="text" class="form-control" data-link="basics.name"></div>
-      </div>
-      <div class="form-group">
-        <label for="form-description" class="col-sm-2 control-label">Full Name</label>
-        <div class="col-sm-10"><input name="fullname" type="text" class="form-control" data-link="basics.fullname"></div>
-      </div>
-      <div class="form-group">
-        <label for="form-description" class="col-sm-2 control-label">Organization</label>
-        <div class="col-sm-10"><input name="organization" type="text" class="form-control" data-link="basics.organization"></div>
-      </div>
-      <div class="form-group">
-        <label for="form-description" class="col-sm-2 control-label">Title</label>
-        <div class="col-sm-10"><input name="title" type="text" class="form-control" data-link="basics.title"></div>
-      </div>
-      <div class="form-group">
-        <label for="form-description" class="col-sm-2 control-label">Description</label>
-        <div class="col-sm-10"><textarea name="description" class="form-control" row="3" data-link="basics.description"></textarea></div>
-      </div>
+      {^{if ~isEmpty(basics.errors.name)}}
+        <div class="form-group">
+          <label class="col-sm-2 control-label">Account Name</label>
+          <div class="col-sm-10"><input type="text" class="form-control" name="name" data-link="basics.name"></div>
+        </div>
+      {{else}}
+        <div class="form-group has-error has-feedback">
+          <label class="col-sm-2 control-label">Account Name</label>
+          <div class="col-sm-10"><input type="text" class="form-control" name="name" data-link="basics.name"></div>
+          <span class="glyphicon glyphicon-remove form-control-feedback"></span>
+        </div>
+        <div class="row">
+          <div class="col-sm-2"></div><p class="col-sm-10 text-danger" data-link="basics.errors.name"></p>
+        </div>
+      {{/if}}
+
+      {^{if ~isEmpty(basics.errors.fullname)}}
+        <div class="form-group">
+          <label class="col-sm-2 control-label">Fullname</label>
+          <div class="col-sm-10"><input type="text" class="form-control" name="fullname" data-link="basics.fullname"></div>
+        </div>
+      {{else}}
+        <div class="form-group has-error has-feedback">
+          <label class="col-sm-2 control-label">Fullname</label>
+          <div class="col-sm-10"><input type="text" class="form-control" name="fullname" data-link="basics.fullname"></div>
+          <span class="glyphicon glyphicon-remove form-control-feedback"></span>
+        </div>
+        <div class="row">
+          <div class="col-sm-2"></div><p class="col-sm-10 text-danger" data-link="basics.errors.fullname"></p>
+        </div>
+      {{/if}}
+
+      {^{if ~isEmpty(basics.errors.organization)}}
+        <div class="form-group">
+          <label class="col-sm-2 control-label">Organization</label>
+          <div class="col-sm-10"><input type="text" class="form-control" name="organization" data-link="basics.organization"></div>
+        </div>
+      {{else}}
+        <div class="form-group has-error has-feedback">
+          <label class="col-sm-2 control-label">Organization</label>
+          <div class="col-sm-10"><input type="text" class="form-control" name="organization" data-link="basics.organization"></div>
+          <span class="glyphicon glyphicon-remove form-control-feedback"></span>
+        </div>
+        <div class="row">
+          <div class="col-sm-2"></div><p class="col-sm-10 text-danger" data-link="basics.errors.organization"></p>
+        </div>
+      {{/if}}
+
+      {^{if ~isEmpty(basics.errors.title)}}
+        <div class="form-group">
+          <label class="col-sm-2 control-label">Title</label>
+          <div class="col-sm-10"><input type="text" class="form-control" name="title" data-link="basics.title"></div>
+        </div>
+      {{else}}
+        <div class="form-group has-error has-feedback">
+          <label class="col-sm-2 control-label">Fullname</label>
+          <div class="col-sm-10"><input type="text" class="form-control" name="title" data-link="basics.title"></div>
+          <span class="glyphicon glyphicon-remove form-control-feedback"></span>
+        </div>
+        <div class="row">
+          <div class="col-sm-2"></div><p class="col-sm-10 text-danger" data-link="basics.errors.title"></p>
+        </div>
+      {{/if}}
+
+      {^{if ~isEmpty(basics.errors.description)}}
+        <div class="form-group">
+          <label class="col-sm-2 control-label">Description</label>
+          <div class="col-sm-10"><textarea class="form-control" rows="3" name="description" data-link="basics.description"></textarea></div>
+        </div>
+      {{else}}
+        <div class="form-group has-error has-feedback">
+          <label class="col-sm-2 control-label">Description</label>
+          <div class="col-sm-10"><textarea class="form-control" rows="3" name="description" data-link="basics.description"></textarea></div>
+          <span class="glyphicon glyphicon-remove form-control-feedback"></span>
+        </div>
+        <div class="row">
+          <div class="col-sm-2"></div><p class="col-sm-10 text-danger" data-link="basics.errors.description"></p>
+        </div>
+      {{/if}}
+
       <div class="form-group">
         <label class="col-sm-2 control-label">Icon</label>
         <div class="col-sm-10">
-          <div class="pull-left">
-            {{img src=basics.image class="img-thumbnail"/}}
-          </div>
+          <img data-link="src{:basics.image+'/128'}" class="img-thumbnail"/>
           <input type="file" name="image">
         </div>
       </div>
+      {^{if !~isEmpty(basics.errors.description)}}
+        <div class="row">
+          <div class="col-sm-2"></div><p class="col-sm-10 text-danger" data-link="basics.errors.description"></p>
+        </div>
+      {{/if}}
     </form>
     <div class="row">
       <div class="col-sm-2"></div>
-      <div class="col-sm-10"><a class="btn btn-primary" id="basics-form-submit">Save</a></div>
+      <div class="col-sm-10"><a class="btn btn-primary" data-loading="Saving..." id="basics-form-submit">Save</a></div>
     </div>
   </div>
 </div>

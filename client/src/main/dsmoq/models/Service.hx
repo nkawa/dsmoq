@@ -60,7 +60,7 @@ class Service extends Stream<ServiceEvent> {
     public function updateProfile(form: JqHtml): Promise<Profile> {
         return sendForm("/api/profile", form).then(function (x: Profile) {
             profile = x;
-            update(SignedIn); //TODO updateイベント
+            update(ProfileUpdated);
         });
     }
 
@@ -271,6 +271,7 @@ class Service extends Stream<ServiceEvent> {
             fullname: "",
             organization: "",
             title: "",
+            description: "",
             image: "",
             mailAddress: "",
             isGuest: true,
@@ -297,7 +298,7 @@ class Service extends Stream<ServiceEvent> {
     }
 
     function sendForm<T>(url: String, form: JqHtml, ?optData: {}): Promise<T> {
-        var promise = new ControllablePromise();
+        var p = new ControllablePromise();
         untyped form.ajaxSubmit({
             url: url,
             type: "post",
@@ -306,26 +307,27 @@ class Service extends Stream<ServiceEvent> {
             success: function (response) {
                 switch (response.status) {
                     case ApiStatus.OK:
-                        Promise.resolved(cast response.data);
+                        p.resolve(cast response.data);
                     case ApiStatus.BadRequest:
-                        Promise.rejected(new ServiceError(response.status, BadRequest, response.data));
+                        p.reject(new ServiceError(response.status, BadRequest, response.data));
                     case ApiStatus.Unauthorized:
                         profile = guest();
                         update(SignedOut);
-                        Promise.rejected(new ServiceError(response.status, Unauthorized));
+                        p.reject(new ServiceError(response.status, Unauthorized));
                     case _:
-                        Promise.rejected(new ServiceError("Unknown", Unknown));
+                        p.reject(new ServiceError("Unknown", Unknown));
                 }
             },
-            error: promise.reject
+            error: p.reject
         });
-        return promise;
+        return p;
     }
 }
 
 enum ServiceEvent {
     SignedIn;
     SignedOut;
+    ProfileUpdated;
 }
 
 @:enum abstract ServiceErrorType(String) to String {
