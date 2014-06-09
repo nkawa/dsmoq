@@ -1459,7 +1459,7 @@ object DatasetService {
       ).list.apply.map(x =>
         Image(
           id = x._2.id,
-          url = AppConf.imageDownloadRoot + x._2.id + "/48"
+          url = AppConf.imageDownloadRoot + x._2.id
         )
       )
   }
