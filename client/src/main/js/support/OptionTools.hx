@@ -42,7 +42,7 @@ class OptionTools {
         }
     }
 
-    public static inline function bind<A, B>(x: Option<A>, f: A -> Option<B>) {
+    public static inline function flatMap<A, B>(x: Option<A>, f: A -> Option<B>) {
         return switch (x) {
             case Some(a): f(a);
             case None: None;

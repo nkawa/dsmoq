@@ -136,5 +136,20 @@ class OptionSpec {
                 E.expect(None.getOrElse(ten)).toBe(10);
             });
         });
+
+        M.describe("flatMap", function(){
+            M.it("Some to Some", function(){
+                E.expect(Some(3).flatMap(function(x){return Some(x + 1);}).get()).toBe(4);
+            });
+            M.it("Some to None", function(){
+                shouldNone(Some(3).flatMap(function(x){return None;}));
+            });
+            M.it("None to Some", function(){
+                shouldNone(None.flatMap(function(x){return Some(3);}));
+            });
+            M.it("None to None", function(){
+                shouldNone(None.flatMap(function(x){return None;}));
+            });
+        });
     }
 }
