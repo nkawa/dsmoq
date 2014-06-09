@@ -30,16 +30,27 @@ class ProfilePage {
                             description: Service.instance.profile.description,
                             image: Service.instance.profile.image,
                             errors: {
-                                name: ""
+                                name: "",
+                                fullname: "",
+                                organization: "",
+                                title: "",
+                                description: "",
+                                image: "",
                             }
                         },
                         email: {
-                            value: Service.instance.profile.mailAddress
+                            email: Service.instance.profile.mailAddress,
+                            errors: { value: "" }
                         },
                         password: {
                             currentValue: "",
                             newValue: "",
-                            verifyValue: ""
+                            verifyValue: "",
+                            errors: {
+                                currentValue: "",
+                                newValue: "",
+                                verifyValue: ""
+                            }
                         }
                     };
 
@@ -56,12 +67,12 @@ class ProfilePage {
                                 binding.setProperty("basics.title", x.title);
                                 binding.setProperty("basics.description", x.description);
                                 binding.setProperty("basics.image", x.image);
-                                binding.setProperty("basics.errors.name", null);
-                                binding.setProperty("basics.errors.fullname", null);
-                                binding.setProperty("basics.errors.organization", null);
-                                binding.setProperty("basics.errors.title", null);
-                                binding.setProperty("basics.errors.description", null);
-                                binding.setProperty("basics.errors.image", null);
+                                binding.setProperty("basics.errors.name", "");
+                                binding.setProperty("basics.errors.fullname", "");
+                                binding.setProperty("basics.errors.organization", "");
+                                binding.setProperty("basics.errors.title", "");
+                                binding.setProperty("basics.errors.description", "");
+                                binding.setProperty("basics.errors.image", "");
                                 Notification.show("success", "save successful");
                             },
                             function (e) {
@@ -80,22 +91,63 @@ class ProfilePage {
                         root.find("#basics-form input, #basics-form textarea").attr("disabled", true);
                     });
 
-                    new JqHtml(container).find("#email-form-submit").on("click", function (_) {
-                        Service.instance.sendEmailChangeRequests(data.email.value).then(function (_) {
-                            binding.setProperty("email.value", "");
-                        }, function (err) {
-                            // TODO エラー処理
-                        });
+                    root.find("#email-form-submit").on("click", function (_) {
+                        BootstrapButton.setLoading(root.find("#email-form-submit"));
+                        Service.instance.sendEmailChangeRequests(data.email.email).then(
+                            function (_) {
+                                binding.setProperty("email.errors.email", "");
+                                Notification.show("success", "save successful");
+                            },
+                            function (e) {
+                                switch (e.name) {
+                                    case ServiceErrorType.BadRequest:
+                                        for (x in cast(e, ServiceError).detail) {
+                                            binding.setProperty('email.errors.${x.name}', x.message);
+                                        }
+                                }
+                                Notification.show("error", "error happened");
+                            }, function () {
+                                BootstrapButton.reset(root.find("#email-form-submit"));
+                            }
+                        );
                     });
 
-                    new JqHtml(container).find("#password-form-submit").on("click", function (_) {
-                        Service.instance.updatePassword(data.password.currentValue, data.password.newValue).then(function (_) {
-                            binding.setProperty("password.currentValue", "");
-                            binding.setProperty("password.newValue", "");
-                            binding.setProperty("password.verifyValue", "");
-                        }, function (err) {
-                            // TODO エラー処理
-                        });
+                    root.find("#password-form-submit").on("click", function (_) {
+                        if (data.password.newValue != data.password.verifyValue) {
+                            binding.setProperty("password.errors.verifyValue", "invalid verify password");
+                            return;
+                        }
+
+
+                        BootstrapButton.setLoading(root.find("#password-form-submit"));
+                        Service.instance.updatePassword(data.password.currentValue, data.password.newValue).then(
+                            function (_) {
+                                binding.setProperty("password.currentValue", "");
+                                binding.setProperty("password.newValue", "");
+                                binding.setProperty("password.verifyValue", "");
+                                binding.setProperty("password.errors.currentValue", "");
+                                binding.setProperty("password.errors.newValue", "");
+                                binding.setProperty("password.errors.verifyValue", "");
+                                Notification.show("success", "save successful");
+                            },
+                            function (e) {
+                                switch (e.name) {
+                                    case ServiceErrorType.BadRequest:
+                                        for (x in cast(e, ServiceError).detail) {
+                                            var name = switch (x.name) {
+                                                case "new_password": "newValue";
+                                                case "current_password": "currentValue";
+                                                case _: x.name;
+                                            }
+                                            binding.setProperty('password.errors.${name}', x.message);
+                                        }
+                                }
+                                trace(data);
+                                Notification.show("error", "error happened");
+                            },
+                            function () {
+                                BootstrapButton.reset(root.find("#password-form-submit"));
+                            });
                     });
                 }
             },
