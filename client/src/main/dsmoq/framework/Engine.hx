@@ -83,7 +83,7 @@ class Engine<TPage: EnumValue> {
                 }
             }
 
-            getAnchor(cast event.target).each(function (a: AnchorElement) {
+            getAnchor(cast event.target).iter(function (a: AnchorElement) {
                 if (a.hasAttribute("data-history")
                         && !~/^javascript:/.match(StringTools.trim(a.href))
                         && a.host == Browser.location.host

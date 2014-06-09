@@ -28,7 +28,7 @@ class OptionTools {
         }
     }
 
-    public static inline function each<T>(x: Option<T>, f: T -> Void): Void {
+    public static inline function iter<T>(x: Option<T>, f: T -> Void): Void {
         switch (x) {
             case Some(a): f(a);
             case None:

@@ -151,5 +151,18 @@ class OptionSpec {
                 shouldNone(None.flatMap(function(x){return None;}));
             });
         });
+
+        M.describe("iter", function(){
+            M.it("Some", function(){
+                var buf = null;
+                Some(3).iter(function(x){buf = x;});
+                E.expect(buf).toBe(3);
+            });
+            M.it("None", function(){
+                var buf = null;
+                None.iter(function(x){buf = x;});
+                E.expect(buf).toBe(null);
+            });
+        });
     }
 }
