@@ -215,7 +215,7 @@ object DatasetService {
 
         val summary = RangeSliceSummary(count, limit, offset)
         val results = if (count > offset) {
-          getDatasetSummary(groups, subQuery, limit, offset)
+          getDatasetSummary(groups, subQuery, limit, offset, params.userInfo)
         } else {
           List.empty
         }
@@ -226,12 +226,12 @@ object DatasetService {
     }
   }
 
-  def getDatasetSummary(groups: Seq[String], subQuery: TableAsAliasSQLSyntax, limit: Int, offset: Int)(implicit s: DBSession) = {
+  def getDatasetSummary(groups: Seq[String], subQuery: TableAsAliasSQLSyntax, limit: Int, offset: Int, userInfo: User)(implicit s: DBSession) = {
     // FIXME
     val datasets = findDatasets(groups, subQuery, limit, offset)
     val datasetIds = datasets.map(_._1.id)
 
-    val owners = getOwnerGroups(datasetIds)
+    val owners = getOwnerGroups(datasetIds, userInfo)
     val guestAccessLevels = getGuestAccessLevel(datasetIds)
     val imageIds = getImageId(datasetIds)
 
@@ -1288,14 +1288,14 @@ object DatasetService {
     }
   }
 
-  private def getOwnerGroups(datasetIds: Seq[String])(implicit s: DBSession):Map[String, Seq[DatasetData.DatasetOwnership]] = {
+  private def getOwnerGroups(datasetIds: Seq[String], userInfo: User)(implicit s: DBSession):Map[String, Seq[DatasetData.DatasetOwnership]] = {
     if (datasetIds.nonEmpty) {
       val o = persistence.Ownership.o
       val g = persistence.Group.g
       val m = persistence.Member.m
       val u = persistence.User.u
       val gi = persistence.GroupImage.gi
-      withSQL {
+      val owners = withSQL {
         select(o.result.*, g.result.*, u.result.*, gi.result.*)
           .from(persistence.Ownership as o)
           .innerJoin(persistence.Group as g)
@@ -1335,6 +1335,18 @@ object DatasetService {
       ).list().apply()
       .groupBy(_._1)
       .map(x => (x._1, x._2.map(_._2)))
+
+      // グループ、ログインユーザー(あれば)、他のユーザーの順にソート
+      // mutable map使用
+      val sortedOwners = scala.collection.mutable.Map.empty[String, Seq[DatasetData.DatasetOwnership]]
+      owners.foreach{x =>
+        val groups = x._2.filter(_.ownerType == OwnerType.Group).sortBy(_.fullname)
+        val loginUser = x._2.filter(_.id == userInfo.id)
+        val other = x._2.diff(groups).diff(loginUser).sortBy(_.fullname)
+        sortedOwners.put(x._1, groups ++ loginUser ++ other)
+      }
+      // mutable -> immutable
+      sortedOwners.toMap
     } else {
       Map.empty
     }
