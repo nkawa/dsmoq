@@ -10,7 +10,7 @@ class JsTools {
                 var id = untyped __js__("window.setImmediate")(handler);
                 return { cancel: function cancel() untyped __js__("window.clearImmediate")(id) }
             }
-        } else if (untyped MessageChannel) {
+        } else if (untyped window.MessageChannel) {
             var tasks = [];
             function remove(i) untyped __js__("delete tasks")[i];
 
