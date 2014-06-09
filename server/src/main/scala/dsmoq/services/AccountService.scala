@@ -188,7 +188,12 @@ object AccountService extends SessionTrait {
         case None => throw new InputValidationException(List(InputValidationError("name", "name is empty")))
       }
       val fullname = params.fullname match {
-        case Some(x) => x
+        case Some(x) =>
+          if (x.length == 0) {
+            throw new InputValidationException(List(InputValidationError("fullname", "fullname is empty")))
+          } else {
+            x
+          }
         case None => throw new InputValidationException(List(InputValidationError("fullname", "fullname is empty")))
       }
       val organization = params.organization match {
