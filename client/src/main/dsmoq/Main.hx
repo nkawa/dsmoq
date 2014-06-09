@@ -2,7 +2,7 @@ package dsmoq;
 
 import dsmoq.framework.ApplicationContext;
 import dsmoq.framework.Engine;
-import dsmoq.framework.types.PositiveInt;
+import js.support.PositiveInt;
 import dsmoq.framework.View;
 import dsmoq.models.DatasetGuestAccessLevel;
 import dsmoq.models.GroupMember;
