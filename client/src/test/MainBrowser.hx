@@ -15,6 +15,8 @@ class MainBrowser {
         //new specs.framework.helpers.CoreSpec();
         //new specs.framework.helpers.PromisesSpec();
         new specs.js.support.OptionSpec();
+        new specs.js.support.ResultSpec();
+
         Mocha.run();
     }
 }

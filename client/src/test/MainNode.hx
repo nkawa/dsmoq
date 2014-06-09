@@ -11,5 +11,6 @@ class MainNode {
         //new specs.framework.helpers.PromisesSpec();
         //new specs.dsmoq.framework.types.PromiseSpec();
         new specs.js.support.OptionSpec();
+        new specs.js.support.ResultSpec();
     }
 }
