@@ -117,5 +117,24 @@ class OptionSpec {
                 E.expect(None.toArray()).to.eql([]);
             });
         });
+
+        M.describe("getOrDefault", function(){
+            M.it("Some", function(){
+                E.expect(Some(3).getOrDefault(10)).toBe(3);
+            });
+            M.it("None", function(){
+                E.expect(None.getOrDefault(10)).toBe(10);
+            });
+        });
+        M.describe("getOrElse", function(){
+            function ten(){return 10;}
+
+            M.it("Some", function(){
+                E.expect(Some(3).getOrElse(ten)).toBe(3);
+            });
+            M.it("None", function(){
+                E.expect(None.getOrElse(ten)).toBe(10);
+            });
+        });
     }
 }

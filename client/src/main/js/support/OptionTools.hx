@@ -7,10 +7,17 @@ class OptionTools {
         return (x == null) ? None: Some(x);
     }
 
-    public static inline function getOrElse<T>(a: Option<T>, b: T): T {
+    public static inline function getOrDefault<T>(a: Option<T>, b: T): T {
         return switch (a) {
             case Some(x): x;
             case None: b;
+        }
+    }
+
+    public static inline function getOrElse<T>(a: Option<T>, b: Void -> T): T {
+        return switch (a) {
+            case Some(x): x;
+            case None: b();
         }
     }
 

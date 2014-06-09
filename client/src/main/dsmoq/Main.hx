@@ -732,13 +732,13 @@ class Main {
             case [""]:
                 Some(Dashboard);
             case ["datasets"]:
-                Some(DatasetList(parsePositiveInt(location.query["page"]).getOrElse(1)));
+                Some(DatasetList(parsePositiveInt(location.query["page"]).getOrDefault(1)));
             case ["datasets", id]:
                 Some(DatasetShow(id));
             case ["datasets", id, "edit"]:
                 Some(DatasetEdit(id));
             case ["groups"]:
-                Some(GroupList(parsePositiveInt(location.query["page"]).getOrElse(1)));
+                Some(GroupList(parsePositiveInt(location.query["page"]).getOrDefault(1)));
             case ["groups", id]:
                 Some(GroupShow(id));
             case ["groups", id, "edit"]:
