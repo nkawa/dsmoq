@@ -1,15 +1,14 @@
 package dsmoq.pages;
 
-import dsmoq.Page;
 import dsmoq.framework.types.PageContent;
+import dsmoq.framework.View;
+import dsmoq.models.Service;
+import dsmoq.Page;
 import js.bootstrap.BootstrapButton;
 import js.html.Element;
-import js.support.ControllableStream;
-import js.jsviews.JsViews;
-import dsmoq.framework.View;
 import js.jqhx.JqHtml;
-import js.jqhx.JQuery;
-import dsmoq.models.Service;
+import js.jsviews.JsViews;
+import js.support.ControllableStream;
 
 class ProfilePage {
     public static function create(): PageContent<Page> {
