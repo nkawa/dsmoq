@@ -28,6 +28,7 @@ import org.apache.http.util.EntityUtils
 import com.sun.jndi.toolkit.url.Uri
 import org.apache.http.impl.client.DefaultHttpClient
 import java.util.UUID
+import dsmoq.persistence.AccessLevel
 
 class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
@@ -627,6 +628,83 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           get("/api/datasets/" + datasetId) {
             val result = parse(body).extract[AjaxResponse[Dataset]]
             result.status should be("Unauthorized")
+          }
+        }
+      }
+
+      "データセットのownership情報が期待通りに並ぶか" in {
+        session {
+          signIn()
+          val datasetId = createDataset()
+
+          // グループ作成 それぞれに権限付与
+          val providerGroupName = "group provider " + UUID.randomUUID().toString
+          val providerParams = Map("name" -> providerGroupName, "description" -> "Provider Group")
+          val providerGroupId = post("/api/groups", providerParams) {
+            checkStatus()
+            parse(body).extract[AjaxResponse[Group]].data.id
+          }
+
+          val readGroupName = "group read " + UUID.randomUUID().toString
+          val readParams = Map("name" -> readGroupName, "description" -> "Provider Read")
+          val readGroupId = post("/api/groups", readParams) {
+            checkStatus()
+            parse(body).extract[AjaxResponse[Group]].data.id
+          }
+
+          val readLimitedGroupName = "group read limited " + UUID.randomUUID().toString
+          val readLimitedParams = Map("name" -> readLimitedGroupName, "description" -> "Provider Read Limited")
+          val readLimitedGroupId = post("/api/groups", readLimitedParams) {
+            checkStatus()
+            parse(body).extract[AjaxResponse[Group]].data.id
+          }
+
+          val groupAccessLevels = List(
+            "id[]" -> providerGroupId, "type[]" -> "2", "accessLevel[]" -> AccessLevel.AllowAll.toString,
+            "id[]" -> readGroupId, "type[]" -> "2", "accessLevel[]" -> AccessLevel.AllowRead.toString,
+            "id[]" -> readLimitedGroupId, "type[]" -> "2", "accessLevel[]" -> AccessLevel.AllowLimitedRead.toString)
+          post("/api/datasets/" + datasetId + "/acl", groupAccessLevels) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[Seq[DatasetOwnership]]]
+            assert(result.data.map(_.id) contains(providerGroupId))
+            assert(result.data.map(_.id) contains(readGroupId))
+            assert(result.data.map(_.id) contains(readLimitedGroupId))
+          }
+
+          // 3ユーザーそれぞれに権限付与
+          val ownerUserId = "eb7a596d-e50c-483f-bbc7-50019eea64d7"
+          val readUserId = "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04"
+          val readLimitedUserId = "4aaefd45-2fe5-4ce0-b156-3141613f69a6"
+          val userAccessLevels = List(
+            "id[]" -> ownerUserId, "type[]" -> "1", "accessLevel[]" -> AccessLevel.AllowAll.toString,
+            "id[]" -> readUserId, "type[]" -> "1", "accessLevel[]" -> AccessLevel.AllowRead.toString,
+            "id[]" -> readLimitedUserId, "type[]" -> "1", "accessLevel[]" -> AccessLevel.AllowLimitedRead.toString)
+          post("/api/datasets/" + datasetId + "/acl", userAccessLevels) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[Seq[DatasetOwnership]]]
+            assert(result.data.map(_.id) contains(ownerUserId))
+            assert(result.data.map(_.id) contains(readUserId))
+            assert(result.data.map(_.id) contains(readLimitedUserId))
+          }
+
+          // データセット取得 結果のソート確認
+          get("/api/datasets/" + datasetId) {
+            status should be(200)
+            val result = parse(body).extract[AjaxResponse[Dataset]].data.ownerships
+            // debug write
+            println(datasetId)
+            println(body)
+
+            // ログインユーザーのowner権限、ownerのuser、ownerのグループ、full public(read)のユーザー、
+            // full public(read)のグループ、read limitedのユーザー、read limitedのグループの順に並ぶ
+            result.size should be(7)
+            result(0).id should be("023bfa40-e897-4dad-96db-9fd3cf001e79")
+            result(1).id should be(ownerUserId)
+            result(2).id should be(providerGroupId)
+            result(3).id should be(readUserId)
+            result(4).id should be(readGroupId)
+            result(5).id should be(readLimitedUserId)
+            result(6).id should be(readLimitedGroupId)
           }
         }
       }

@@ -279,7 +279,7 @@ object DatasetService {
           groups <- Some(getJoinedGroups(params.userInfo))
           permission <- getPermission(params.id, groups)
           guestAccessLevel <- Some(getGuestAccessLevel(params.id))
-          owners <- Some(getAllOwnerships(params.id))
+          owners <- Some(getAllOwnerships(params.id, params.userInfo))
           files <- Some(getFiles(params.id))
           attributes <- Some(getAttributes(params.id))
           images <- Some(getImages(params.id))
@@ -1340,14 +1340,14 @@ object DatasetService {
     }
   }
 
-  private def getAllOwnerships(datasetId: String)(implicit s: DBSession) = {
+  private def getAllOwnerships(datasetId: String, userInfo: User)(implicit s: DBSession) = {
     // ゲストアカウント情報はownersテーブルに存在しないので、このメソッドからは取得されない
     val o = persistence.Ownership.o
     val g = persistence.Group.g
     val m = persistence.Member.m
     val u = persistence.User.u
     val gi = persistence.GroupImage.gi
-    withSQL {
+    val owners = withSQL {
       select(o.result.*, g.result.*, u.result.*, gi.result.*)
         .from(persistence.Ownership as o)
         .innerJoin(persistence.Group as g)
@@ -1382,6 +1382,11 @@ object DatasetService {
         }
       )
     ).list().apply()
+    // ソート(ログインユーザーがownerであればそれが一番最初に、それ以外はアクセスレベル→ownerTypeの順に降順に並ぶ)
+    val owner = owners.filter(x => x.id == userInfo.id && x.accessLevel == AccessLevel.AllowAll)
+    val partial = owners.diff(owner)
+    val sortedPartial = partial.sortBy(x => (x.ownerType, x.fullname)).reverse.sortBy(_.accessLevel).reverse
+    owner ++ sortedPartial
   }
 
   private def getAttributes(datasetIds: Seq[String])(implicit s: DBSession) = {
