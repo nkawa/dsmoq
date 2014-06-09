@@ -27,6 +27,7 @@ import org.apache.http.protocol.HTTP
 import org.apache.http.util.EntityUtils
 import com.sun.jndi.toolkit.url.Uri
 import org.apache.http.impl.client.DefaultHttpClient
+import java.util.UUID
 
 class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
@@ -523,7 +524,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
           // アクセスレベル設定対象のグループを作成
           post("/api/signin", dummyUserLoginParams) { checkStatus() }
-          val createGroupParams = Map("name" -> "group name", "description" -> "group description")
+          val groupName = "group name" + UUID.randomUUID().toString
+          val createGroupParams = Map("name" -> groupName, "description" -> "group description")
           val groupId = post("/api/groups", createGroupParams) {
             checkStatus()
             parse(body).extract[AjaxResponse[Group]].data.id
