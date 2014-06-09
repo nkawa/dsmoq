@@ -1,6 +1,5 @@
 -cp lib/mocha.js-haxe/src/
 -cp lib/promhx/src/main/
--cp lib/pushstate/src/
 -cp src/main/
 -cp src/test/
 -js test/node/mocha-haxe-test-node.js

@@ -41,4 +41,53 @@ class OptionTools {
             case None: None;
         }
     }
+
+    public static inline function get<A>(x: Option<A>): A {
+        return switch (x) {
+            case Some(a): a;
+            case None: throw "method 'get' was called but receiver was None";
+        }
+    }
+
+    public static inline function isEmpty<A>(x: Option<A>): Bool {
+        return switch (x) {
+            case Some(a): false;
+            case None: true;
+        }
+    }
+
+    public static inline function filter<A>(x: Option<A>, cond: A -> Bool): Option<A> {
+        return switch (x) {
+            case Some(a): cond(a) ? Some(a) : None;
+            case None: None;
+        }
+    }
+
+    public static inline function orElse<A>(x: Option<A>, other: Void-> Option<A>): Option<A> {
+        return switch (x) {
+            case Some(a): x;
+            case None: other();
+        }
+    }
+
+    public static inline function or<A>(x: Option<A>, other: Option<A>): Option<A> {
+        return switch (x) {
+            case Some(a): x;
+            case None: other;
+        }
+    }
+
+    public static inline function toResult<A>(x: Option<A>, error: Error): Result<A>{
+        return switch(x){
+            case Some(a): Success(a);
+            case None: Failure(error);
+        }
+    }
+
+    public static inline function toArray<A>(x: Option<A>): Array<A>{
+        return switch(x){
+            case Some(a): [a];
+            case None: [];
+        }
+    }
 }
