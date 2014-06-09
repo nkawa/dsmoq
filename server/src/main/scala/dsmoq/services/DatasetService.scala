@@ -38,7 +38,7 @@ object DatasetService {
         case Some(x) => x.filter(_.name.length != 0)
         case None => Seq.empty
       }
-      if (files.size == 0) throw new InputValidationException("files", "file is empty")
+      if (files.size == 0) throw new InputValidationException(List(InputValidationError("files", "file is empty")))
 
       DB localTx { implicit s =>
         val myself = persistence.User.find(params.userInfo.id).get
@@ -180,12 +180,12 @@ object DatasetService {
       val offset = try {
         params.offset.getOrElse("0").toInt
       } catch {
-        case e: Exception => throw new InputValidationException("offset", "wrong parameter")
+        case e: Exception => throw new InputValidationException(List(InputValidationError("offset", "wrong parameter")))
       }
       val limit = try {
         params.limit.getOrElse("20").toInt
       } catch {
-        case e: Exception => throw new InputValidationException("limit", "wrong parameter")
+        case e: Exception => throw new InputValidationException(List(InputValidationError("limit", "wrong parameter")))
       }
 
       DB readOnly { implicit s =>
@@ -329,11 +329,11 @@ object DatasetService {
       val accessLevel = try {
         item.accessLevel match {
           case Some(x) => x.toInt
-          case None => throw new InputValidationException("accessLevel", "access level is empty")
+          case None => throw new InputValidationException(List(InputValidationError("accessLevel", "access level is empty")))
         }
       } catch {
        case e: InputValidationException => throw e
-       case e: Exception => throw new InputValidationException("accessLevel", "access level is invalid")
+       case e: Exception => throw new InputValidationException(List(InputValidationError("accessLevel", "access level is invalid")))
       }
 
       DB localTx { implicit s =>
@@ -403,17 +403,17 @@ object DatasetService {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
     // input validation
     if (params.ids.size != params.types.size || params.types.size != params.accessLevels.size) {
-      throw new InputValidationException("ids", "params are not same size")
+      throw new InputValidationException(List(InputValidationError("ids", "params are not same size")))
     }
     val accessLevels = try {
       params.accessLevels.map(_.toInt)
     } catch {
-      case e: Exception => throw new InputValidationException("accessLevel", "access level is not number")
+      case e: Exception => throw new InputValidationException(List(InputValidationError("accessLevel", "access level is not number")))
     }
     val types = try {
       params.types.map(_.toInt)
     } catch {
-      case e: Exception => throw new InputValidationException("type", "type is not number")
+      case e: Exception => throw new InputValidationException(List(InputValidationError("type", "type is not number")))
     }
 
     DB localTx { implicit s =>
@@ -491,7 +491,7 @@ object DatasetService {
       case Some(x) => x.filter(_.name.length != 0)
       case None => Seq.empty
     }
-    if (files.size == 0) throw new InputValidationException("files", "file is empty")
+    if (files.size == 0) throw new InputValidationException(List(InputValidationError("files", "file is empty")))
 
     DB localTx { implicit s =>
       try {
@@ -562,9 +562,9 @@ object DatasetService {
 
     val file = params.file match {
       case Some(x) => x
-      case None => throw new InputValidationException("file", "file is empty")
+      case None => throw new InputValidationException(List(InputValidationError("file", "file is empty")))
     }
-    if (file.name.length == 0) throw new InputValidationException("file", "file is empty")
+    if (file.name.length == 0) throw new InputValidationException(List(InputValidationError("file", "file is empty")))
 
     DB localTx { implicit s =>
       try {
@@ -628,11 +628,11 @@ object DatasetService {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
     val name = params.filename match {
       case Some(x) => x
-      case None => throw new InputValidationException("name", "name is empty")
+      case None => throw new InputValidationException(List(InputValidationError("name", "name is empty")))
     }
     val description = params.description match {
       case Some(x) => x
-      case None => throw new InputValidationException("description", "description is empty")
+      case None => throw new InputValidationException(List(InputValidationError("description", "description is empty")))
     }
 
     try {
@@ -728,15 +728,15 @@ object DatasetService {
     // FIXME input parameter check
     val name = params.name match {
       case Some(x) => x
-      case None => throw new InputValidationException("name", "name is empty")
+      case None => throw new InputValidationException(List(InputValidationError("name", "name is empty")))
     }
     val description = params.description match {
       case Some(x) => x
-      case None => throw new InputValidationException("description", "description is empty")
+      case None => throw new InputValidationException(List(InputValidationError("description", "description is empty")))
     }
     val licenseId = params.licenseId match {
       case Some(x) => x
-      case None => throw new InputValidationException("license", "license is empty")
+      case None => throw new InputValidationException(List(InputValidationError("license", "license is empty")))
     }
 
     try {
@@ -755,10 +755,10 @@ object DatasetService {
         try {
           persistence.License.find(licenseId) match {
             case Some(x) => // do nothing
-            case None => throw new InputValidationException("license", "license is invalid")
+            case None => throw new InputValidationException(List(InputValidationError("license", "license is invalid")))
           }
         } catch {
-          case e: Exception => throw new InputValidationException("license", "license is invalid")
+          case e: Exception => throw new InputValidationException(List(InputValidationError("license", "license is invalid")))
         }
 
         val myself = persistence.User.find(params.userInfo.id).get
@@ -864,7 +864,7 @@ object DatasetService {
       case Some(x) => x.filter(_.name.length != 0)
       case None => Seq.empty
     }
-    if (inputImages.size == 0) throw new InputValidationException("image", "image is empty")
+    if (inputImages.size == 0) throw new InputValidationException(List(InputValidationError("image", "image is empty")))
 
     DB localTx { implicit s =>
       if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
@@ -921,7 +921,7 @@ object DatasetService {
 
     val imageId = params.id match {
       case Some(x) => x
-      case None => throw new InputValidationException("id", "ID is empty")
+      case None => throw new InputValidationException(List(InputValidationError("id", "ID is empty")))
     }
 
     DB localTx { implicit s =>

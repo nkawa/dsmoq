@@ -6,7 +6,7 @@ import java.security.MessageDigest
 import dsmoq.{AppConf, persistence}
 import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.services.data._
-import dsmoq.exceptions.{InputValidationException, ValidationException, NotAuthorizedException}
+import dsmoq.exceptions.{InputValidationError, InputValidationException, ValidationException, NotAuthorizedException}
 import org.joda.time.DateTime
 import dsmoq.services.data.ProfileData.UpdateProfileParams
 import dsmoq.controllers.SessionTrait
@@ -28,11 +28,11 @@ object AccountService extends SessionTrait {
     try {
       val id = params.id match {
         case Some(x) => x
-        case None => throw new InputValidationException("id", "ID is empty")
+        case None => throw new InputValidationException(List(InputValidationError("id", "ID is empty")))
       }
       val password = params.password match {
         case Some(x) => x
-        case None => throw new InputValidationException("password", "password is empty")
+        case None => throw new InputValidationException(List(InputValidationError("password", "password is empty")))
       }
 
       // TODO パスワードソルトを追加
@@ -62,7 +62,7 @@ object AccountService extends SessionTrait {
 
         user match {
           case Some(x) => Success(x)
-          case None => throw new InputValidationException("password", "wrong password")
+          case None => throw new InputValidationException(List(InputValidationError("password", "wrong password")))
         }
       }
     } catch {
@@ -77,7 +77,7 @@ object AccountService extends SessionTrait {
       // FIXME Eメールアドレスのフォーマットチェックはしていない
       val mail = email match {
         case Some(x) => x
-        case None => throw new InputValidationException("email", "email is empty")
+        case None => throw new InputValidationException(List(InputValidationError("email", "email is empty")))
       }
 
       DB localTx {implicit s =>
@@ -133,11 +133,11 @@ object AccountService extends SessionTrait {
       // FIXME input validation
       val c = currentPassword match {
         case Some(x) => x
-        case None => throw new InputValidationException("current_password", "current password is empty.")
+        case None => throw new InputValidationException(List(InputValidationError("current_password", "current password is empty.")))
       }
       val n = newPassword match {
         case Some(x) => x
-        case None => throw new InputValidationException("new_password", "new password is empty")
+        case None => throw new InputValidationException(List(InputValidationError("new_password", "new password is empty")))
       }
       val oldPasswordHash = createPasswordHash(c)
       DB localTx { implicit s =>
@@ -165,7 +165,7 @@ object AccountService extends SessionTrait {
                 .where
                 .eq(p.id, sqls.uuid(x.id))
             }.update().apply
-          case None => throw new InputValidationException("current_password", "wrong password")
+          case None => throw new InputValidationException(List(InputValidationError("current_password", "wrong password")))
         }
       }
       Success(n)
@@ -181,27 +181,27 @@ object AccountService extends SessionTrait {
       val name = params.name match {
         case Some(x) =>
           if (x.length == 0) {
-            throw new InputValidationException("name", "name is empty")
+            throw new InputValidationException(List(InputValidationError("name", "name is empty")))
           } else {
             x
           }
-        case None => throw new InputValidationException("name", "name is empty")
+        case None => throw new InputValidationException(List(InputValidationError("name", "name is empty")))
       }
       val fullname = params.fullname match {
         case Some(x) => x
-        case None => throw new InputValidationException("fullname", "fullname is empty")
+        case None => throw new InputValidationException(List(InputValidationError("fullname", "fullname is empty")))
       }
       val organization = params.organization match {
         case Some(x) => x
-        case None => throw new InputValidationException("organization", "organization is empty")
+        case None => throw new InputValidationException(List(InputValidationError("organization", "organization is empty")))
       }
       val title = params.title match {
         case Some(x) => x
-        case None => throw new InputValidationException("title", "title is empty")
+        case None => throw new InputValidationException(List(InputValidationError("title", "title is empty")))
       }
       val description = params.description match {
         case Some(x) => x
-        case None => throw new InputValidationException("description", "description is empty")
+        case None => throw new InputValidationException(List(InputValidationError("description", "description is empty")))
       }
 
       DB localTx { implicit s =>
@@ -216,7 +216,7 @@ object AccountService extends SessionTrait {
             .ne(u.id, sqls.uuid(user.id))
         }.map(_.string(u.resultName.id)).list().apply
         if (users.size != 0) {
-          throw new InputValidationException("name", "same name")
+          throw new InputValidationException(List(InputValidationError("name", "same name")))
         }
 
         withSQL {
@@ -292,7 +292,7 @@ object AccountService extends SessionTrait {
           case pattern() => x
           case _ => throw new ValidationException
         }
-      case None => throw new InputValidationException("email", "email is empty")
+      case None => throw new InputValidationException(List(InputValidationError("email", "email is empty")))
     }
 
     val result = DB readOnly { implicit s =>

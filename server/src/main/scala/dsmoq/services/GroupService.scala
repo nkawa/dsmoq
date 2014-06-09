@@ -12,11 +12,17 @@ import dsmoq.services.data.RangeSlice
 import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.persistence.{GroupType, PresetType, GroupMemberRole, AccessLevel}
 import org.joda.time.DateTime
-import dsmoq.exceptions.{InputValidationException, NotFoundException, ValidationException, NotAuthorizedException}
+import dsmoq.exceptions._
 import java.util.UUID
 import java.nio.file.Paths
 import scala.collection.mutable.ArrayBuffer
 import dsmoq.logic.ImageSaveLogic
+import scala.util.Failure
+import scala.Some
+import scala.util.Success
+import dsmoq.services.data.RangeSlice
+import dsmoq.services.data.RangeSliceSummary
+import dsmoq.services.data.Image
 
 object GroupService {
   def search(params: GroupData.SearchGroupsParams): Try[RangeSlice[GroupData.GroupsSummary]] = {
@@ -25,12 +31,12 @@ object GroupService {
       val offset = try {
         params.offset.getOrElse("0").toInt
       } catch {
-        case e: Exception => throw new InputValidationException("offset", "wrong parameter")
+        case e: Exception => throw new InputValidationException(List(InputValidationError("offset", "wrong parameter")))
       }
       val limit = try {
         params.limit.getOrElse("20").toInt
       } catch {
-        case e: Exception => throw new InputValidationException("limit", "wrong parameter")
+        case e: Exception => throw new InputValidationException(List(InputValidationError("limit", "wrong parameter")))
       }
 
       DB readOnly { implicit s =>
@@ -113,12 +119,12 @@ object GroupService {
       val offset = try {
         params.offset.getOrElse("0").toInt
       } catch {
-        case e: Exception => throw new InputValidationException("offset", "wrong parameter")
+        case e: Exception => throw new InputValidationException(List(InputValidationError("offset", "wrong parameter")))
       }
       val limit = try {
         params.limit.getOrElse("20").toInt
       } catch {
-        case e: Exception => throw new InputValidationException("limit", "wrong parameter")
+        case e: Exception => throw new InputValidationException(List(InputValidationError("limit", "wrong parameter")))
       }
 
       DB readOnly { implicit s =>
@@ -153,11 +159,11 @@ object GroupService {
     // FIXME input validation
     val name = params.name match {
       case Some(x) => x
-      case None => throw new InputValidationException("name", "name is empty")
+      case None => throw new InputValidationException(List(InputValidationError("name", "name is empty")))
     }
     val description = params.description match {
       case Some(x) => x
-      case None => throw new InputValidationException("description", "description is empty")
+      case None => throw new InputValidationException(List(InputValidationError("description", "description is empty")))
     }
 
     try {
@@ -175,7 +181,7 @@ object GroupService {
           .isNull(g.deletedAt)
         }.map(_.string(g.resultName.id)).list().apply
         if (sameNameGroups.size != 0) {
-          throw new InputValidationException("name", "same name")
+          throw new InputValidationException(List(InputValidationError("name", "same name")))
         }
 
         val myself = persistence.User.find(params.userInfo.id).get
@@ -237,11 +243,11 @@ object GroupService {
     // FIXME input parameter check
     val name = params.name match {
       case Some(x) => x
-      case None => throw new InputValidationException("name", "name is empty")
+      case None => throw new InputValidationException(List(InputValidationError("name", "name is empty")))
     }
     val description = params.description match {
       case Some(x) => x
-      case None => throw new InputValidationException("description", "description is empty")
+      case None => throw new InputValidationException(List(InputValidationError("description", "description is empty")))
     }
 
     try {
@@ -273,7 +279,7 @@ object GroupService {
             .isNull(g.deletedAt)
         }.map(_.string(g.resultName.id)).list().apply
         if (sameNameGroups.size != 0) {
-          throw new InputValidationException("name", "same name")
+          throw new InputValidationException(List(InputValidationError("name", "same name")))
         }
 
         val myself = persistence.User.find(params.userInfo.id).get
@@ -318,7 +324,7 @@ object GroupService {
     // FIXME input parameter check
     val userIds = params.userIds match {
       case Some(x) => x
-      case None => throw new InputValidationException("id", "ID is empty")
+      case None => throw new InputValidationException(List(InputValidationError("id", "ID is empty")))
     }
     val roles = params.roles match {
       case Some(x) =>
@@ -329,18 +335,18 @@ object GroupService {
               case GroupMemberRole.Deny => // do nothing
               case GroupMemberRole.Manager => // do nothing
               case GroupMemberRole.Member => // do nothing
-              case _ => throw new InputValidationException("role", "role value error")
+              case _ => throw new InputValidationException(List(InputValidationError("role", "role value error")))
             }
           }
           roles
         } catch {
           case e: InputValidationException => throw e
-          case e: Exception => throw new InputValidationException("role", "role format error")
+          case e: Exception => throw new InputValidationException(List(InputValidationError("role", "role format error")))
         }
-      case None => throw new InputValidationException("role", "role is empty")
+      case None => throw new InputValidationException(List(InputValidationError("role", "role is empty")))
     }
     if (userIds.size != roles.size) {
-      throw new InputValidationException("id", "parameters are not same size")
+      throw new InputValidationException(List(InputValidationError("id", "parameters are not same size")))
     }
 
     try {
@@ -353,7 +359,7 @@ object GroupService {
             case None => throw new NotFoundException
           }
           userIds.foreach { x =>
-            if (!isValidUser(x)) throw new InputValidationException("id", "ID is not found")
+            if (!isValidUser(x)) throw new InputValidationException(List(InputValidationError("id", "ID is not found")))
           }
         } catch {
           case e: NotAuthorizedException => throw e
@@ -453,7 +459,7 @@ object GroupService {
       case Some(x) => x.filter(_.name.length != 0)
       case None => Seq.empty
     }
-    if (inputImages.size == 0) throw new InputValidationException("image", "image is empty")
+    if (inputImages.size == 0) throw new InputValidationException(List(InputValidationError("image", "image is empty")))
 
     DB localTx { implicit s =>
       try {
@@ -520,7 +526,7 @@ object GroupService {
     // FIXME input validation check
     val imageId = params.id match {
       case Some(x) => x
-      case None => throw new InputValidationException("id", "id is empty")
+      case None => throw new InputValidationException(List(InputValidationError("id", "id is empty")))
     }
 
     DB localTx { implicit s =>

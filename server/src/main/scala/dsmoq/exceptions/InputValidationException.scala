@@ -1,10 +1,14 @@
 package dsmoq.exceptions
 
-class InputValidationException(id: String, message: String) extends RuntimeException{
-  val name = id
-  val msg = message
+class InputValidationException(errors: List[InputValidationError]) extends RuntimeException{
+  val validationErrors = errors
 
   def getErrorMessage() = {
-    List(Map("name" -> name, "message" -> msg))
+    validationErrors
   }
 }
+
+case class InputValidationError(
+  name: String,
+  messasge: String
+)
