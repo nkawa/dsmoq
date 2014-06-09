@@ -20,19 +20,28 @@ import scala.util.Failure
 import scala.Some
 import dsmoq.services.data.ProfileData.UpdateProfileParams
 import scala.util.Success
+import scala.collection.mutable.ArrayBuffer
 
 object AccountService extends SessionTrait {
 
   def getAuthenticatedUser(params: LoginData.SigninParams): Try[User] = {
     // TODO dbアクセス時エラーでFailure返す try~catch
     try {
+      val errors = ArrayBuffer.empty[InputValidationError]
       val id = params.id match {
         case Some(x) => x
-        case None => throw new InputValidationException(List(InputValidationError("id", "ID is empty")))
+        case None =>
+          errors += InputValidationError("id", "ID is empty")
+          ""
       }
       val password = params.password match {
         case Some(x) => x
-        case None => throw new InputValidationException(List(InputValidationError("password", "password is empty")))
+        case None =>
+          errors += InputValidationError("password", "password is empty")
+          ""
+      }
+      if (errors.size != 0) {
+        throw new InputValidationException(errors.toList)
       }
 
       // TODO パスワードソルトを追加
