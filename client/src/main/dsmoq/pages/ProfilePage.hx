@@ -56,6 +56,13 @@ class ProfilePage {
                                 binding.setProperty("basics.title", x.title);
                                 binding.setProperty("basics.description", x.description);
                                 binding.setProperty("basics.image", x.image);
+                                binding.setProperty("basics.errors.name", null);
+                                binding.setProperty("basics.errors.fullname", null);
+                                binding.setProperty("basics.errors.organization", null);
+                                binding.setProperty("basics.errors.title", null);
+                                binding.setProperty("basics.errors.description", null);
+                                binding.setProperty("basics.errors.image", null);
+                                Notification.show("success", "save successful");
                             },
                             function (e) {
                                 switch (e.name) {
@@ -64,6 +71,7 @@ class ProfilePage {
                                             binding.setProperty('basics.errors.${x.name}', x.message);
                                         }
                                 }
+                                Notification.show("error", "error happened");
                             },
                             function () {
                                 BootstrapButton.reset(root.find("#basics-form-submit"));
