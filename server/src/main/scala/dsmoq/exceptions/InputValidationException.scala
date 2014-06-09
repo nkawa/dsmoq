@@ -10,5 +10,5 @@ class InputValidationException(errors: List[InputValidationError]) extends Runti
 
 case class InputValidationError(
   name: String,
-  messasge: String
+  message: String
 )
