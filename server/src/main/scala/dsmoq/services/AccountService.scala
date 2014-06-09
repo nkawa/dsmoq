@@ -74,9 +74,14 @@ object AccountService extends SessionTrait {
     try {
       if (user.isGuest) throw new NotAuthorizedException
 
-      // FIXME Eメールアドレスのフォーマットチェックはしていない
+      // Eメールアドレスのフォーマットチェックはしていない
       val mail = email match {
-        case Some(x) => x
+        case Some(x) =>
+          if (x.trim.replace("　", "").length == 0) {
+            throw new InputValidationException(List(InputValidationError("email", "email is empty")))
+          } else {
+            x.trim.replace("　", "")
+          }
         case None => throw new InputValidationException(List(InputValidationError("email", "email is empty")))
       }
 
