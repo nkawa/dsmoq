@@ -17,6 +17,7 @@ import dsmoq.controllers.AjaxResponse
 import dsmoq.services.data.{User, RangeSlice}
 import dsmoq.services.data.DatasetData.{DatasetsSummary, Dataset}
 import dsmoq.persistence.GroupMemberRole
+import java.util.UUID
 
 class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
@@ -88,19 +89,21 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val groupId = createGroup()
+          val changeGroupName = "changeName" + UUID.randomUUID().toString
+          val changeDescription = "change description"
           val params = Map(
-            "name" -> "change name",
-            "description" -> "change description"
+            "name" -> changeGroupName,
+            "description" -> changeDescription
           )
           put("/api/groups/" + groupId, params) {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Group]]
-            result.data.description should be ("change description")
+            result.data.description should be (changeDescription)
           }
           get("/api/groups/" + groupId) {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Group]]
-            result.data.name should be ("change name")
+            result.data.name should be (changeGroupName)
           }
         }
       }
@@ -274,7 +277,8 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   }
 
   private def createGroup(): String = {
-    val params = Map("name" -> "groupName", "description" -> "groupDescription")
+    val groupName = "groupName" + UUID.randomUUID.toString
+    val params = Map("name" -> groupName, "description" -> "groupDescription")
     post("/api/groups", params) {
       checkStatus()
       parse(body).extract[AjaxResponse[Group]].data.id

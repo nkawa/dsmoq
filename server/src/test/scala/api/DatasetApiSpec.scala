@@ -479,7 +479,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
           // アクセスレベル設定対象のグループを作成
           post("/api/signin", dummyUserLoginParams) { checkStatus() }
-          val createGroupParams = Map("name" -> "group name", "description" -> "group description")
+          val groupName = "groupName" + UUID.randomUUID().toString
+          val createGroupParams = Map("name" -> groupName, "description" -> "group description")
           val groupId = post("/api/groups", createGroupParams) {
             checkStatus()
             parse(body).extract[AjaxResponse[Group]].data.id
