@@ -725,18 +725,31 @@ object DatasetService {
   
   def modifyDatasetMeta(params: DatasetData.ModifyDatasetMetaParams): Try[String] = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
-    // FIXME input parameter check
-    val name = params.name match {
-      case Some(x) => x
-      case None => throw new InputValidationException(List(InputValidationError("name", "name is empty")))
+    // input parameter check
+    val errors = ArrayBuffer.empty[InputValidationError]
+    val name = if (params.name.isDefined && StringUtil.trimAllSpaces(params.name.get).length != 0) {
+      StringUtil.trimAllSpaces(params.name.get)
+    } else {
+      errors += InputValidationError("name", "name is empty")
+      ""
     }
-    val description = params.description match {
-      case Some(x) => x
-      case None => throw new InputValidationException(List(InputValidationError("description", "description is empty")))
+    val description = if (params.description.isDefined && StringUtil.trimAllSpaces(params.description.get).length != 0) {
+      StringUtil.trimAllSpaces(params.description.get)
+    } else {
+      errors += InputValidationError("description", "description is empty")
+      ""
+    }
+    if (errors.size != 0) {
+      throw new InputValidationException(errors.toList)
     }
     val licenseId = params.licenseId match {
       case Some(x) => x
-      case None => throw new InputValidationException(List(InputValidationError("license", "license is empty")))
+      case None =>
+        errors += InputValidationError("license", "license is empty")
+        ""
+    }
+    if (errors.size != 0) {
+      throw new InputValidationException(errors.toList)
     }
 
     try {
@@ -800,7 +813,9 @@ object DatasetService {
             .where
             .isNull(a.deletedAt)
         }.map(rs => (rs.string(a.resultName.name), rs.string(a.resultName.id))).list().apply.toMap
-        params.attributes.foreach { x =>
+        val attributes = params.attributes.map(x => x._1 -> StringUtil.trimAllSpaces(x._2))
+
+        attributes.foreach { x =>
           if (x._1.length != 0) {
             val annotationId = if (annotationMap.keySet.contains(x._1)) {
               annotationMap(x._1)
@@ -833,7 +848,7 @@ object DatasetService {
 
         // データ追加前のnameが他で使われているかチェック 使われていなければ削除
         oldAnnotations.foreach {x =>
-          if (!params.attributes.map(_._1).contains(x._1)) {
+          if (!attributes.map(_._1).contains(x._1)) {
             val datasetAnnotations = withSQL {
               select(da.result.id)
                 .from(persistence.DatasetAnnotation as da)
