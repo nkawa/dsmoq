@@ -14,7 +14,7 @@ import java.nio.file.Paths
 import java.util.UUID
 import java.awt.image.BufferedImage
 import org.scalatra.servlet.FileItem
-import dsmoq.logic.ImageSaveLogic
+import dsmoq.logic.{StringUtil, ImageSaveLogic}
 import dsmoq.persistence.{SuggestType, GroupType, PresetType}
 import scala.util.Failure
 import scala.Some
@@ -208,36 +208,40 @@ object AccountService extends SessionTrait {
   def updateUserProfile(user: User, params: UpdateProfileParams): Try[User]  = {
     try {
       if (user.isGuest) throw new NotAuthorizedException
-      // FIXME input validation
-      val name = params.name match {
-        case Some(x) =>
-          if (x.length == 0) {
-            throw new InputValidationException(List(InputValidationError("name", "name is empty")))
-          } else {
-            x
-          }
-        case None => throw new InputValidationException(List(InputValidationError("name", "name is empty")))
+      // input validation
+      val errors = ArrayBuffer.empty[InputValidationError]
+      val name = if (params.name.isDefined && StringUtil.trimAllSpaces(params.name.get).length != 0) {
+        StringUtil.trimAllSpaces(params.name.get)
+      } else {
+        errors += InputValidationError("name", "name is empty")
+        ""
       }
-      val fullname = params.fullname match {
-        case Some(x) =>
-          if (x.length == 0) {
-            throw new InputValidationException(List(InputValidationError("fullname", "fullname is empty")))
-          } else {
-            x
-          }
-        case None => throw new InputValidationException(List(InputValidationError("fullname", "fullname is empty")))
+      val fullname = if (params.fullname.isDefined && StringUtil.trimAllSpaces(params.fullname.get).length != 0) {
+        StringUtil.trimAllSpaces(params.fullname.get)
+      } else {
+        errors += InputValidationError("fullname", "fullname is empty")
+        ""
       }
-      val organization = params.organization match {
-        case Some(x) => x
-        case None => throw new InputValidationException(List(InputValidationError("organization", "organization is empty")))
+      val organization = if (params.organization.isDefined && StringUtil.trimAllSpaces(params.organization.get).length != 0) {
+        StringUtil.trimAllSpaces(params.organization.get)
+      } else {
+        errors += InputValidationError("organization", "organization is empty")
+        ""
       }
-      val title = params.title match {
-        case Some(x) => x
-        case None => throw new InputValidationException(List(InputValidationError("title", "title is empty")))
+      val title = if (params.title.isDefined && StringUtil.trimAllSpaces(params.title.get).length != 0) {
+        StringUtil.trimAllSpaces(params.title.get)
+      } else {
+        errors += InputValidationError("title", "title is empty")
+        ""
       }
-      val description = params.description match {
-        case Some(x) => x
-        case None => throw new InputValidationException(List(InputValidationError("description", "description is empty")))
+      val description = if (params.description.isDefined && StringUtil.trimAllSpaces(params.description.get).length != 0) {
+        StringUtil.trimAllSpaces(params.description.get)
+      } else {
+        errors += InputValidationError("description", "description is empty")
+        ""
+      }
+      if (errors.size != 0) {
+        throw new InputValidationException(errors.toList)
       }
 
       DB localTx { implicit s =>
