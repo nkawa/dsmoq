@@ -135,15 +135,32 @@ object AccountService extends SessionTrait {
     try {
       if (user.isGuest) throw new NotAuthorizedException
 
-      // FIXME input validation
+      // input validation
+      val errors = ArrayBuffer.empty[InputValidationError]
       val c = currentPassword match {
-        case Some(x) => x
-        case None => throw new InputValidationException(List(InputValidationError("current_password", "current password is empty.")))
+        case Some(x) =>
+          if (x.trim.replace("　", "").length == 0) {
+            errors += InputValidationError("current_password", "current password is empty.")
+          }
+          x.trim.replace("　", "")
+        case None =>
+          errors += InputValidationError("current_password", "current password is empty.")
+          ""
       }
       val n = newPassword match {
-        case Some(x) => x
-        case None => throw new InputValidationException(List(InputValidationError("new_password", "new password is empty")))
+        case Some(x) =>
+          if (x.trim.replace("　", "").length == 0) {
+            errors += InputValidationError("new_password", "new password is empty")
+          }
+          x.trim.replace("　", "")
+        case None =>
+          errors += InputValidationError("new_password", "new password is empty")
+          ""
       }
+      if (errors.size != 0) {
+        throw new InputValidationException(errors.toList)
+      }
+
       val oldPasswordHash = createPasswordHash(c)
       DB localTx { implicit s =>
         val u = persistence.User.u
