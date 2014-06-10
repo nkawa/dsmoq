@@ -14,15 +14,14 @@ import dsmoq.persistence.{GroupType, PresetType, GroupMemberRole, AccessLevel}
 import org.joda.time.DateTime
 import dsmoq.exceptions._
 import java.util.UUID
-import java.nio.file.Paths
-import scala.collection.mutable.ArrayBuffer
-import dsmoq.logic.ImageSaveLogic
+import dsmoq.logic.{StringUtil, ImageSaveLogic}
 import scala.util.Failure
 import scala.Some
 import scala.util.Success
 import dsmoq.services.data.RangeSlice
 import dsmoq.services.data.RangeSliceSummary
 import dsmoq.services.data.Image
+import scala.collection.mutable
 
 object GroupService {
   def search(params: GroupData.SearchGroupsParams): Try[RangeSlice[GroupData.GroupsSummary]] = {
@@ -31,12 +30,12 @@ object GroupService {
       val offset = try {
         params.offset.getOrElse("0").toInt
       } catch {
-        case e: Exception => throw new InputValidationException(List(InputValidationError("offset", "wrong parameter")))
+        case e: Exception => throw new InputValidationException(mutable.LinkedHashMap[String, String]("offset" -> "wrong parameter"))
       }
       val limit = try {
         params.limit.getOrElse("20").toInt
       } catch {
-        case e: Exception => throw new InputValidationException(List(InputValidationError("limit", "wrong parameter")))
+        case e: Exception => throw new InputValidationException(mutable.LinkedHashMap[String, String]("limit" -> "wrong parameter"))
       }
 
       DB readOnly { implicit s =>
@@ -119,12 +118,12 @@ object GroupService {
       val offset = try {
         params.offset.getOrElse("0").toInt
       } catch {
-        case e: Exception => throw new InputValidationException(List(InputValidationError("offset", "wrong parameter")))
+        case e: Exception => throw new InputValidationException(mutable.LinkedHashMap[String, String]("offset" -> "wrong parameter"))
       }
       val limit = try {
         params.limit.getOrElse("20").toInt
       } catch {
-        case e: Exception => throw new InputValidationException(List(InputValidationError("limit", "wrong parameter")))
+        case e: Exception => throw new InputValidationException(mutable.LinkedHashMap[String, String]("limit" -> "wrong parameter"))
       }
 
       DB readOnly { implicit s =>
@@ -156,14 +155,23 @@ object GroupService {
 
   def createGroup(params: GroupData.CreateGroupParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
-    // FIXME input validation
-    val name = params.name match {
-      case Some(x) => x
-      case None => throw new InputValidationException(List(InputValidationError("name", "name is empty")))
+
+    // input validation
+    val errors = mutable.LinkedHashMap.empty[String, String]
+    val name = if (params.name.isDefined && StringUtil.trimAllSpaces(params.name.get).length != 0) {
+      StringUtil.trimAllSpaces(params.name.get)
+    } else {
+      errors.put("name", "name is empty")
+      ""
     }
-    val description = params.description match {
-      case Some(x) => x
-      case None => throw new InputValidationException(List(InputValidationError("description", "description is empty")))
+    val description = if (params.description.isDefined && StringUtil.trimAllSpaces(params.description.get).length != 0) {
+      StringUtil.trimAllSpaces(params.description.get)
+    } else {
+      errors.put("description", "description is empty")
+      ""
+    }
+    if (errors.size != 0) {
+      throw new InputValidationException(errors)
     }
 
     try {
@@ -174,14 +182,14 @@ object GroupService {
           select(g.result.id)
           .from(persistence.Group as g)
           .where
-          .eq(g.name, name)
+          .lowerEq(g.name, name)
           .and
           .eq(g.groupType, GroupType.Public)
           .and
           .isNull(g.deletedAt)
         }.map(_.string(g.resultName.id)).list().apply
         if (sameNameGroups.size != 0) {
-          throw new InputValidationException(List(InputValidationError("name", "same name")))
+          throw new InputValidationException(mutable.LinkedHashMap[String, String]("name" -> "same name"))
         }
 
         val myself = persistence.User.find(params.userInfo.id).get
@@ -240,14 +248,23 @@ object GroupService {
 
   def modifyGroup(params: GroupData.ModifyGroupParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
-    // FIXME input parameter check
-    val name = params.name match {
-      case Some(x) => x
-      case None => throw new InputValidationException(List(InputValidationError("name", "name is empty")))
+    
+    // input validation
+    val errors = mutable.LinkedHashMap.empty[String, String]
+    val name = if (params.name.isDefined && StringUtil.trimAllSpaces(params.name.get).length != 0) {
+      StringUtil.trimAllSpaces(params.name.get)
+    } else {
+      errors.put("name", "name is empty")
+      ""
     }
-    val description = params.description match {
-      case Some(x) => x
-      case None => throw new InputValidationException(List(InputValidationError("description", "description is empty")))
+    val description = if (params.description.isDefined && StringUtil.trimAllSpaces(params.description.get).length != 0) {
+      StringUtil.trimAllSpaces(params.description.get)
+    } else {
+      errors.put("description", "description is empty")
+      ""
+    }
+    if (errors.size != 0) {
+      throw new InputValidationException(errors)
     }
 
     try {
@@ -270,7 +287,7 @@ object GroupService {
           select(g.result.id)
             .from(persistence.Group as g)
             .where
-            .eq(g.name, name)
+            .lowerEq(g.name, name)
             .and
             .ne(g.id, sqls.uuid(params.groupId))
             .and
@@ -279,7 +296,7 @@ object GroupService {
             .isNull(g.deletedAt)
         }.map(_.string(g.resultName.id)).list().apply
         if (sameNameGroups.size != 0) {
-          throw new InputValidationException(List(InputValidationError("name", "same name")))
+          throw new InputValidationException(mutable.LinkedHashMap[String, String]("name" -> "same name"))
         }
 
         val myself = persistence.User.find(params.userInfo.id).get
@@ -321,32 +338,41 @@ object GroupService {
   def setUserRole(params: GroupData.SetUserRoleParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
 
-    // FIXME input parameter check
+    // input parameter check
+    val errors = mutable.LinkedHashMap.empty[String, String]
     val userIds = params.userIds match {
       case Some(x) => x
-      case None => throw new InputValidationException(List(InputValidationError("id", "ID is empty")))
+      case None =>
+        errors.put("id", "ID is empty")
+        Seq.empty
     }
     val roles = params.roles match {
       case Some(x) =>
         try {
-          val roles = x.map(_.toInt)
-          roles.foreach { r =>
-            r match {
-              case GroupMemberRole.Deny => // do nothing
-              case GroupMemberRole.Manager => // do nothing
-              case GroupMemberRole.Member => // do nothing
-              case _ => throw new InputValidationException(List(InputValidationError("role", "role value error")))
-            }
-          }
-          roles
+          x.map(_.toInt)
         } catch {
-          case e: InputValidationException => throw e
-          case e: Exception => throw new InputValidationException(List(InputValidationError("role", "role format error")))
+          case e: Exception =>
+            errors.put("role", "role format error")
+            Seq.empty
         }
-      case None => throw new InputValidationException(List(InputValidationError("role", "role is empty")))
+      case None =>
+        errors.put("role", "role is empty")
+        Seq.empty
     }
+    if (errors.size != 0) {
+      throw new InputValidationException(errors)
+    }
+
     if (userIds.size != roles.size) {
-      throw new InputValidationException(List(InputValidationError("id", "parameters are not same size")))
+      throw new InputValidationException(mutable.LinkedHashMap[String, String]("id" -> "parameters are not same size"))
+    }
+    roles.foreach { r =>
+      r match {
+        case GroupMemberRole.Deny => // do nothing
+        case GroupMemberRole.Manager => // do nothing
+        case GroupMemberRole.Member => // do nothing
+        case _ => throw new InputValidationException(mutable.LinkedHashMap[String, String]("role" -> "role value error"))
+      }
     }
 
     try {
@@ -359,7 +385,7 @@ object GroupService {
             case None => throw new NotFoundException
           }
           userIds.foreach { x =>
-            if (!isValidUser(x)) throw new InputValidationException(List(InputValidationError("id", "ID is not found")))
+            if (!isValidUser(x)) throw new InputValidationException(mutable.LinkedHashMap[String, String]("id" -> "ID is not found"))
           }
         } catch {
           case e: NotAuthorizedException => throw e
@@ -459,7 +485,7 @@ object GroupService {
       case Some(x) => x.filter(_.name.length != 0)
       case None => Seq.empty
     }
-    if (inputImages.size == 0) throw new InputValidationException(List(InputValidationError("image", "image is empty")))
+    if (inputImages.size == 0) throw new InputValidationException(mutable.LinkedHashMap[String, String]("image" -> "image is empty"))
 
     DB localTx { implicit s =>
       try {
@@ -526,7 +552,7 @@ object GroupService {
     // FIXME input validation check
     val imageId = params.id match {
       case Some(x) => x
-      case None => throw new InputValidationException(List(InputValidationError("id", "id is empty")))
+      case None => throw new InputValidationException(mutable.LinkedHashMap[String, String]("id" -> "id is empty"))
     }
 
     DB localTx { implicit s =>

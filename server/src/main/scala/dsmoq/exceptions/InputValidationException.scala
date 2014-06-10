@@ -1,10 +1,16 @@
 package dsmoq.exceptions
 
-class InputValidationException(errors: List[InputValidationError]) extends RuntimeException{
+import scala.collection.mutable
+
+class InputValidationException(errors: mutable.LinkedHashMap[String, String]) extends RuntimeException{
   val validationErrors = errors
 
   def getErrorMessage() = {
-    validationErrors
+    validationErrors.map(x =>
+      InputValidationError(
+        name = x._1,
+        message = x._2
+      ))
   }
 }
 

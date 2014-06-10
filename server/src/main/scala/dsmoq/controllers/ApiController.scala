@@ -269,7 +269,7 @@ class ApiController extends ScalatraServlet
     val response = for {
       userInfo <- getUserInfoFromSession()
       facadeParams = ModifyDatasetMetadataParams(userInfo, datasetId, fileId, filename, description)
-      files <- DatasetService.modifyFilename(facadeParams)
+      files <- DatasetService.modifyFileMetadata(facadeParams)
     } yield {
       AjaxResponse("OK", files)
     }

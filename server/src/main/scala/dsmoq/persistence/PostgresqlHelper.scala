@@ -10,6 +10,7 @@ object PostgresqlHelper {
   implicit class UuidConditionSQLBuilder[A](val self: ConditionSQLBuilder[A]) extends AnyVal {
     def inByUuid(column: SQLSyntax, values: Seq[String]): ConditionSQLBuilder[A] = self.append(sqls.inByUuid(column, values))
     def notInByUuid(column: SQLSyntax, values: Seq[String]): ConditionSQLBuilder[A] = self.append(sqls.notInByUuid(column, values))
+    def lowerEq(column: SQLSyntax, value: String): ConditionSQLBuilder[A] = self.append(sqls.lowerEq(column, value))
   }
 
   implicit class UuidSQLSyntax(val self: sqls.type) extends AnyVal {
@@ -32,6 +33,8 @@ object PostgresqlHelper {
         sqls""
       }
     }
+
+    def lowerEq(column: SQLSyntax, value: String) = sqls"LOWER(${column}) = LOWER(${value})"
   }
 
 }
