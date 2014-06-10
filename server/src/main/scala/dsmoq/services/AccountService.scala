@@ -77,10 +77,10 @@ object AccountService extends SessionTrait {
       // Eメールアドレスのフォーマットチェックはしていない
       val mail = email match {
         case Some(x) =>
-          if (x.trim.replace("　", "").length == 0) {
+          if (x.trim.length == 0) {
             throw new InputValidationException(List(InputValidationError("email", "email is empty")))
           } else {
-            x.trim.replace("　", "")
+            x.trim
           }
         case None => throw new InputValidationException(List(InputValidationError("email", "email is empty")))
       }
