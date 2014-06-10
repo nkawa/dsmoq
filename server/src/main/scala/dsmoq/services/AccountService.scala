@@ -324,8 +324,8 @@ object AccountService extends SessionTrait {
       case Some(x) =>
         // メールアドレスバリデーションはHTHML5準拠(RFC5322には違反)
         val pattern = "\\A[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\\.[a-zA-Z0-9-]+)*\\z".r
-        x match {
-          case pattern() => x
+        x.trim match {
+          case pattern() => x.trim
           case _ => throw new ValidationException
         }
       case None => throw new InputValidationException(List(InputValidationError("email", "email is empty")))
