@@ -14,7 +14,7 @@ import org.scalatra.servlet.FileItem
 import dsmoq.forms.{AccessCrontolItem, AccessControl}
 import dsmoq.persistence.{GroupType, PresetType, AccessLevel, OwnerType}
 import scala.collection.mutable.ArrayBuffer
-import dsmoq.logic.ImageSaveLogic
+import dsmoq.logic.{StringUtil, ImageSaveLogic}
 import scala.util.Failure
 import scala.Some
 import scala.util.Success
@@ -624,15 +624,23 @@ object DatasetService {
     }
   }
 
-  def modifyFilename(params: DatasetData.ModifyDatasetMetadataParams) = {
+  def modifyFileMetadata(params: DatasetData.ModifyDatasetMetadataParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
-    val name = params.filename match {
-      case Some(x) => x
-      case None => throw new InputValidationException(List(InputValidationError("name", "name is empty")))
+    val errors = ArrayBuffer.empty[InputValidationError]
+    val filename = if (params.filename.isDefined && StringUtil.trimAllSpaces(params.filename.get).length != 0) {
+      StringUtil.trimAllSpaces(params.filename.get)
+    } else {
+      errors += InputValidationError("name", "name is empty")
+      ""
     }
-    val description = params.description match {
-      case Some(x) => x
-      case None => throw new InputValidationException(List(InputValidationError("description", "description is empty")))
+    val description = if (params.description.isDefined && StringUtil.trimAllSpaces(params.description.get).length != 0) {
+      StringUtil.trimAllSpaces(params.description.get)
+    } else {
+      errors += InputValidationError("description", "description is empty")
+      ""
+    }
+    if (errors.size != 0) {
+      throw new InputValidationException(errors.toList)
     }
 
     try {
@@ -653,7 +661,7 @@ object DatasetService {
         withSQL {
           val f = persistence.File.column
           update(persistence.File)
-            .set(f.name -> params.filename, f.description -> params.description,
+            .set(f.name -> filename, f.description -> description,
               f.updatedBy -> sqls.uuid(myself.id), f.updatedAt -> timestamp)
             .where
             .eq(f.id, sqls.uuid(params.fileId))
