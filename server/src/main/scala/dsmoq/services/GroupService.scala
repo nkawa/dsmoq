@@ -339,32 +339,41 @@ object GroupService {
   def setUserRole(params: GroupData.SetUserRoleParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
 
-    // FIXME input parameter check
+    // input parameter check
+    val errors = ArrayBuffer.empty[InputValidationError]
     val userIds = params.userIds match {
       case Some(x) => x
-      case None => throw new InputValidationException(List(InputValidationError("id", "ID is empty")))
+      case None =>
+        errors += InputValidationError("id", "ID is empty")
+        Seq.empty
     }
     val roles = params.roles match {
       case Some(x) =>
         try {
-          val roles = x.map(_.toInt)
-          roles.foreach { r =>
-            r match {
-              case GroupMemberRole.Deny => // do nothing
-              case GroupMemberRole.Manager => // do nothing
-              case GroupMemberRole.Member => // do nothing
-              case _ => throw new InputValidationException(List(InputValidationError("role", "role value error")))
-            }
-          }
-          roles
+          x.map(_.toInt)
         } catch {
-          case e: InputValidationException => throw e
-          case e: Exception => throw new InputValidationException(List(InputValidationError("role", "role format error")))
+          case e: Exception =>
+            errors += InputValidationError("role", "role format error")
+            Seq.empty
         }
-      case None => throw new InputValidationException(List(InputValidationError("role", "role is empty")))
+      case None =>
+        errors += InputValidationError("role", "role is empty")
+        Seq.empty
     }
+    if (errors.size != 0) {
+      throw new InputValidationException(errors.toList)
+    }
+
     if (userIds.size != roles.size) {
       throw new InputValidationException(List(InputValidationError("id", "parameters are not same size")))
+    }
+    roles.foreach { r =>
+      r match {
+        case GroupMemberRole.Deny => // do nothing
+        case GroupMemberRole.Manager => // do nothing
+        case GroupMemberRole.Member => // do nothing
+        case _ => throw new InputValidationException(List(InputValidationError("role", "role value error")))
+      }
     }
 
     try {
