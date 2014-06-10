@@ -805,7 +805,7 @@ object DatasetService {
             .eq(da.datasetId, sqls.uuid(params.datasetId))
             .and
             .isNull(a.deletedAt)
-        }.map(rs => (rs.string(a.resultName.name), rs.string(a.resultName.id))).list().apply
+        }.map(rs => (rs.string(a.resultName.name).toLowerCase, rs.string(a.resultName.id))).list().apply
 
         // 既存DatasetAnnotation全削除
         withSQL {
@@ -820,13 +820,13 @@ object DatasetService {
             .from(persistence.Annotation as a)
             .where
             .isNull(a.deletedAt)
-        }.map(rs => (rs.string(a.resultName.name), rs.string(a.resultName.id))).list().apply.toMap
-        val attributes = params.attributes.map(x => x._1 -> StringUtil.trimAllSpaces(x._2))
+        }.map(rs => (rs.string(a.resultName.name).toLowerCase, rs.string(a.resultName.id))).list().apply.toMap
 
+        val attributes = params.attributes.map(x => x._1 -> StringUtil.trimAllSpaces(x._2))
         attributes.foreach { x =>
           if (x._1.length != 0) {
-            val annotationId = if (annotationMap.keySet.contains(x._1)) {
-              annotationMap(x._1)
+            val annotationId = if (annotationMap.keySet.contains(x._1.toLowerCase)) {
+              annotationMap(x._1.toLowerCase)
             } else {
               val annotationId = UUID.randomUUID().toString
               persistence.Annotation.create(
@@ -856,7 +856,7 @@ object DatasetService {
 
         // データ追加前のnameが他で使われているかチェック 使われていなければ削除
         oldAnnotations.foreach {x =>
-          if (!attributes.map(_._1).contains(x._1)) {
+          if (!attributes.map(_._1.toLowerCase).contains(x._1)) {
             val datasetAnnotations = withSQL {
               select(da.result.id)
                 .from(persistence.DatasetAnnotation as da)
