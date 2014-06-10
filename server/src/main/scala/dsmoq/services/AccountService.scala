@@ -139,20 +139,20 @@ object AccountService extends SessionTrait {
       val errors = ArrayBuffer.empty[InputValidationError]
       val c = currentPassword match {
         case Some(x) =>
-          if (x.trim.replace("　", "").length == 0) {
+          if (x.length == 0) {
             errors += InputValidationError("current_password", "current password is empty.")
           }
-          x.trim.replace("　", "")
+          x
         case None =>
           errors += InputValidationError("current_password", "current password is empty.")
           ""
       }
       val n = newPassword match {
         case Some(x) =>
-          if (x.trim.replace("　", "").length == 0) {
+          if (x.length == 0) {
             errors += InputValidationError("new_password", "new password is empty")
           }
-          x.trim.replace("　", "")
+          x
         case None =>
           errors += InputValidationError("new_password", "new password is empty")
           ""
