@@ -20,6 +20,7 @@ import scala.util.Failure
 import scala.Some
 import dsmoq.services.data.ProfileData.UpdateProfileParams
 import scala.util.Success
+import scala.collection.mutable.ArrayBuffer
 
 object AccountService extends SessionTrait {
 
