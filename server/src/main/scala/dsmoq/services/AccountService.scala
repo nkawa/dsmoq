@@ -253,7 +253,7 @@ object AccountService extends SessionTrait {
           select(u.result.id)
             .from(persistence.User as u)
             .where
-            .eq(u.name, name)
+            .lowerEq(u.name, name)
             .and
             .ne(u.id, sqls.uuid(user.id))
         }.map(_.string(u.resultName.id)).list().apply

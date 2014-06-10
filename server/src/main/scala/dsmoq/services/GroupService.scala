@@ -182,7 +182,7 @@ object GroupService {
           select(g.result.id)
           .from(persistence.Group as g)
           .where
-          .eq(g.name, name)
+          .lowerEq(g.name, name)
           .and
           .eq(g.groupType, GroupType.Public)
           .and
@@ -287,7 +287,7 @@ object GroupService {
           select(g.result.id)
             .from(persistence.Group as g)
             .where
-            .eq(g.name, name)
+            .lowerEq(g.name, name)
             .and
             .ne(g.id, sqls.uuid(params.groupId))
             .and
