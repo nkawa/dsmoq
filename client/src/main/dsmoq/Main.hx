@@ -69,18 +69,18 @@ class Main {
 			flow: true,
 			autoBind: true,
             render: function(val) {
-                var tag = JsViewsTools.tag();
+                var tagDef = JsViewsTools.tagDef();
                 return switch (val) {
                     case Async.Pending:
                         "<img src='/resources/loading-large.gif'>";
                     case Async.Completed(x):
-                        tag.tagCtx.render(x);
+                        tagDef.tagCtx.render(x);
                 };
             }
         });
 
         JsViews.views.tags("a", function (_) {
-            var ctx = JsViewsTools.tag().tagCtx;
+            var ctx = JsViewsTools.tagDef().tagCtx;
             var props = ctx.props;
 
             var buf = [];
@@ -92,7 +92,7 @@ class Main {
         });
 
         JsViews.views.tags("img", function (_) {
-            var ctx = JsViewsTools.tag().tagCtx;
+            var ctx = JsViewsTools.tagDef().tagCtx;
             var props = ctx.props;
 
             var buf = [];
@@ -140,56 +140,59 @@ class Main {
         JsViews.views.tags("pagination", {
             dataBoundOnly: true,
             //init: function (tag, link) {
-            //    trace("init");
+                //trace("init");
             //},
             //onBeforeLink: function() {
                 //trace("onBeforeLink");
                 //return true;
             //},
-            render: function (val) {
-                var tag = JsViewsTools.tag();
-
-                var id: String = tag.tagCtx.props["id"];
-                var cls: String = tag.tagCtx.props["class"];
-                var pageSize: Int = tag.tagCtx.props["pagesize"];
-                var pageDelta: Int = tag.tagCtx.props["pagedelta"];
-                var pageDeltaCenter = Math.floor(pageDelta / 2);
-                var total: Int = tag.tagCtx.args[0].total;
-                var count: Int = tag.tagCtx.args[0].count;
-                var offset: Int = tag.tagCtx.args[0].offset;
-                var page = Math.ceil(offset / pageSize) + 1;
-                var last = Math.ceil(total / pageSize);
-
-                var range = [for (i in if (page <= pageDeltaCenter) {
-                    1...((pageDelta < last) ? pageDelta + 1 : last + 1);
-                } else if (page >= (last - pageDeltaCenter)) {
-                    (last - pageDelta + 1)...(last+1);
-                } else {
-                    var left = page - pageDeltaCenter;
-                    (left)...(left + pageDelta);
-                }) i];
-
-                return pagenationTemplate.render({ id: id, cls: cls, page: page, range: range, last: last });
+            render: function (_) {
+                var tagDef = JsViewsTools.tagDef();
+                var id: String = tagDef.tagCtx.props["id"];
+                return '<div id="${id}" style="display:inline-block"></div>';
             },
             onAfterLink: function(tag, link) {
-                var tag = JsViewsTools.tag();
-                var root = tag.contents("*:first");
-                root.on("click", "a[data-value]", function (e) {
-                    root.attr("data-value", new JqHtml(e.target).attr("data-value"));
+                var tagDef = JsViewsTools.tagDef();
+                var root = tagDef.contents("*:first");
+                tagDef.linkedElem = root; //linkedElemを設定しないとonUpdate()がコールされない
+
+                var cls: String = tagDef.tagCtx.props["class"];
+                var index: Int = tagDef.tagCtx.args[0];
+                var pageDelta: Int = JsTools.orElse(tagDef.tagCtx.props["pagedelta"], 5);
+                var pageDeltaCenter = Math.floor(pageDelta / 2);
+                var pages: Int = tagDef.tagCtx.args[1];
+
+                var range = [for (i in if (index < pageDeltaCenter) {
+                                0...((pageDelta < pages) ? pageDelta : pages);
+                            } else if (index >= (pages - pageDeltaCenter)) {
+                                (pages - pageDelta)...(pages);
+                            } else {
+                                var left = index - pageDeltaCenter;
+                                (left)...(left + pageDelta);
+                            }) i];
+
+                root.html(pagenationTemplate.render({
+                    cls: cls,
+                    index: index,
+                    range: range,
+                    pages: pages
+                }));
+
+                root.find("ul").on("click", "a[data-value]", function (e) {
+                    tagDef.update(new JqHtml(e.target).data("value"));
                     root.trigger("change.dsmoq.pagination");
                 });
             },
             onUpdate: function(ev, eventArgs, tag) { // binding.onchange
-                trace("onUpdate");
-                return true;
+                return false;
             },
-            onBeforeChange: function(ev, eventArgs) { //input.onchange
-                trace("onBeforeChange");
-                return true;
-            },
-            onDispose: function() {
-                trace("onDispose");
-            }
+            //onBeforeChange: function(ev, eventArgs) { //input.onchange
+                //trace("onBeforeChange");
+                //return true;
+            //},
+            //onDispose: function() {
+                //trace("onDispose");
+            //}
         });
 
         Engine.start(new Main());
@@ -213,14 +216,36 @@ class Main {
                 {
                     navigation: new ControllableStream(),
                     invalidate: function (container: Element) {
+                        var root = new JqHtml(container);
+
                         // TODO ページング処理
-                        var x = { condition: { }, result: { } };
-                        var binding = JsViews.objectObservable(x);
+                        var data = {
+                            condition: { },
+                            result: { index: 0, total: 0, items: [], pages: 0 }
+                        };
+
+                        var binding = JsViews.objectObservable(data);
                         Service.instance.findDatasets().then(function (x) {
-                            binding.setProperty("result", x);
+                            binding.setProperty("result.index", Math.ceil(x.summary.offset / 20));
+                            binding.setProperty("result.pages", Math.ceil(x.summary.total / 20));
+                            binding.setProperty("result.total", x.summary.total);
+                            binding.setProperty("result.items", x.results);
                             View.getTemplate("dataset/list").link(container, binding.data());
+
+                            JsViews.observe(data, "result.index", function (_, _) {
+                                Service.instance.findDatasets( { offset: 20 * data.result.index } ).then(function (x) {
+                                    binding.setProperty("result.index", Math.ceil(x.summary.offset / 20));
+                                    binding.setProperty("result.pages", Math.ceil(x.summary.total / 20));
+                                    binding.setProperty("result.total", x.summary.total);
+                                    binding.setProperty("result.items", x.results);
+                                });
+                            });
                         }, function (err) {
                             // TODO
+                        });
+
+                        root.on("change.dsmoq.pagination", "#dataset-pagination", function(_) {
+                            //trace("page");
                         });
                     },
                     dispose: function () {

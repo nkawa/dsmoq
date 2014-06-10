@@ -48,6 +48,10 @@ class JsTools {
         }
     }
 
+    public inline static function orElse<T>(a: Null<T>, b: T): T {
+        return (a != null) ? a : b;
+    }
+
     public static inline function getArguments(): Dynamic {
         return untyped __js__("arguments");
     }

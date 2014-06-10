@@ -1,8 +1,8 @@
 <h2>Dataset List</h2>
-{^{if result.summary.total > 0}}
-  <strong>Found {^{>result.summary.total}} records</strong>
+{^{if result.total > 0}}
+  <strong>Found {^{>result.total}} records</strong>
   <ul>
-    {^{for result.results}}
+    {^{for result.items}}
       <li class="dataset-item">
         <div class="row">
           <div class="pull-left">
@@ -32,7 +32,7 @@
       </li>
     {{/for}}
   </ul>
-  {^{pagination result.summary id="pagination" class="" style="" pagesize=20 pagedelta=5 /}}
+  {^{pagination result.index result.pages id="dataset-pagination" pagedelta=5 /}}
 {{else}}
-   <p>Datasets are not exist...</p>
+   <p>There are no datasets.</p>
 {{/if}}

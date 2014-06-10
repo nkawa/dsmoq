@@ -1,19 +1,19 @@
-<ul id="{{>id}}" class="pagination {{>cls}}" data-value="{{>page}}">
-  {{if page <= 1}}
+<ul class="pagination {{>cls}}" data-value="{{>page}}">
+  {{if index <= 0}}
     <li class="disabled"><a href="javascript:void 0;">&laquo;</a></li>
   {{else}}
-    <li><a href="javascript:void 0;" data-value="1">&laquo;</a></li>
+    <li><a href="javascript:void 0;" data-value="0">&laquo;</a></li>
   {{/if}}
-  {{for range}}
-    {{if #data == #parent.parent.data.page}}
-      <li class="active"><a href="javascript:void 0;">{{>#data}}</a></li>
+  {{for range ~index=index}}
+    {{if #data == ~index}}
+      <li class="active"><a href="javascript:void 0;">{{>#data+1}}</a></li>
     {{else}}
-      <li><a href="javascript:void 0;" data-value="{{>#data}}">{{>#data}}</a></li>
+      <li><a href="javascript:void 0;" data-value="{{>#data}}">{{>#data+1}}</a></li>
     {{/if}}
   {{/for}}
-  {{if page >= last}}
+  {{if (index + 1) >= pages}}
     <li class="disabled"><a href="javascript:void 0;">&raquo;</a></li>
   {{else}}
-    <li><a href="javascript:void 0;" data-value="{{>last}}">&raquo;</a></li>
+    <li><a href="javascript:void 0;" data-value="{{>pages-1}}">&raquo;</a></li>
   {{/if}}
 </ul>
