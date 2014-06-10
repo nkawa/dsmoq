@@ -249,14 +249,23 @@ object GroupService {
 
   def modifyGroup(params: GroupData.ModifyGroupParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
-    // FIXME input parameter check
-    val name = params.name match {
-      case Some(x) => x
-      case None => throw new InputValidationException(List(InputValidationError("name", "name is empty")))
+    
+    // input validation
+    val errors = ArrayBuffer.empty[InputValidationError]
+    val name = if (params.name.isDefined && StringUtil.trimAllSpaces(params.name.get).length != 0) {
+      StringUtil.trimAllSpaces(params.name.get)
+    } else {
+      errors += InputValidationError("name", "name is empty")
+      ""
     }
-    val description = params.description match {
-      case Some(x) => x
-      case None => throw new InputValidationException(List(InputValidationError("description", "description is empty")))
+    val description = if (params.description.isDefined && StringUtil.trimAllSpaces(params.description.get).length != 0) {
+      StringUtil.trimAllSpaces(params.description.get)
+    } else {
+      errors += InputValidationError("description", "description is empty")
+      ""
+    }
+    if (errors.size != 0) {
+      throw new InputValidationException(errors.toList)
     }
 
     try {
