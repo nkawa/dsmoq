@@ -6,7 +6,7 @@ import java.security.MessageDigest
 import dsmoq.{AppConf, persistence}
 import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.services.data._
-import dsmoq.exceptions.{InputValidationError, InputValidationException, ValidationException, NotAuthorizedException}
+import dsmoq.exceptions._
 import org.joda.time.DateTime
 import dsmoq.services.data.ProfileData.UpdateProfileParams
 import dsmoq.controllers.SessionTrait
@@ -20,28 +20,29 @@ import scala.util.Failure
 import scala.Some
 import dsmoq.services.data.ProfileData.UpdateProfileParams
 import scala.util.Success
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable
+import dsmoq.services.data.MailValidationResult
 
 object AccountService extends SessionTrait {
 
   def getAuthenticatedUser(params: LoginData.SigninParams): Try[User] = {
     // TODO dbアクセス時エラーでFailure返す try~catch
     try {
-      val errors = ArrayBuffer.empty[InputValidationError]
+      val errors = mutable.LinkedHashMap.empty[String, String]
       val id = params.id match {
         case Some(x) => x
         case None =>
-          errors += InputValidationError("id", "ID is empty")
+          errors.put("id", "ID is empty")
           ""
       }
       val password = params.password match {
         case Some(x) => x
         case None =>
-          errors += InputValidationError("password", "password is empty")
+          errors.put("password", "password is empty")
           ""
       }
       if (errors.size != 0) {
-        throw new InputValidationException(errors.toList)
+        throw new InputValidationException(errors)
       }
 
       // TODO パスワードソルトを追加
@@ -71,7 +72,7 @@ object AccountService extends SessionTrait {
 
         user match {
           case Some(x) => Success(x)
-          case None => throw new InputValidationException(List(InputValidationError("password", "wrong password")))
+          case None => throw new InputValidationException(mutable.LinkedHashMap[String, String]("password" -> "wrong password"))
         }
       }
     } catch {
@@ -87,11 +88,11 @@ object AccountService extends SessionTrait {
       val mail = email match {
         case Some(x) =>
           if (x.trim.length == 0) {
-            throw new InputValidationException(List(InputValidationError("email", "email is empty")))
+            throw new InputValidationException(mutable.LinkedHashMap[String, String]("email" -> "email is empty"))
           } else {
             x.trim
           }
-        case None => throw new InputValidationException(List(InputValidationError("email", "email is empty")))
+        case None => throw new InputValidationException(mutable.LinkedHashMap[String, String]("email" -> "email is empty"))
       }
 
       DB localTx {implicit s =>
@@ -145,29 +146,29 @@ object AccountService extends SessionTrait {
       if (user.isGuest) throw new NotAuthorizedException
 
       // input validation
-      val errors = ArrayBuffer.empty[InputValidationError]
+      val errors = mutable.LinkedHashMap.empty[String, String]
       val c = currentPassword match {
         case Some(x) =>
           if (x.length == 0) {
-            errors += InputValidationError("current_password", "current password is empty.")
+            errors.put("current_password", "current password is empty.")
           }
           x
         case None =>
-          errors += InputValidationError("current_password", "current password is empty.")
+          errors.put("current_password", "current password is empty.")
           ""
       }
       val n = newPassword match {
         case Some(x) =>
           if (x.length == 0) {
-            errors += InputValidationError("new_password", "new password is empty")
+            errors.put("new_password", "new password is empty")
           }
           x
         case None =>
-          errors += InputValidationError("new_password", "new password is empty")
+          errors.put("new_password", "new password is empty")
           ""
       }
       if (errors.size != 0) {
-        throw new InputValidationException(errors.toList)
+        throw new InputValidationException(errors)
       }
 
       val oldPasswordHash = createPasswordHash(c)
@@ -196,7 +197,7 @@ object AccountService extends SessionTrait {
                 .where
                 .eq(p.id, sqls.uuid(x.id))
             }.update().apply
-          case None => throw new InputValidationException(List(InputValidationError("current_password", "wrong password")))
+          case None => throw new InputValidationException(mutable.LinkedHashMap[String, String]("current_password" -> "wrong password"))
         }
       }
       Success(n)
@@ -209,39 +210,40 @@ object AccountService extends SessionTrait {
     try {
       if (user.isGuest) throw new NotAuthorizedException
       // input validation
-      val errors = ArrayBuffer.empty[InputValidationError]
+      val errors = mutable.LinkedHashMap.empty[String, String]
+
       val name = if (params.name.isDefined && StringUtil.trimAllSpaces(params.name.get).length != 0) {
         StringUtil.trimAllSpaces(params.name.get)
       } else {
-        errors += InputValidationError("name", "name is empty")
+        errors.put("name", "name is empty")
         ""
       }
       val fullname = if (params.fullname.isDefined && StringUtil.trimAllSpaces(params.fullname.get).length != 0) {
         StringUtil.trimAllSpaces(params.fullname.get)
       } else {
-        errors += InputValidationError("fullname", "fullname is empty")
+        errors.put("fullname", "fullname is empty")
         ""
       }
       val organization = if (params.organization.isDefined && StringUtil.trimAllSpaces(params.organization.get).length != 0) {
         StringUtil.trimAllSpaces(params.organization.get)
       } else {
-        errors += InputValidationError("organization", "organization is empty")
+        errors.put("organization", "organization is empty")
         ""
       }
       val title = if (params.title.isDefined && StringUtil.trimAllSpaces(params.title.get).length != 0) {
         StringUtil.trimAllSpaces(params.title.get)
       } else {
-        errors += InputValidationError("title", "title is empty")
+        errors .put("title", "title is empty")
         ""
       }
       val description = if (params.description.isDefined && StringUtil.trimAllSpaces(params.description.get).length != 0) {
         StringUtil.trimAllSpaces(params.description.get)
       } else {
-        errors += InputValidationError("description", "description is empty")
+        errors.put("description", "description is empty")
         ""
       }
       if (errors.size != 0) {
-        throw new InputValidationException(errors.toList)
+        throw new InputValidationException(errors)
       }
 
       DB localTx { implicit s =>
@@ -256,7 +258,7 @@ object AccountService extends SessionTrait {
             .ne(u.id, sqls.uuid(user.id))
         }.map(_.string(u.resultName.id)).list().apply
         if (users.size != 0) {
-          throw new InputValidationException(List(InputValidationError("name", "same name")))
+          throw new InputValidationException(mutable.LinkedHashMap[String, String]("name" -> "same name"))
         }
 
         withSQL {
@@ -332,7 +334,7 @@ object AccountService extends SessionTrait {
           case pattern() => x.trim
           case _ => throw new ValidationException
         }
-      case None => throw new InputValidationException(List(InputValidationError("email", "email is empty")))
+      case None => throw new InputValidationException(mutable.LinkedHashMap[String, String]("email" -> "email is empty"))
     }
 
     val result = DB readOnly { implicit s =>
