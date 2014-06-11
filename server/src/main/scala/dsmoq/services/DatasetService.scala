@@ -733,35 +733,33 @@ object DatasetService {
   
   def modifyDatasetMeta(params: DatasetData.ModifyDatasetMetaParams): Try[String] = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
-    // input parameter check
-    val errors = mutable.LinkedHashMap.empty[String, String]
-    val name = if (params.name.isDefined && StringUtil.trimAllSpaces(params.name.get).length != 0) {
-      StringUtil.trimAllSpaces(params.name.get)
-    } else {
-      errors.put("name", "name is empty")
-      ""
-    }
-    val description = if (params.description.isDefined && StringUtil.trimAllSpaces(params.description.get).length != 0) {
-      StringUtil.trimAllSpaces(params.description.get)
-    } else {
-      errors.put("description", "description is empty")
-      ""
-    }
-    if (errors.size != 0) {
-      throw new InputValidationException(errors)
-    }
-    val licenseId = params.licenseId match {
-      case Some(x) => x
-      case None =>
-        errors.put("license", "license is empty")
-        ""
-    }
-    if (errors.size != 0) {
-      throw new InputValidationException(errors)
-    }
 
     try {
       DB localTx { implicit s =>
+        // input parameter check
+        val errors = mutable.LinkedHashMap.empty[String, String]
+        val name = StringUtil.trimAllSpaces(params.name.getOrElse(""))
+        if (name.isEmpty) {
+          errors.put("name", "name is empty")
+        }
+        val description = params.description.getOrElse("")
+        val licenseId = params.licenseId.getOrElse("")
+        if (licenseId.isEmpty) {
+            errors.put("license", "license is empty")
+        } else {
+          // licenseの存在チェック
+          try {
+            if (persistence.License.find(licenseId).isEmpty) {
+              errors.put("license", "license is invalid")
+            }
+          } catch {
+            case e: Exception => errors.put("license", "license is invalid")
+          }
+        }
+        if (errors.size != 0) {
+          throw new InputValidationException(errors)
+        }
+
         try {
           getDataset(params.datasetId) match {
             case Some(x) => if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
@@ -770,16 +768,6 @@ object DatasetService {
         } catch {
           case e: NotAuthorizedException => throw e
           case e: Exception => throw new NotFoundException
-        }
-
-        // licenseの存在チェック
-        try {
-          persistence.License.find(licenseId) match {
-            case Some(x) => // do nothing
-            case None => throw new InputValidationException(mutable.LinkedHashMap[String, String]("license" -> "license is invalid"))
-          }
-        } catch {
-          case e: Exception => throw new InputValidationException(mutable.LinkedHashMap[String, String]("license" -> "license is invalid"))
         }
 
         val myself = persistence.User.find(params.userInfo.id).get
