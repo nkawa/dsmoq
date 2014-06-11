@@ -209,44 +209,15 @@ object AccountService extends SessionTrait {
   def updateUserProfile(user: User, params: UpdateProfileParams): Try[User]  = {
     try {
       if (user.isGuest) throw new NotAuthorizedException
-      // input validation
-      val errors = mutable.LinkedHashMap.empty[String, String]
-
-      val name = if (params.name.isDefined && StringUtil.trimAllSpaces(params.name.get).length != 0) {
-        StringUtil.trimAllSpaces(params.name.get)
-      } else {
-        errors.put("name", "name is empty")
-        ""
-      }
-      val fullname = if (params.fullname.isDefined && StringUtil.trimAllSpaces(params.fullname.get).length != 0) {
-        StringUtil.trimAllSpaces(params.fullname.get)
-      } else {
-        errors.put("fullname", "fullname is empty")
-        ""
-      }
-      val organization = if (params.organization.isDefined && StringUtil.trimAllSpaces(params.organization.get).length != 0) {
-        StringUtil.trimAllSpaces(params.organization.get)
-      } else {
-        errors.put("organization", "organization is empty")
-        ""
-      }
-      val title = if (params.title.isDefined && StringUtil.trimAllSpaces(params.title.get).length != 0) {
-        StringUtil.trimAllSpaces(params.title.get)
-      } else {
-        errors .put("title", "title is empty")
-        ""
-      }
-      val description = if (params.description.isDefined && StringUtil.trimAllSpaces(params.description.get).length != 0) {
-        StringUtil.trimAllSpaces(params.description.get)
-      } else {
-        errors.put("description", "description is empty")
-        ""
-      }
-      if (errors.size != 0) {
-        throw new InputValidationException(errors)
-      }
 
       DB localTx { implicit s =>
+        // input validation
+        val errors = mutable.LinkedHashMap.empty[String, String]
+
+        val name = StringUtil.trimAllSpaces(params.name.getOrElse(""))
+        if (name.isEmpty) {
+          errors.put("name", "name is empty")
+        }
         // 同名チェック
         val u = persistence.User.syntax("u")
         val users = withSQL {
@@ -258,7 +229,18 @@ object AccountService extends SessionTrait {
             .ne(u.id, sqls.uuid(user.id))
         }.map(_.string(u.resultName.id)).list().apply
         if (users.size != 0) {
-          throw new InputValidationException(mutable.LinkedHashMap[String, String]("name" -> "same name"))
+          errors.put("name", "same name")
+        }
+        val fullname = StringUtil.trimAllSpaces(params.fullname.getOrElse(""))
+        if (fullname.isEmpty) {
+          errors.put("fullname", "fullname is empty")
+        }
+        val organization = StringUtil.trimAllSpaces(params.organization.getOrElse(""))
+        val title = StringUtil.trimAllSpaces(params.title.getOrElse(""))
+        val description = params.description.getOrElse("")
+
+        if (errors.size != 0) {
+          throw new InputValidationException(errors)
         }
 
         withSQL {
