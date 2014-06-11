@@ -2,13 +2,13 @@ package dsmoq.pages;
 
 import dsmoq.framework.types.PageContent;
 import dsmoq.framework.types.PageNavigation;
-import js.support.ControllableStream;
+import dsmoq.framework.View;
+import dsmoq.models.Service;
 import js.html.Element;
-import js.support.PositiveInt;
 import js.jqhx.JqHtml;
 import js.jsviews.JsViews;
-import dsmoq.models.Service;
-import dsmoq.framework.View;
+import js.support.ControllableStream;
+import js.support.PositiveInt;
 
 class DatasetListPage {
     public static function create(page: PositiveInt): PageContent<Page> {
@@ -44,5 +44,4 @@ class DatasetListPage {
             }
         };
     }
-
 }

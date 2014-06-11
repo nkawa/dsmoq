@@ -4,6 +4,7 @@ import dsmoq.framework.ApplicationContext;
 import dsmoq.framework.Engine;
 import dsmoq.pages.DashboardPage;
 import dsmoq.pages.DatasetListPage;
+import dsmoq.pages.DatasetShowPage;
 import js.support.PositiveInt;
 import dsmoq.framework.View;
 import dsmoq.models.DatasetGuestAccessLevel;
@@ -214,49 +215,7 @@ class Main {
         return switch (page) {
             case Dashboard: DashboardPage.create();
             case DatasetList(page): DatasetListPage.create(page);
-            case DatasetShow(id):
-                var navigation = new ControllableStream();
-                {
-                    navigation: navigation,
-                    invalidate: function (container: Element) {
-                        Service.instance.getDataset(id).then(function (data) {
-                            trace(data);
-
-                            var binding = JsViews.objectObservable(data);
-                            View.getTemplate("dataset/show").link(container, binding.data());
-
-                            new JqHtml(container).find("#dataset-edit").on("click", function (_) {
-                                navigation.update(PageNavigation.Navigate(DatasetEdit(id)));
-                            });
-
-                            new JqHtml(container).find("#dataset-delete").createEventStream("click").chain(function (_) {
-                                // TODO ダイアログ
-                                return if (Browser.window.confirm("ok?")) {
-                                    Promise.resolved(Unit._);
-                                } else {
-                                    Promise.rejected(Unit._);
-                                }
-                            }, function (_) return None).chain(function (_) {
-                                return Service.instance.deleteDeataset(id);
-                            }).then(function (_) {
-                                // TODO 削除対象データセット閲覧履歴（このページ）をHistoryから消す
-                                navigation.update(PageNavigation.Navigate(DatasetList(1)));
-                            });
-                        }, function (err) {
-                            switch (err.name) {
-                                case ServiceErrorType.Unauthorized:
-                                    container.innerHTML = "Permission denied";
-                                    trace("UnauthorizedError");
-                                case _:
-                                    // TODO 通信エラーが発生しましたメッセージと手動リロードボタンを表示
-                                    container.innerHTML = "network error";
-                                    trace(err);
-                            }
-                        });
-                    },
-                    dispose: function () {
-                    }
-                }
+            case DatasetShow(id): DatasetShowPage.create(id);
             case DatasetEdit(id):
                 var navigation = new ControllableStream();
                 {
