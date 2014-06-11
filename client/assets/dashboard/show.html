@@ -3,10 +3,8 @@
 <div class="panel panel-default recent-data-set">
   <div class="panel-heading">Recent Datasets</div>
   <div class="panel-body" id="recent-datasets">
-    {^{if isRecentDatasetsLoading}}
-      <img src="/resources/loading-large.gif" alt="loading">
-    {{else}}
-      {^{for recentDatasets}}
+    {^{async recentDatasets}}
+      {^{for #data}}
         <ul>
           <li class="dataset-item">
             <div class="row">
@@ -28,9 +26,9 @@
           </li>
         </ul>
       {{else}}
-        No datasets
+        There are no datasets.
       {{/for}}
-    {{/if}}
+    {{/async}}
   </div>
 </div>
 
@@ -38,10 +36,8 @@
   <div class="panel panel-default recent-data-set">
     <div class="panel-heading">My Datasets</div>
     <div class="panel-body" id="my-datasets">
-      {^{if isMyDatasetsLoading}}
-        <img src="/resources/loading-large.gif" alt="loading">
-      {{else}}
-        {^{for recentDatasets}}
+      {^{async myDatasets}}
+        {^{for #data}}
           <ul>
             <li class="dataset-item">
               <div class="row">
@@ -63,21 +59,21 @@
             </li>
           </ul>
         {{else}}
-          No datasets
+          There are no datasets.
         {{/for}}
-      {{/if}}
+      {{/async}}
     </div>
   </div>
+{{/if}}
 
+{{if !isGuest}}
   <div class="panel panel-default">
     <div class="panel-heading">My Groups</div>
     <div class="panel-body" id="my-groups">
-      {^{if isMyGroupsLoading}}
-        <img src="/resources/loading-large.gif" alt="loading">
-      {{else}}
-        {^{if myGroups.length > 0}}
+      {^{async myGroups}}
+        {^{if #parent.data.length > 0}}
           <ul>
-            {^{for myGroups}}
+            {^{for #parent.data}}
               <li class="dataset-item">
                 <div class="row">
                   <div class="pull-left"><img src="{{>image}}"></div>
@@ -90,9 +86,9 @@
             {{/for}}
           </ul>
         {{else}}
-          No groups
+          There are no groups.
         {{/if}}
-      {{/if}}
+      {{/async}}
     </div>
   </div>
 {{/if}}
