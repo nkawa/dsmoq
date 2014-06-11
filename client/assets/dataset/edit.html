@@ -20,24 +20,66 @@
   <div class="tab-content">
     <div class="tab-pane active" id="dataset-basics">
       <form role="form">
+        {^{if ~isEmpty(dataset.errors.meta.name)}}
+          <div class="form-group" style="width:300px;">
+            <label for="form-title" class="control-label">Name</label>
+            <input type="text" class="form-control" placeholder="Dataset Name" data-link="dataset.meta.name">
+          </div>
+        {{else}}
+          <div class="form-group has-error has-feedback" style="width:300px;">
+            <label for="form-title" class="control-label">Name</label>
+            <input type="text" class="form-control" placeholder="Dataset Name" data-link="dataset.meta.name">
+            <span class="glyphicon glyphicon-remove form-control-feedback"></span>
+          </div>
+          <p class="text-danger" data-link="dataset.errors.meta.name"></p>
+        {{/if}}
+
+        {^{if ~isEmpty(dataset.errors.meta.description)}}
+          <div class="form-group" style="width: 600px;">
+            <label for="form-description" class="control-label">Description</label>
+            <textarea class="form-control" row="3" data-link="dataset.meta.description"></textarea>
+          </div>
+        {{else}}
+          <div class="form-group has-error has-feedback" style="width: 600px;">
+            <label for="form-description" class="control-label">Description</label>
+            <textarea class="form-control" row="3" data-link="dataset.meta.description"></textarea>
+            <span class="glyphicon glyphicon-remove form-control-feedback"></span>
+          </div>
+          <p class="text-danger" data-link="dataset.errors.meta.description"></p>
+        {{/if}}
+
+        {^{if ~isEmpty(dataset.errors.meta.license)}}
+          <div class="form-group">
+            <label for="form-description" class="control-label">License</label>
+            <select class="form-control" style="width: auto;" data-link="dataset.meta.license">
+              {{for licenses}}
+                <option data-link="value{>#data.id},selected{>#data.id==#parent.parent.data.dataset.meta.license}">{{>#data.name}}</option>
+              {{/for}}
+            </select>
+          </div>
+        {{else}}
+          <div class="form-group has-error has-feedback">
+            <label for="form-description" class="control-label">License</label>
+            <select class="form-control" style="width: auto;" data-link="dataset.meta.license">
+              {{for licenses}}
+                <option data-link="value{>#data.id},selected{>#data.id==#parent.parent.data.dataset.meta.license}">{{>#data.name}}</option>
+              {{/for}}
+            </select>
+          </div>
+          <p class="text-danger" data-link="dataset.errors.meta.license"></p>
+        {{/if}}
+
+        {^{if ~isEmpty(dataset.errors.meta.attributes)}}
+          <div class="form-group">
+            <label class="control-label">Attributes</label>
+          </div>
+        {{else}}
+          <div class="form-group has-error has-feedback" style="margin-bottom:0;">
+            <label class="control-label">Attributes</label>
+          </div>
+          <p class="text-danger" data-link="dataset.errors.meta.license"></p>
+        {{/if}}
         <div class="form-group">
-          <label for="form-title" class="control-label">Title</label>
-          <input type="text" style="width:300px;" class="form-control" placeholder="Dataset Title" data-link="dataset.meta.name">
-        </div>
-        <div class="form-group">
-          <label for="form-description" class="control-label">Description</label>
-          <textarea class="form-control" row="3" style="width: 600px;" data-link="dataset.meta.description"></textarea>
-        </div>
-        <div class="form-group">
-          <label for="form-description" class="control-label">License</label>
-          <select class="form-control" style="width: auto;" data-link="dataset.meta.license">
-            {{for licenses}}
-              <option data-link="value{>#data.id},selected{>#data.id==#parent.parent.data.dataset.meta.license}">{{>#data.name}}</option>
-            {{/for}}
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="control-label">Attributes</label>
           <table class="table table-bordered table-condensed" style="width: 600px;">
             <thead>
               <tr><td>name</td><td>value</td><td></td></tr>
@@ -59,7 +101,7 @@
       </form>
       <div class="row">
         <p class="col-sm-12">
-          <a class="btn btn-primary" id="dataset-basics-submit">Save</a>
+          <a class="btn btn-primary" id="dataset-basics-submit" data-loading-text="Saving...">Save</a>
         </p>
       </div>
     </div>
