@@ -270,6 +270,12 @@ class Main {
                                 Typeahead.initialize(root.find(".attribute-typeahead"), {
                                     source: attrbuteEngine.ttAdapter(),
                                 });
+                                root.find(".attribute-typeahead").on("typeahead:autocompleted", function (e) {
+                                    new JqHtml(e.target).trigger("change");
+                                });
+                                root.find(".attribute-typeahead").on("typeahead:selected", function (e) {
+                                    new JqHtml(e.target).trigger("change");
+                                });
                             }
                             function removeAttributeTypeahead() {
                                 Typeahead.destroy(root.find(".attribute-typeahead"));
