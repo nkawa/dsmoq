@@ -3,6 +3,7 @@ package dsmoq;
 import dsmoq.framework.ApplicationContext;
 import dsmoq.framework.Engine;
 import dsmoq.pages.DashboardPage;
+import dsmoq.pages.DatasetListPage;
 import js.support.PositiveInt;
 import dsmoq.framework.View;
 import dsmoq.models.DatasetGuestAccessLevel;
@@ -212,45 +213,7 @@ class Main {
     public function content(page: Page): PageContent<Page> {
         return switch (page) {
             case Dashboard: DashboardPage.create();
-            case DatasetList(page):
-                {
-                    navigation: new ControllableStream(),
-                    invalidate: function (container: Element) {
-                        var root = new JqHtml(container);
-
-                        // TODO ページング処理
-                        var data = {
-                            condition: { },
-                            result: { index: 0, total: 0, items: [], pages: 0 }
-                        };
-
-                        var binding = JsViews.objectObservable(data);
-                        Service.instance.findDatasets().then(function (x) {
-                            binding.setProperty("result.index", Math.ceil(x.summary.offset / 20));
-                            binding.setProperty("result.pages", Math.ceil(x.summary.total / 20));
-                            binding.setProperty("result.total", x.summary.total);
-                            binding.setProperty("result.items", x.results);
-                            View.getTemplate("dataset/list").link(container, binding.data());
-
-                            JsViews.observe(data, "result.index", function (_, _) {
-                                Service.instance.findDatasets( { offset: 20 * data.result.index } ).then(function (x) {
-                                    binding.setProperty("result.index", Math.ceil(x.summary.offset / 20));
-                                    binding.setProperty("result.pages", Math.ceil(x.summary.total / 20));
-                                    binding.setProperty("result.total", x.summary.total);
-                                    binding.setProperty("result.items", x.results);
-                                });
-                            });
-                        }, function (err) {
-                            // TODO
-                        });
-
-                        root.on("change.dsmoq.pagination", "#dataset-pagination", function(_) {
-                            //trace("page");
-                        });
-                    },
-                    dispose: function () {
-                    }
-                }
+            case DatasetList(page): DatasetListPage.create(page);
             case DatasetShow(id):
                 var navigation = new ControllableStream();
                 {
