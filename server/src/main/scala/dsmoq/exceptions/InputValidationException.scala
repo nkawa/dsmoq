@@ -2,7 +2,7 @@ package dsmoq.exceptions
 
 import scala.collection.mutable
 
-class InputValidationException(errors: mutable.LinkedHashMap[String, String]) extends RuntimeException{
+class InputValidationException(errors: Iterable[(String, String)]) extends RuntimeException{
   val validationErrors = errors
 
   def getErrorMessage() = {
