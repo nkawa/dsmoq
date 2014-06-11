@@ -243,27 +243,38 @@ object GroupService {
 
   def modifyGroup(params: GroupData.ModifyGroupParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
-    
-    // input validation
-    val errors = mutable.LinkedHashMap.empty[String, String]
-    val name = if (params.name.isDefined && StringUtil.trimAllSpaces(params.name.get).length != 0) {
-      StringUtil.trimAllSpaces(params.name.get)
-    } else {
-      errors.put("name", "name is empty")
-      ""
-    }
-    val description = if (params.description.isDefined && StringUtil.trimAllSpaces(params.description.get).length != 0) {
-      StringUtil.trimAllSpaces(params.description.get)
-    } else {
-      errors.put("description", "description is empty")
-      ""
-    }
-    if (errors.size != 0) {
-      throw new InputValidationException(errors)
-    }
 
     try {
       DB localTx { implicit s =>
+        // input validation
+        val errors = mutable.LinkedHashMap.empty[String, String]
+        val name = StringUtil.trimAllSpaces(params.name.getOrElse(""))
+        if (name.isEmpty) {
+          errors.put("name", "name is empty")
+        } else {
+          // 同名チェック
+          val g = persistence.Group.syntax("g")
+          val sameNameGroups = withSQL {
+            select(g.result.id)
+              .from(persistence.Group as g)
+              .where
+              .lowerEq(g.name, name)
+              .and
+              .ne(g.id, sqls.uuid(params.groupId))
+              .and
+              .eq(g.groupType, GroupType.Public)
+              .and
+              .isNull(g.deletedAt)
+          }.map(_.string(g.resultName.id)).list().apply
+          if (sameNameGroups.size != 0) {
+            errors.put("name", "same name")
+          }
+        }
+        val description = params.description.getOrElse("")
+        if (errors.size != 0) {
+          throw new InputValidationException(errors)
+        }
+
         try {
           getGroup(params.groupId) match {
             case Some(x) =>
@@ -274,24 +285,6 @@ object GroupService {
         } catch {
           case e: NotAuthorizedException => throw e
           case e: Exception => throw new NotFoundException
-        }
-
-        // 同名チェック
-        val g = persistence.Group.syntax("g")
-        val sameNameGroups = withSQL {
-          select(g.result.id)
-            .from(persistence.Group as g)
-            .where
-            .lowerEq(g.name, name)
-            .and
-            .ne(g.id, sqls.uuid(params.groupId))
-            .and
-            .eq(g.groupType, GroupType.Public)
-            .and
-            .isNull(g.deletedAt)
-        }.map(_.string(g.resultName.id)).list().apply
-        if (sameNameGroups.size != 0) {
-          throw new InputValidationException(mutable.LinkedHashMap[String, String]("name" -> "same name"))
         }
 
         val myself = persistence.User.find(params.userInfo.id).get
