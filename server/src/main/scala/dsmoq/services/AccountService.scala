@@ -145,34 +145,12 @@ object AccountService extends SessionTrait {
     try {
       if (user.isGuest) throw new NotAuthorizedException
 
-      // input validation
-      val errors = mutable.LinkedHashMap.empty[String, String]
-      val c = currentPassword match {
-        case Some(x) =>
-          if (x.length == 0) {
-            errors.put("current_password", "current password is empty.")
-          }
-          x
-        case None =>
-          errors.put("current_password", "current password is empty.")
-          ""
-      }
-      val n = newPassword match {
-        case Some(x) =>
-          if (x.length == 0) {
-            errors.put("new_password", "new password is empty")
-          }
-          x
-        case None =>
-          errors.put("new_password", "new password is empty")
-          ""
-      }
-      if (errors.size != 0) {
-        throw new InputValidationException(errors)
-      }
-
-      val oldPasswordHash = createPasswordHash(c)
       DB localTx { implicit s =>
+        // input validation
+        val errors = mutable.LinkedHashMap.empty[String, String]
+        val c = currentPassword.getOrElse("")
+        val oldPasswordHash = createPasswordHash(c)
+
         val u = persistence.User.u
         val p = persistence.Password.p
         val pwd = withSQL {
@@ -186,21 +164,28 @@ object AccountService extends SessionTrait {
             .and
             .isNull(p.deletedAt)
         }.map(persistence.Password(p.resultName)).single().apply
+        if (pwd.isEmpty) {
+          errors.put("current_password", "wrong password")
+        }
+
+        val n = newPassword.getOrElse("")
+        if (n.isEmpty) {
+          errors.put("new_password", "new password is empty")
+        }
+        if (errors.size != 0) {
+          throw new InputValidationException(errors)
+        }
 
         val newPasswordHash = createPasswordHash(n)
-        pwd match {
-          case Some(x) =>
-            withSQL {
-              val p = persistence.Password.column
-              update(persistence.Password)
-                .set(p.hash -> newPasswordHash, p.updatedAt -> DateTime.now, p.updatedBy -> sqls.uuid(user.id))
-                .where
-                .eq(p.id, sqls.uuid(x.id))
-            }.update().apply
-          case None => throw new InputValidationException(mutable.LinkedHashMap[String, String]("current_password" -> "wrong password"))
-        }
+        withSQL {
+          val p = persistence.Password.column
+          update(persistence.Password)
+            .set(p.hash -> newPasswordHash, p.updatedAt -> DateTime.now, p.updatedBy -> sqls.uuid(user.id))
+            .where
+            .eq(p.id, sqls.uuid(pwd.get.id))
+        }.update().apply
       }
-      Success(n)
+      Success("")
     } catch {
       case e: Exception => Failure(e)
     }
