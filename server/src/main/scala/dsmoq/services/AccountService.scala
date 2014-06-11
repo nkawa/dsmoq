@@ -72,7 +72,7 @@ object AccountService extends SessionTrait {
 
         user match {
           case Some(x) => Success(x)
-          case None => throw new InputValidationException(mutable.LinkedHashMap[String, String]("password" -> "wrong password"))
+          case None => throw new InputValidationException(Map("password" -> "wrong password"))
         }
       }
     } catch {
@@ -85,14 +85,9 @@ object AccountService extends SessionTrait {
       if (user.isGuest) throw new NotAuthorizedException
 
       // Eメールアドレスのフォーマットチェックはしていない
-      val mail = email match {
-        case Some(x) =>
-          if (x.trim.length == 0) {
-            throw new InputValidationException(mutable.LinkedHashMap[String, String]("email" -> "email is empty"))
-          } else {
-            x.trim
-          }
-        case None => throw new InputValidationException(mutable.LinkedHashMap[String, String]("email" -> "email is empty"))
+      val mail = email.getOrElse("").trim
+      if (mail.isEmpty) {
+        throw new InputValidationException(Map("email" -> "email is empty"))
       }
 
       DB localTx {implicit s =>
@@ -301,7 +296,7 @@ object AccountService extends SessionTrait {
           case pattern() => x.trim
           case _ => throw new ValidationException
         }
-      case None => throw new InputValidationException(mutable.LinkedHashMap[String, String]("email" -> "email is empty"))
+      case None => throw new InputValidationException(Map("email" -> "email is empty"))
     }
 
     val result = DB readOnly { implicit s =>

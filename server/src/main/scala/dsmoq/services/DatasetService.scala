@@ -38,7 +38,7 @@ object DatasetService {
         case Some(x) => x.filter(_.name.length != 0)
         case None => Seq.empty
       }
-      if (files.size == 0) throw new InputValidationException(mutable.LinkedHashMap[String, String]("files" -> "file is empty"))
+      if (files.size == 0) throw new InputValidationException(Map("files" -> "file is empty"))
 
       DB localTx { implicit s =>
         val myself = persistence.User.find(params.userInfo.id).get
@@ -176,16 +176,16 @@ object DatasetService {
    */
   def search(params: DatasetData.SearchDatasetsParams): Try[RangeSlice[DatasetData.DatasetsSummary]] = {
     try {
-      // FIXME input parameter check
+      // input parameter check
       val offset = try {
         params.offset.getOrElse("0").toInt
       } catch {
-        case e: Exception => throw new InputValidationException(mutable.LinkedHashMap[String, String]("offset" -> "wrong parameter"))
+        case e: Exception => throw new InputValidationException(Map("offset" -> "wrong parameter"))
       }
       val limit = try {
         params.limit.getOrElse("20").toInt
       } catch {
-        case e: Exception => throw new InputValidationException(mutable.LinkedHashMap[String, String]("limit" -> "wrong parameter"))
+        case e: Exception => throw new InputValidationException(Map("limit" -> "wrong parameter"))
       }
 
       DB readOnly { implicit s =>
@@ -329,11 +329,11 @@ object DatasetService {
       val accessLevel = try {
         item.accessLevel match {
           case Some(x) => x.toInt
-          case None => throw new InputValidationException(mutable.LinkedHashMap[String, String]("accessLevel" -> "access level is empty"))
+          case None => throw new InputValidationException(Map("accessLevel" -> "access level is empty"))
         }
       } catch {
        case e: InputValidationException => throw e
-       case e: Exception => throw new InputValidationException(mutable.LinkedHashMap[String, String]("accessLevel" -> "access level is invalid"))
+       case e: Exception => throw new InputValidationException(Map("accessLevel" -> "access level is invalid"))
       }
 
       DB localTx { implicit s =>
@@ -403,17 +403,17 @@ object DatasetService {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
     // input validation
     if (params.ids.size != params.types.size || params.types.size != params.accessLevels.size) {
-      throw new InputValidationException(mutable.LinkedHashMap[String, String]("ids" -> "params are not same size"))
+      throw new InputValidationException(Map("ids" -> "params are not same size"))
     }
     val accessLevels = try {
       params.accessLevels.map(_.toInt)
     } catch {
-      case e: Exception => throw new InputValidationException(mutable.LinkedHashMap[String, String]("accessLevel" -> "access level is not number"))
+      case e: Exception => throw new InputValidationException(Map("accessLevel" -> "access level is not number"))
     }
     val types = try {
       params.types.map(_.toInt)
     } catch {
-      case e: Exception => throw new InputValidationException(mutable.LinkedHashMap[String, String]("type" -> "type is not number"))
+      case e: Exception => throw new InputValidationException(Map("type" -> "type is not number"))
     }
 
     DB localTx { implicit s =>
@@ -491,7 +491,7 @@ object DatasetService {
       case Some(x) => x.filter(_.name.length != 0)
       case None => Seq.empty
     }
-    if (files.size == 0) throw new InputValidationException(mutable.LinkedHashMap[String, String]("files" -> "file is empty"))
+    if (files.size == 0) throw new InputValidationException(Map("files" -> "file is empty"))
 
     DB localTx { implicit s =>
       try {
@@ -562,9 +562,9 @@ object DatasetService {
 
     val file = params.file match {
       case Some(x) => x
-      case None => throw new InputValidationException(mutable.LinkedHashMap[String, String]("file" -> "file is empty"))
+      case None => throw new InputValidationException(Map("file" -> "file is empty"))
     }
-    if (file.name.length == 0) throw new InputValidationException(mutable.LinkedHashMap[String, String]("file" -> "file is empty"))
+    if (file.name.length == 0) throw new InputValidationException(Map("file" -> "file is empty"))
 
     DB localTx { implicit s =>
       try {
@@ -726,7 +726,7 @@ object DatasetService {
       case e: Exception => Failure(e)
     }
   }
-  
+
   def modifyDatasetMeta(params: DatasetData.ModifyDatasetMetaParams): Try[String] = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
 
@@ -871,7 +871,7 @@ object DatasetService {
       case Some(x) => x.filter(_.name.length != 0)
       case None => Seq.empty
     }
-    if (inputImages.size == 0) throw new InputValidationException(mutable.LinkedHashMap[String, String]("image" -> "image is empty"))
+    if (inputImages.size == 0) throw new InputValidationException(Map("image" -> "image is empty"))
 
     DB localTx { implicit s =>
       if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
@@ -928,7 +928,7 @@ object DatasetService {
 
     val imageId = params.id match {
       case Some(x) => x
-      case None => throw new InputValidationException(mutable.LinkedHashMap[String, String]("id" -> "ID is empty"))
+      case None => throw new InputValidationException(Map("id" -> "ID is empty"))
     }
 
     DB localTx { implicit s =>
