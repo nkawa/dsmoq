@@ -40,6 +40,9 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
   before {
     DBs.setup()
+
+    // FIXME
+    System.setProperty(org.scalatra.EnvironmentKey, "development")
   }
   after {
     DBs.close()

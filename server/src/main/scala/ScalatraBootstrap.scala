@@ -22,6 +22,8 @@ class ScalatraBootstrap extends LifeCycle {
 
     // mock
     context.mount(new MockController, "/mock")
+
+    System.setProperty(org.scalatra.EnvironmentKey, "development")
   }
 
   override def destroy(context: ServletContext) {
