@@ -626,19 +626,15 @@ object DatasetService {
 
   def modifyFileMetadata(params: DatasetData.ModifyDatasetMetadataParams) = {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
+
+    // input validation
     val errors = mutable.LinkedHashMap.empty[String, String]
-    val filename = if (params.filename.isDefined && StringUtil.trimAllSpaces(params.filename.get).length != 0) {
-      StringUtil.trimAllSpaces(params.filename.get)
-    } else {
+    val filename = StringUtil.trimAllSpaces(params.filename.getOrElse(""))
+    if (filename.isEmpty) {
       errors.put("name", "name is empty")
-      ""
     }
-    val description = if (params.description.isDefined && StringUtil.trimAllSpaces(params.description.get).length != 0) {
-      StringUtil.trimAllSpaces(params.description.get)
-    } else {
-      errors.put("description", "description is empty")
-      ""
-    }
+    val description = params.description.getOrElse("")
+
     if (errors.size != 0) {
       throw new InputValidationException(errors)
     }
