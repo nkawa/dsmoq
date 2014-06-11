@@ -77,6 +77,12 @@ class ProfilePage {
                             function (e) {
                                 switch (e.name) {
                                     case ServiceErrorType.BadRequest:
+                                        binding.setProperty("basics.errors.name", "");
+                                        binding.setProperty("basics.errors.fullname", "");
+                                        binding.setProperty("basics.errors.organization", "");
+                                        binding.setProperty("basics.errors.title", "");
+                                        binding.setProperty("basics.errors.description", "");
+                                        binding.setProperty("basics.errors.image", "");
                                         for (x in cast(e, ServiceError).detail) {
                                             binding.setProperty('basics.errors.${x.name}', x.message);
                                         }
@@ -132,6 +138,9 @@ class ProfilePage {
                             function (e) {
                                 switch (e.name) {
                                     case ServiceErrorType.BadRequest:
+                                        binding.setProperty("password.errors.currentValue", "");
+                                        binding.setProperty("password.errors.newValue", "");
+                                        binding.setProperty("password.errors.verifyValue", "");
                                         for (x in cast(e, ServiceError).detail) {
                                             var name = switch (x.name) {
                                                 case "new_password": "newValue";
@@ -141,7 +150,6 @@ class ProfilePage {
                                             binding.setProperty('password.errors.${name}', x.message);
                                         }
                                 }
-                                trace(data);
                                 Notification.show("error", "error happened");
                             },
                             function () {
