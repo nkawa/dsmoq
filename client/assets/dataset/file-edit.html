@@ -1,9 +1,16 @@
 <div class="row">
   <div class="col-sm-12">
     <form role="form">
-      <div class="form-group">
-        <input type="text" class="form-control" style="width: 300px;" data-link="name">
-      </div>
+      {^{if ~isEmpty(errors.name)}}
+        <div class="form-group" style="width:300px;">
+          <input type="text" class="form-control" placeholder="Name of this file." data-link="name">
+        </div>
+      {{else}}
+        <div class="form-group has-error has-feedback" style="width:300px;">
+          <input type="text" class="form-control" placeholder="Name of this file." data-link="name">
+        </div>
+        <p class="text-danger" data-link="errors.name"></p>
+      {{/if}}
       <div class="form-group">
         <textarea class="form-control" placeholder="Description about this file." data-link="description"></textarea>
       </div>
