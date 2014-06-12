@@ -2,51 +2,30 @@ package dsmoq;
 
 import dsmoq.framework.ApplicationContext;
 import dsmoq.framework.Engine;
+import dsmoq.framework.types.Location;
+import dsmoq.framework.types.PageContent;
+import dsmoq.framework.types.PageFrame;
+import dsmoq.models.Profile;
+import dsmoq.models.Service;
+import dsmoq.Page;
 import dsmoq.pages.DashboardPage;
 import dsmoq.pages.DatasetEditPage;
 import dsmoq.pages.DatasetListPage;
 import dsmoq.pages.DatasetShowPage;
-import js.support.PositiveInt;
-import dsmoq.framework.View;
-import dsmoq.models.DatasetGuestAccessLevel;
-import dsmoq.models.GroupMember;
-import dsmoq.models.GroupRole;
-import dsmoq.models.Profile;
 import dsmoq.pages.Frame;
+import dsmoq.pages.GroupEditPage;
+import dsmoq.pages.GroupListPage;
+import dsmoq.pages.GroupShowPage;
 import dsmoq.pages.ProfilePage;
-import js.Boot;
-import js.bootstrap.BootstrapButton;
-import js.support.ControllablePromise;
-import js.support.ControllableStream;
-import js.support.Promise;
-import js.support.Stream;
-import dsmoq.framework.types.Location;
-import js.support.Option;
-import dsmoq.framework.types.PageContent;
-import dsmoq.framework.types.PageNavigation;
-import dsmoq.framework.types.PageFrame;
-import js.support.Unit;
-import dsmoq.framework.helper.PageHelper;
-import dsmoq.models.HeaderModel;
-import dsmoq.models.Service;
-import haxe.ds.ObjectMap;
-import haxe.Json;
 import haxe.Resource;
-import haxe.Timer;
-import js.Browser;
-import js.Error;
-import js.html.AnchorElement;
-import js.html.Element;
-import js.html.Event;
-import js.html.Node;
-import js.jqhx.JQuery;
 import js.jqhx.JqHtml;
-import dsmoq.framework.LocationTools;
-import dsmoq.Page;
 import js.jsviews.JsViews;
 import js.support.JsTools;
-import js.typeahead.Bloodhound;
-import js.typeahead.Typeahead;
+import js.support.Option;
+import js.support.PositiveInt;
+import js.support.Promise;
+import js.support.Unit;
+
 using StringTools;
 using js.support.OptionTools;
 using dsmoq.framework.helper.JQueryTools;
@@ -218,159 +197,9 @@ class Main {
             case DatasetList(page): DatasetListPage.create(page);
             case DatasetShow(id): DatasetShowPage.create(id);
             case DatasetEdit(id): DatasetEditPage.create(id);
-            case GroupList(page):
-                {
-                    navigation: new ControllableStream(),
-                    invalidate: function (container: Element) {
-                        var x = { condition: { }, result: { } };
-                        var binding = JsViews.objectObservable(x);
-                        Service.instance.findGroups().then(function (res) {
-                            binding.setProperty("result", res);
-                            View.getTemplate("group/list").link(container, binding.data());
-                        });
-                    },
-                    dispose: function () {
-                    }
-                }
-            case GroupShow(id):
-                var navigation = new ControllableStream();
-                {
-                    navigation: navigation,
-                    invalidate: function (container: Element) {
-                        var root = new JqHtml(container);
-
-                        Service.instance.getGroup(id).then(function (res) {
-                            var data = {
-                                myself: Service.instance.profile,
-                                group: res,
-                                members: Async.Pending,
-                                datasets: Async.Pending,
-                            };
-                            var binding = JsViews.objectObservable(data);
-
-                            View.getTemplate("group/show").link(root, data);
-
-                            Service.instance.getGroupMembers(id).then(function (x) {
-                                binding.setProperty("members", Async.Completed(x));
-                            });
-
-                            Service.instance.findDatasets({group: id}).then(function (x) {
-                                binding.setProperty("datasets", Async.Completed(x));
-                            });
-
-                            root.find("#group-edit").on("click", function (_) {
-                                navigation.update(PageNavigation.Navigate(GroupEdit(id)));
-                            });
-
-                            root.find("#group-delete").on("click", function (_) {
-                                trace("delete");
-                            });
-                        });
-                    },
-                    dispose: function () {
-                    }
-                }
-            case GroupEdit(id):
-                {
-                    navigation: new ControllableStream(),
-                    invalidate: function (container: Element) {
-                        var root = new JqHtml(container);
-
-                        Service.instance.getGroup(id).then(function (res) {
-                            var data = {
-                                myself: Service.instance.profile,
-                                group: res,
-                                isMembersLoading: true,
-                                members: {
-                                    summary: { count: 0, offset: 0, total: 0 },
-                                    results: []
-                                },
-                            };
-                            var binding = JsViews.objectObservable(data);
-
-                            View.getTemplate("group/edit").link(container, binding.data());
-
-                            var engine = new Bloodhound<Profile>({
-                                datumTokenizer: Bloodhound.tokenizers.obj.whitespace("name"),
-                                queryTokenizer: Bloodhound.tokenizers.whitespace,
-                                prefetch: {
-                                    url: "/api/accounts",
-                                    filter: function (x) {
-                                        return x.data;
-                                    }
-                                }
-                            });
-                            engine.initialize();
-
-                            Typeahead.initialize(root.find("#group-user-typeahead"), {}, {
-                                source: engine.ttAdapter(),
-                                displayKey: "name",
-                                templates: {
-                                    suggestion: function (x: Profile) {
-                                        return '<p><img src="${x.image}/16"> ${x.name} <span class="text-muted">${x.fullname}, ${x.organization}</span></p>';
-                                    },
-                                    empty: null,
-                                    footer: null,
-                                    header: null
-                                }
-                            });
-
-                            Service.instance.getGroupMembers(id).then(function (res) {
-                                binding.setProperty("members.summary.count", res.summary.count);
-                                binding.setProperty("members.summary.offset", res.summary.offset);
-                                binding.setProperty("members.summary.total", res.summary.total);
-                                JsViews.arrayObservable(data.members.results).refresh(res.results);
-                                binding.setProperty("isMembersLoading", false);
-                            });
-
-                            root.find("#group-basics-submit").on("click", function (_) {
-                                Service.instance.updateGroupBasics(id, data.group.name, data.group.description);
-                            });
-
-                            root.find("#group-icon-form").on("change", "input[type=file]", function (e) {
-                                if (new JqHtml(e.target).val() != "") {
-                                    root.find("#group-icon-submit").show();
-                                } else {
-                                    root.find("#group-icon-submit").hide();
-                                }
-                            });
-                            root.find("#group-icon-submit").on("click", function (_) {
-                                Service.instance.changeGroupImage(id, JQuery.find("#group-icon-form")).then(function (res) {
-                                    var img = res.images.filter(function (x) return x.id == res.primaryImage)[0];
-                                    binding.setProperty("group.primaryImage.id", img.id);
-                                    binding.setProperty("group.primaryImage.url", img.url);
-                                    root.find("#group-icon-form input[type=file]").val("");
-                                    root.find("#group-icon-submit").hide();
-                                });
-                            });
-
-                            root.find("#group-user-add").on("click", function (_) {
-                                var name = Typeahead.getVal(root.find("#group-user-typeahead"));
-                                engine.get(name, function (res) {
-                                    if (res.length == 1) {
-                                        var item: GroupMember = {
-                                            id: res[0].id,
-                                            name: res[0].name,
-                                            fullname: res[0].fullname,
-                                            organization: res[0].organization,
-                                            title: res[0].title,
-                                            image: res[0].image,
-                                            role: dsmoq.models.GroupRole.Member
-                                        };
-                                        JsViews.arrayObservable(data.members.results).insert(item);
-                                    }
-                                    Typeahead.setVal(root.find("#group-user-typeahead"), "");
-                                });
-                            });
-                            root.find("#group-member-submit").on("click", function (_) {
-                                Service.instance.updateGroupMemberRoles(id, data.members.results);
-                            });
-                        });
-                    },
-                    dispose: function () {
-                    }
-                }
-
+            case GroupList(page): GroupListPage.create(page);
+            case GroupShow(id): GroupShowPage.create(id);
+            case GroupEdit(id): GroupEditPage.create(id);
             case Profile: ProfilePage.create();
         };
     }
