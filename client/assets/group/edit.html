@@ -82,11 +82,15 @@
               <tr>
                 <td><img src="{{>image}}" class="icon">{{>fullname}} <span class="text-muted">{{>name}}, {{>organization}}</span></td>
                 <td>
-                  <select class="form-control" style="width:auto;" data-link="{:role:toInt} disabled{:~myself.id == id}">
-                    <option value="2">Manger</option>
-                    <option value="1">Member</option>
-                    <option value="0">Remove</option>
-                  </select>
+                  {{if ~myself.id == id}}
+                    Manger
+                  {{else}}
+                    <select class="form-control" style="width:auto;" data-link="{:role:toInt}">
+                      <option value="2">Manger</option>
+                      <option value="1">Member</option>
+                      <option value="0">Remove</option>
+                    </select>
+                  {{/if}}
                 </td>
               </tr>
             {{/for}}

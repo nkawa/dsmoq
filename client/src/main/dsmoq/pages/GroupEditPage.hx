@@ -125,7 +125,16 @@ class GroupEditPage {
                         });
                     });
                     root.find("#group-member-submit").on("click", function (_) {
-                        Service.instance.updateGroupMemberRoles(id, data.members.results);
+                        BootstrapButton.setLoading(root.find("#group-member-submit"));
+                        root.find("#group-members").find("input,select,.btn").attr("disabled", true);
+                        Service.instance.updateGroupMemberRoles(id, data.members.results).then(function (_) {
+                            Notification.show("success", "save successful");
+                        }, function (err) {
+                            Notification.show("error", "error happened");
+                        }, function () {
+                            BootstrapButton.reset(root.find("#group-member-submit"));
+                            root.find("#group-members").find("input,select,.btn").removeAttr("disabled");
+                        });
                     });
 
                     root.find("#group-finish-editing").on("click", function (_) {
