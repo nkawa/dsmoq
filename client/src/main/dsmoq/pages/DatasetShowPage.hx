@@ -13,11 +13,11 @@ import js.jsviews.JsViews;
 import js.support.ControllableStream;
 import js.support.Promise;
 import js.support.Unit;
+import js.support.JsTools;
 
 using dsmoq.framework.helper.JQueryTools;
 
 class DatasetShowPage {
-
     public static function create(id: String) {
         var navigation = new ControllableStream();
         return {
@@ -49,11 +49,7 @@ class DatasetShowPage {
                     });
 
                     new JqHtml(container).find("#dataset-delete").createEventStream("click").chain(function (_) {
-                        return if (Browser.window.confirm("ok?")) {
-                            Promise.resolved(Unit._);
-                        } else {
-                            Promise.rejected(Unit._);
-                        }
+                        return JsTools.confirm("Are you sure you want to delete this dataset?");
                     }, function (_) return None).chain(function (_) {
                         return Service.instance.deleteDeataset(id);
                     }).then(function (_) {

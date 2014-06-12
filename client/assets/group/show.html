@@ -1,95 +1,97 @@
-<div class="panel panel-default">
-  <div class="panel-body">
-    <div class="row">
-      <div class="col-sm-10">
-        <h1>
-          <img data-link="src{>group.primaryImage.url}">
-          {^{>group.name}} {^{if group.role >= 1}}<small>joined</small>{{/if}}
-        </h1>
-        <p>{^{>group.description}}</p>
-      </div>
-      <div class="col-sm-2 text-right">
-        {^{if group.role >= 2}}
-          <div class="btn-group-vertical">
-            <button type="button" class="btn btn-default" id="group-edit"><span class="glyphicon glyphicon-edit"></span> Edit</button>
-            <button type="button" class="btn btn-default" id="group-delete"><span class="glyphicon glyphicon-trash"></span> Delete</button>
-          </div>
-        {{/if}}
-      </div>
-    </div>
-  </div>
-</div>
-
-{^{async members}}
-  <div class="panel panel-default panel-with-pagination">
-    <div class="panel-heading">
+{^{async data}}
+  <div class="panel panel-default">
+    <div class="panel-body">
       <div class="row">
-        <div class="col-sm-6">Members: {{>summary.total}} records</div>
-        <div class="col-sm-6 text-right">
-          {^{pagination summary id="members-pagination" class="pagination-sm" pagesize=20 pagedelta=5 /}}
+        <div class="col-sm-10">
+          <h1>
+            <img data-link="src{>group.primaryImage.url+'/128'}" alt="group image">
+            {^{>group.name}} {^{if group.role >= 1}}<small>joined</small>{{/if}}
+          </h1>
+          <p>{^{>group.description}}</p>
         </div>
-      </div>
-    </div>
-    <table class="table">
-      <tbody>
-        {^{for results}}
-          <tr>
-            <td><img src="{{>image}}" class="icon">{{>fullname}}</td>
-            <td>{{>organization}}</td>
-            <td>
-              {{if role == 2}}
-                Manager
-              {{else role == 1}}
-                Member
-              {{/if}}
-            </td>
-          </tr>
-        {{/for}}
-      </tbody>
-    </table>
-  </div>
-{{/async}}
-
-{^{async datasets}}
-  <div class="panel panel-default panel-with-pagination">
-    <div class="panel-heading">
-      <div class="row">
-        <div class="col-sm-6">Datasets: {{>summary.total}} records</div>
-        <div class="col-sm-6 text-right">
-          {^{pagination summary id="groups-pagination" class="pagination-sm" pagesize=20 pagedelta=5 /}}
-        </div>
-      </div>
-    </div>
-    <ul>
-      {{for results}}
-        <li class="dataset-item">
-          <div class="row">
-            <div class="pull-left"><img src="{{>image}}"></div>
-            <div class="result-list-body">
-              <h3>
-                {{a href="/datasets/"+id}}{{>name}}{{/a}}
-                <small>{{>files}} files, {{datasize dataSize/}}</small>
-              </h3>
-              <p>{{>description}}</p>
-              <p>
-                <span>Owner:</span>
-                {{for ownerships}}
-                  <strong>{{>fullname}}</strong>
-                  {{if #index == (#parent.length - 1)}}, {{/if}}
-                {{/for}}
-                <span class="meta-data text-muted">
-                  {{for attributes}}
-                    <span>{{>name}}: {{>value}}</span>
-                    {{if #index == (#parent.length - 1)}}, {{/if}}
-                  {{else}}
-                    No attributes
-                  {{/for}}
-                </span>
-              </p>
+        <div class="col-sm-2 text-right">
+          {^{if group.role >= 2}}
+            <div class="btn-group-vertical">
+              <button type="button" class="btn btn-default" id="group-edit"><span class="glyphicon glyphicon-edit"></span> Edit</button>
+              <button type="button" class="btn btn-default" id="group-delete"><span class="glyphicon glyphicon-trash"></span> Delete</button>
             </div>
-          </div>
-        </li>
-      {{/for}}
-    </ul>
+          {{/if}}
+        </div>
+      </div>
+    </div>
   </div>
+
+  {^{async members}}
+    <div class="panel panel-default panel-with-pagination">
+      <div class="panel-heading">
+        <div class="row">
+          <div class="col-sm-6">Members: {{>summary.total}} records</div>
+          <div class="col-sm-6 text-right">
+            {^{pagination summary id="members-pagination" class="pagination-sm" pagesize=20 pagedelta=5 /}}
+          </div>
+        </div>
+      </div>
+      <table class="table">
+        <tbody>
+          {^{for results}}
+            <tr>
+              <td><img src="{{>image}}" class="icon">{{>fullname}}</td>
+              <td>{{>organization}}</td>
+              <td>
+                {{if role == 2}}
+                  Manager
+                {{else role == 1}}
+                  Member
+                {{/if}}
+              </td>
+            </tr>
+          {{/for}}
+        </tbody>
+      </table>
+    </div>
+  {{/async}}
+
+  {^{async datasets}}
+    <div class="panel panel-default panel-with-pagination">
+      <div class="panel-heading">
+        <div class="row">
+          <div class="col-sm-6">Datasets: {{>summary.total}} records</div>
+          <div class="col-sm-6 text-right">
+            {^{pagination summary id="groups-pagination" class="pagination-sm" pagesize=20 pagedelta=5 /}}
+          </div>
+        </div>
+      </div>
+      <ul>
+        {{for results}}
+          <li class="dataset-item">
+            <div class="row">
+              <div class="pull-left"><img src="{{>image}}"></div>
+              <div class="result-list-body">
+                <h3>
+                  {{a href="/datasets/"+id}}{{>name}}{{/a}}
+                  <small>{{>files}} files, {{datasize dataSize/}}</small>
+                </h3>
+                <p>{{>description}}</p>
+                <p>
+                  <span>Owner:</span>
+                  {{for ownerships}}
+                    <strong>{{>fullname}}</strong>
+                    {{if #index == (#parent.length - 1)}}, {{/if}}
+                  {{/for}}
+                  <span class="meta-data text-muted">
+                    {{for attributes}}
+                      <span>{{>name}}: {{>value}}</span>
+                      {{if #index == (#parent.length - 1)}}, {{/if}}
+                    {{else}}
+                      No attributes
+                    {{/for}}
+                  </span>
+                </p>
+              </div>
+            </div>
+          </li>
+        {{/for}}
+      </ul>
+    </div>
+  {{/async}}
 {{/async}}

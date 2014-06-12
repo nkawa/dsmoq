@@ -66,12 +66,12 @@ class JsTools {
         return untyped __js__("encodeURI")(x);
     }
 
-    public static inline function confirm(msg: String): Promise<Unit> {
+    public static inline function confirm(msg: String, noitifyCancel = true): Promise<Unit> {
         return new Promise(function (resolve, reject) {
             if (Browser.window.confirm(msg)) {
                 resolve(Unit._);
             } else {
-                reject(new Error("Canceled"));
+                if (noitifyCancel) reject(new Error("Canceled"));
             }
             return function () { };
         });
