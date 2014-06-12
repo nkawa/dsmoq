@@ -76,14 +76,14 @@
                     {{for attributes}}
                       <span>{{>name}}: {{>value}}</span>
                       {{if #index == (#parent.length - 1)}}, {{/if}}
-                    {{else}}
-                      No attributes
                     {{/for}}
                   </span>
                 </p>
               </div>
             </div>
           </li>
+        {{else}}
+          There are no datasets.
         {{/for}}
       </ul>
     </div>
