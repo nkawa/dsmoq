@@ -25,25 +25,19 @@
     <div class="panel panel-default panel-with-pagination">
       <div class="panel-heading">
         <div class="row">
-          <div class="col-sm-6">Members: {{>summary.total}} records</div>
+          <div class="col-sm-6">Members: {{>total}} records</div>
           <div class="col-sm-6 text-right">
-            {^{pagination summary id="members-pagination" class="pagination-sm" pagesize=20 pagedelta=5 /}}
+            {^{pagination index pages id="group-members-pagination" class="pagination-sm" pagedelta=5 /}}
           </div>
         </div>
       </div>
       <table class="table">
         <tbody>
-          {^{for results}}
+          {^{for items}}
             <tr>
-              <td><img src="{{>image}}" class="icon">{{>fullname}}</td>
+              <td><img data-link="src{>image+'/16'}"> {{>fullname}}</td>
               <td>{{>organization}}</td>
-              <td>
-                {{if role == 2}}
-                  Manager
-                {{else role == 1}}
-                  Member
-                {{/if}}
-              </td>
+              <td>{{if role == 2}}Manager{{/if}}</td>
             </tr>
           {{/for}}
         </tbody>
@@ -55,17 +49,17 @@
     <div class="panel panel-default panel-with-pagination">
       <div class="panel-heading">
         <div class="row">
-          <div class="col-sm-6">Datasets: {{>summary.total}} records</div>
+          <div class="col-sm-6">Datasets: {^{>total}} records</div>
           <div class="col-sm-6 text-right">
-            {^{pagination summary id="groups-pagination" class="pagination-sm" pagesize=20 pagedelta=5 /}}
+            {^{pagination index pages id="group-datasets-pagination" class="pagination-sm" pagedelta=5 /}}
           </div>
         </div>
       </div>
       <ul>
-        {{for results}}
+        {^{for items}}
           <li class="dataset-item">
             <div class="row">
-              <div class="pull-left"><img src="{{>image}}"></div>
+              <div class="pull-left"><img data-link="src{>image+'/48'}"></div>
               <div class="result-list-body">
                 <h3>
                   {{a href="/datasets/"+id}}{{>name}}{{/a}}
