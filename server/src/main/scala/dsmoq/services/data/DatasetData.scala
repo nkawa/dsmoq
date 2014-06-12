@@ -132,9 +132,6 @@ object DatasetData {
   case class DatasetAddFiles(
                               files: Seq[DatasetFile]
                               )
-  case class DatasetModifyFile(
-                             file: DatasetFile
-                             )
 
   case class DatasetAddImages(
                               images: Seq[Image],
