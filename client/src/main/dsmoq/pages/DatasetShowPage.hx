@@ -1,7 +1,10 @@
 package dsmoq.pages;
 
+import dsmoq.Async;
 import dsmoq.framework.types.PageNavigation;
 import dsmoq.framework.View;
+import dsmoq.models.DatasetGuestAccessLevel;
+import dsmoq.models.DatasetPermission;
 import dsmoq.models.Service;
 import js.Browser;
 import js.html.Element;
@@ -10,9 +13,6 @@ import js.jsviews.JsViews;
 import js.support.ControllableStream;
 import js.support.Promise;
 import js.support.Unit;
-import dsmoq.Async;
-import dsmoq.models.DatasetGuestAccessLevel;
-import dsmoq.models.DatasetPermission;
 
 using dsmoq.framework.helper.JQueryTools;
 
@@ -28,9 +28,6 @@ class DatasetShowPage {
                 View.getTemplate("dataset/show").link(container, data);
 
                 Service.instance.getDataset(id).then(function (res) {
-                    trace(res.ownerships.filter(function (x) return Type.enumEq(x.accessLevel, DatasetPermission.Write)));
-
-
                     binding.setProperty("data", Async.Completed({
                         name: res.meta.name,
                         description: res.meta.description,
@@ -41,7 +38,10 @@ class DatasetShowPage {
                         license: res.meta.license,
                         isPrivate: Type.enumEq(res.defaultAccessLevel, DatasetGuestAccessLevel.Deny),
                         canEdit: Type.enumEq(res.permission, DatasetPermission.Write),
-                        canDownload: Type.enumEq(res.permission, DatasetPermission.Read),
+                        canDownload: switch (res.permission) {
+                            case DatasetPermission.Write, DatasetPermission.Read: true;
+                            case _: false;
+                        }
                     }));
 
                     new JqHtml(container).find("#dataset-edit").on("click", function (_) {
