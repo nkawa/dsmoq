@@ -1,10 +1,9 @@
-<h2>Group List</h2>
-
 {^{async data}}
-  {^{if result.summary.total > 0}}
-    <strong>Found {^{>result.summary.total}} records</strong>
+  <h2>Group List</h2>
+  {^{if result.total > 0}}
+    <strong>Found {^{>result.total}} records</strong>
     <ul>
-      {^{for result.results}}
+      {^{for result.items}}
         <li class="dataset-item">
           <div class="row">
             <div class="pull-left">
@@ -18,7 +17,7 @@
         </li>
       {{/for}}
     </ul>
-    {^{pagination result.summary id="group-pagination" pagedelta=5 /}}
+    {^{pagination result.index result.pages id="group-pagination" pagedelta=5 /}}
   {{else}}
      <p>There are no groups.</p>
   {{/if}}

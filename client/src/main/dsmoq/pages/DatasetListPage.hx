@@ -1,5 +1,6 @@
 package dsmoq.pages;
 
+import dsmoq.Async;
 import dsmoq.framework.types.PageContent;
 import dsmoq.framework.types.PageNavigation;
 import dsmoq.framework.View;
@@ -19,25 +20,27 @@ class DatasetListPage {
             invalidate: function (container: Element) {
                 var root = new JqHtml(container);
 
-                var data = {
-                    condition: { },
-                    result: { index: 0, total: 0, items: [], pages: 0 }
-                };
-                var binding = JsViews.objectObservable(data);
+                var rootBinding = JsViews.objectObservable({ data: Async.Pending });
+                View.getTemplate("dataset/list").link(container, rootBinding.data());
 
                 Service.instance.findDatasets({ offset: 20 * (page - 1) }).then(function (x) {
-                    binding.setProperty("result.index", Math.ceil(x.summary.offset / 20));
-                    binding.setProperty("result.pages", Math.ceil(x.summary.total / 20));
-                    binding.setProperty("result.total", x.summary.total);
-                    binding.setProperty("result.items", x.results);
-                    View.getTemplate("dataset/list").link(container, binding.data());
+                    var data = {
+                        condition: { },
+                        result: {
+                            index: Math.ceil(x.summary.offset / 20),
+                            total: x.summary.total,
+                            items: x.results,
+                            pages: Math.ceil(x.summary.total / 20)
+                        }
+                    };
+                    rootBinding.setProperty("data", data);
 
                     JsViews.observe(data, "result.index", function (_, _) {
                         var page = data.result.index + 1;
                         navigation.update(PageNavigation.Navigate(Page.DatasetList(page)));
                     });
                 }, function (err) {
-                    // TODO
+                    Notification.show("error", "error happened");
                 });
             },
             dispose: function () {

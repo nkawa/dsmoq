@@ -1,38 +1,40 @@
-<h2>Dataset List</h2>
-{^{if result.total > 0}}
-  <strong>Found {^{>result.total}} records</strong>
-  <ul>
-    {^{for result.items}}
-      <li class="dataset-item">
-        <div class="row">
-          <div class="pull-left">
-            {{a href="/datasets/"+id}}{{img src=image class="img-thumbnail"/}}{{/a}}
-          </div>
-          <div class="result-list-body">
-            <h3>{{a href="/datasets/"+id}}{{>name}}{{/a}} <span>{{>files}} files({{datasize dataSize /}})</span></h3>
-            <p>{{>description}}</p>
-            <p>
-              Owner:
-              <span>Owner:</span>
-              {{for ownerships}}
-                <strong>{{>fullname}}</strong>
-                {{if #index == (#parent.length - 1)}}, {{/if}}
-              {{/for}}
-              <span class="meta-data text-muted">
-                {{for attributes}}
-                  <span>{{>name}}: {{>value}}</span>
+{^{async data}}
+  <h2>Dataset List</h2>
+  {^{if result.total > 0}}
+    <strong>Found {^{>result.total}} records</strong>
+    <ul>
+      {^{for result.items}}
+        <li class="dataset-item">
+          <div class="row">
+            <div class="pull-left">
+              {{a href="/datasets/"+id}}{{img src=image class="img-thumbnail"/}}{{/a}}
+            </div>
+            <div class="result-list-body">
+              <h3>{{a href="/datasets/"+id}}{{>name}}{{/a}} <span>{{>files}} files({{datasize dataSize /}})</span></h3>
+              <p>{{>description}}</p>
+              <p>
+                Owner:
+                <span>Owner:</span>
+                {{for ownerships}}
+                  <strong>{{>fullname}}</strong>
                   {{if #index == (#parent.length - 1)}}, {{/if}}
-                {{else}}
-                  No attributes
                 {{/for}}
-              </span>
-            </p>
+                <span class="meta-data text-muted">
+                  {{for attributes}}
+                    <span>{{>name}}: {{>value}}</span>
+                    {{if #index == (#parent.length - 1)}}, {{/if}}
+                  {{else}}
+                    No attributes
+                  {{/for}}
+                </span>
+              </p>
+            </div>
           </div>
-        </div>
-      </li>
-    {{/for}}
-  </ul>
-  {^{pagination result.index result.pages id="dataset-pagination" pagedelta=5 /}}
-{{else}}
-   <p>There are no datasets.</p>
-{{/if}}
+        </li>
+      {{/for}}
+    </ul>
+    {^{pagination result.index result.pages id="dataset-pagination" pagedelta=5 /}}
+  {{else}}
+     <p>There are no datasets.</p>
+  {{/if}}
+{{/async}}
