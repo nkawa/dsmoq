@@ -28,12 +28,28 @@ object ImageSaveLogic {
     file.write(imageDir.toPath.resolve(defaultFileName).toFile)
 
     val bufferedImage = ImageIO.read(file.getInputStream)
+
+    // サムネイル画像のwidth, height計算
+    val resizeScaleMap = calcResizeScale(bufferedImage.getWidth, bufferedImage.getHeight)
     // サムネイル画像の保存
     imageSizes.map { size =>
-      val thumbBufferedImage = new BufferedImage(size, size, bufferedImage.getType)
-      thumbBufferedImage.getGraphics.drawImage(bufferedImage.getScaledInstance(size, size,
-        java.awt.Image.SCALE_AREA_AVERAGING), 0, 0, size, size, null)
+      val scale = resizeScaleMap(size)
+      val thumbBufferedImage = new BufferedImage(scale._1, scale._2, bufferedImage.getType)
+      thumbBufferedImage.getGraphics.drawImage(bufferedImage.getScaledInstance(scale._1, scale._2,
+        java.awt.Image.SCALE_AREA_AVERAGING), 0, 0, scale._1, scale._2, null)
       ImageIO.write(thumbBufferedImage, fileType, (imageDir.toPath.resolve(size.toString).toFile))
     }
+  }
+
+  def calcResizeScale(width: Int, height: Int) = {
+    imageSizes.map{size =>
+      if (width > height) {
+        val resizeHeight = (height * (size.toDouble / width)).toInt
+        (size, (size, if (resizeHeight == 0) 1 else resizeHeight))
+      } else {
+        val resizeWidth = (width * (size.toDouble / height)).toInt
+        (size, (if (resizeWidth == 0) 1 else resizeWidth, size))
+      }
+    }.toMap
   }
 }
