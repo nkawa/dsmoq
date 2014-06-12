@@ -1,16 +1,14 @@
 package dsmoq.models;
 
-import haxe.ds.Option;
 import js.Cookie;
 import js.Error;
 import js.jqhx.JqHtml;
 import js.jqhx.JQuery;
-import js.support.ArrayTools;
 import js.support.ControllablePromise;
+import js.support.PositiveInt;
 import js.support.Promise;
 import js.support.Stream;
 import js.support.Unit;
-import dsmoq.framework.types.PositiveInt;
 
 using dsmoq.framework.helper.JQueryTools;
 using dsmoq.framework.helper.LangHelper;

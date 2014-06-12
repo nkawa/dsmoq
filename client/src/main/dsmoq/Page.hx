@@ -1,6 +1,6 @@
 package dsmoq;
 
-import dsmoq.framework.types.PositiveInt;
+import js.support.PositiveInt;
 
 enum Page {
     Dashboard;

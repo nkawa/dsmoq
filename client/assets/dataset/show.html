@@ -1,79 +1,84 @@
-<div class="panel panel-default">
-  <div class="panel-body">
-    <div class="row">
-      <div class="col-sm-10">
-        <h1>
-          <div class="pull-left"><img data-link="src{>primaryImage.url}"></div>
-          <div>
-            <span>{^{>meta.name}}</span> {^{if defaultAccessLevel == 0}}<span class="status text-danger">(private)</span>{{/if}}
-          </div>
-          <div class="title-owners text-muted">
-            Owner:
-            {^{for ownerships}}
-              <span>{{>fullname}}</span>
-            {{/for}}
-          </div>
-        </h1>
-      </div>
-      <div class="col-sm-2 text-right">
-        {^{if permission >= 3}}
-        <div class="btn-group-vertical">
-          <button type="button" class="btn btn-default" id="dataset-edit"><span class="glyphicon glyphicon-edit"></span> Edit</button>
-          <button type="button" class="btn btn-default" id="dataset-delete"><span class="glyphicon glyphicon-trash"></span> Delete</button>
+{^{async data}}
+  <div class="panel panel-default">
+    <div class="panel-body">
+      <div class="row">
+        <div class="col-sm-10">
+          <h1>
+            <div class="pull-left"><img data-link="src{>primaryImage.url+'/128'}"></div>
+            <div>
+              <span>{^{>name}}</span> {^{if isPrivate}}<span class="status text-danger">(private)</span>{{/if}}
+            </div>
+            <p class="title-owners text-muted">
+              Owner:
+              {^{for ownerships}}
+                {{if ownerType == 1}}
+                  <span data-link="fullname"></span>
+                {{else}}
+                  <span data-link="name"></span>
+                {{/if}}
+              {{/for}}
+            </p>
+          </h1>
         </div>
-        {{/if}}
+        <div class="col-sm-2 text-right">
+          {^{if canEdit}}
+          <div class="btn-group-vertical">
+            <button type="button" class="btn btn-default" id="dataset-edit"><span class="glyphicon glyphicon-edit"></span> Edit</button>
+            <button type="button" class="btn btn-default" id="dataset-delete"><span class="glyphicon glyphicon-trash"></span> Delete</button>
+          </div>
+          {{/if}}
+        </div>
       </div>
-    </div>
-    <p class="view-description">{^{>meta.description}}</p>
-    <div class="dataset-view-body">
-      <div class="form-horizontal">
-        <div class="form-group">
-          <label class="col-sm-1 control-label">Files</label>
-          <div class="col-sm-11">
-            {^{for files}}
-              <div class="well well-sm">
-                <div class="row">
-                  <div class="col-sm-12">
-                    <span class="glyphicon glyphicon-file"></span>
-                    {{if #parent.parent.data.permission > 2}}
-                      <a data-link="href{>url}">{{>name}}</a> ({{datasize size /}})
-                    {{else}}
-                      <span>{{>name}}</span>
-                    {{/if}}
-                    uploaded by <strong>{{>updatedBy.fullname}}</strong>
-                    {{img src=updatedBy.image class="icon"/}}
+      <p class="view-description">{^{>description}}</p>
+      <div class="dataset-view-body">
+        <div class="form-horizontal">
+          <div class="form-group">
+            <label class="col-sm-1 control-label">Files</label>
+            <div class="col-sm-11">
+              {^{for files ~canDownload=canDownload}}
+                <div class="well well-sm">
+                  <div class="row">
+                    <div class="col-sm-12">
+                      <span class="glyphicon glyphicon-file"></span>
+                      {{if ~canDownload}}
+                        <a data-link="href{>url}">{{>name}}</a> ({{datasize size /}})
+                      {{else}}
+                        <span>{{>name}}</span>
+                      {{/if}}
+                      uploaded by <strong>{{img src=updatedBy.image+"/16" class="icon"/}}{{>updatedBy.fullname}}</strong>
+                    </div>
                   </div>
+                  <div class="form-control-static">{{>description}}</div>
                 </div>
-                <div class="form-control-static">{{>description}}</div>
-              </div>
-            {{/for}}
+              {{/for}}
+            </div>
           </div>
-        </div>
-        <div class="form-group">
-          <label class="col-sm-1 control-label">Attributes</label>
-          <div class="col-sm-11">
-            <table class="table table-bordered table-condensed">
-              <thead>
-                <tr><td>name</td><td>value</td></tr>
-              </thead>
-              <tbody>
-                {^{for meta.attributes}}
-                  <tr>
-                    <td><div class="form-control-static">{{>name}}</div></td>
-                    <td><div class="form-control-static">{{>value}}</div></td>
-                  </tr>
-                {{/for}}
-              </tbody>
-            </table>
+          <div class="form-group">
+            <label class="col-sm-1 control-label">Attributes</label>
+            <div class="col-sm-11">
+              <table class="table table-bordered table-condensed">
+                <thead>
+                  <tr><td>name</td><td>value</td></tr>
+                </thead>
+                <tbody>
+                  {^{for attributes}}
+                    <tr>
+                      <td><div class="form-control-static">{{>name}}</div></td>
+                      <td><div class="form-control-static">{{>value}}</div></td>
+                    </tr>
+                  {{/for}}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-        <div class="form-group">
-          <label class="col-sm-1 control-label">License</label>
-          <div class="col-sm-11">
-            <div class="form-control-static">{^{license meta.license/}}</div>
+          <div class="form-group">
+            <label class="col-sm-1 control-label">License</label>
+            <div class="col-sm-11">
+              <div class="form-control-static">{^{license license/}}</div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </div>
-</div>
+{{/async}}

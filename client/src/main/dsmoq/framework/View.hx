@@ -38,13 +38,13 @@ class View {
             .link(target, binding);
     }
 
-    public static function render(name: String, ?data: {}): String {
-        initialize();
-
-        var template: {} -> String = Reflect.field(JsViews.render, name);
-        if (template == null) throw new Error('undefined template: \'$name\'');
-        return template(data);
-    }
+    //public static function render(name: String, ?data: {}): String {
+        //initialize();
+//
+        //var template: {} -> String = Reflect.field(JsViews.render, name);
+        //if (template == null) throw new Error('undefined template: \'$name\'');
+        //return template(data);
+    //}
 
     public static function getTemplate(name: String) {
         initialize();

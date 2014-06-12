@@ -209,7 +209,7 @@ class Stream<A> {
             var promise;
             this.then(function (a) {
                 promise = if (resume == null) {
-                    f(a).then(function (b) { trace(b);  update(b); } , fail);
+                    f(a).then(function (b) update(b), fail);
                 } else {
                     f(a).then(update, function (e) {
                         switch (resume(e)) {

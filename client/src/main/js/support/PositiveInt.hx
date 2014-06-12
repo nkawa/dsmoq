@@ -1,4 +1,4 @@
-package dsmoq.framework.types;
+package js.support;
 
 abstract PositiveInt(Int) from Int to Int {
 

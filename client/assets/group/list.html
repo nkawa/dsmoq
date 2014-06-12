@@ -1,22 +1,24 @@
-<h2>Group List</h2>
-{^{if result.summary.total > 0}}
-  <strong>Found {^{>result.summary.total}} records</strong>
-  <ul>
-    {^{for result.results}}
-      <li class="dataset-item">
-        <div class="row">
-          <div class="pull-left">
-            <img src="{{>image}}" class="img-thumbnail">
+{^{async data}}
+  <h2>Group List</h2>
+  {^{if result.total > 0}}
+    <strong>Found {^{>result.total}} records</strong>
+    <ul>
+      {^{for result.items}}
+        <li class="dataset-item">
+          <div class="row">
+            <div class="pull-left">
+              <img data-link="src{>image+'/64'}">
+            </div>
+            <div class="result-list-body">
+              <h3>{{a href="/groups/"+id}}{{>name}}{{/a}} <small>{{>members}} Members, {{>datasets}} Datasets</small></h3>
+              <p>{{>description}}</p>
+            </div>
           </div>
-          <div class="result-list-body">
-            <h3>{{a href="/groups/"+id}}{{>name}}{{/a}} <small>{{>members}} Members, {{>datasets}} Datasets</small></h3>
-            <p>{{>description}}</p>
-          </div>
-        </div>
-      </li>
-    {{/for}}
-  </ul>
-  {^{pagination result.summary id="pagination" class="" style="" pagesize=20 pagedelta=5 /}}
-{{else}}
-   <p>Datasets are not exist...</p>
-{{/if}}
+        </li>
+      {{/for}}
+    </ul>
+    {^{pagination result.index result.pages id="group-pagination" pagedelta=5 /}}
+  {{else}}
+     <p>There are no groups.</p>
+  {{/if}}
+{{/async}}

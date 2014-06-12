@@ -1,185 +1,244 @@
-<div class="row">
-  <div class="col-sm-10">
-    <h2 class="page-heading">Edit Dataset</h2>
-  </div>
-  <div class="col-sm-2 text-right">
-    <div class="btn-group-vertical">
-      <button type="button" class="btn btn-info" id="dataset-finish-editing">Finish</button>
+{^{async data}}
+  <div class="row">
+    <div class="col-sm-10">
+      <h2 class="page-heading">Edit Dataset</h2>
+    </div>
+    <div class="col-sm-2 text-right">
+      <div class="btn-group-vertical">
+        <button type="button" class="btn btn-info" id="dataset-finish-editing">Finish</button>
+      </div>
     </div>
   </div>
-</div>
 
-<div class="tabbable">
-  <ul class="nav nav-tabs">
-    <li class="active"><a href="#dataset-basics" data-toggle="tab">Basics</a></li>
-    <li><a href="#dataset-icon" data-toggle="tab">Icon</a></li>
-    <li><a href="#dataset-files" data-toggle="tab">Files</a></li>
-    <li><a href="#dataset-acl" data-toggle="tab">Accesss Control</a></li>
-  </ul>
+  <div class="tabbable">
+    <ul class="nav nav-tabs">
+      <li class="active"><a href="#dataset-basics" data-toggle="tab">Basics</a></li>
+      <li><a href="#dataset-icon" data-toggle="tab">Icon</a></li>
+      <li><a href="#dataset-files" data-toggle="tab">Files</a></li>
+      <li><a href="#dataset-acl" data-toggle="tab">Accesss Control</a></li>
+    </ul>
 
-  <div class="tab-content">
-    <div class="tab-pane active" id="dataset-basics">
-      <form role="form">
-        <div class="form-group">
-          <label for="form-title" class="control-label">Title</label>
-          <input type="text" style="width:300px;" class="form-control" placeholder="Dataset Title" data-link="dataset.meta.name">
-        </div>
-        <div class="form-group">
-          <label for="form-description" class="control-label">Description</label>
-          <textarea class="form-control" row="3" style="width: 600px;" data-link="dataset.meta.description"></textarea>
-        </div>
-        <div class="form-group">
-          <label for="form-description" class="control-label">License</label>
-          <select class="form-control" style="width: auto;" data-link="dataset.meta.license">
-            {{for licenses}}
-              <option data-link="value{>#data.id},selected{>#data.id==#parent.parent.data.dataset.meta.license}">{{>#data.name}}</option>
-            {{/for}}
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="control-label">Attributes</label>
-          <table class="table table-bordered table-condensed" style="width: 600px;">
-            <thead>
-              <tr><td>name</td><td>value</td><td></td></tr>
-            </thead>
-            <tbody>
-              {^{for dataset.meta.attributes}}
+    <div class="tab-content">
+      <div class="tab-pane active" id="dataset-basics">
+        <form role="form">
+          {^{if ~isEmpty(dataset.errors.meta.name)}}
+            <div class="form-group" style="width:300px;">
+              <label for="form-title" class="control-label">Name</label>
+              <input type="text" class="form-control" placeholder="Dataset Name" data-link="dataset.meta.name">
+            </div>
+          {{else}}
+            <div class="form-group has-error has-feedback" style="width:300px;">
+              <label for="form-title" class="control-label">Name</label>
+              <input type="text" class="form-control" placeholder="Dataset Name" data-link="dataset.meta.name">
+              <span class="glyphicon glyphicon-remove form-control-feedback"></span>
+            </div>
+            <p class="text-danger" data-link="dataset.errors.meta.name"></p>
+          {{/if}}
+
+          {^{if ~isEmpty(dataset.errors.meta.description)}}
+            <div class="form-group" style="width: 600px;">
+              <label for="form-description" class="control-label">Description</label>
+              <textarea class="form-control" row="3" data-link="dataset.meta.description"></textarea>
+            </div>
+          {{else}}
+            <div class="form-group has-error has-feedback" style="width: 600px;">
+              <label for="form-description" class="control-label">Description</label>
+              <textarea class="form-control" row="3" data-link="dataset.meta.description"></textarea>
+              <span class="glyphicon glyphicon-remove form-control-feedback"></span>
+            </div>
+            <p class="text-danger" data-link="dataset.errors.meta.description"></p>
+          {{/if}}
+
+          {^{if ~isEmpty(dataset.errors.meta.license)}}
+            <div class="form-group">
+              <label for="form-description" class="control-label">License</label>
+              <select class="form-control" style="width: auto;" data-link="dataset.meta.license">
+                {{for licenses}}
+                  <option data-link="value{>#data.id},selected{>#data.id==#parent.parent.data.dataset.meta.license}">{{>#data.name}}</option>
+                {{/for}}
+              </select>
+            </div>
+          {{else}}
+            <div class="form-group has-error has-feedback">
+              <label for="form-description" class="control-label">License</label>
+              <select class="form-control" style="width: auto;" data-link="dataset.meta.license">
+                {{for licenses}}
+                  <option data-link="value{>#data.id},selected{>#data.id==#parent.parent.data.dataset.meta.license}">{{>#data.name}}</option>
+                {{/for}}
+              </select>
+            </div>
+            <p class="text-danger" data-link="dataset.errors.meta.license"></p>
+          {{/if}}
+
+          {^{if ~isEmpty(dataset.errors.meta.attributes)}}
+            <div class="form-group">
+              <label class="control-label">Attributes</label>
+            </div>
+          {{else}}
+            <div class="form-group has-error has-feedback" style="margin-bottom:0;">
+              <label class="control-label">Attributes</label>
+            </div>
+            <p class="text-danger" data-link="dataset.errors.meta.license"></p>
+          {{/if}}
+          <div class="form-group">
+            <table class="table table-bordered table-condensed" style="width: 600px;">
+              <thead>
+                <tr><td>name</td><td>value</td><td></td></tr>
+              </thead>
+              <tbody>
+                {^{for dataset.meta.attributes}}
+                  <tr>
+                    <td><input type="text" class="form-control attribute-typeahead" data-link="name"></td>
+                    <td><input type="text" class="form-control" data-link="value"></td>
+                    <td><a class="btn btn-warning btn-sm dataset-attribute-remove" data-value="{{>#index}}">del</a></td>
+                  </tr>
+                {{/for}}
                 <tr>
-                  <td><input type="text" class="form-control attribute-typeahead" data-link="name"></td>
-                  <td><input type="text" class="form-control" data-link="value"></td>
-                  <td><a class="btn btn-warning btn-sm dataset-attribute-remove" data-value="{{>#index}}">del</a></td>
+                  <td colspan="3"><a class="btn btn-success btn-sm" id="dataset-attribute-add">add</a></td>
                 </tr>
-              {{/for}}
-              <tr>
-                <td colspan="3"><a class="btn btn-success btn-sm" id="dataset-attribute-add">add</a></td>
-              </tr>
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
+        </form>
+        <div class="row">
+          <p class="col-sm-12">
+            <a class="btn btn-primary" id="dataset-basics-submit" data-loading-text="Saving...">Save</a>
+          </p>
         </div>
-      </form>
-      <div class="row">
-        <p class="col-sm-12">
-          <a class="btn btn-primary" id="dataset-basics-submit">Save</a>
-        </p>
       </div>
-    </div>
 
-    <div class="tab-pane" id="dataset-icon">
-      <div class="form-group">
-        <div>
-          <img data-link="src{>dataset.primaryImage.url}" alt="icon">
-        </div>
-      </div>
-      <form role="form" id="dataset-icon-form">
+      <div class="tab-pane" id="dataset-icon">
         <div class="form-group">
-          <div><label class="control-label">Change icon</label></div>
           <div>
-            <input type="file" name="images[]" style="display:inline;">
-            <a href="javascript:void 0;" class="btn btn-primary btn-sm" id="dataset-icon-submit" style="display:none;">Upload</a>
+            <img data-link="src{>dataset.primaryImage.url}" alt="icon">
           </div>
         </div>
-      </form>
-    </div>
-
-    <div class="tab-pane" id="dataset-files">
-      {^{for dataset.files}}
-        <div class="well well-sm dataset-file">
-          <div class="dataset-file-view">
-            <div class="row">
-              <div class="col-sm-12">
-                  <span class="glyphicon glyphicon-file"></span>
-                  {^{>name}} ({^{datasize size/}})
-                  uploaded by
-                  <img data-link="src{>createdBy.image}" class="icon">
-                  <strong>{^{>createdBy.fullname}}</strong>
+        <form role="form" id="dataset-icon-form">
+          {^{if ~isEmpty(dataset.errors.icon)}}
+            <div class="form-group">
+              <div><label class="control-label">Change icon</label></div>
+              <div>
+                <input type="file" name="images[]" style="display:inline;">
+                <a href="javascript:void 0;" class="btn btn-primary btn-sm" data-loading-text="Saving..." id="dataset-icon-submit" style="display:none;">Upload</a>
               </div>
             </div>
-            <div class="row">
-              <div class="col-sm-12" style="margin-left: 16px;">
-                {^{if description != null && description.length > 0}}
-                  <span data-link="description"></span>
-                {{else}}
-                  <span>(This file does not have description.)</span>
-                {{/if}}
+          {{else}}
+            <div class="form-group has-error has-feedback">
+              <div><label class="control-label">Change icon</label></div>
+              <div>
+                <input type="file" name="images[]" style="display:inline;">
+                <a href="javascript:void 0;" class="btn btn-primary btn-sm" data-loading-text="Saving..." id="dataset-icon-submit" style="display:none;">Upload</a>
               </div>
             </div>
-          </div>
-          <div class="row dataset-file-menu" style="margin-top: 4px;">
-            <div class="col-sm-12">
-              <button type="button" class="btn btn-xs dataset-file-edit-start" data-value="{{>id}}">edit</button>
-              <button type="button" class="btn btn-xs dataset-file-replace-start" data-value="{{>id}}">replace</button>
-              <button type="button" class="btn btn-xs dataset-file-delete" data-value="{{>id}}">delete</button>
-            </div>
-          </div>
-          <div class="dataset-file-edit"></div>
-          <div class="dataset-file-replace"></div>
-        </div>
-      {{/for}}
+            <p class="text-danger" data-link="dataset.errors.icon"></p>
+          {{/if}}
+        </form>
+      </div>
 
-      <form role="form" id="dataset-file-add-form">
-        <div class="form-group">
-          <label class="control-label">Add file</label><br>
-          <input type="file" style="display: inline" name="files[]">
-          <a href="javascript:void 0;" class="btn btn-primary btn-sm" style="display: none;" id="dataset-file-add-submit">Upload</a>
-        </div>
-      </form>
-    </div>
-
-    <div class="tab-pane" id="dataset-acl">
-      <h3 style="margin-top: 0;">Access Control List</h3>
-      <table class="table table-bordered table-condensed" style="width: 600px;">
-        <tbody>
-          {^{for dataset.ownerships ~myself=myself}}
-            {{debug #data/}}
-            <tr>
-              <td>
-                <p class="form-control-static"><img class="icon" src="{{>image}}"> {{>name}}</p>
-              </td>
-              <td>
-                <div class="form-group">
-                  {{if ownerType == 1}}
-                    <select class="form-control" style="width:auto;" data-link="{:accessLevel:toInt} disabled{:~myself.id == id}">
-                      <option value="3">Owner</option>
-                      <option value="2">Full Read</option>
-                      <option value="1">Limited Read</option>
-                      <option value="0">Remove</option>
-                    </select>
-                  {{else ownerType == 2}}
-                    <select class="form-control" style="width:auto;" data-link="{:accessLevel:toInt}">
-                      <option value="3">Provider</option>
-                      <option value="2">Full Read</option>
-                      <option value="1">Limited Read</option>
-                      <option value="0">Remove</option>
-                    </select>
+      <div class="tab-pane" id="dataset-files">
+        {^{for dataset.files}}
+          <div class="well well-sm dataset-file">
+            <div class="dataset-file-view">
+              <div class="row">
+                <div class="col-sm-12">
+                    <span class="glyphicon glyphicon-file"></span>
+                    {^{>name}} ({^{datasize size/}})
+                    uploaded by
+                    <img data-link="src{>createdBy.image}" class="icon">
+                    <strong>{^{>createdBy.fullname}}</strong>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-sm-12" style="margin-left: 16px;">
+                  {^{if !~isEmpty(description)}}
+                    <span data-link="description"></span>
                   {{else}}
-                    invalid ownerType
+                    <span>(This file does not have description.)</span>
                   {{/if}}
                 </div>
-              </td>
-            </tr>
-          {{/for}}
-          <tr>
-            <td><input class="form-control" id="dataset-owner-typeahead" placeholder="Enter new user or group"></td>
-            <td><a class="btn btn-success btn-sm" id="dataset-owner-add">add</a></td></tr>
-        </tbody>
-      </table>
-      <div class="row" style="margin-top: 8px;">
-        <div class="col-sm-12">
-          <button type="button" class="btn btn-primary btm-sm" id="dataset-ownership-submit">Save</button>
-        </div>
+              </div>
+            </div>
+            <div class="row dataset-file-menu" style="margin-top: 4px;">
+              <div class="col-sm-12">
+                <button type="button" class="btn btn-xs dataset-file-edit-start" data-value="{{>id}}">edit</button>
+                <button type="button" class="btn btn-xs dataset-file-replace-start" data-value="{{>id}}">replace</button>
+                <button type="button" class="btn btn-xs dataset-file-delete" data-value="{{>id}}">delete</button>
+              </div>
+            </div>
+            <div class="dataset-file-edit"></div>
+            <div class="dataset-file-replace"></div>
+          </div>
+        {{/for}}
+
+        <form role="form" id="dataset-file-add-form">
+          <div class="form-group">
+            <label class="control-label">Add file</label><br>
+            <input type="file" style="display: inline" name="files[]">
+            <a href="javascript:void 0;" class="btn btn-primary btn-sm" data-loading-text="Saving..." style="display: none;" id="dataset-file-add-submit">Upload</a>
+          </div>
+        </form>
       </div>
 
-      <h3>Guest Access Control</h3>
-      <form role="form">
-        <div class="radio"><label><input type="radio" name="option" value="0" data-link="{:dataset.defaultAccessLevel:toInt}">Deny</label></div>
-        <div class="radio"><label><input type="radio" name="option" value="1" data-link="{:dataset.defaultAccessLevel:toInt}">Allow LIMITED Read (Disabled Download Files)</label></div>
-        <div class="radio"><label><input type="radio" name="option" value="2" data-link="{:dataset.defaultAccessLevel:toInt}">Allow FULL Read</label></div>
-      </form>
-      <div class="row" style="top: 8px;">
-        <div class="col-sm-12">
-          <button type="button" class="btn btn-primary btm-sm" id="dataset-guest-access-submit">Save</button>
+      <div class="tab-pane" id="dataset-acl">
+        <h3 style="margin-top: 0;">Access Control List</h3>
+        <table class="table table-bordered table-condensed" id="dataset-owner-list" style="width: 600px;">
+          <tbody>
+            {^{for dataset.ownerships ~myself=myself}}
+              {{debug #data/}}
+              <tr>
+                <td>
+                  <p class="form-control-static"><img class="icon" src="{{>image}}"> {{>name}}</p>
+                </td>
+                <td>
+                  <div class="form-group">
+                    {{if ownerType == 1}}
+                      {{if ~myself.id == id}}
+                        Owner
+                      {{else}}
+                        <select class="form-control" style="width:auto;" data-link="{:accessLevel:toInt}">
+                          <option value="3">Owner</option>
+                          <option value="2">Full Read</option>
+                          <option value="1">Limited Read</option>
+                          <option value="0">Remove</option>
+                        </select>
+                      {{/if}}
+                    {{else ownerType == 2}}
+                      <select class="form-control" style="width:auto;" data-link="{:accessLevel:toInt}">
+                        <option value="3">Provider</option>
+                        <option value="2">Full Read</option>
+                        <option value="1">Limited Read</option>
+                        <option value="0">Remove</option>
+                      </select>
+                    {{else}}
+                      invalid ownerType
+                    {{/if}}
+                  </div>
+                </td>
+              </tr>
+            {{/for}}
+            <tr>
+              <td><input class="form-control" id="dataset-owner-typeahead" placeholder="Enter new user or group"></td>
+              <td><a class="btn btn-success btn-sm" id="dataset-owner-add">add</a></td></tr>
+          </tbody>
+        </table>
+        <div class="row" style="margin-top: 8px;">
+          <div class="col-sm-12">
+            <button type="button" class="btn btn-primary btm-sm" data-loading-text="Saving..." id="dataset-ownership-submit">Save</button>
+          </div>
+        </div>
+
+        <h3>Guest Access Control</h3>
+        <form role="form" id="dataset-guest-access-form">
+          <div class="radio"><label><input type="radio" name="option" value="0" data-link="{:dataset.defaultAccessLevel:toInt}">Deny</label></div>
+          <div class="radio"><label><input type="radio" name="option" value="1" data-link="{:dataset.defaultAccessLevel:toInt}">Allow LIMITED Read (Disabled Download Files)</label></div>
+          <div class="radio"><label><input type="radio" name="option" value="2" data-link="{:dataset.defaultAccessLevel:toInt}">Allow FULL Read</label></div>
+        </form>
+        <div class="row" style="top: 8px;">
+          <div class="col-sm-12">
+            <button type="button" class="btn btn-primary btm-sm" data-loading-text="Saving..." id="dataset-guest-access-submit">Save</button>
+          </div>
         </div>
       </div>
     </div>
   </div>
-</div>
+{{/async}}

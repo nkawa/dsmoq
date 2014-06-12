@@ -1,87 +1,111 @@
-<div class="row">
-  <div class="col-sm-10">
-    <h2 class="page-heading">Edit Group</h2>
-  </div>
-  <div class="col-sm-2 text-right">
-    <div class="btn-group-vertical">
-      <button type="button" class="btn btn-info" id="group-finish-editing">Finish</button>
+{^{async data}}
+  <div class="row">
+    <div class="col-sm-10">
+      <h2 class="page-heading">Edit Group</h2>
     </div>
-  </div>
-</div>
-
-<div class="tabbable">
-  <ul class="nav nav-tabs">
-    <li class="active"><a href="#group-basics" data-toggle="tab">Basics</a></li>
-    <li><a href="#group-icon" data-toggle="tab">Icon</a></li>
-    <li><a href="#group-members" data-toggle="tab">Members</a></li>
-  </ul>
-
-  <div class="tab-content">
-    <div class="tab-pane active" id="group-basics">
-      <form role="form">
-        <div class="form-group">
-          <label for="form-title" class="control-label">Name</label>
-          <input type="text" style="width:300px;" class="form-control" placeholder="Group name" data-link="group.name">
-        </div>
-        <div class="form-group">
-          <label for="form-description" class="control-label">Description</label>
-          <textarea class="form-control" row="3" style="width: 600px;" data-link="group.description"></textarea>
-        </div>
-      </form>
-      <div class="row">
-        <p class="col-sm-12">
-          <a href="javascript:void 0;" class="btn btn-primary" id="group-basics-submit">Save</a>
-        </p>
+    <div class="col-sm-2 text-right">
+      <div class="btn-group-vertical">
+        <button type="button" class="btn btn-info" id="group-finish-editing">Finish</button>
       </div>
     </div>
+  </div>
 
-    <div class="tab-pane" id="group-icon">
-      <div class="form-group">
-        <div>
-          <img data-link="src{>group.primaryImage.url}" alt="icon">
+  <div class="tabbable">
+    <ul class="nav nav-tabs">
+      <li class="active"><a href="#group-basics" data-toggle="tab">Basics</a></li>
+      <li><a href="#group-icon" data-toggle="tab">Icon</a></li>
+      <li><a href="#group-members" data-toggle="tab">Members</a></li>
+    </ul>
+
+    <div class="tab-content">
+      <div class="tab-pane active" id="group-basics">
+        <form role="form">
+          {^{if ~isEmpty(groupErrors.name)}}
+            <div class="form-group" style="width:300px;">
+              <label class="control-label">Name</label>
+              <input type="text" class="form-control" placeholder="Group Name" data-link="group.name">
+            </div>
+          {{else}}
+            <div class="form-group has-error has-feedback" style="width:300px;">
+              <label class="control-label">Name</label>
+              <input type="text" class="form-control" placeholder="Group Name" data-link="group.name">
+              <span class="glyphicon glyphicon-remove form-control-feedback"></span>
+            </div>
+            <p class="text-danger" data-link="groupErrors.name"></p>
+          {{/if}}
+          {^{if ~isEmpty(groupErrors.description)}}
+            <div class="form-group" style="width:600px;">
+              <label class="control-label">Description</label>
+              <textarea class="form-control" row="3" data-link="group.description"></textarea>
+            </div>
+          {{else}}
+            <div class="form-group has-error has-feedback" style="width:600px;">
+              <label class="control-label">Description</label>
+              <textarea class="form-control" row="3" data-link="group.description"></textarea>
+              <span class="glyphicon glyphicon-remove form-control-feedback"></span>
+            </div>
+            <p class="text-danger" data-link="groupErrors.description"></p>
+          {{/if}}
+        </form>
+        <div class="row">
+          <p class="col-sm-12">
+            <a href="javascript:void 0;" class="btn btn-primary" data-loading-text="Saving..." id="group-basics-submit">Save</a>
+          </p>
         </div>
       </div>
-      <form role="form" id="group-icon-form">
+
+      <div class="tab-pane" id="group-icon">
         <div class="form-group">
-          <div><label class="control-label">Change icon</label></div>
           <div>
-            <input type="file" name="images[]" style="display:inline;">
-            <a href="javascript:void 0;" class="btn btn-primary btn-sm" id="group-icon-submit" style="display:none;">Upload</a>
+            <img data-link="src{>group.primaryImage.url}" alt="icon">
           </div>
         </div>
-      </form>
-    </div>
+        <form role="form" id="group-icon-form">
+          <div class="form-group">
+            <div><label class="control-label">Change icon</label></div>
+            <div>
+              <input type="file" name="images[]" style="display:inline;">
+              <a href="javascript:void 0;" class="btn btn-primary btn-sm" data-loading-text="Saving..." id="group-icon-submit" style="display:none;">Upload</a>
+            </div>
+          </div>
+        </form>
+      </div>
 
-    <div class="tab-pane" id="group-members">
-      <img src="/resources/loading-large.gif" alt="loading" data-link="style{>isMembersLoading ? '' : 'display:none'}">
-      <table class="table table-bordered" data-link="style{>isMembersLoading ? 'display:none' : ''}">
-        <thead>
-          <tr><td>Name</td><td>Role</td></tr>
-        </thead>
-        <tbody>
-          {^{for members.results ~myself=myself}}
+      <div class="tab-pane" id="group-members">
+        <img src="/resources/loading-large.gif" alt="loading" data-link="style{>isMembersLoading ? '' : 'display:none'}">
+        <table class="table table-bordered" data-link="style{>isMembersLoading ? 'display:none' : ''}">
+          <thead>
+            <tr><td>Name</td><td>Role</td></tr>
+          </thead>
+          <tbody>
+            {^{for members.results ~myself=myself}}
+              <tr>
+                <td><img src="{{>image}}" class="icon">{{>fullname}} <span class="text-muted">{{>name}}, {{>organization}}</span></td>
+                <td>
+                  {{if ~myself.id == id}}
+                    Manger
+                  {{else}}
+                    <select class="form-control" style="width:auto;" data-link="{:role:toInt}">
+                      <option value="2">Manger</option>
+                      <option value="1">Member</option>
+                      <option value="0">Remove</option>
+                    </select>
+                  {{/if}}
+                </td>
+              </tr>
+            {{/for}}
             <tr>
-              <td><img src="{{>image}}" class="icon">{{>fullname}} <span class="text-muted">{{>name}}, {{>organization}}</span></td>
-              <td>
-                <select class="form-control" style="width:auto;" data-link="{:role:toInt} disabled{:~myself.id == id}">
-                  <option value="2">Manger</option>
-                  <option value="1">Member</option>
-                  <option value="0">Remove</option>
-                </select>
-              </td>
+              <td><input type="text" class="form-control" placeholder="Enter new user" id="group-user-typeahead"></td>
+              <td><button type="button" class="btn btn-success btn-sm" id="group-user-add">add</button></td>
             </tr>
-          {{/for}}
-          <tr>
-            <td><input type="text" class="form-control" placeholder="Enter new user" id="group-user-typeahead"></td>
-            <td><button type="button" class="btn btn-success btn-sm" id="group-user-add">add</button></td>
-          </tr>
-        </tbody>
-      </table>
-      <div class="row" style="margin-top: 8px;">
-        <div class="col-sm-12">
-          <button type="button" class="btn btn-primary btm-sm" id="group-member-submit">Save</button>
+          </tbody>
+        </table>
+        <div class="row" style="margin-top: 8px;">
+          <div class="col-sm-12">
+            <button type="button" class="btn btn-primary btm-sm" id="group-member-submit">Save</button>
+          </div>
         </div>
       </div>
     </div>
   </div>
-</div>
+{{/async}}
