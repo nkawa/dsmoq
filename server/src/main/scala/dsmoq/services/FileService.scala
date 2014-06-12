@@ -1,5 +1,6 @@
 package dsmoq.services
 
+import dsmoq.persistence.AccessLevel
 import scalikejdbc._, SQLInterpolation._
 import dsmoq.{AppConf, persistence}
 import dsmoq.persistence.PostgresqlHelper._
@@ -18,7 +19,7 @@ object FileService {
         } else {
           getUserPermission(datasetId, user.id)
         }
-        if (permission < 2) {
+        if (permission < AccessLevel.AllowRead) {
           throw new RuntimeException("access denied")
         }
 
@@ -70,7 +71,7 @@ object FileService {
     val g = persistence.Group.syntax("g")
     val m = persistence.Member.syntax("m")
     withSQL {
-      select(o.result.accessLevel)
+      select(sqls.max(o.accessLevel).append(sqls"access_level"))
         .from(persistence.Ownership as o)
         .innerJoin(persistence.Group as g).on(o.groupId, g.id)
         .innerJoin(persistence.Member as m).on(g.id, m.groupId)
@@ -80,7 +81,7 @@ object FileService {
         .eq(m.userId, sqls.uuid(userId))
         .and
         .isNull(o.deletedAt)
-    }.map(_.int(o.resultName.accessLevel)).single().apply().getOrElse(0)
+    }.map(_.int("access_level")).single().apply().getOrElse(0)
   }
 
   private def isValidDataset(datasetId: String)(implicit s: DBSession) = {
