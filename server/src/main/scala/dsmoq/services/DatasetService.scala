@@ -1098,7 +1098,7 @@ object DatasetService {
     }.map(x => true).single.apply().getOrElse(false)
   }
 
-  private def getJoinedGroups(user: User)(implicit s: DBSession): Seq[String] = {
+  def getJoinedGroups(user: User)(implicit s: DBSession): Seq[String] = {
     if (user.isGuest) {
       Seq.empty
     } else {
@@ -1229,7 +1229,7 @@ object DatasetService {
     }.map(persistence.Dataset(d.resultName)).single.apply()
   }
 
-  private def getPermission(id: String, groups: Seq[String])(implicit s: DBSession) = {
+  def getPermission(id: String, groups: Seq[String])(implicit s: DBSession) = {
     val o = persistence.Ownership.syntax("o")
     withSQL {
       select(sqls.max(o.accessLevel).append(sqls"access_level"))
@@ -1241,7 +1241,7 @@ object DatasetService {
     }.map(_.intOpt("access_level")).single().apply().flatten
   }
 
-  private def getGuestAccessLevel(datasetId: String)(implicit s: DBSession) = {
+  def getGuestAccessLevel(datasetId: String)(implicit s: DBSession) = {
     val o = persistence.Ownership.syntax("o")
     withSQL {
       select(o.result.accessLevel)

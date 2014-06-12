@@ -15,9 +15,10 @@ object FileService {
       val fileInfo = DB readOnly { implicit s =>
         // 権限によりダウンロード可否の決定
         val permission = if (user.isGuest) {
-          getGuestPermission(datasetId)
+          DatasetService.getGuestAccessLevel(datasetId)
         } else {
-          getUserPermission(datasetId, user.id)
+          val groups = DatasetService.getJoinedGroups(user)
+          DatasetService.getPermission(datasetId, groups).getOrElse(AccessLevel.Deny)
         }
         if (permission < AccessLevel.AllowRead) {
           throw new RuntimeException("access denied")
@@ -27,7 +28,7 @@ object FileService {
         if (!isValidDataset(datasetId)) throw new NotFoundException
 
         val file = persistence.File.find(fileId)
-        val fh = persistence.FileHistory.syntax("fi")
+        val fh = persistence.FileHistory.syntax("fh")
         val filePath = withSQL {
           select(fh.result.filePath)
             .from(persistence.FileHistory as fh)
@@ -50,38 +51,6 @@ object FileService {
     } catch {
       case e: Exception => Failure(e)
     }
-  }
-
-  private def getGuestPermission(datasetId: String)(implicit s: DBSession) = {
-    val o = persistence.Ownership.syntax("o")
-    withSQL {
-      select(o.result.accessLevel)
-        .from(persistence.Ownership as o)
-        .where
-        .eq(o.datasetId, sqls.uuid(datasetId))
-        .and
-        .eq(o.groupId, sqls.uuid(AppConf.guestGroupId))
-        .and
-        .isNull(o.deletedAt)
-    }.map(_.int(o.resultName.accessLevel)).single().apply().getOrElse(0)
-  }
-
-  private def getUserPermission(datasetId: String, userId: String)(implicit s: DBSession) = {
-    val o = persistence.Ownership.syntax("o")
-    val g = persistence.Group.syntax("g")
-    val m = persistence.Member.syntax("m")
-    withSQL {
-      select(sqls.max(o.accessLevel).append(sqls"access_level"))
-        .from(persistence.Ownership as o)
-        .innerJoin(persistence.Group as g).on(o.groupId, g.id)
-        .innerJoin(persistence.Member as m).on(g.id, m.groupId)
-        .where
-        .eq(o.datasetId, sqls.uuid(datasetId))
-        .and
-        .eq(m.userId, sqls.uuid(userId))
-        .and
-        .isNull(o.deletedAt)
-    }.map(_.int("access_level")).single().apply().getOrElse(0)
   }
 
   private def isValidDataset(datasetId: String)(implicit s: DBSession) = {
