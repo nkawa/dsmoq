@@ -608,18 +608,16 @@ object DatasetService {
       updateDatasetFileStatus(params.datasetId, myself.id, timestamp)
 
       val result = persistence.File.find(params.fileId).get
-      Success(DatasetData.DatasetModifyFile(
-        file = DatasetData.DatasetFile(
-          id = result.id,
-          name = result.name,
-          description = result.description,
-          size = result.fileSize,
-          url = AppConf.fileDownloadRoot + params.datasetId + "/" + result.id,
-          createdBy = params.userInfo,
-          createdAt = timestamp.toString(),
-          updatedBy = params.userInfo,
-          updatedAt = timestamp.toString()
-        )
+      Success(DatasetData.DatasetFile(
+        id = result.id,
+        name = result.name,
+        description = result.description,
+        size = result.fileSize,
+        url = AppConf.fileDownloadRoot + params.datasetId + "/" + result.id,
+        createdBy = params.userInfo,
+        createdAt = timestamp.toString(),
+        updatedBy = params.userInfo,
+        updatedAt = timestamp.toString()
       ))
     }
   }
@@ -666,18 +664,16 @@ object DatasetService {
         }.update().apply
 
         val result = persistence.File.find(params.fileId).get
-        Success(DatasetData.DatasetModifyFile(
-          file = DatasetData.DatasetFile(
-            id = result.id,
-            name = result.name,
-            description = result.description,
-            size = result.fileSize,
-            url = AppConf.fileDownloadRoot + params.datasetId + "/" + result.id,
-            createdBy = params.userInfo,
-            createdAt = timestamp.toString(),
-            updatedBy = params.userInfo,
-            updatedAt = timestamp.toString()
-          )
+        Success(DatasetData.DatasetFile(
+          id = result.id,
+          name = result.name,
+          description = result.description,
+          size = result.fileSize,
+          url = AppConf.fileDownloadRoot + params.datasetId + "/" + result.id,
+          createdBy = params.userInfo,
+          createdAt = timestamp.toString(),
+          updatedBy = params.userInfo,
+          updatedAt = timestamp.toString()
         ))
       }
     } catch {
