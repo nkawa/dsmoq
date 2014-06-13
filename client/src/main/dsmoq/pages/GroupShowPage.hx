@@ -98,7 +98,15 @@ class GroupShowPage {
                         });
                     });
                 }, function (err) {
-                    Notification.show("error", "error happened");
+                    trace(err);
+                    root.html(switch (err.name) {
+                        case ServiceErrorType.Unauthorized:
+                            "Permission denied";
+                        case ServiceErrorType.NotFound:
+                            "Not found";
+                        case _:
+                            "Network Error";
+                    });
                 });
             },
             dispose: function () {

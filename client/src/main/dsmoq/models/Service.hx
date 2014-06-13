@@ -283,6 +283,8 @@ class Service extends Stream<ServiceEvent> {
                 return switch (response.status) {
                     case ApiStatus.OK:
                         Promise.resolved(cast response.data);
+                    case ApiStatus.NotFound:
+                        Promise.rejected(new ServiceError("NotFound", NotFound));
                     case ApiStatus.BadRequest:
                         Promise.rejected(new ServiceError(response.status, BadRequest, response.data));
                     case ApiStatus.Unauthorized:
@@ -308,6 +310,8 @@ class Service extends Stream<ServiceEvent> {
                 switch (response.status) {
                     case ApiStatus.OK:
                         p.resolve(cast response.data);
+                    case ApiStatus.NotFound:
+                        Promise.rejected(new ServiceError("NotFound", NotFound));
                     case ApiStatus.BadRequest:
                         p.reject(new ServiceError(response.status, BadRequest, response.data));
                     case ApiStatus.Unauthorized:

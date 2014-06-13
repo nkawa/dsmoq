@@ -60,11 +60,10 @@ class DatasetShowPage {
                     switch (err.name) {
                         case ServiceErrorType.Unauthorized:
                             container.innerHTML = "Permission denied";
-                            trace("UnauthorizedError");
-                        case _:
-                            // TODO 通信エラーが発生しましたメッセージと手動リロードボタンを表示
-                            container.innerHTML = "network error";
-                            trace(err);
+                        case ServiceErrorType.NotFound:
+                            container.innerHTML = "Not found";
+                        default:
+                            container.innerHTML = "Network error";
                     }
                 });
             },
