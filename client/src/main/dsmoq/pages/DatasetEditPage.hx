@@ -2,6 +2,7 @@ package dsmoq.pages;
 
 import dsmoq.framework.types.PageNavigation;
 import dsmoq.framework.View;
+import dsmoq.models.DatasetPermission;
 import dsmoq.models.Service;
 import haxe.Resource;
 import js.bootstrap.BootstrapButton;
@@ -12,6 +13,7 @@ import js.jqhx.JQuery;
 import js.jsviews.JsViews;
 import js.support.ControllableStream;
 import js.support.JsTools;
+import js.support.Promise;
 import js.typeahead.Bloodhound;
 import js.typeahead.Typeahead;
 
@@ -56,7 +58,15 @@ class DatasetEditPage {
                 var rootBinding = JsViews.objectObservable({ data: dsmoq.Async.Pending });
                 View.getTemplate("dataset/edit").link(root, rootBinding.data());
 
-                var promise = Service.instance.getDataset(id).thenError(function (err) {
+                var promise = Service.instance.getDataset(id).bind(function (ds) {
+                    return switch (ds.permission) {
+                        case DatasetPermission.Write:
+                            Promise.resolved(ds);
+                        case _:
+                            Promise.rejected(new ServiceError("", ServiceErrorType.Unauthorized));
+                    }
+                })
+                .thenError(function (err) {
                     root.html(switch (err.name) {
                         case ServiceErrorType.NotFound: "Not found";
                         case ServiceErrorType.Unauthorized: "Permission denied";
