@@ -5,7 +5,7 @@ package dsmoq.persistence
  */
 object AccessLevel {
   val Deny = 0
-  var AllowLimitedRead = 1
-  var AllowRead = 2
-  var AllowAll = 3
+  val AllowLimitedRead = 1
+  val AllowRead = 2
+  val AllowAll = 3
 }
