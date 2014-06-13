@@ -286,8 +286,10 @@ class Service extends Stream<ServiceEvent> {
                     case ApiStatus.BadRequest:
                         Promise.rejected(new ServiceError(response.status, BadRequest, response.data));
                     case ApiStatus.Unauthorized:
-                        profile = guest();
-                        update(SignedOut);
+                        if (!profile.isGuest) {
+                            profile = guest();
+                            update(SignedOut);
+                        }
                         Promise.rejected(new ServiceError(response.status, Unauthorized));
                     case _:
                         Promise.rejected(new ServiceError("Unknown", Unknown));
@@ -309,8 +311,10 @@ class Service extends Stream<ServiceEvent> {
                     case ApiStatus.BadRequest:
                         p.reject(new ServiceError(response.status, BadRequest, response.data));
                     case ApiStatus.Unauthorized:
-                        profile = guest();
-                        update(SignedOut);
+                        if (!profile.isGuest) {
+                            profile = guest();
+                            update(SignedOut);
+                        }
                         p.reject(new ServiceError(response.status, Unauthorized));
                     case _:
                         p.reject(new ServiceError("Unknown", Unknown));
