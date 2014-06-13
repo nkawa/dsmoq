@@ -16,6 +16,7 @@ import js.jsviews.JsViews;
 import js.support.ControllableStream;
 
 using StringTools;
+using js.support.ArrayTools;
 
 class Frame {
     public static function create(context: ApplicationContext): PageFrame<Page> {
@@ -95,6 +96,15 @@ class Frame {
 
         header.on("click", "#signout-button", function (_) {
             Service.instance.signout();
+        });
+
+        JQuery.find("#new-dataset-dialog form").on("change", "input[type='file']", function (event: Event) {
+            JQuery.find("#new-dataset-dialog form input[type='file']")
+                .toArray()
+                .filter(function (x) return JQuery.wrap(x).val() == "")
+                .iter(function (x) JQuery.wrap(x).parent().remove());
+            JQuery.find("#new-dataset-dialog form")
+                .append("<div class=\"form-group\"><input type=\"file\" name=\"file[]\"></div>");
         });
 
         JQuery.find("#new-dataset-dialog-submit").on("click", function (event: Event) {
