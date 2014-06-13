@@ -3,18 +3,18 @@ package api
 import java.io.File
 import java.util.UUID
 
-import dsmoq.controllers.{FileController, ApiController, AjaxResponse}
+import dsmoq.controllers.{AjaxResponse, ApiController}
 import dsmoq.persistence.{GroupMemberRole, AccessLevel}
 import dsmoq.services.data.DatasetData.Dataset
 import dsmoq.services.data.GroupData.Group
-import org.json4s.{DefaultFormats, Formats}
 import org.json4s.jackson.JsonMethods._
+import org.json4s.{DefaultFormats, Formats}
 import org.scalatest.{BeforeAndAfter, FreeSpec}
 import org.scalatra.servlet.MultipartConfig
 import org.scalatra.test.scalatest.ScalatraSuite
 import scalikejdbc.config.DBs
 
-class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
+class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
 
   private val dummyFile = new File("README.md")
@@ -30,7 +30,6 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
       fileSizeThreshold = Some(1 * 1024 * 1024)
     ).toMultipartConfigElement
   )
-  addServlet(classOf[FileController], "/files/*")
 
   before {
     DBs.setup()
@@ -44,7 +43,7 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
   }
 
   "Authorization Test" - {
-    "設定した権限にあわせてファイルをダウンロードできるか" in {
+    "設定した権限にあわせてデータセット詳細を閲覧できるか" in {
       session {
         signIn()
 
@@ -58,114 +57,125 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
               // グループ作成/メンバー追加
               val groupId = createGroup()
               val memberParams = List("id[]" -> dummyUserId, "role[]" -> GroupMemberRole.Member.toString)
-              post("/api/groups/" + groupId + "/members", memberParams) { checkStatus() }
+              post("/api/groups/" + groupId + "/members", memberParams) {
+                checkStatus()
+              }
 
               post("/api/datasets", Map.empty, files) {
                 checkStatus()
                 val datasetId = parse(body).extract[AjaxResponse[Dataset]].data.id
-                val fileUrl = parse(body).extract[AjaxResponse[Dataset]].data.files(0).url
 
                 // アクセスレベル設定(ユーザー/グループ)
                 val accessLevelParams = List(
                   "id[]" -> dummyUserId, "type[]" -> "1", "accessLevel[]" -> userAccessLevel.toString,
                   "id[]" -> groupId, "type[]" -> "2", "accessLevel[]" -> groupAccessLevel.toString
                 )
-                post("/api/datasets/" + datasetId + "/acl", accessLevelParams) { checkStatus() }
+                post("/api/datasets/" + datasetId + "/acl", accessLevelParams) {
+                  checkStatus()
+                }
 
                 // ゲストアクセスレベル設定
                 val guestAccessLevelParams = Map("accessLevel" -> guestAccessLevel.toString)
-                put("/api/datasets/" + datasetId + "/guest_access", guestAccessLevelParams) { checkStatus() }
+                put("/api/datasets/" + datasetId + "/guest_access", guestAccessLevelParams) {
+                  checkStatus()
+                }
 
-                (datasetId, fileUrl, userAccessLevel, groupAccessLevel, guestAccessLevel)
+                (datasetId, userAccessLevel, groupAccessLevel, guestAccessLevel)
               }
             }
           }
         }.flatten.flatten
 
-        // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+        // ダミーユーザー時のデータセット詳細閲覧 Denyではない(AllowLimitedRead以上)であれば閲覧可
         post("/api/signout") { checkStatus() }
         post("/api/signin", dummyUserLoginParams) { checkStatus() }
         datasetParams.foreach { params =>
           // for debug
           println("debug params(user):" + params)
 
-          val uri = new java.net.URI(params._2)
-          if (params._3 >= AccessLevel.AllowRead || params._4 >= AccessLevel.AllowRead || params._5 >= AccessLevel.AllowRead) {
-            get(uri.getPath) {
+          if (params._2 >= AccessLevel.AllowLimitedRead || params._3 >= AccessLevel.AllowLimitedRead || params._4 >= AccessLevel.AllowLimitedRead) {
+            get("/api/datasets/" + params._1) {
               status should be(200)
-              bodyBytes.size should be(dummyFile.length())
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id should be(params._1)
+              val permission = List(params._2, params._3, params._4).sorted.last
+              result.data.permission should be(permission)
+              result.data.defaultAccessLevel should be (params._4)
             }
           } else {
-            get(uri.getPath) {
-              // forbidden
-              status should be(403)
+            get("/api/datasets/" + params._1) {
+              // Unauthorized
+              status should be(200)
+              val result = parse(body).extract[AjaxResponse[Any]]
+              result.status should be("Unauthorized")
             }
           }
         }
 
-        // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+        // ゲストアクセス時のデータセット詳細閲覧  Denyではない(AllowLimitedRead以上)であれば閲覧可
         post("/api/signout") { checkStatus() }
         datasetParams.foreach { params =>
           // for debug
           println("debug params(guest):" + params)
 
-          val uri = new java.net.URI(params._2)
-          if (params._5 >= AccessLevel.AllowRead) {
-            get(uri.getPath) {
+          if (params._4 >= AccessLevel.AllowLimitedRead) {
+            get("/api/datasets/" + params._1) {
               status should be(200)
-              bodyBytes.size should be(dummyFile.length())
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id should be(params._1)
+              result.data.permission should be(params._4)
+              result.data.defaultAccessLevel should be (params._4)
             }
           } else {
-            get(uri.getPath) {
-              // forbidden
-              status should be(403)
+            get("/api/datasets/" + params._1) {
+              // Unauthorized
+              status should be(200)
+              val result = parse(body).extract[AjaxResponse[Any]]
+              result.status should be("Unauthorized")
             }
           }
         }
 
-        // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+        // 何も権限を付与していないユーザーのデータセット詳細閲覧 ゲストと同じアクセス制限となる
         post("/api/signin", anotherUserLoginParams) { checkStatus() }
         datasetParams.foreach { params =>
           // for debug
           println("debug params(not authorization user):" + params)
 
-          val uri = new java.net.URI(params._2)
-          if (params._5 >= AccessLevel.AllowRead) {
-            get(uri.getPath) {
+          if (params._4 >= AccessLevel.AllowLimitedRead) {
+            get("/api/datasets/" + params._1) {
               status should be(200)
-              bodyBytes.size should be(dummyFile.length())
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id should be(params._1)
+              result.data.permission should be(params._4)
+              result.data.defaultAccessLevel should be (params._4)
             }
           } else {
-            get(uri.getPath) {
-              // forbidden
-              status should be(403)
+            get("/api/datasets/" + params._1) {
+              // Unauthorized
+              status should be(200)
+              val result = parse(body).extract[AjaxResponse[Any]]
+              result.status should be("Unauthorized")
             }
           }
         }
       }
     }
   }
-
+  
   private def signIn() {
     val params = Map("id" -> "t_okada", "password" -> "password")
     post("/api/signin", params) {
       checkStatus()
     }
   }
-
+  
   private def checkStatus() {
     status should be(200)
     val result = parse(body).extract[AjaxResponse[Any]]
     result.status should be("OK")
   }
 
-  private def createDataset(): String = {
-    val files = Map("file[]" -> dummyFile)
-    post("/api/datasets", Map.empty, files) {
-      checkStatus()
-      parse(body).extract[AjaxResponse[Dataset]].data.id
-    }
-  }
   private def createGroup(): String = {
     val groupName = "groupName" + UUID.randomUUID.toString
     val params = Map("name" -> groupName, "description" -> "groupDescription")

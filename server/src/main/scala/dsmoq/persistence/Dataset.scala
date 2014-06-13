@@ -6,17 +6,17 @@ import org.joda.time.{DateTime}
 import PostgresqlHelper._
 
 case class Dataset(
-  id: String,
+  id: String, 
   name: String, 
   description: String, 
-  licenseId: Option[String],
+  licenseId: String, 
   filesCount: Int, 
-  filesSize: Long,
-  createdBy: String,
+  filesSize: Long, 
+  createdBy: String, 
   createdAt: DateTime, 
-  updatedBy: String,
+  updatedBy: String, 
   updatedAt: DateTime, 
-  deletedBy: Option[String] = None,
+  deletedBy: Option[String] = None, 
   deletedAt: Option[DateTime] = None) {
 
   def save()(implicit session: DBSession = Dataset.autoSession): Dataset = Dataset.save(this)(session)
@@ -36,7 +36,7 @@ object Dataset extends SQLSyntaxSupport[Dataset] {
     id = rs.string(d.id),
     name = rs.string(d.name),
     description = rs.string(d.description),
-    licenseId = rs.stringOpt(d.licenseId),
+    licenseId = rs.string(d.licenseId),
     filesCount = rs.int(d.filesCount),
     filesSize = rs.long(d.filesSize),
     createdBy = rs.string(d.createdBy),
@@ -52,7 +52,7 @@ object Dataset extends SQLSyntaxSupport[Dataset] {
   //val autoSession = AutoSession
 
   def find(id: String)(implicit session: DBSession = autoSession): Option[Dataset] = {
-    withSQL { 
+    withSQL {
       select.from(Dataset as d).where.eq(d.id, sqls.uuid(id))
     }.map(Dataset(d.resultName)).single.apply()
   }
@@ -81,7 +81,7 @@ object Dataset extends SQLSyntaxSupport[Dataset] {
     id: String,
     name: String,
     description: String,
-    licenseId: Option[String] = None,
+    licenseId: String,
     filesCount: Int,
     filesSize: Long,
     createdBy: String,
@@ -108,7 +108,7 @@ object Dataset extends SQLSyntaxSupport[Dataset] {
         sqls.uuid(id),
         name,
         description,
-        licenseId.map(sqls.uuid),
+        sqls.uuid(licenseId),
         filesCount,
         filesSize,
         sqls.uuid(createdBy),

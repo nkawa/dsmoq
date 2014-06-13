@@ -81,20 +81,14 @@ object DatasetService {
           id = datasetId,
           name = f.head._1.name,
           description = "",
+          licenseId = AppConf.defaultLicenseId,
           filesCount = f.length,
           filesSize = f.map(x => x._2.fileSize).sum,
           createdBy = myself.id,
           createdAt = timestamp,
           updatedBy = myself.id,
-          updatedAt = timestamp)
-        // FIXME licenseIdを指定してcreateできなかったため、データ作成後にupdateで対応
-        withSQL {
-          val d = persistence.Dataset.column
-          update(persistence.Dataset)
-            .set(d.licenseId -> sqls.uuid(AppConf.defaultLicenseId))
-            .where
-            .eq(d.id, sqls.uuid(dataset.id))
-        }.update().apply
+          updatedAt = timestamp
+        )
         val ownership = persistence.Ownership.create(
           id = UUID.randomUUID.toString,
           datasetId = datasetId,

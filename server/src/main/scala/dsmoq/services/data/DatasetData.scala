@@ -120,7 +120,7 @@ object DatasetData {
   case class DatasetMetaData(
                               name: String,
                               description: String,
-                              license : Option[String],
+                              license : String,
                               attributes: Seq[DatasetAttribute]
                               )
 
