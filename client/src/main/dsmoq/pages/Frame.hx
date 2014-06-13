@@ -98,6 +98,12 @@ class Frame {
             Service.instance.signout();
         });
 
+        JQuery.find("#new-dataset-dialog").on("hide.bs.modal", function (_) {
+            JQuery.find("#new-dataset-dialog form .form-group").remove();
+            JQuery.find("#new-dataset-dialog form")
+                .append("<div class=\"form-group\"><input type=\"file\" name=\"file[]\"></div>");
+        });
+
         JQuery.find("#new-dataset-dialog form").on("change", "input[type='file']", function (event: Event) {
             JQuery.find("#new-dataset-dialog form input[type='file']")
                 .toArray()
