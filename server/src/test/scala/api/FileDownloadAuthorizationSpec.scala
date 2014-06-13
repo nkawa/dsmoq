@@ -50,10 +50,11 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
 
         // データセットを作成
         val accessLevels = List(AccessLevel.Deny, AccessLevel.AllowLimitedRead, AccessLevel.AllowRead, AccessLevel.AllowAll)
+        val guestAccessLevels = List(AccessLevel.Deny, AccessLevel.AllowLimitedRead, AccessLevel.AllowRead)
         val files = Map("file[]" -> dummyFile)
         val datasetParams = accessLevels.map { userAccessLevel =>
           accessLevels.map { groupAccessLevel =>
-            accessLevels.map { guestAccessLevel =>
+            guestAccessLevels.map { guestAccessLevel =>
               // グループ作成/メンバー追加
               val groupId = createGroup()
               val memberParams = List("id[]" -> dummyUserId, "role[]" -> GroupMemberRole.Member.toString)
