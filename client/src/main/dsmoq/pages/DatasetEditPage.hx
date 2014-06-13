@@ -56,7 +56,15 @@ class DatasetEditPage {
                 var rootBinding = JsViews.objectObservable({ data: dsmoq.Async.Pending });
                 View.getTemplate("dataset/edit").link(root, rootBinding.data());
 
-                Service.instance.getDataset(id).then(function (x) {
+                var promise = Service.instance.getDataset(id).thenError(function (err) {
+                    root.html(switch (err.name) {
+                        case ServiceErrorType.NotFound: "Not found";
+                        case ServiceErrorType.Unauthorized: "Permission denied";
+                        default: "Network error";
+                    });
+                });
+
+                promise.then(function (x) {
                     var data = {
                         myself: Service.instance.profile,
                         licenses: Service.instance.licenses,
