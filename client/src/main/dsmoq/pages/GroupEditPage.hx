@@ -1,5 +1,6 @@
 package dsmoq.pages;
 
+import dsmoq.models.GroupRole;
 import js.Boot;
 import js.bootstrap.BootstrapButton;
 import js.support.ControllableStream;
@@ -8,6 +9,7 @@ import js.jqhx.JqHtml;
 import dsmoq.models.Service;
 import dsmoq.framework.View;
 import js.jsviews.JsViews;
+import js.support.Promise;
 import js.typeahead.Typeahead;
 import js.typeahead.Bloodhound;
 import dsmoq.models.Profile;
@@ -27,7 +29,20 @@ class GroupEditPage {
                 var rootBinding = JsViews.objectObservable({data: Async.Pending});
                 View.getTemplate("group/edit").link(container, rootBinding.data());
 
-                Service.instance.getGroup(id).then(function (res) {
+                Service.instance.getGroup(id).bind(function (x) {
+                    return switch (x.role) {
+                        case GroupRole.Manager:
+                            Promise.resolved(x);
+                        case _:
+                            Promise.rejected(new ServiceError("", ServiceErrorType.Unauthorized));
+                    }
+                }).thenError(function (err) {
+                    root.html(switch (err.name) {
+                        case ServiceErrorType.NotFound: "Not found";
+                        case ServiceErrorType.Unauthorized: "Permission denied";
+                        default: "Network error";
+                    });
+                }).then(function (res) {
                     var data = {
                         myself: Service.instance.profile,
                         group: res,
