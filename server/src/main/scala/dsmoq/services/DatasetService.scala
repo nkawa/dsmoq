@@ -12,7 +12,7 @@ import dsmoq.exceptions._
 import org.joda.time.DateTime
 import org.scalatra.servlet.FileItem
 import dsmoq.forms.{AccessCrontolItem, AccessControl}
-import dsmoq.persistence.{GroupType, PresetType, AccessLevel, OwnerType}
+import dsmoq.persistence.{GroupType, PresetType, AccessLevel, OwnerType, DefaultAccessLevel, GroupAccessLevel, UserAccessLevel}
 import dsmoq.logic.{StringUtil, ImageSaveLogic}
 import scala.util.Failure
 import scala.Some
@@ -93,7 +93,7 @@ object DatasetService {
           id = UUID.randomUUID.toString,
           datasetId = datasetId,
           groupId = myGroup.id,
-          accessLevel = persistence.AccessLevel.AllowAll,
+          accessLevel = persistence.UserAccessLevel.Owner,
           createdBy = myself.id,
           createdAt = timestamp,
           updatedBy = myself.id,
@@ -144,7 +144,7 @@ object DatasetService {
             accessLevel = ownership.accessLevel,
             ownerType = OwnerType.User
           )),
-          defaultAccessLevel = persistence.AccessLevel.Deny,
+          defaultAccessLevel = persistence.DefaultAccessLevel.Deny,
           permission = ownership.accessLevel
         ))
       }
@@ -281,7 +281,7 @@ object DatasetService {
         } yield {
           println(dataset)
           // 権限チェック
-          if ((params.userInfo.isGuest && guestAccessLevel == AccessLevel.Deny) ||
+          if ((params.userInfo.isGuest && guestAccessLevel == DefaultAccessLevel.Deny) ||
               (!params.userInfo.isGuest && permission == AccessLevel.Deny)) {
             throw new NotAuthorizedException
           }
@@ -1085,7 +1085,7 @@ object DatasetService {
           .and
           .eq(g.groupType, persistence.GroupType.Personal)
           .and
-          .eq(o.accessLevel, persistence.AccessLevel.AllowAll)
+          .eq(o.accessLevel, persistence.GroupAccessLevel.Provider)
           .and
           .isNull(o.deletedAt)
         .limit(1)
@@ -1677,7 +1677,7 @@ object DatasetService {
         .where
         .eq(m.userId, sqls.uuid(owner))
         .and
-        .eq(o1.accessLevel, AccessLevel.AllowAll)
+        .eq(o1.accessLevel, UserAccessLevel.Owner)
         .and
         .eq(g.groupType, GroupType.Personal)
         .as(y)).on(o.datasetId, y(o1).datasetId)
@@ -1699,7 +1699,7 @@ object DatasetService {
       .and
       .eq(g.groupType, GroupType.Public)
       .and
-      .eq(o1.accessLevel, AccessLevel.AllowAll)
+      .eq(o1.accessLevel, GroupAccessLevel.Provider)
       .and
       .isNull(o.deletedAt)
       .as(x)
@@ -1720,7 +1720,7 @@ object DatasetService {
       .and
       .eq(g.groupType, GroupType.Public)
       .and
-      .gt(o1.accessLevel, AccessLevel.Deny)
+      .gt(o1.accessLevel, GroupAccessLevel.Deny)
       .and
       .isNull(o.deletedAt)
       .as(x)
@@ -1757,7 +1757,7 @@ object DatasetService {
       .and
       .eq(g2.groupType, GroupType.Public)
       .and
-      .eq(o2.accessLevel, AccessLevel.AllowAll)
+      .eq(o2.accessLevel, GroupAccessLevel.Provider)
       .and
       .isNull(o.deletedAt)
       .as(x)
@@ -1794,7 +1794,7 @@ object DatasetService {
       .and
       .eq(g2.groupType, GroupType.Public)
       .and
-      .gt(o2.accessLevel, AccessLevel.Deny)
+      .gt(o2.accessLevel, GroupAccessLevel.Deny)
       .and
       .isNull(o.deletedAt)
       .as(x)

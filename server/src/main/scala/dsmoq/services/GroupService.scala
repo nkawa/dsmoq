@@ -10,7 +10,7 @@ import dsmoq.services.data.RangeSliceSummary
 import scala.util.Success
 import dsmoq.services.data.RangeSlice
 import dsmoq.persistence.PostgresqlHelper._
-import dsmoq.persistence.{GroupType, PresetType, GroupMemberRole, AccessLevel}
+import dsmoq.persistence.{GroupType, PresetType, GroupMemberRole, GroupAccessLevel}
 import org.joda.time.DateTime
 import dsmoq.exceptions._
 import java.util.UUID
@@ -727,7 +727,7 @@ val g = persistence.Group.syntax("g")
         .where
         .inByUuid(o.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
         .and
-        .gt(o.accessLevel, AccessLevel.Deny)
+        .gt(o.accessLevel, GroupAccessLevel.Deny)
         .and
         .isNull(ds.deletedAt)
         .and
@@ -835,7 +835,7 @@ val g = persistence.Group.syntax("g")
           .where
           .eq(o.groupId, sqls.uuid(groupId))
           .and
-          .gt(o.accessLevel, persistence.AccessLevel.Deny)
+          .gt(o.accessLevel, GroupAccessLevel.Deny)
           .and
           .isNull(ds.deletedAt)
           .and
