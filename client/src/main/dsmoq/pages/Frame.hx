@@ -105,19 +105,35 @@ class Frame {
         });
 
         JQuery.find("#new-dataset-dialog form").on("change", "input[type='file']", function (event: Event) {
-            JQuery.find("#new-dataset-dialog form input[type='file']")
+            var form = JQuery.find("#new-dataset-dialog form");
+
+            form.find("input[type='file']")
                 .toArray()
                 .filter(function (x) return JQuery.wrap(x).val() == "")
                 .iter(function (x) JQuery.wrap(x).parent().remove());
-            JQuery.find("#new-dataset-dialog form")
-                .append("<div class=\"form-group\"><input type=\"file\" name=\"file[]\"></div>");
+
+            if (form.find("input[type='file']").length == 0) {
+                JQuery.find("#new-dataset-dialog-submit").attr("disabled", true);
+            } else {
+                JQuery.find("#new-dataset-dialog-submit").removeAttr("disabled");
+            }
+
+            form.append("<div class=\"form-group\"><input type=\"file\" name=\"file[]\"></div>");
         });
 
         JQuery.find("#new-dataset-dialog-submit").on("click", function (event: Event) {
-            // TODO ui block
+            BootstrapButton.setLoading(JQuery.find("#new-dataset-dialog-submit"));
             Service.instance.createDataset(JQuery.find("#new-dataset-dialog form")).then(function (data) {
                 untyped JQuery.find("#new-dataset-dialog").modal("hide");
+                JQuery.find("#new-dataset-dialog form")
+                    .find("input[type='file']").remove().end()
+                    .append("<div class=\"form-group\"><input type=\"file\" name=\"file[]\"></div>");
                 navigation.update(PageNavigation.Navigate(DatasetShow(data.id)));
+                Notification.show("success", "create successful");
+            }, function (err) {
+                Notification.show("error", "error happened");
+            }, function () {
+                BootstrapButton.reset(JQuery.find("#new-dataset-dialog-submit"));
             });
         });
 
