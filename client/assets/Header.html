@@ -87,20 +87,30 @@
   </div>
 </div>
 
-<div id="new-group-dialog" class="modal fade" tabindex="-1" data-width="760" style="display: none;">
+<div id="new-group-dialog" class="modal fade" tabindex="-1" data-width="600" data-keyboard="false" style="display: none;">
   <div class="modal-header">
     <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
     <h4 class="modal-title">Create Group</h4>
   </div>
   <div class="modal-body">
-    <div class="row">
-      <form>
-        name: <input type="text" class="form-control" name="name">
-      </form>
-    </div>
+    <form role="form" onsubmit="return false;">
+      {^{if ~isEmpty(groupForm.errors.name)}}
+        <div class="form-group">
+          <label for="form-title" class="control-label">Name</label>
+          <input type="text" class="form-control" placeholder="Group Name" name="name" data-link="groupForm.name">
+        </div>
+      {{else}}
+        <div class="form-group has-error has-feedback">
+          <label for="form-title" class="control-label">Name</label>
+          <input type="text" class="form-control" placeholder="Group Name" name="name" data-link="groupForm.name">
+          <span class="glyphicon glyphicon-remove form-control-feedback"></span>
+        </div>
+        <p class="text-danger" data-link="groupForm.errors.name"></p>
+      {{/if}}
+    </form>
   </div>
   <div class="modal-footer">
-    <button type="button" class="btn btn-primary" id="new-group-dialog-submit">Create</button>
+    <button type="button" class="btn btn-primary" data-loading-text="Creating..." id="new-group-dialog-submit" disabled>Create</button>
     <button type="button" data-dismiss="modal" class="btn btn-default">Cancel</button>
   </div>
 </div>

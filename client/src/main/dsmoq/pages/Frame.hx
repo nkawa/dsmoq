@@ -12,8 +12,10 @@ import js.bootstrap.BootstrapButton;
 import js.Browser;
 import js.html.Event;
 import js.jqhx.JQuery;
+import js.jqhx.JqHtml;
 import js.jsviews.JsViews;
 import js.support.ControllableStream;
+import js.support.JsTools;
 
 using StringTools;
 using js.support.ArrayTools;
@@ -33,6 +35,10 @@ class Frame {
                 id: "",
                 password: "",
                 error: ""
+            },
+            groupForm: {
+                name: "",
+                errors: { name: "" }
             },
             location: url(LocationTools.currentLocation())
         };
@@ -137,13 +143,48 @@ class Frame {
             });
         });
 
+        function toggleNewGroupSubmit() {
+            if (JQuery.find("#new-group-dialog input[name='name']").val().length <= 0) {
+                JQuery.find("#new-group-dialog-submit").attr("disabled", true);
+            } else {
+                JQuery.find("#new-group-dialog-submit").removeAttr("disabled");
+            }
+        }
+
+        JQuery.find("#new-group-dialog input[name='name']")
+            .on("paste", function (event: Event) {
+                JsTools.setImmediate(toggleNewGroupSubmit);
+            })
+            .on("cut", function (event: Event) {
+                JsTools.setImmediate(toggleNewGroupSubmit);
+            })
+            .on("change", function (event: Event) {
+                toggleNewGroupSubmit();
+            })
+            .on("keydown", function (event: Event) {
+                JsTools.setImmediate(toggleNewGroupSubmit);
+            });
+
         JQuery.find("#new-group-dialog-submit").on("click", function (event: Event) {
-            // TODO ui block
-            var name = JQuery.find("#new-group-dialog input[name=name]").val();
-            Service.instance.createGroup(name).then(function (data) {
+            BootstrapButton.setLoading(JQuery.find("#new-group-dialog-submit"));
+
+            Service.instance.createGroup(data.groupForm.name).then(function (data) {
                 untyped JQuery.find("#new-group-dialog").modal("hide");
+                binding.setProperty('groupForm.name', "");
+                binding.setProperty('groupForm.errors.name', "");
+                JQuery.find("#new-group-dialog-submit").attr("disabled", true);
+                Notification.show("success", "create successful");
                 navigation.update(PageNavigation.Navigate(GroupShow(data.id)));
-                // TODO form clear
+            }, function (err) {
+                switch (err.name) {
+                    case ServiceErrorType.BadRequest:
+                        for (x in cast(err, ServiceError).detail) {
+                            binding.setProperty('groupForm.errors.${x.name}', x.message);
+                        }
+                }
+                Notification.show("error", "error happened");
+            }, function () {
+                BootstrapButton.reset(JQuery.find("#new-group-dialog-submit"));
             });
         });
 
