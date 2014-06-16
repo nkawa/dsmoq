@@ -144,26 +144,28 @@ class Main {
                 var pageDeltaCenter = Math.floor(pageDelta / 2);
                 var pages: Int = tagDef.tagCtx.args[1];
 
-                var range = [for (i in if (index < pageDeltaCenter) {
-                                0...((pageDelta < pages) ? pageDelta : pages);
-                            } else if (index >= (pages - pageDeltaCenter)) {
-                                (pages - pageDelta)...(pages);
-                            } else {
-                                var left = index - pageDeltaCenter;
-                                (left)...(left + pageDelta);
-                            }) i];
+                if (pages > 0) {
+                    var range = [for (i in if (index < pageDeltaCenter) {
+                                    0...((pageDelta < pages) ? pageDelta : pages);
+                                } else if (index >= (pages - pageDeltaCenter)) {
+                                    (pages - pageDelta)...(pages);
+                                } else {
+                                    var left = index - pageDeltaCenter;
+                                    (left)...(left + pageDelta);
+                                }) i];
 
-                root.html(pagenationTemplate.render({
-                    cls: cls,
-                    index: index,
-                    range: range,
-                    pages: pages
-                }));
+                    root.html(pagenationTemplate.render({
+                        cls: cls,
+                        index: index,
+                        range: range,
+                        pages: pages
+                    }));
 
-                root.find("ul").on("click", "a[data-value]", function (e) {
-                    tagDef.update(new JqHtml(e.target).data("value"));
-                    root.trigger("change.dsmoq.pagination");
-                });
+                    root.find("ul").on("click", "a[data-value]", function (e) {
+                        tagDef.update(new JqHtml(e.target).data("value"));
+                        root.trigger("change.dsmoq.pagination");
+                    });
+                }
             },
             onUpdate: function(ev, eventArgs, tag) { // binding.onchange
                 return false;
