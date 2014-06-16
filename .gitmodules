@@ -1,6 +1,3 @@
-[submodule "client/lib/promhx"]
-	path = client/lib/promhx
-	url = https://github.com/jdonaldson/promhx.git
 [submodule "client/lib/mocha.js-haxe"]
 	path = client/lib/mocha.js-haxe
 	url = https://github.com/illi-ichi/mocha.js-haxe.git
