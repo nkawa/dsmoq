@@ -1735,18 +1735,24 @@ object DatasetService {
     val g2 = persistence.Group.syntax("g2")
     val m = persistence.Member.syntax("m")
     val x = SubQuery.syntax("o", o.resultName)
+    val y = SubQuery.syntax("o1", o1.resultName)
     select(sqls.distinct(o.result.*))
       .from(persistence.Ownership as o)
-      .innerJoin(persistence.Ownership as o1).on(sqls.eq(o.datasetId, o1.datasetId).and.isNull(o1.deletedAt))
-      .innerJoin(persistence.Group as g1).on(sqls.eq(o1.groupId, g1.id).and.isNull(g1.deletedAt))
-      .innerJoin(persistence.Member as m).on(sqls.eq(g1.id, m.groupId).and.isNull(m.deletedAt))
-      .innerJoin(persistence.Ownership as o2).on(sqls.eq(o1.datasetId, o2.datasetId).and.isNull(o2.deletedAt))
+      .innerJoin(
+        select(sqls.distinct(o1.result.*))
+          .from(persistence.Ownership as o1)
+          .innerJoin(persistence.Group as g1).on(sqls.eq(o1.groupId, g1.id).and.isNull(g1.deletedAt))
+          .innerJoin(persistence.Member as m).on(sqls.eq(g1.id, m.groupId).and.isNull(m.deletedAt))
+          .where
+          .eq(m.userId, sqls.uuid(owner))
+          .and
+          .eq(o1.accessLevel, UserAccessLevel.Owner)
+          .and
+          .eq(g1.groupType, GroupType.Personal)
+          .as(y)).on(o.datasetId, y(o1).datasetId)
+      .innerJoin(persistence.Ownership as o2).on(sqls.eq(y(o1).datasetId, o2.datasetId).and.isNull(o2.deletedAt))
       .innerJoin(persistence.Group as g2).on(sqls.eq(o2.groupId, g2.id).and.isNull(g2.deletedAt))
       .where
-      .eq(m.userId, sqls.uuid(owner))
-      .and
-      .eq(o1.accessLevel, AccessLevel.AllowAll)
-      .and
       .eq(g2.id, sqls.uuid(group))
       .and
       .eq(g2.groupType, GroupType.Public)
@@ -1766,18 +1772,24 @@ object DatasetService {
     val g2 = persistence.Group.syntax("g2")
     val m = persistence.Member.syntax("m")
     val x = SubQuery.syntax("o", o.resultName)
+    val y = SubQuery.syntax("o1", o1.resultName)
     select(sqls.distinct(o.result.*))
       .from(persistence.Ownership as o)
-      .innerJoin(persistence.Ownership as o1).on(sqls.eq(o.datasetId, o1.datasetId).and.isNull(o1.deletedAt))
-      .innerJoin(persistence.Group as g1).on(sqls.eq(o1.groupId, g1.id).and.isNull(g1.deletedAt))
-      .innerJoin(persistence.Member as m).on(sqls.eq(g1.id, m.groupId).and.isNull(m.deletedAt))
-      .innerJoin(persistence.Ownership as o2).on(sqls.eq(o1.datasetId, o2.datasetId).and.isNull(o2.deletedAt))
+      .innerJoin(
+        select(sqls.distinct(o1.result.*))
+          .from(persistence.Ownership as o1)
+          .innerJoin(persistence.Group as g1).on(sqls.eq(o1.groupId, g1.id).and.isNull(g1.deletedAt))
+          .innerJoin(persistence.Member as m).on(sqls.eq(g1.id, m.groupId).and.isNull(m.deletedAt))
+          .where
+          .eq(m.userId, sqls.uuid(owner))
+          .and
+          .eq(o1.accessLevel, UserAccessLevel.Owner)
+          .and
+          .eq(g1.groupType, GroupType.Personal)
+          .as(y)).on(o.datasetId, y(o1).datasetId)
+      .innerJoin(persistence.Ownership as o2).on(sqls.eq(y(o1).datasetId, o2.datasetId).and.isNull(o2.deletedAt))
       .innerJoin(persistence.Group as g2).on(sqls.eq(o2.groupId, g2.id).and.isNull(g2.deletedAt))
       .where
-      .eq(m.userId, sqls.uuid(owner))
-      .and
-      .eq(o1.accessLevel, AccessLevel.AllowAll)
-      .and
       .eq(g2.id, sqls.uuid(group))
       .and
       .eq(g2.groupType, GroupType.Public)
