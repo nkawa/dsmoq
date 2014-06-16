@@ -72,39 +72,42 @@
       </div>
 
       <div class="tab-pane" id="group-members">
-        <img src="/resources/loading-large.gif" alt="loading" data-link="style{>isMembersLoading ? '' : 'display:none'}">
-        <table class="table table-bordered" data-link="style{>isMembersLoading ? 'display:none' : ''}">
-          <thead>
-            <tr><td>Name</td><td>Role</td></tr>
-          </thead>
-          <tbody>
-            {^{for members.results ~myself=myself}}
+        {^{async members}}
+          <table class="table table-bordered">
+            <thead>
+              <tr><td>Name</td><td>Role</td></tr>
+            </thead>
+            <tbody>
+              {^{for items ~myself=#parent.data.myself}}
+                <tr>
+                  <td><img src="{{>image}}" class="icon">{{>fullname}} <span class="text-muted">{{>name}}, {{>organization}}</span></td>
+                  <td>
+                    {{if ~myself.id == id}}
+                      Manger
+                    {{else}}
+                      <select class="form-control" style="width:auto;" data-link="{:role:toInt}">
+                        <option value="2">Manger</option>
+                        <option value="1">Member</option>
+                        <option value="0">Remove</option>
+                      </select>
+                    {{/if}}
+                  </td>
+                </tr>
+              {{/for}}
               <tr>
-                <td><img src="{{>image}}" class="icon">{{>fullname}} <span class="text-muted">{{>name}}, {{>organization}}</span></td>
-                <td>
-                  {{if ~myself.id == id}}
-                    Manger
-                  {{else}}
-                    <select class="form-control" style="width:auto;" data-link="{:role:toInt}">
-                      <option value="2">Manger</option>
-                      <option value="1">Member</option>
-                      <option value="0">Remove</option>
-                    </select>
-                  {{/if}}
-                </td>
+                <td><input type="text" class="form-control" placeholder="Enter new user" id="group-user-typeahead"></td>
+                <td><button type="button" class="btn btn-success btn-sm" id="group-user-add">add</button></td>
               </tr>
-            {{/for}}
-            <tr>
-              <td><input type="text" class="form-control" placeholder="Enter new user" id="group-user-typeahead"></td>
-              <td><button type="button" class="btn btn-success btn-sm" id="group-user-add">add</button></td>
-            </tr>
-          </tbody>
-        </table>
-        <div class="row" style="margin-top: 8px;">
-          <div class="col-sm-12">
-            <button type="button" class="btn btn-primary btm-sm" id="group-member-submit">Save</button>
+            </tbody>
+          </table>
+          {^{pagination index pages id="member-pagination" pagedelta=5 /}}
+
+          <div class="row" style="margin-top: 8px;">
+            <div class="col-sm-12">
+              <button type="button" class="btn btn-primary btm-sm" id="group-member-submit">Save</button>
+            </div>
           </div>
-        </div>
+        {{/async}}
       </div>
     </div>
   </div>

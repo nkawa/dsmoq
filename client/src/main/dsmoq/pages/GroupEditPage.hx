@@ -47,34 +47,34 @@ class GroupEditPage {
                         myself: Service.instance.profile,
                         group: res,
                         groupErrors: {description: ""},
-                        isMembersLoading: true,
-                        members: {
-                            summary: { count: 0, offset: 0, total: 0 },
-                            results: []
-                        },
+                        members: Async.Pending,
                     };
                     var binding = JsViews.objectObservable(data);
                     rootBinding.setProperty("data", Async.Completed(data));
 
-                    Typeahead.initialize(root.find("#group-user-typeahead"), {}, {
-                        source: engine.ttAdapter(),
-                        displayKey: "name",
-                        templates: {
-                            suggestion: function (x: Profile) {
-                                return '<p><img src="${x.image}/16"> ${x.name} <span class="text-muted">${x.fullname}, ${x.organization}</span></p>';
-                            },
-                            empty: null,
-                            footer: null,
-                            header: null
-                        }
-                    });
+                    function setMemberTypeahead() {
+                        Typeahead.initialize(root.find("#group-user-typeahead"), {}, {
+                            source: engine.ttAdapter(),
+                            displayKey: "name",
+                            templates: {
+                                suggestion: function (x: Profile) {
+                                    return '<p><img src="${x.image}/16"> ${x.name} <span class="text-muted">${x.fullname}, ${x.organization}</span></p>';
+                                },
+                                empty: null,
+                                footer: null,
+                                header: null
+                            }
+                        });
+                    }
 
-                    Service.instance.getGroupMembers(id).then(function (res) {
-                        binding.setProperty("members.summary.count", res.summary.count);
-                        binding.setProperty("members.summary.offset", res.summary.offset);
-                        binding.setProperty("members.summary.total", res.summary.total);
-                        JsViews.arrayObservable(data.members.results).refresh(res.results);
-                        binding.setProperty("isMembersLoading", false);
+                    Service.instance.getGroupMembers(id).then(function (x) {
+                        binding.setProperty("members", Async.Completed({
+                            index: Math.ceil(x.summary.offset / 20),
+                            total: x.summary.total,
+                            items: x.results,
+                            pages: Math.ceil(x.summary.total / 20)
+                        }));
+                        setMemberTypeahead();
                     });
 
                     root.find("#group-basics-submit").on("click", function (_) {
@@ -121,35 +121,59 @@ class GroupEditPage {
                         root.find("#group-icon input").attr("disabled", true);
                     });
 
-                    root.find("#group-user-add").on("click", function (_) {
-                        var name = Typeahead.getVal(root.find("#group-user-typeahead"));
-                        engine.get(name, function (res) {
-                            if (res.length == 1) {
-                                var item: GroupMember = {
-                                    id: res[0].id,
-                                    name: res[0].name,
-                                    fullname: res[0].fullname,
-                                    organization: res[0].organization,
-                                    title: res[0].title,
-                                    image: res[0].image,
-                                    role: dsmoq.models.GroupRole.Member
-                                };
-                                JsViews.arrayObservable(data.members.results).insert(item);
-                            }
-                            Typeahead.setVal(root.find("#group-user-typeahead"), "");
-                        });
+                    root.on("click", "#group-user-add", function (_) {
+                        switch (data.members) {
+                            case Async.Completed(members):
+                                var name = Typeahead.getVal(root.find("#group-user-typeahead"));
+                                trace(name);
+                                engine.get(name, function (res) {
+                                    if (res.length == 1) {
+                                        var item: GroupMember = {
+                                            id: res[0].id,
+                                            name: res[0].name,
+                                            fullname: res[0].fullname,
+                                            organization: res[0].organization,
+                                            title: res[0].title,
+                                            image: res[0].image,
+                                            role: dsmoq.models.GroupRole.Member
+                                        };
+                                        JsViews.arrayObservable(members.items).insert(item);
+                                    }
+                                    Typeahead.setVal(root.find("#group-user-typeahead"), "");
+                                });
+                            default:
+                        }
                     });
-                    root.find("#group-member-submit").on("click", function (_) {
-                        BootstrapButton.setLoading(root.find("#group-member-submit"));
-                        root.find("#group-members").find("input,select,.btn").attr("disabled", true);
-                        Service.instance.updateGroupMemberRoles(id, data.members.results).then(function (_) {
-                            Notification.show("success", "save successful");
-                        }, function (err) {
-                            Notification.show("error", "error happened");
-                        }, function () {
-                            BootstrapButton.reset(root.find("#group-member-submit"));
-                            root.find("#group-members").find("input,select,.btn").removeAttr("disabled");
-                        });
+                    root.on("change.dsmoq.pagination", "#member-pagination", function (_) {
+                        switch (data.members) {
+                            case Async.Completed(list):
+                                Service.instance.getGroupMembers(id, {offset: 20 * untyped list.index}).then(function (x) {
+                                    binding.setProperty("members", Async.Completed({
+                                        index: Math.ceil(x.summary.offset / 20),
+                                        total: x.summary.total,
+                                        items: x.results,
+                                        pages: Math.ceil(x.summary.total / 20) + 10
+                                    }));
+                                    setMemberTypeahead();
+                                });
+                            default:
+                        }
+                    });
+                    root.on("click", "#group-member-submit", function (_) {
+                        switch (data.members) {
+                            case Async.Completed(list):
+                                BootstrapButton.setLoading(root.find("#group-member-submit"));
+                                root.find("#group-members").find("input,select,.btn").attr("disabled", true);
+                                Service.instance.updateGroupMemberRoles(id, cast list.items).then(function (_) {
+                                    Notification.show("success", "save successful");
+                                }, function (err) {
+                                    Notification.show("error", "error happened");
+                                }, function () {
+                                    BootstrapButton.reset(root.find("#group-member-submit"));
+                                    root.find("#group-members").find("input,select,.btn").removeAttr("disabled");
+                                });
+                            default:
+                        }
                     });
 
                     root.find("#group-finish-editing").on("click", function (_) {
