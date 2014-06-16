@@ -1666,17 +1666,21 @@ object DatasetService {
     val g = persistence.Group.syntax("g")
     val m = persistence.Member.syntax("m")
     val x = SubQuery.syntax("o", o.resultName)
+    val y = SubQuery.syntax("o1", o1.resultName)
     select(sqls.distinct(o.result.*))
       .from(persistence.Ownership as o)
-      .innerJoin(persistence.Ownership as o1).on(sqls.eq(o.datasetId, o1.datasetId).and.isNull(o1.deletedAt))
-      .innerJoin(persistence.Group as g).on(sqls.eq(o.groupId, g.id).and.isNull(g.deletedAt))
-      .innerJoin(persistence.Member as m).on(sqls.eq(g.id, m.groupId).and.isNull(m.deletedAt))
-      .where
-      .eq(m.userId, sqls.uuid(owner))
-      .and
-      .eq(o1.accessLevel, AccessLevel.AllowAll)
-      .and
-      .isNull(o.deletedAt)
+      .innerJoin(
+        select(sqls.distinct(o1.result.*))
+        .from(persistence.Ownership as o1)
+        .innerJoin(persistence.Group as g).on(sqls.eq(o1.groupId, g.id).and.isNull(g.deletedAt))
+        .innerJoin(persistence.Member as m).on(sqls.eq(g.id, m.groupId).and.isNull(m.deletedAt))
+        .where
+        .eq(m.userId, sqls.uuid(owner))
+        .and
+        .eq(o1.accessLevel, AccessLevel.AllowAll)
+        .and
+        .eq(g.groupType, GroupType.Personal)
+        .as(y)).on(o.datasetId, y(o1).datasetId)
       .as(x)
   }
 
