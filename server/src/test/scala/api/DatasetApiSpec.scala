@@ -28,7 +28,7 @@ import org.apache.http.util.EntityUtils
 import com.sun.jndi.toolkit.url.Uri
 import org.apache.http.impl.client.DefaultHttpClient
 import java.util.UUID
-import dsmoq.persistence.AccessLevel
+import dsmoq.persistence.{UserAccessLevel, GroupAccessLevel}
 
 class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
@@ -651,44 +651,44 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
           val readGroupName = "group read " + UUID.randomUUID().toString
           val readParams = Map("name" -> readGroupName, "description" -> "Provider Read")
-          val readGroupId = post("/api/groups", readParams) {
+          val fullPublicGroupId = post("/api/groups", readParams) {
             checkStatus()
             parse(body).extract[AjaxResponse[Group]].data.id
           }
 
           val readLimitedGroupName = "group read limited " + UUID.randomUUID().toString
           val readLimitedParams = Map("name" -> readLimitedGroupName, "description" -> "Provider Read Limited")
-          val readLimitedGroupId = post("/api/groups", readLimitedParams) {
+          val limitedReadGroupId = post("/api/groups", readLimitedParams) {
             checkStatus()
             parse(body).extract[AjaxResponse[Group]].data.id
           }
 
           val groupAccessLevels = List(
-            "id[]" -> providerGroupId, "type[]" -> "2", "accessLevel[]" -> AccessLevel.AllowAll.toString,
-            "id[]" -> readGroupId, "type[]" -> "2", "accessLevel[]" -> AccessLevel.AllowRead.toString,
-            "id[]" -> readLimitedGroupId, "type[]" -> "2", "accessLevel[]" -> AccessLevel.AllowLimitedRead.toString)
+            "id[]" -> providerGroupId, "type[]" -> "2", "accessLevel[]" -> GroupAccessLevel.Provider.toString,
+            "id[]" -> fullPublicGroupId, "type[]" -> "2", "accessLevel[]" -> GroupAccessLevel.FullPublic.toString,
+            "id[]" -> limitedReadGroupId, "type[]" -> "2", "accessLevel[]" -> GroupAccessLevel.LimitedPublic.toString)
           post("/api/datasets/" + datasetId + "/acl", groupAccessLevels) {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Seq[DatasetOwnership]]]
             assert(result.data.map(_.id) contains(providerGroupId))
-            assert(result.data.map(_.id) contains(readGroupId))
-            assert(result.data.map(_.id) contains(readLimitedGroupId))
+            assert(result.data.map(_.id) contains(fullPublicGroupId))
+            assert(result.data.map(_.id) contains(limitedReadGroupId))
           }
 
           // 3ユーザーそれぞれに権限付与
           val ownerUserId = "eb7a596d-e50c-483f-bbc7-50019eea64d7"
-          val readUserId = "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04"
-          val readLimitedUserId = "4aaefd45-2fe5-4ce0-b156-3141613f69a6"
+          val fullPublicUserId = "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04"
+          val limitedReadUserId = "4aaefd45-2fe5-4ce0-b156-3141613f69a6"
           val userAccessLevels = List(
-            "id[]" -> ownerUserId, "type[]" -> "1", "accessLevel[]" -> AccessLevel.AllowAll.toString,
-            "id[]" -> readUserId, "type[]" -> "1", "accessLevel[]" -> AccessLevel.AllowRead.toString,
-            "id[]" -> readLimitedUserId, "type[]" -> "1", "accessLevel[]" -> AccessLevel.AllowLimitedRead.toString)
+            "id[]" -> ownerUserId, "type[]" -> "1", "accessLevel[]" -> UserAccessLevel.Owner.toString,
+            "id[]" -> fullPublicUserId, "type[]" -> "1", "accessLevel[]" -> UserAccessLevel.FullPublic.toString,
+            "id[]" -> limitedReadUserId, "type[]" -> "1", "accessLevel[]" -> UserAccessLevel.LimitedRead.toString)
           post("/api/datasets/" + datasetId + "/acl", userAccessLevels) {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Seq[DatasetOwnership]]]
             assert(result.data.map(_.id) contains(ownerUserId))
-            assert(result.data.map(_.id) contains(readUserId))
-            assert(result.data.map(_.id) contains(readLimitedUserId))
+            assert(result.data.map(_.id) contains(fullPublicUserId))
+            assert(result.data.map(_.id) contains(limitedReadUserId))
           }
 
           // データセット取得 結果のソート確認
@@ -705,10 +705,10 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             result(0).id should be("023bfa40-e897-4dad-96db-9fd3cf001e79")
             result(1).id should be(ownerUserId)
             result(2).id should be(providerGroupId)
-            result(3).id should be(readUserId)
-            result(4).id should be(readGroupId)
-            result(5).id should be(readLimitedUserId)
-            result(6).id should be(readLimitedGroupId)
+            result(3).id should be(fullPublicUserId)
+            result(4).id should be(fullPublicGroupId)
+            result(5).id should be(limitedReadUserId)
+            result(6).id should be(limitedReadGroupId)
           }
         }
       }

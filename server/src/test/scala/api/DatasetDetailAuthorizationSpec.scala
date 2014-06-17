@@ -4,7 +4,7 @@ import java.io.File
 import java.util.UUID
 
 import dsmoq.controllers.{AjaxResponse, ApiController}
-import dsmoq.persistence.{GroupMemberRole, AccessLevel}
+import dsmoq.persistence.{GroupMemberRole, UserAccessLevel, GroupAccessLevel, DefaultAccessLevel}
 import dsmoq.services.data.DatasetData.Dataset
 import dsmoq.services.data.GroupData.Group
 import org.json4s.jackson.JsonMethods._
@@ -48,11 +48,12 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
         signIn()
 
         // データセットを作成
-        val accessLevels = List(AccessLevel.Deny, AccessLevel.AllowLimitedRead, AccessLevel.AllowRead, AccessLevel.AllowAll)
-        val guestAccessLevels = List(AccessLevel.Deny, AccessLevel.AllowLimitedRead, AccessLevel.AllowRead)
+        val userAccessLevels = List(UserAccessLevel.Deny, UserAccessLevel.LimitedRead, UserAccessLevel.FullPublic, UserAccessLevel.Owner)
+        val groupAccessLevels = List(GroupAccessLevel.Deny, GroupAccessLevel.LimitedPublic, GroupAccessLevel.FullPublic, GroupAccessLevel.Provider)
+        val guestAccessLevels = List(DefaultAccessLevel.Deny, DefaultAccessLevel.LimitedPublic, DefaultAccessLevel.FullPublic)
         val files = Map("file[]" -> dummyFile)
-        val datasetParams = accessLevels.map { userAccessLevel =>
-          accessLevels.map { groupAccessLevel =>
+        val datasetParams = userAccessLevels.map { userAccessLevel =>
+          guestAccessLevels.map { groupAccessLevel =>
             guestAccessLevels.map { guestAccessLevel =>
               // グループ作成/メンバー追加
               val groupId = createGroup()
@@ -93,7 +94,7 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
           // for debug
           println("debug params(user):" + params)
 
-          if (params._2 >= AccessLevel.AllowLimitedRead || params._3 >= AccessLevel.AllowLimitedRead || params._4 >= AccessLevel.AllowLimitedRead) {
+          if (params._2 > UserAccessLevel.Deny || params._3 > GroupAccessLevel.Deny || params._4 > DefaultAccessLevel.Deny) {
             get("/api/datasets/" + params._1) {
               status should be(200)
               val result = parse(body).extract[AjaxResponse[Dataset]]
@@ -118,7 +119,7 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
           // for debug
           println("debug params(guest):" + params)
 
-          if (params._4 >= AccessLevel.AllowLimitedRead) {
+          if (params._4 > DefaultAccessLevel.Deny) {
             get("/api/datasets/" + params._1) {
               status should be(200)
               val result = parse(body).extract[AjaxResponse[Dataset]]
@@ -142,7 +143,7 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
           // for debug
           println("debug params(not authorization user):" + params)
 
-          if (params._4 >= AccessLevel.AllowLimitedRead) {
+          if (params._4 > DefaultAccessLevel.Deny) {
             get("/api/datasets/" + params._1) {
               status should be(200)
               val result = parse(body).extract[AjaxResponse[Dataset]]

@@ -5,7 +5,7 @@ import java.util.UUID
 
 import dsmoq.AppConf
 import dsmoq.controllers.{AjaxResponse, ApiController}
-import dsmoq.persistence.{GroupType, GroupMemberRole, AccessLevel}
+import dsmoq.persistence.{UserAccessLevel, GroupAccessLevel, DefaultAccessLevel, GroupMemberRole, GroupType}
 import dsmoq.services.data.DatasetData.{DatasetsSummary, Dataset}
 import dsmoq.services.data.GroupData.Group
 import dsmoq.services.data.RangeSlice
@@ -85,11 +85,12 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
         signInDataCreateUser1()
 
         // データセットを作成
-        val accessLevels = List(AccessLevel.Deny, AccessLevel.AllowLimitedRead, AccessLevel.AllowRead, AccessLevel.AllowAll)
-        val guestAccessLevels = List(AccessLevel.Deny, AccessLevel.AllowLimitedRead, AccessLevel.AllowRead)
+        val userAccessLevels = List(UserAccessLevel.Deny, UserAccessLevel.LimitedRead, UserAccessLevel.FullPublic, UserAccessLevel.Owner)
+        val groupAccessLevels = List(GroupAccessLevel.Deny, GroupAccessLevel.LimitedPublic, GroupAccessLevel.FullPublic, GroupAccessLevel.Provider)
+        val guestAccessLevels = List(DefaultAccessLevel.Deny, DefaultAccessLevel.LimitedPublic, DefaultAccessLevel.FullPublic)
         val files = Map("file[]" -> dummyFile)
-        val datasetTuples = accessLevels.map { userAccessLevel =>
-          accessLevels.map { groupAccessLevel =>
+        val datasetTuples = userAccessLevels.map { userAccessLevel =>
+          groupAccessLevels.map { groupAccessLevel =>
             guestAccessLevels.map { guestAccessLevel =>
               // グループ作成/メンバー追加
               val groupId = createGroup()
@@ -130,14 +131,11 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
         get("/api/datasets", params) {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
-          val filteredDatasetTuples = datasetTuples.filter(x => x._2 > AccessLevel.Deny || x._3 > AccessLevel.Deny || x._4 > AccessLevel.Deny)
+          val filteredDatasetTuples = datasetTuples.filter(x => x._2 > UserAccessLevel.Deny || x._3 > GroupAccessLevel.Deny || x._4 > DefaultAccessLevel.Deny)
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
 
         // ゲストアクセス時のデータセット一覧表示 ゲスト権限が与えられているもののみ閲覧可能
@@ -145,14 +143,11 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
         get("/api/datasets", params) {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
-          val filteredDatasetTuples = datasetTuples.filter(_._4 > AccessLevel.Deny)
+          val filteredDatasetTuples = datasetTuples.filter(_._4 > DefaultAccessLevel.Deny)
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
 
         // 何も権限を付与していないユーザーのデータセット一覧表示 ゲストと同じアクセス制限となる
@@ -160,14 +155,11 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
         get("/api/datasets", params) {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
-          val filteredDatasetTuples = datasetTuples.filter(_._4 > AccessLevel.Deny)
+          val filteredDatasetTuples = datasetTuples.filter(_._4 > DefaultAccessLevel.Deny)
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
       }
     }
@@ -184,10 +176,11 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
         }
 
         // データセットを作成
-        val accessLevels = List(AccessLevel.Deny, AccessLevel.AllowLimitedRead, AccessLevel.AllowRead, AccessLevel.AllowAll)
-        val guestAccessLevels = List(AccessLevel.Deny, AccessLevel.AllowLimitedRead, AccessLevel.AllowRead)
-        val datasetTuples1 = accessLevels.map { userAccessLevel =>
-          accessLevels.map { groupAccessLevel =>
+        val userAccessLevels = List(UserAccessLevel.Deny, UserAccessLevel.LimitedRead, UserAccessLevel.FullPublic, UserAccessLevel.Owner)
+        val groupAccessLevels = List(GroupAccessLevel.Deny, GroupAccessLevel.LimitedPublic, GroupAccessLevel.FullPublic, GroupAccessLevel.Provider)
+        val guestAccessLevels = List(DefaultAccessLevel.Deny, DefaultAccessLevel.LimitedPublic, DefaultAccessLevel.FullPublic)
+        val datasetTuples1 = userAccessLevels.map { userAccessLevel =>
+          groupAccessLevels.map { groupAccessLevel =>
             guestAccessLevels.map { guestAccessLevel =>
               createDataset(groupId, userAccessLevel, groupAccessLevel, guestAccessLevel)
             }
@@ -197,8 +190,8 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
         // 別ユーザーでデータセット作成
         post("/api/signout") { checkStatus() }
         signInDataCreateUser2()
-        val datasetTuples2 = accessLevels.map { userAccessLevel =>
-          accessLevels.map { groupAccessLevel =>
+        val datasetTuples2 = userAccessLevels.map { userAccessLevel =>
+          groupAccessLevels.map { groupAccessLevel =>
             guestAccessLevels.map { guestAccessLevel =>
               createDataset(groupId, userAccessLevel, groupAccessLevel, guestAccessLevel)
             }
@@ -212,27 +205,21 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
         get("/api/datasets", ownerParams) {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
-          val filteredDatasetTuples = datasetTuples1.filter(x => x._2 > AccessLevel.Deny || x._3 > AccessLevel.Deny || x._4 > AccessLevel.Deny)
+          val filteredDatasetTuples = datasetTuples1.filter(x => x._2 > UserAccessLevel.Deny || x._3 > GroupAccessLevel.Deny || x._4 > DefaultAccessLevel.Deny)
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
         val anotherOwnerParams = Map("limit" -> "100", "owner" -> dataCreateUser2ID)
         get("/api/datasets", anotherOwnerParams) {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
-          val filteredDatasetTuples = datasetTuples2.filter(x => x._2 > AccessLevel.Deny || x._3 > AccessLevel.Deny || x._4 > AccessLevel.Deny)
+          val filteredDatasetTuples = datasetTuples2.filter(x => x._2 > UserAccessLevel.Deny || x._3 > GroupAccessLevel.Deny || x._4 > DefaultAccessLevel.Deny)
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
 
         // ゲストユーザー時のデータセット一覧表示 閲覧権限があるのものすべて
@@ -240,26 +227,20 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
         get("/api/datasets", ownerParams) {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
-          val filteredDatasetTuples = datasetTuples1.filter(x => x._4 > AccessLevel.Deny)
+          val filteredDatasetTuples = datasetTuples1.filter(x => x._4 > DefaultAccessLevel.Deny)
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
         get("/api/datasets", anotherOwnerParams) {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
-          val filteredDatasetTuples = datasetTuples2.filter(x => x._4 > AccessLevel.Deny)
+          val filteredDatasetTuples = datasetTuples2.filter(x => x._4 > DefaultAccessLevel.Deny)
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
 
         // 何も権限を付与していないユーザーのデータセット一覧表示 ゲストと同じアクセス制限となる
@@ -267,26 +248,20 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
         get("/api/datasets", ownerParams) {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
-          val filteredDatasetTuples = datasetTuples1.filter(x => x._4 > AccessLevel.Deny)
+          val filteredDatasetTuples = datasetTuples1.filter(x => x._4 > DefaultAccessLevel.Deny)
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
         get("/api/datasets", anotherOwnerParams) {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
-          val filteredDatasetTuples = datasetTuples2.filter(x => x._4 > AccessLevel.Deny)
+          val filteredDatasetTuples = datasetTuples2.filter(x => x._4 > DefaultAccessLevel.Deny)
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
       }
     }
@@ -304,10 +279,11 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
         }
 
         // データセットを作成
-        val accessLevels = List(AccessLevel.Deny, AccessLevel.AllowLimitedRead, AccessLevel.AllowRead, AccessLevel.AllowAll)
-        val guestAccessLevels = List(AccessLevel.Deny, AccessLevel.AllowLimitedRead, AccessLevel.AllowRead)
-        val datasetTuples1 = accessLevels.map { userAccessLevel =>
-          accessLevels.map { groupAccessLevel =>
+        val userAccessLevels = List(UserAccessLevel.Deny, UserAccessLevel.LimitedRead, UserAccessLevel.FullPublic, UserAccessLevel.Owner)
+        val groupAccessLevels = List(GroupAccessLevel.Deny, GroupAccessLevel.LimitedPublic, GroupAccessLevel.FullPublic, GroupAccessLevel.Provider)
+        val guestAccessLevels = List(DefaultAccessLevel.Deny, DefaultAccessLevel.LimitedPublic, DefaultAccessLevel.FullPublic)
+        val datasetTuples1 = userAccessLevels.map { userAccessLevel =>
+          groupAccessLevels.map { groupAccessLevel =>
             guestAccessLevels.map { guestAccessLevel =>
               createDataset(groupId, userAccessLevel, groupAccessLevel, guestAccessLevel)
             }
@@ -315,8 +291,8 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
         }.flatten.flatten
 
         // 別グループにデータセット作成
-        val datasetTuples2 = accessLevels.map { userAccessLevel =>
-          accessLevels.map { groupAccessLevel =>
+        val datasetTuples2 = userAccessLevels.map { userAccessLevel =>
+          groupAccessLevels.map { groupAccessLevel =>
             guestAccessLevels.map { guestAccessLevel =>
               createDataset(anotherGroupId, userAccessLevel, groupAccessLevel, guestAccessLevel)
             }
@@ -331,28 +307,22 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
           // グループのアクセス権0以外
-          val filteredDatasetTuples = datasetTuples1.filter(x => x._3 > AccessLevel.Deny)
+          val filteredDatasetTuples = datasetTuples1.filter(x => x._3 > GroupAccessLevel.Deny)
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
         val anotherGroupParams = Map("limit" -> "100", "group" -> anotherGroupId)
         get("/api/datasets", anotherGroupParams) {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
           // グループのアクセス権が3、かつユーザーまたはゲストのアクセス権が0でないもの
-          val filteredDatasetTuples = datasetTuples2.filter(x => x._3 == AccessLevel.AllowAll && (x._2 > AccessLevel.Deny || x._4 > AccessLevel.Deny))
+          val filteredDatasetTuples = datasetTuples2.filter(x => x._3 == GroupAccessLevel.Provider && (x._2 > UserAccessLevel.Deny || x._4 > DefaultAccessLevel.Deny))
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
 
         // ゲストユーザー時のデータセット一覧表示 ゲスト閲覧可かつグループに編集権限があるものすべて
@@ -360,28 +330,22 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
         get("/api/datasets", groupParams) {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
-          // グループのアクセス権0以外
-          val filteredDatasetTuples = datasetTuples1.filter(x => x._3 == AccessLevel.AllowAll && x._4 > AccessLevel.Deny)
+          // グループのアクセス権3、かつゲストのアクセス権が0でないもの
+          val filteredDatasetTuples = datasetTuples1.filter(x => x._3 == GroupAccessLevel.Provider && x._4 > DefaultAccessLevel.Deny)
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
         get("/api/datasets", anotherGroupParams) {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
-          // グループのアクセス権が3、かつユーザーまたはゲストのアクセス権が0でないもの
-          val filteredDatasetTuples = datasetTuples2.filter(x => x._3 == AccessLevel.AllowAll && x._4 > AccessLevel.Deny)
+          // グループのアクセス権3、かつゲストのアクセス権が0でないもの
+          val filteredDatasetTuples = datasetTuples2.filter(x => x._3 == GroupAccessLevel.Provider && x._4 > DefaultAccessLevel.Deny)
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
 
         // 何も権限を付与していないユーザーのデータセット一覧表示 ゲストと同じアクセス制限となる
@@ -389,28 +353,22 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
         get("/api/datasets", groupParams) {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
-          // グループのアクセス権0以外
-          val filteredDatasetTuples = datasetTuples1.filter(x => x._3 == AccessLevel.AllowAll && x._4 > AccessLevel.Deny)
+          // グループのアクセス権3、かつゲストのアクセス権が0でないもの
+          val filteredDatasetTuples = datasetTuples1.filter(x => x._3 == GroupAccessLevel.Provider && x._4 > DefaultAccessLevel.Deny)
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
         get("/api/datasets", anotherGroupParams) {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
-          // グループのアクセス権が3、かつユーザーまたはゲストのアクセス権が0でないもの
-          val filteredDatasetTuples = datasetTuples2.filter(x => x._3 == AccessLevel.AllowAll && x._4 > AccessLevel.Deny)
+          // グループのアクセス権3、かつゲストのアクセス権が0でないもの
+          val filteredDatasetTuples = datasetTuples2.filter(x => x._3 == GroupAccessLevel.Provider && x._4 > DefaultAccessLevel.Deny)
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
       }
     }
@@ -428,10 +386,11 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
         }
 
         // データセットを作成
-        val accessLevels = List(AccessLevel.Deny, AccessLevel.AllowLimitedRead, AccessLevel.AllowRead, AccessLevel.AllowAll)
-        val guestAccessLevels = List(AccessLevel.Deny, AccessLevel.AllowLimitedRead, AccessLevel.AllowRead)
-        val datasetTuples1 = accessLevels.map { userAccessLevel =>
-          accessLevels.map { groupAccessLevel =>
+        val userAccessLevels = List(UserAccessLevel.Deny, UserAccessLevel.LimitedRead, UserAccessLevel.FullPublic, UserAccessLevel.Owner)
+        val groupAccessLevels = List(GroupAccessLevel.Deny, GroupAccessLevel.LimitedPublic, GroupAccessLevel.FullPublic, GroupAccessLevel.Provider)
+        val guestAccessLevels = List(DefaultAccessLevel.Deny, DefaultAccessLevel.LimitedPublic, DefaultAccessLevel.FullPublic)
+        val datasetTuples1 = userAccessLevels.map { userAccessLevel =>
+          groupAccessLevels.map { groupAccessLevel =>
             guestAccessLevels.map { guestAccessLevel =>
               createDataset(groupId, userAccessLevel, groupAccessLevel, guestAccessLevel)
             }
@@ -439,8 +398,8 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
         }.flatten.flatten
 
         // 別グループにデータセット作成
-        val datasetTuples2 = accessLevels.map { userAccessLevel =>
-          accessLevels.map { groupAccessLevel =>
+        val datasetTuples2 = userAccessLevels.map { userAccessLevel =>
+          groupAccessLevels.map { groupAccessLevel =>
             guestAccessLevels.map { guestAccessLevel =>
               createDataset(anotherGroupId, userAccessLevel, groupAccessLevel, guestAccessLevel)
             }
@@ -450,8 +409,8 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
         // 別ユーザーでデータセット作成
         post("/api/signout") { checkStatus() }
         signInDataCreateUser2()
-        val datasetTuples3 = accessLevels.map { userAccessLevel =>
-          accessLevels.map { groupAccessLevel =>
+        val datasetTuples3 = userAccessLevels.map { userAccessLevel =>
+          groupAccessLevels.map { groupAccessLevel =>
             guestAccessLevels.map { guestAccessLevel =>
               createDataset(groupId, userAccessLevel, groupAccessLevel, guestAccessLevel)
             }
@@ -459,8 +418,8 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
         }.flatten.flatten
 
         // 別グループにデータセット作成
-        val datasetTuples4 = accessLevels.map { userAccessLevel =>
-          accessLevels.map { groupAccessLevel =>
+        val datasetTuples4 = userAccessLevels.map { userAccessLevel =>
+          groupAccessLevels.map { groupAccessLevel =>
             guestAccessLevels.map { guestAccessLevel =>
               createDataset(anotherGroupId, userAccessLevel, groupAccessLevel, guestAccessLevel)
             }
@@ -476,28 +435,22 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
           // グループのアクセス権0以外
-          val filteredDatasetTuples = datasetTuples1.filter(x => x._3 > AccessLevel.Deny)
+          val filteredDatasetTuples = datasetTuples1.filter(x => x._3 > GroupAccessLevel.Deny)
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
         val params2 = Map("limit" -> "200", "owner" -> dataCreateUser1ID, "group" -> anotherGroupId)
         get("/api/datasets", params2) {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
           // グループのアクセス権が3、かつユーザーまたはゲストのアクセス権が0でないもの
-          val filteredDatasetTuples = datasetTuples2.filter(x => x._3 == AccessLevel.AllowAll && (x._2 > AccessLevel.Deny || x._4 > AccessLevel.Deny))
+          val filteredDatasetTuples = datasetTuples2.filter(x => x._3 == GroupAccessLevel.Provider && (x._2 > UserAccessLevel.Deny || x._4 > DefaultAccessLevel.Deny))
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
         val params3 = Map("limit" -> "200", "owner" -> dataCreateUser2ID, "group" -> groupId)
         // 別ユーザーが作ったdatasetについても同等の結果となるか
@@ -505,28 +458,22 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
           // グループのアクセス権0以外
-          val filteredDatasetTuples = datasetTuples3.filter(x => x._3 > AccessLevel.Deny)
+          val filteredDatasetTuples = datasetTuples3.filter(x => x._3 > GroupAccessLevel.Deny)
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
         val params4 = Map("limit" -> "200", "owner" -> dataCreateUser2ID, "group" -> anotherGroupId)
         get("/api/datasets", params4) {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
           // グループのアクセス権が3、かつユーザーまたはゲストのアクセス権が0でないもの
-          val filteredDatasetTuples = datasetTuples4.filter(x => x._3 == AccessLevel.AllowAll && (x._2 > AccessLevel.Deny || x._4 > AccessLevel.Deny))
+          val filteredDatasetTuples = datasetTuples4.filter(x => x._3 == GroupAccessLevel.Provider && (x._2 > UserAccessLevel.Deny || x._4 > DefaultAccessLevel.Deny))
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
 
         // ゲストユーザー時のデータセット一覧表示 ゲスト閲覧可かつグループに編集権限があるものすべて
@@ -535,54 +482,42 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
           // グループのアクセス権0以外
-          val filteredDatasetTuples = datasetTuples1.filter(x => x._3 == AccessLevel.AllowAll && x._4 > AccessLevel.Deny)
+          val filteredDatasetTuples = datasetTuples1.filter(x => x._3 == GroupAccessLevel.Provider && x._4 > DefaultAccessLevel.Deny)
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
         get("/api/datasets", params2) {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
           // グループのアクセス権が3、かつユーザーまたはゲストのアクセス権が0でないもの
-          val filteredDatasetTuples = datasetTuples2.filter(x => x._3 == AccessLevel.AllowAll && x._4 > AccessLevel.Deny)
+          val filteredDatasetTuples = datasetTuples2.filter(x => x._3 == GroupAccessLevel.Provider && x._4 > DefaultAccessLevel.Deny)
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
         // 別ユーザーが作ったdatasetについても同等の結果となるか
         get("/api/datasets", params3) {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
           // グループのアクセス権0以外
-          val filteredDatasetTuples = datasetTuples3.filter(x => x._3 == AccessLevel.AllowAll && x._4 > AccessLevel.Deny)
+          val filteredDatasetTuples = datasetTuples3.filter(x => x._3 == GroupAccessLevel.Provider && x._4 > DefaultAccessLevel.Deny)
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
         get("/api/datasets", params4) {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
           // グループのアクセス権が3、かつユーザーまたはゲストのアクセス権が0でないもの
-          val filteredDatasetTuples = datasetTuples4.filter(x => x._3 == AccessLevel.AllowAll && x._4 > AccessLevel.Deny)
+          val filteredDatasetTuples = datasetTuples4.filter(x => x._3 == GroupAccessLevel.Provider && x._4 > DefaultAccessLevel.Deny)
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
 
         // 何も権限を付与していないユーザーのデータセット一覧表示 ゲストと同じアクセス制限となる
@@ -591,54 +526,42 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
           // グループのアクセス権0以外
-          val filteredDatasetTuples = datasetTuples1.filter(x => x._3 == AccessLevel.AllowAll && x._4 > AccessLevel.Deny)
+          val filteredDatasetTuples = datasetTuples1.filter(x => x._3 == GroupAccessLevel.Provider && x._4 > DefaultAccessLevel.Deny)
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
         get("/api/datasets", params2) {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
           // グループのアクセス権が3、かつユーザーまたはゲストのアクセス権が0でないもの
-          val filteredDatasetTuples = datasetTuples2.filter(x => x._3 == AccessLevel.AllowAll && x._4 > AccessLevel.Deny)
+          val filteredDatasetTuples = datasetTuples2.filter(x => x._3 == GroupAccessLevel.Provider && x._4 > DefaultAccessLevel.Deny)
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
         // 別ユーザーが作ったdatasetについても同等の結果となるか
         get("/api/datasets", params3) {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
           // グループのアクセス権0以外
-          val filteredDatasetTuples = datasetTuples3.filter(x => x._3 == AccessLevel.AllowAll && x._4 > AccessLevel.Deny)
+          val filteredDatasetTuples = datasetTuples3.filter(x => x._3 == GroupAccessLevel.Provider && x._4 > DefaultAccessLevel.Deny)
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
         get("/api/datasets", params4) {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
           // グループのアクセス権が3、かつユーザーまたはゲストのアクセス権が0でないもの
-          val filteredDatasetTuples = datasetTuples4.filter(x => x._3 == AccessLevel.AllowAll && x._4 > AccessLevel.Deny)
+          val filteredDatasetTuples = datasetTuples4.filter(x => x._3 == GroupAccessLevel.Provider && x._4 > DefaultAccessLevel.Deny)
           result.data.summary.total should be(filteredDatasetTuples.size)
           // datasetIdのfilter
-          val datasetIds = filteredDatasetTuples.map(_._1)
-          result.data.results.map(_.id).foreach { x =>
-            // check
-            assert(datasetIds.contains(x))
-          }
+          val datasetIds = filteredDatasetTuples.map(_._1).sorted
+          assert(datasetIds.sameElements(result.data.results.map(_.id).sorted))
         }
       }
     }

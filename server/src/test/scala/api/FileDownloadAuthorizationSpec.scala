@@ -4,7 +4,7 @@ import java.io.File
 import java.util.UUID
 
 import dsmoq.controllers.{FileController, ApiController, AjaxResponse}
-import dsmoq.persistence.{GroupMemberRole, AccessLevel}
+import dsmoq.persistence.{GroupMemberRole, UserAccessLevel, GroupAccessLevel, DefaultAccessLevel}
 import dsmoq.services.data.DatasetData.Dataset
 import dsmoq.services.data.GroupData.Group
 import org.json4s.{DefaultFormats, Formats}
@@ -49,11 +49,12 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
         signIn()
 
         // データセットを作成
-        val accessLevels = List(AccessLevel.Deny, AccessLevel.AllowLimitedRead, AccessLevel.AllowRead, AccessLevel.AllowAll)
-        val guestAccessLevels = List(AccessLevel.Deny, AccessLevel.AllowLimitedRead, AccessLevel.AllowRead)
+        val userAccessLevels = List(UserAccessLevel.Deny, UserAccessLevel.LimitedRead, UserAccessLevel.FullPublic, UserAccessLevel.Owner)
+        val groupAccessLevels = List(GroupAccessLevel.Deny, GroupAccessLevel.LimitedPublic, GroupAccessLevel.FullPublic, GroupAccessLevel.Provider)
+        val guestAccessLevels = List(DefaultAccessLevel.Deny, DefaultAccessLevel.LimitedPublic, DefaultAccessLevel.FullPublic)
         val files = Map("file[]" -> dummyFile)
-        val datasetParams = accessLevels.map { userAccessLevel =>
-          accessLevels.map { groupAccessLevel =>
+        val datasetParams = userAccessLevels.map { userAccessLevel =>
+          guestAccessLevels.map { groupAccessLevel =>
             guestAccessLevels.map { guestAccessLevel =>
               // グループ作成/メンバー追加
               val groupId = createGroup()
@@ -90,7 +91,7 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
           println("debug params(user):" + params)
 
           val uri = new java.net.URI(params._2)
-          if (params._3 >= AccessLevel.AllowRead || params._4 >= AccessLevel.AllowRead || params._5 >= AccessLevel.AllowRead) {
+          if (params._3 >= UserAccessLevel.FullPublic || params._4 >= GroupAccessLevel.FullPublic || params._5 >= DefaultAccessLevel.FullPublic) {
             get(uri.getPath) {
               status should be(200)
               bodyBytes.size should be(dummyFile.length())
@@ -110,7 +111,7 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
           println("debug params(guest):" + params)
 
           val uri = new java.net.URI(params._2)
-          if (params._5 >= AccessLevel.AllowRead) {
+          if (params._5 >= DefaultAccessLevel.FullPublic) {
             get(uri.getPath) {
               status should be(200)
               bodyBytes.size should be(dummyFile.length())
@@ -130,7 +131,7 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
           println("debug params(not authorization user):" + params)
 
           val uri = new java.net.URI(params._2)
-          if (params._5 >= AccessLevel.AllowRead) {
+          if (params._5 >= DefaultAccessLevel.FullPublic) {
             get(uri.getPath) {
               status should be(200)
               bodyBytes.size should be(dummyFile.length())
