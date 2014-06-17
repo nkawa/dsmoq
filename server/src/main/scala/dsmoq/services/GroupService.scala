@@ -77,13 +77,9 @@ object GroupService {
   def get(params: GroupData.GetGroupParams): Try[GroupData.Group] = {
     try {
       DB readOnly { implicit s =>
-        val group = try {
-          getGroup(params.groupId) match {
-            case Some(x) => x
-            case None => throw new NotFoundException
-          }
-        } catch {
-          case e: Exception => throw new NotFoundException
+        val group = getGroup(params.groupId) match {
+          case Some(x) => x
+          case None => throw new NotFoundException
         }
 
         val images = getGroupImage(group.id)
@@ -275,16 +271,11 @@ object GroupService {
           throw new InputValidationException(errors)
         }
 
-        try {
-          getGroup(params.groupId) match {
-            case Some(x) =>
-              // 権限チェック
-              if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
-            case None => throw new NotFoundException
-          }
-        } catch {
-          case e: NotAuthorizedException => throw e
-          case e: Exception => throw new NotFoundException
+        getGroup(params.groupId) match {
+          case Some(x) =>
+            // 権限チェック
+            if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+          case None => throw new NotFoundException
         }
 
         val myself = persistence.User.find(params.userInfo.id).get
@@ -368,16 +359,11 @@ object GroupService {
           throw new InputValidationException(errors)
         }
 
-        try {
-          getGroup(params.groupId) match {
-            case Some(x) =>
-              // 権限チェック
-              if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
-            case None => throw new NotFoundException
-          }
-        } catch {
-          case e: NotAuthorizedException => throw e
-          case e: Exception => throw new NotFoundException
+        getGroup(params.groupId) match {
+          case Some(x) =>
+            // 権限チェック
+            if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+          case None => throw new NotFoundException
         }
 
         val myself = persistence.User.find(params.userInfo.id).get
@@ -433,17 +419,12 @@ object GroupService {
 
     try {
       val result = DB localTx { implicit s =>
-        try {
-          getGroup(params.groupId) match {
-            case Some(x) => // do nothing
-            case None => throw new NotFoundException
-          }
-        } catch {
-          case e: Exception => throw new NotFoundException
+        getGroup(params.groupId) match {
+          case Some(x) =>
+            // 権限チェック
+            if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+          case None => throw new NotFoundException
         }
-
-        // 権限チェック
-        if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
 
         val myself = persistence.User.find(params.userInfo.id).get
         val timestamp = DateTime.now()
@@ -475,16 +456,11 @@ object GroupService {
     if (inputImages.size == 0) throw new InputValidationException(Map("image" -> "image is empty"))
 
     DB localTx { implicit s =>
-      try {
-        getGroup(params.groupId) match {
-          case Some(x) =>
-            // 権限チェック
-            if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
-          case None => throw new NotFoundException
-        }
-      } catch {
-        case e: NotAuthorizedException => throw e
-        case e: Exception => throw new NotFoundException
+      getGroup(params.groupId) match {
+        case Some(x) =>
+          // 権限チェック
+          if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+        case None => throw new NotFoundException
       }
 
       val myself = persistence.User.find(params.userInfo.id).get
@@ -543,18 +519,13 @@ object GroupService {
     }
 
     DB localTx { implicit s =>
-      try {
-        getGroup(params.groupId) match {
-          case Some(x) =>
-            // 権限チェック
-            if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
-            // image_idの存在チェック
-            if (!isValidGroupImage(params.groupId, imageId)) throw new NotFoundException
-          case None => throw new NotFoundException
-        }
-      } catch {
-        case e: NotAuthorizedException => throw e
-        case e: Exception => throw new NotFoundException
+      getGroup(params.groupId) match {
+        case Some(x) =>
+          // 権限チェック
+          if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+          // image_idの存在チェック
+          if (!isValidGroupImage(params.groupId, imageId)) throw new NotFoundException
+        case None => throw new NotFoundException
       }
 
       val myself = persistence.User.find(params.userInfo.id).get
@@ -591,18 +562,13 @@ object GroupService {
     if (params.userInfo.isGuest) throw new NotAuthorizedException
 
     val primaryImage = DB localTx { implicit s =>
-      try {
-        getGroup(params.groupId) match {
-          case Some(x) =>
-            // 権限チェック
-            if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
-            // image_idの存在チェック
-            if (!isValidGroupImage(params.groupId, params.imageId)) throw new NotFoundException
-          case None => throw new NotFoundException
-        }
-      } catch {
-        case e: NotAuthorizedException => throw e
-        case e: Exception => throw new NotFoundException
+      getGroup(params.groupId) match {
+        case Some(x) =>
+          // 権限チェック
+          if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+          // image_idの存在チェック
+          if (!isValidGroupImage(params.groupId, params.imageId)) throw new NotFoundException
+        case None => throw new NotFoundException
       }
 
       val myself = persistence.User.find(params.userInfo.id).get
@@ -662,18 +628,21 @@ object GroupService {
     ))
   }
   private def getGroup(groupId: String)(implicit s: DBSession) = {
-//    persistence.Group.find(groupId)
-val g = persistence.Group.syntax("g")
-    withSQL {
-      select(g.result.*)
-        .from(persistence.Group as g)
-        .where
-        .eq(g.id, sqls.uuid(groupId))
-        .and
-        .eq(g.groupType, persistence.GroupType.Public)
-        .and
-        .isNull(g.deletedAt)
-    }.map(persistence.Group(g.resultName)).single().apply
+    if (StringUtil.isUUID(groupId)) {
+      val g = persistence.Group.syntax("g")
+      withSQL {
+        select(g.result.*)
+          .from(persistence.Group as g)
+          .where
+          .eq(g.id, sqls.uuid(groupId))
+          .and
+          .eq(g.groupType, persistence.GroupType.Public)
+          .and
+          .isNull(g.deletedAt)
+      }.map(persistence.Group(g.resultName)).single().apply
+    } else {
+      None
+    }
   }
 
 
