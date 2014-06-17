@@ -820,34 +820,6 @@ val g = persistence.Group.syntax("g")
     }.map(rs => (persistence.User(u.resultName)(rs), rs.int(persistence.Member.column.role))).list().apply()
   }
 
-  private def getDatasets(user: User, groupId: String, offset: Int, limit: Int)(implicit s: DBSession): Seq[(persistence.Dataset, Int)] = {
-    if (user.isGuest) {
-      Seq.empty
-    } else {
-      val ds = persistence.Dataset.syntax("ds")
-      val o = persistence.Ownership.syntax("o")
-      val g = persistence.Group.syntax("g")
-      withSQL {
-        select(ds.result.*, sqls.max(o.accessLevel).append(sqls"access_level"))
-          .from(persistence.Dataset as ds)
-          .innerJoin(persistence.Ownership as o).on(sqls.eq(ds.id, o.datasetId).and.isNull(o.deletedAt))
-          .innerJoin(persistence.Group as g).on(sqls.eq(g.id, o.groupId).and.isNull(g.deletedAt))
-          .where
-          .eq(o.groupId, sqls.uuid(groupId))
-          .and
-          .gt(o.accessLevel, GroupAccessLevel.Deny)
-          .and
-          .isNull(ds.deletedAt)
-          .and
-          .isNull(o.deletedAt)
-          .groupBy(ds.*)
-          .orderBy(ds.updatedAt).desc
-          .offset(offset)
-          .limit(limit)
-      }.map(rs => (persistence.Dataset(ds.resultName)(rs), rs.int("access_level"))).list().apply()
-    }
-  }
-
   private def getPrimaryImageId(groupId: String)(implicit s: DBSession) = {
     val gi = persistence.GroupImage.syntax("gi")
     val i = persistence.Image.syntax("i")
