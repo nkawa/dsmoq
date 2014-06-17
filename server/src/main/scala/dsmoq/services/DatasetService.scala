@@ -11,8 +11,7 @@ import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.exceptions._
 import org.joda.time.DateTime
 import org.scalatra.servlet.FileItem
-import dsmoq.forms.{AccessCrontolItem, AccessControl}
-import dsmoq.persistence.{GroupType, PresetType, AccessLevel, OwnerType, DefaultAccessLevel, GroupAccessLevel, UserAccessLevel}
+import dsmoq.persistence.{GroupType, PresetType, OwnerType, DefaultAccessLevel, GroupAccessLevel, UserAccessLevel}
 import dsmoq.logic.{StringUtil, ImageSaveLogic}
 import scala.util.Failure
 import scala.Some
@@ -22,10 +21,14 @@ import org.scalatra.servlet.FileItem
 import dsmoq.forms.AccessControl
 import dsmoq.services.data.RangeSliceSummary
 import dsmoq.services.data.Image
-import dsmoq.forms.AccessCrontolItem
 import scala.collection.mutable
 
 object DatasetService {
+  // FIXME 暫定パラメータ
+  private val UserAndGroupAccessDeny = 0
+  private val UserAndGroupAllowDownload = 2
+  private val UserAndGroupAccessAllowAll = 3
+
   /**
    * データセットを新規作成します。
    * @param params
@@ -144,7 +147,7 @@ object DatasetService {
             accessLevel = ownership.accessLevel,
             ownerType = OwnerType.User
           )),
-          defaultAccessLevel = persistence.DefaultAccessLevel.Deny,
+          defaultAccessLevel = DefaultAccessLevel.Deny,
           permission = ownership.accessLevel
         ))
       }
@@ -276,7 +279,7 @@ object DatasetService {
         } yield {
           println(dataset)
           // 権限チェック
-          if (permission == AccessLevel.Deny) {
+          if (permission == UserAndGroupAccessDeny) {
             throw new NotAuthorizedException
           }
           DatasetData.Dataset(
@@ -1060,9 +1063,9 @@ object DatasetService {
           DatasetService.getGuestAccessLevel(datasetId)
         } else {
           val groups = DatasetService.getJoinedGroups(user)
-          DatasetService.getPermission(datasetId, groups).getOrElse(AccessLevel.Deny)
+          DatasetService.getPermission(datasetId, groups).getOrElse(UserAndGroupAccessDeny)
         }
-        if (permission < AccessLevel.AllowRead) {
+        if (permission < UserAndGroupAllowDownload) {
           throw new RuntimeException("access denied")
         }
 
@@ -1185,7 +1188,7 @@ object DatasetService {
         .where
         .inByUuid(x(o).groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
         .and
-        .gt(x(o).accessLevel, 0)
+        .gt(x(o).accessLevel, UserAndGroupAccessDeny)
         .and
         .isNull(ds.deletedAt)
         .and
@@ -1299,7 +1302,8 @@ object DatasetService {
           .where
             .inByUuid(o.datasetId, datasetIds)
             .and
-            .eq(o.accessLevel, AccessLevel.AllowAll)
+            // FIXME 暫定措置 あるべき姿はuserかgroupかによって権限判定を変える
+            .eq(o.accessLevel, UserAndGroupAccessAllowAll)
             .and
             .isNull(o.deletedAt)
       }.map(rs =>
@@ -1363,7 +1367,8 @@ object DatasetService {
         .where
           .eq(o.datasetId, sqls.uuid(datasetId))
           .and
-          .gt(o.accessLevel, AccessLevel.Deny)
+        // FIXME 暫定措置 あるべき姿はuserかgroupかによって権限判定を変える
+          .gt(o.accessLevel, UserAndGroupAccessDeny)
           .and
           .isNull(o.deletedAt)
     }.map(rs =>
