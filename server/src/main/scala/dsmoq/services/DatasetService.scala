@@ -315,7 +315,7 @@ object DatasetService {
    * @param item
    * @return
    */
-  def setGroupAccessControl(user: User, item: AccessControl): Try[AccessCrontolItem] = {
+  def setGroupAccessControl(user: User, item: AccessControl) = {
     try {
       if (user.isGuest) throw new NotAuthorizedException
 
@@ -379,13 +379,7 @@ object DatasetService {
               )
             }
         }
-
-        Success(AccessCrontolItem(
-          id = item.groupId,
-          name = "", //TODO
-          image = "", //TODO
-          accessLevel = accessLevel
-        ))
+        Success(item.groupId)
       }
     } catch {
       case e: RuntimeException => Failure(e)

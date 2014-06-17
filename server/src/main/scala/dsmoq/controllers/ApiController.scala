@@ -728,7 +728,7 @@ class ApiController extends ScalatraServlet
     } yield {
       result
     }) match {
-      case Success(x) => AjaxResponse("OK", x)
+      case Success(x) => AjaxResponse("OK")
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
