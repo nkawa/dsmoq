@@ -1,6 +1,7 @@
 package dsmoq.controllers
 
-import dsmoq.services.FileService
+import dsmoq.services.DatasetService
+
 import scala.util.{Failure, Success}
 import org.scalatra.{ScalatraServlet, NotFound}
 import org.scalatra.servlet.FileUploadSupport
@@ -13,7 +14,7 @@ class FileController extends ScalatraServlet with SessionTrait with FileUploadSu
 
     val result = for {
       user <- getUserInfoFromSession()
-      fileInfo <- FileService.getFile(datasetId, id, user)
+      fileInfo <- DatasetService.getDownloadFile(datasetId, id, user)
     } yield {
       fileInfo
     }

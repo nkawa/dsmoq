@@ -929,7 +929,6 @@ object DatasetService {
       val myself = persistence.User.find(params.userInfo.id).get
       val timestamp = DateTime.now()
       withSQL {
-        // FIXME dataset_imageだけじゃなくimagesも削除する？
         val di = persistence.DatasetImage.column
         update(persistence.DatasetImage)
           .set(di.deletedBy -> sqls.uuid(myself.id), di.deletedAt -> timestamp, di.isPrimary -> false,
@@ -1053,6 +1052,52 @@ object DatasetService {
     }
   }
 
+  def getDownloadFile(datasetId: String, fileId: String, user: User) = {
+    try {
+      val fileInfo = DB readOnly { implicit s =>
+        // 権限によりダウンロード可否の決定
+        val permission = if (user.isGuest) {
+          DatasetService.getGuestAccessLevel(datasetId)
+        } else {
+          val groups = DatasetService.getJoinedGroups(user)
+          DatasetService.getPermission(datasetId, groups).getOrElse(AccessLevel.Deny)
+        }
+        if (permission < AccessLevel.AllowRead) {
+          throw new RuntimeException("access denied")
+        }
+
+        // datasetが削除されていないか
+        getDataset(datasetId) match {
+          case Some(_) => // do nothing
+          case None => throw new NotFoundException
+        }
+
+        val file = persistence.File.find(fileId)
+        val fh = persistence.FileHistory.syntax("fh")
+        val filePath = withSQL {
+          select(fh.result.filePath)
+            .from(persistence.FileHistory as fh)
+            .where
+            .eq(fh.fileId, sqls.uuid(fileId))
+            .and
+            .isNull(fh.deletedAt)
+        }.map(rs => rs.string(fh.resultName.filePath)).single().apply
+        file match {
+          case Some(f) => (f, filePath.get)
+          case None => throw new RuntimeException("data not found.")
+        }
+      }
+
+      val filePath = Paths.get(AppConf.fileDir, fileInfo._2).toFile
+      if (!filePath.exists()) throw new RuntimeException("file not found")
+
+      val file = new java.io.File(filePath.toString)
+      Success((file, fileInfo._1.name))
+    } catch {
+      case e: Exception => Failure(e)
+    }
+  }
+
   private def getPrivateGroups(user: User, owner: String)(implicit s: DBSession): Seq[String] = {
     if (user.isGuest) {
       Seq.empty
@@ -1168,7 +1213,7 @@ object DatasetService {
     }
   }
 
-  def getPermission(id: String, groups: Seq[String])(implicit s: DBSession) = {
+  private def getPermission(id: String, groups: Seq[String])(implicit s: DBSession) = {
     val o = persistence.Ownership.syntax("o")
     withSQL {
       select(sqls.max(o.accessLevel).append(sqls"access_level"))
@@ -1180,7 +1225,7 @@ object DatasetService {
     }.map(_.intOpt("access_level")).single().apply().flatten
   }
 
-  def getGuestAccessLevel(datasetId: String)(implicit s: DBSession) = {
+  private def getGuestAccessLevel(datasetId: String)(implicit s: DBSession) = {
     val o = persistence.Ownership.syntax("o")
     withSQL {
       select(o.result.accessLevel)
