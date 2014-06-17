@@ -281,8 +281,7 @@ object DatasetService {
         } yield {
           println(dataset)
           // 権限チェック
-          if ((params.userInfo.isGuest && guestAccessLevel == DefaultAccessLevel.Deny) ||
-              (!params.userInfo.isGuest && permission == AccessLevel.Deny)) {
+          if (permission == AccessLevel.Deny) {
             throw new NotAuthorizedException
           }
           DatasetData.Dataset(
@@ -331,7 +330,7 @@ object DatasetService {
       }
 
       DB localTx { implicit s =>
-        if (!hasAllowAllPermission(user.id, item.datasetId))
+        if (!isOwner(user.id, item.datasetId))
             throw new NotAuthorizedException
 
         try {
@@ -414,7 +413,7 @@ object DatasetService {
       try {
         getDataset(params.datasetId) match {
           case Some(x) =>
-            if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+            if (!isOwner(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
           case None => throw new NotFoundException
         }
       } catch {
@@ -491,7 +490,7 @@ object DatasetService {
       try {
         getDataset(params.datasetId) match {
           case Some(x) =>
-            if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+            if (!isOwner(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
           case None => throw new NotFoundException
         }
       } catch {
@@ -563,7 +562,7 @@ object DatasetService {
     DB localTx { implicit s =>
       try {
         getDataset(params.datasetId) match {
-          case Some(x) => if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+          case Some(x) => if (!isOwner(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
           case None => throw new NotFoundException
         }
         if (!isValidFile(params.datasetId, params.fileId)) throw new NotFoundException
@@ -635,7 +634,7 @@ object DatasetService {
       DB localTx { implicit s =>
         try {
           getDataset(params.datasetId) match {
-            case Some(x) => if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+            case Some(x) => if (!isOwner(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
             case None => throw new NotFoundException
           }
           if (!isValidFile(params.datasetId, params.fileId)) throw new NotFoundException
@@ -682,7 +681,7 @@ object DatasetService {
       DB localTx { implicit s =>
         try {
           getDataset(params.datasetId) match {
-            case Some(x) => if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+            case Some(x) => if (!isOwner(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
             case None => throw new NotFoundException
           }
           if (!isValidFile(params.datasetId, params.fileId)) throw new NotFoundException
@@ -748,7 +747,7 @@ object DatasetService {
 
         try {
           getDataset(params.datasetId) match {
-            case Some(x) => if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+            case Some(x) => if (!isOwner(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
             case None => throw new NotFoundException
           }
         } catch {
@@ -864,7 +863,7 @@ object DatasetService {
     if (inputImages.size == 0) throw new InputValidationException(Map("image" -> "image is empty"))
 
     DB localTx { implicit s =>
-      if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+      if (!isOwner(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
 
       val myself = persistence.User.find(params.userInfo.id).get
       val timestamp = DateTime.now()
@@ -925,7 +924,7 @@ object DatasetService {
       try {
         getDataset(params.datasetId) match {
           case Some(x) =>
-            if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+            if (!isOwner(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
           case None => throw new NotFoundException
         }
         if (!isValidImage(params.datasetId, imageId)) throw new NotFoundException
@@ -972,7 +971,7 @@ object DatasetService {
       try {
         getDataset(params.datasetId) match {
           case Some(x) =>
-            if (!hasAllowAllPermission(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+            if (!isOwner(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
           case None => throw new NotFoundException
         }
         if (!isValidImage(params.datasetId, params.imageId)) throw new NotFoundException
@@ -1053,7 +1052,7 @@ object DatasetService {
         case e: Exception => throw new NotFoundException
       }
 
-      if (!hasAllowAllPermission(user.id, datasetId)) throw new NotAuthorizedException
+      if (!isOwner(user.id, datasetId)) throw new NotAuthorizedException
       val d = persistence.Dataset.column
       withSQL {
         update(persistence.Dataset)
@@ -1065,7 +1064,7 @@ object DatasetService {
     datasetId
   }
 
-  private def hasAllowAllPermission(userId: String, datasetId: String)(implicit s: DBSession) = {
+  private def isOwner(userId: String, datasetId: String)(implicit s: DBSession) = {
     val o = persistence.Ownership.o
     val g = persistence.Group.g
     val m = persistence.Member.m
@@ -1085,7 +1084,7 @@ object DatasetService {
           .and
           .eq(g.groupType, persistence.GroupType.Personal)
           .and
-          .eq(o.accessLevel, persistence.GroupAccessLevel.Provider)
+          .eq(o.accessLevel, persistence.UserAccessLevel.Owner)
           .and
           .isNull(o.deletedAt)
         .limit(1)
@@ -1393,7 +1392,7 @@ object DatasetService {
     ).list().apply()
     // ソート(ログインユーザーがownerであればそれが一番最初に、それ以外はアクセスレベル→ownerTypeの順に降順に並ぶ)
     // ログインユーザーとそれ以外のownershipsとで分ける
-    val owner = owners.filter(x => x.id == userInfo.id && x.accessLevel == AccessLevel.AllowAll)
+    val owner = owners.filter(x => x.id == userInfo.id && x.accessLevel == UserAccessLevel.Owner)
     val partial = owners.diff(owner)
 
     // accessLevel, ownerTypeから順序付け用重みを計算してソート
@@ -1667,20 +1666,21 @@ object DatasetService {
     val m = persistence.Member.syntax("m")
     val x = SubQuery.syntax("o", o.resultName)
     val y = SubQuery.syntax("o1", o1.resultName)
-    select(sqls.distinct(o.result.*))
+    select(o.result.*)
       .from(persistence.Ownership as o)
       .innerJoin(
-        select(sqls.distinct(o1.result.*))
+        select(o1.result.*)
         .from(persistence.Ownership as o1)
         .innerJoin(persistence.Group as g).on(sqls.eq(o1.groupId, g.id).and.isNull(g.deletedAt))
         .innerJoin(persistence.Member as m).on(sqls.eq(g.id, m.groupId).and.isNull(m.deletedAt))
         .where
-        .eq(m.userId, sqls.uuid(owner))
-        .and
-        .eq(o1.accessLevel, UserAccessLevel.Owner)
-        .and
-        .eq(g.groupType, GroupType.Personal)
-        .as(y)).on(o.datasetId, y(o1).datasetId)
+          .eq(m.userId, sqls.uuid(owner))
+          .and
+          .eq(o1.accessLevel, UserAccessLevel.Owner)
+          .and
+          .eq(g.groupType, GroupType.Personal)
+          .as(y)
+      ).on(o.datasetId, y(o1).datasetId)
       .as(x)
   }
 
@@ -1695,13 +1695,13 @@ object DatasetService {
       .innerJoin(persistence.Ownership as o1).on(sqls.eq(o.datasetId, o1.datasetId).and.isNull(o1.deletedAt))
       .innerJoin(persistence.Group as g).on(sqls.eq(o1.groupId, g.id).and.isNull(g.deletedAt))
       .where
-      .eq(g.id, sqls.uuid(group))
-      .and
-      .eq(g.groupType, GroupType.Public)
-      .and
-      .eq(o1.accessLevel, GroupAccessLevel.Provider)
-      .and
-      .isNull(o.deletedAt)
+        .eq(g.id, sqls.uuid(group))
+        .and
+        .eq(g.groupType, GroupType.Public)
+        .and
+        .eq(o1.accessLevel, GroupAccessLevel.Provider)
+        .and
+        .isNull(o.deletedAt)
       .as(x)
   }
 
@@ -1716,13 +1716,13 @@ object DatasetService {
       .innerJoin(persistence.Ownership as o1).on(sqls.eq(o.datasetId, o1.datasetId).and.isNull(o1.deletedAt))
       .innerJoin(persistence.Group as g).on(sqls.eq(o1.groupId, g.id).and.isNull(g.deletedAt))
       .where
-      .eq(g.id, sqls.uuid(group))
-      .and
-      .eq(g.groupType, GroupType.Public)
-      .and
-      .gt(o1.accessLevel, GroupAccessLevel.Deny)
-      .and
-      .isNull(o.deletedAt)
+        .eq(g.id, sqls.uuid(group))
+        .and
+        .eq(g.groupType, GroupType.Public)
+        .and
+        .gt(o1.accessLevel, GroupAccessLevel.Deny)
+        .and
+        .isNull(o.deletedAt)
       .as(x)
   }
 
@@ -1749,7 +1749,8 @@ object DatasetService {
           .eq(o1.accessLevel, UserAccessLevel.Owner)
           .and
           .eq(g1.groupType, GroupType.Personal)
-          .as(y)).on(o.datasetId, y(o1).datasetId)
+          .as(y)
+      ).on(o.datasetId, y(o1).datasetId)
       .innerJoin(persistence.Ownership as o2).on(sqls.eq(y(o1).datasetId, o2.datasetId).and.isNull(o2.deletedAt))
       .innerJoin(persistence.Group as g2).on(sqls.eq(o2.groupId, g2.id).and.isNull(g2.deletedAt))
       .where
@@ -1781,22 +1782,23 @@ object DatasetService {
           .innerJoin(persistence.Group as g1).on(sqls.eq(o1.groupId, g1.id).and.isNull(g1.deletedAt))
           .innerJoin(persistence.Member as m).on(sqls.eq(g1.id, m.groupId).and.isNull(m.deletedAt))
           .where
-          .eq(m.userId, sqls.uuid(owner))
-          .and
-          .eq(o1.accessLevel, UserAccessLevel.Owner)
-          .and
-          .eq(g1.groupType, GroupType.Personal)
-          .as(y)).on(o.datasetId, y(o1).datasetId)
+            .eq(m.userId, sqls.uuid(owner))
+            .and
+            .eq(o1.accessLevel, UserAccessLevel.Owner)
+            .and
+            .eq(g1.groupType, GroupType.Personal)
+            .as(y)
+      ).on(o.datasetId, y(o1).datasetId)
       .innerJoin(persistence.Ownership as o2).on(sqls.eq(y(o1).datasetId, o2.datasetId).and.isNull(o2.deletedAt))
       .innerJoin(persistence.Group as g2).on(sqls.eq(o2.groupId, g2.id).and.isNull(g2.deletedAt))
       .where
-      .eq(g2.id, sqls.uuid(group))
-      .and
-      .eq(g2.groupType, GroupType.Public)
-      .and
-      .gt(o2.accessLevel, GroupAccessLevel.Deny)
-      .and
-      .isNull(o.deletedAt)
+        .eq(g2.id, sqls.uuid(group))
+        .and
+        .eq(g2.groupType, GroupType.Public)
+        .and
+        .gt(o2.accessLevel, GroupAccessLevel.Deny)
+        .and
+        .isNull(o.deletedAt)
       .as(x)
   }
 
