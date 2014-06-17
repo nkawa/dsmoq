@@ -1,5 +1,6 @@
 package api
 
+import api.logic.SpecCommonLogic
 import org.scalatest.{BeforeAndAfter, FreeSpec}
 import org.scalatra.test.scalatest.ScalatraSuite
 import org.json4s.{DefaultFormats, Formats}
@@ -35,8 +36,11 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
     // FIXME
     System.setProperty(org.scalatra.EnvironmentKey, "development")
+    SpecCommonLogic.insertDummyData()
   }
+
   after {
+    SpecCommonLogic.deleteAllCreateData()
     DBs.close()
   }
 
@@ -75,7 +79,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val params = Map(
-            "name" -> "t_okada",
+            "name" -> "dummy1",
             "fullname" -> "フルネーム",
             "organization" -> "テスト所属",
             "title" -> "テストタイトル",
@@ -100,7 +104,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           }
 
           val params = Map(
-            "name" -> "t_okada",
+            "name" -> "dummy1",
             "fullname" -> "fullname 2",
             "organization" -> "organization 2",
             "title" -> "title 2",
@@ -127,15 +131,6 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             val result = parse(body).extract[AjaxResponse[User]]
             result.data.mailAddress should be("hogehoge@test.com")
           }
-
-          // 戻す
-          val rollbackParams = Map("email" -> "t_okada@denkiyagi.jp")
-          post("/api/profile/email_change_requests", rollbackParams) { checkStatus() }
-          get("/api/profile") {
-            checkStatus()
-            val result = parse(body).extract[AjaxResponse[User]]
-            result.data.mailAddress should be("t_okada@denkiyagi.jp")
-          }
         }
       }
 
@@ -148,7 +143,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           )
           put("/api/profile/password", params) { checkStatus() }
           post("/api/signout") { checkStatus() }
-          val signinParams = Map("id" -> "t_okada", "password" -> "new_password")
+          val signinParams = Map("id" -> "dummy1", "password" -> "new_password")
           post("/api/signin", signinParams) { checkStatus() }
 
           //　戻す
@@ -188,10 +183,9 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
       }
 
       "ユーザー/グループの候補一覧を取得できるか" in {
-        // t_okada + UUID という名前のグループを作成し、候補に表示されるか調べる
         session {
           signIn()
-          val groupName = "t_okada" + UUID.randomUUID()
+          val groupName = "groupName" + UUID.randomUUID()
           val params = Map("name" -> groupName, "description" -> "description")
           post("/api/groups", params) {
             checkStatus()
@@ -199,8 +193,8 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           }
         }
 
-        val regex = "\\At_okada.*\\z".r
-        val query = Map("query" -> "t_okada")
+        val regex = "\\Adummy1.*\\z".r
+        val query = Map("query" -> "dummy1")
         get("/api/suggests/users_and_groups", query) {
           checkStatus()
           // データパースしてチェック
@@ -260,7 +254,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   }
   
   def signIn() {
-    val params = Map("id" -> "t_okada", "password" -> "password")
+    val params = Map("id" -> "dummy1", "password" -> "password")
     post("/api/signin", params) {
       checkStatus()
     }

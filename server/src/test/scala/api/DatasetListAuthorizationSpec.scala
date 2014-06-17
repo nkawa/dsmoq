@@ -3,6 +3,7 @@ package api
 import java.io.File
 import java.util.UUID
 
+import _root_.api.api.logic.SpecCommonLogic
 import dsmoq.AppConf
 import dsmoq.controllers.{AjaxResponse, ApiController}
 import dsmoq.persistence.{UserAccessLevel, GroupAccessLevel, DefaultAccessLevel, GroupMemberRole, GroupType}
@@ -22,8 +23,8 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
 
   private val dummyFile = new File("README.md")
   private val accesscCheckUserID = "eb7a596d-e50c-483f-bbc7-50019eea64d7"
-  private val accessCheckUserLoginParams = Map("id" -> "kawaguti", "password" -> "password")
-  private val noAuthorityUserLoginParams = Map("id" -> "terurou", "password" -> "password")
+  private val accessCheckUserLoginParams = Map("id" -> "dummy4", "password" -> "password")
+  private val noAuthorityUserLoginParams = Map("id" -> "dummy2", "password" -> "password")
   private val dataCreateUser1ID = "023bfa40-e897-4dad-96db-9fd3cf001e79"
   private val dataCreateUser2ID = "4aaefd45-2fe5-4ce0-b156-3141613f69a6"
 
@@ -41,41 +42,11 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
 
     // FIXME
     System.setProperty(org.scalatra.EnvironmentKey, "development")
+    SpecCommonLogic.insertDummyData()
   }
 
   after {
-    //  他テーブルのデータ、ファイル削除
-    DB localTx { implicit s =>
-      withSQL { deleteFrom(dsmoq.persistence.Dataset) }.update().apply
-      // groupよりmemberを先に削除
-      withSQL {
-        val m = dsmoq.persistence.Member.syntax("m")
-        val g = dsmoq.persistence.Group.syntax("g")
-        val q = select(g.id).from(dsmoq.persistence.Group as g).where.eq(g.groupType, GroupType.Public)
-        deleteFrom(dsmoq.persistence.Member as m)
-          .where
-          .in(m.groupId, q)
-      }.update().apply
-      withSQL {
-        val g = dsmoq.persistence.Group.syntax("g")
-        deleteFrom(dsmoq.persistence.Group as g).where.eq(g.groupType, 0) }.update().apply
-      withSQL { deleteFrom(dsmoq.persistence.Ownership) }.update().apply
-
-      // ファイル削除(やっつけ)
-      val hoge = new java.io.File(AppConf.fileDir).listFiles()
-      hoge.foreach { x =>
-        if (x.isDirectory) {
-          x.listFiles.foreach { y =>
-            y.listFiles.foreach { f =>
-              f.delete()
-            }
-            y.delete()
-          }
-          x.delete()
-        }
-      }
-    }
-
+    SpecCommonLogic.deleteAllCreateData()
     DBs.close()
   }
 
@@ -568,14 +539,14 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
   }
 
   private def signInDataCreateUser1() {
-    val params = Map("id" -> "t_okada", "password" -> "password")
+    val params = Map("id" -> "dummy1", "password" -> "password")
     post("/api/signin", params) {
       checkStatus()
     }
   }
 
   private def signInDataCreateUser2() {
-    val params = Map("id" -> "maeda_", "password" -> "password")
+    val params = Map("id" -> "dummy3", "password" -> "password")
     post("/api/signin", params) {
       checkStatus()
     }

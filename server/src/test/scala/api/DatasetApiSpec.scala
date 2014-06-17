@@ -1,5 +1,6 @@
 package api
 
+import _root_.api.api.logic.SpecCommonLogic
 import org.scalatest.{BeforeAndAfter, FreeSpec}
 import org.scalatra.test.scalatest.ScalatraSuite
 import org.json4s.{DefaultFormats, Formats}
@@ -36,7 +37,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   private val dummyFile = new File("README.md")
   private val dummyImage = new File("../client/www/dummy/images/nagoya.jpg")
   private val dummyUserId = "eb7a596d-e50c-483f-bbc7-50019eea64d7"
-  private val dummyUserLoginParams = Map("id" -> "kawaguti", "password" -> "password")
+  private val dummyUserLoginParams = Map("id" -> "dummy4", "password" -> "password")
 
   private val host = "http://localhost:8080"
 
@@ -56,8 +57,11 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
     // FIXME
     System.setProperty(org.scalatra.EnvironmentKey, "development")
+    SpecCommonLogic.insertDummyData()
   }
+
   after {
+    SpecCommonLogic.deleteAllCreateData()
     DBs.close()
   }
 
@@ -716,7 +720,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   }
 
   private def signIn() {
-    val params = Map("id" -> "t_okada", "password" -> "password")
+    val params = Map("id" -> "dummy1", "password" -> "password")
     post("/api/signin", params) {
       checkStatus()
     }
@@ -740,7 +744,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     val signInPost = new HttpPost(host + "/api/signin")
     signInPost.setHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
     val params = new util.ArrayList[NameValuePair]()
-    params.add(new BasicNameValuePair("id", "t_okada"))
+    params.add(new BasicNameValuePair("id", "dummy1"))
     params.add(new BasicNameValuePair("password", "password"))
     signInPost.setEntity(new UrlEncodedFormEntity(params))
     val signInResponse = client.execute(signInPost)

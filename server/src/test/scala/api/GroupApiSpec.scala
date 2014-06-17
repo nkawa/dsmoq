@@ -1,5 +1,6 @@
 package api
 
+import _root_.api.api.logic.SpecCommonLogic
 import org.scalatest.{BeforeAndAfter, FreeSpec}
 import org.scalatra.test.scalatest.ScalatraSuite
 import org.json4s.{DefaultFormats, Formats}
@@ -25,7 +26,7 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   private val dummyFile = new File("README.md")
   private val dummyImage = new File("../client/www/dummy/images/nagoya.jpg")
   private val dummyUserUUID = "eb7a596d-e50c-483f-bbc7-50019eea64d7"
-  private val dummyUserLoginParams = Map("id" -> "kawaguti", "password" -> "password")
+  private val dummyUserLoginParams = Map("id" -> "dummy4", "password" -> "password")
 
   // multi-part file upload config
   val holder = addServlet(classOf[ApiController], "/api/*")
@@ -43,8 +44,11 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
     // FIXME
     System.setProperty(org.scalatra.EnvironmentKey, "development")
+    SpecCommonLogic.insertDummyData()
   }
+
   after {
+    SpecCommonLogic.deleteAllCreateData()
     DBs.close()
   }
 
@@ -267,7 +271,7 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   }
 
   private def signIn() {
-    val params = Map("id" -> "t_okada", "password" -> "password")
+    val params = Map("id" -> "dummy1", "password" -> "password")
     post("/api/signin", params) {
       checkStatus()
     }

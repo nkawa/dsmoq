@@ -3,6 +3,7 @@ package dsmoq.persistence
 import scalikejdbc._
 import scalikejdbc.SQLInterpolation._
 import org.joda.time.{DateTime}
+import dsmoq.persistence.PostgresqlHelper._
 
 case class Password(
   id: String,
@@ -92,14 +93,14 @@ object Password extends SQLSyntaxSupport[Password] {
         column.deletedBy,
         column.deletedAt
       ).values(
-        id,
-        userId,
+        sqls.uuid(id),
+        sqls.uuid(userId),
         hash,
-        createdBy,
+        sqls.uuid(createdBy),
         createdAt,
-        updatedBy,
+        sqls.uuid(updatedBy),
         updatedAt,
-        deletedBy,
+        deletedBy.map(sqls.uuid),
         deletedAt
       )
     }.update.apply()

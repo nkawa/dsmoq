@@ -3,6 +3,7 @@ package api
 import java.io.File
 import java.util.UUID
 
+import _root_.api.api.logic.SpecCommonLogic
 import dsmoq.controllers.{AjaxResponse, ApiController}
 import dsmoq.persistence.{GroupMemberRole, UserAccessLevel, GroupAccessLevel, DefaultAccessLevel}
 import dsmoq.services.data.DatasetData.Dataset
@@ -19,8 +20,8 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
 
   private val dummyFile = new File("README.md")
   private val dummyUserId = "eb7a596d-e50c-483f-bbc7-50019eea64d7"
-  private val dummyUserLoginParams = Map("id" -> "kawaguti", "password" -> "password")
-  private val anotherUserLoginParams = Map("id" -> "terurou", "password" -> "password")
+  private val dummyUserLoginParams = Map("id" -> "dummy4", "password" -> "password")
+  private val anotherUserLoginParams = Map("id" -> "dummy2", "password" -> "password")
 
   // multi-part file upload config
   val holder = addServlet(classOf[ApiController], "/api/*")
@@ -36,9 +37,11 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
 
     // FIXME
     System.setProperty(org.scalatra.EnvironmentKey, "development")
+    SpecCommonLogic.insertDummyData()
   }
 
   after {
+    SpecCommonLogic.deleteAllCreateData()
     DBs.close()
   }
 
@@ -165,7 +168,7 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
   }
   
   private def signIn() {
-    val params = Map("id" -> "t_okada", "password" -> "password")
+    val params = Map("id" -> "dummy1", "password" -> "password")
     post("/api/signin", params) {
       checkStatus()
     }
