@@ -25,6 +25,10 @@ import scala.collection.mutable
 
 object DatasetService {
   // FIXME 暫定パラメータ
+  // 以前の設計でgroupにも編集権限を付与するとしていた設計都合上の実装
+  // 現在はgroupには編集権限は付与せず、user/groupによって権限値の意味が異なるため、
+  // userかgroupかによって権限判定処理を修正する必要がある
+  // (現状は同じ値を使用しているため動きはする)
   private val UserAndGroupAccessDeny = 0
   private val UserAndGroupAllowDownload = 2
   private val UserAndGroupAccessAllowAll = 3
@@ -1259,7 +1263,11 @@ object DatasetService {
           .where
             .inByUuid(o.datasetId, datasetIds)
             .and
-            // FIXME 暫定措置 あるべき姿はuserかgroupかによって権限判定を変える
+            // FIXME 暫定措置
+            // 以前の設計でgroupにも編集権限を付与するとしていた設計都合上の実装
+            // 現在はgroupには編集権限は付与せず、user/groupによって権限値の意味が異なるため、
+            // userかgroupかによって権限判定処理を修正する必要がある
+            // (現状は同じ値を使用しているため動きはする)
             .eq(o.accessLevel, UserAndGroupAccessAllowAll)
             .and
             .isNull(o.deletedAt)
@@ -1324,7 +1332,11 @@ object DatasetService {
         .where
           .eq(o.datasetId, sqls.uuid(datasetId))
           .and
-        // FIXME 暫定措置 あるべき姿はuserかgroupかによって権限判定を変える
+          // FIXME 暫定措置
+          // 以前の設計でgroupにも編集権限を付与するとしていた設計都合上の実装
+          // 現在はgroupには編集権限は付与せず、user/groupによって権限値の意味が異なるため、
+          // userかgroupかによって権限判定処理を修正する必要がある
+          // (現状は同じ値を使用しているため動きはする)
           .gt(o.accessLevel, UserAndGroupAccessDeny)
           .and
           .isNull(o.deletedAt)
