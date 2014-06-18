@@ -6,7 +6,7 @@ import java.util.UUID
 import _root_.api.api.logic.SpecCommonLogic
 import dsmoq.AppConf
 import dsmoq.controllers.{AjaxResponse, ApiController}
-import dsmoq.persistence.{UserAccessLevel, GroupAccessLevel, DefaultAccessLevel, GroupMemberRole, GroupType}
+import dsmoq.persistence._
 import dsmoq.services.data.DatasetData.{DatasetsSummary, Dataset}
 import dsmoq.services.data.GroupData.Group
 import dsmoq.services.data.RangeSlice
@@ -22,11 +22,11 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
   protected implicit val jsonFormats: Formats = DefaultFormats
 
   private val dummyFile = new File("README.md")
-  private val accesscCheckUserID = "eb7a596d-e50c-483f-bbc7-50019eea64d7"
+  private val accesscCheckUserID = "eb7a596d-e50c-483f-bbc7-50019eea64d7" // dummy 4
   private val accessCheckUserLoginParams = Map("id" -> "dummy4", "password" -> "password")
   private val noAuthorityUserLoginParams = Map("id" -> "dummy2", "password" -> "password")
-  private val dataCreateUser1ID = "023bfa40-e897-4dad-96db-9fd3cf001e79"
-  private val dataCreateUser2ID = "4aaefd45-2fe5-4ce0-b156-3141613f69a6"
+  private val dataCreateUser1ID = "023bfa40-e897-4dad-96db-9fd3cf001e79"  // dummy1
+  private val dataCreateUser2ID = "4aaefd45-2fe5-4ce0-b156-3141613f69a6"  // dummy3
 
   // multi-part file upload config
   val holder = addServlet(classOf[ApiController], "/api/*")
@@ -82,8 +82,8 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
 
                 // アクセスレベル設定(ユーザー/グループ)
                 val accessLevelParams = List(
-                  "id[]" -> accesscCheckUserID, "type[]" -> "1", "accessLevel[]" -> userAccessLevel.toString,
-                  "id[]" -> groupId, "type[]" -> "2", "accessLevel[]" -> groupAccessLevel.toString
+                  "id[]" -> accesscCheckUserID, "type[]" -> OwnerType.User.toString, "accessLevel[]" -> userAccessLevel.toString,
+                  "id[]" -> groupId, "type[]" -> OwnerType.Group.toString, "accessLevel[]" -> groupAccessLevel.toString
                 )
                 post("/api/datasets/" + datasetId + "/acl", accessLevelParams) {
                   checkStatus()
@@ -394,7 +394,7 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
           }
         }.flatten.flatten
 
-        // 別グループにデータセット作成
+        // 別ユーザー：別グループにデータセット作成
         val datasetTuples4 = userAccessLevels.map { userAccessLevel =>
           groupAccessLevels.map { groupAccessLevel =>
             guestAccessLevels.map { guestAccessLevel =>
@@ -581,8 +581,8 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
 
       // アクセスレベル設定(ユーザー/グループ)
       val accessLevelParams = List(
-        "id[]" -> accesscCheckUserID, "type[]" -> "1", "accessLevel[]" -> userAccessLevel.toString,
-        "id[]" -> groupId, "type[]" -> "2", "accessLevel[]" -> groupAccessLevel.toString
+        "id[]" -> accesscCheckUserID, "type[]" -> OwnerType.User.toString, "accessLevel[]" -> userAccessLevel.toString,
+        "id[]" -> groupId, "type[]" -> OwnerType.Group.toString, "accessLevel[]" -> groupAccessLevel.toString
       )
       post("/api/datasets/" + datasetId + "/acl", accessLevelParams) {
         checkStatus()

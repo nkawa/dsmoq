@@ -95,7 +95,11 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           get("/api/profile") {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[User]]
+            result.data.name should be("dummy1")
             result.data.fullname should be("フルネーム")
+            result.data.organization should be("テスト所属")
+            result.data.title should be("テストタイトル")
+            result.data.description should be("テスト詳細")
           }
         }
       }
@@ -121,7 +125,11 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           get("/api/profile") {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[User]]
+            result.data.name should be("dummy1")
             result.data.fullname should be("fullname 2")
+            result.data.organization should be("organization 2")
+            result.data.title should be("title 2")
+            result.data.description should be("description 2")
             result.data.image should not be(oldImageUrl)
           }
         }
@@ -188,10 +196,40 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         }
       }
 
-      "ユーザー/グループの候補一覧を取得できるか" in {
+      "ユーザーの候補一覧を取得できるか" in {
+        val userName = "dummy1"
+        val regex = ("\\A" + userName + ".*\\z").r
+        val query = Map("query" -> userName)
+        get("/api/suggests/users_and_groups", query) {
+          checkStatus()
+          // データパースしてチェック
+          val valueMap = (parse(body) \ "data").values.asInstanceOf[List[Map[String, Any]]]
+          valueMap.foreach {x =>
+            val t = x("dataType")
+            t match {
+              case SuggestType.User =>
+                x("name") match {
+                  case regex() => // OK
+                  case _ => x("fullname") match {
+                    case regex() => // OK
+                    case _ => fail()
+                  }
+                }
+              case SuggestType.Group =>
+                x("name") match {
+                  case regex() => // OK
+                  case _ => fail()
+                }
+              case _ => fail()
+            }
+          }
+        }
+      }
+
+      "グループの候補一覧を取得できるか" in {
+        val groupName = "groupName" + UUID.randomUUID()
         session {
           signIn()
-          val groupName = "groupName" + UUID.randomUUID()
           val params = Map("name" -> groupName, "description" -> "description")
           post("/api/groups", params) {
             checkStatus()
@@ -199,8 +237,8 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           }
         }
 
-        val regex = "\\Adummy1.*\\z".r
-        val query = Map("query" -> "dummy1")
+        val regex = ("\\A" + groupName + ".*\\z").r
+        val query = Map("query" -> groupName)
         get("/api/suggests/users_and_groups", query) {
           checkStatus()
           // データパースしてチェック

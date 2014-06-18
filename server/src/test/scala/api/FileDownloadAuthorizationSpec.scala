@@ -5,7 +5,7 @@ import java.util.UUID
 
 import _root_.api.api.logic.SpecCommonLogic
 import dsmoq.controllers.{FileController, ApiController, AjaxResponse}
-import dsmoq.persistence.{GroupMemberRole, UserAccessLevel, GroupAccessLevel, DefaultAccessLevel}
+import dsmoq.persistence._
 import dsmoq.services.data.DatasetData.Dataset
 import dsmoq.services.data.GroupData.Group
 import org.json4s.{DefaultFormats, Formats}
@@ -19,7 +19,7 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
   protected implicit val jsonFormats: Formats = DefaultFormats
 
   private val dummyFile = new File("README.md")
-  private val dummyUserId = "eb7a596d-e50c-483f-bbc7-50019eea64d7"
+  private val dummyUserId = "eb7a596d-e50c-483f-bbc7-50019eea64d7"  // dummy 4
   private val dummyUserLoginParams = Map("id" -> "dummy4", "password" -> "password")
   private val anotherUserLoginParams = Map("id" -> "dummy2", "password" -> "password")
 
@@ -63,7 +63,7 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
         val guestAccessLevels = List(DefaultAccessLevel.Deny, DefaultAccessLevel.LimitedPublic, DefaultAccessLevel.FullPublic)
         val files = Map("file[]" -> dummyFile)
         val datasetParams = userAccessLevels.map { userAccessLevel =>
-          guestAccessLevels.map { groupAccessLevel =>
+          groupAccessLevels.map { groupAccessLevel =>
             guestAccessLevels.map { guestAccessLevel =>
               // グループ作成/メンバー追加
               val groupId = createGroup()
@@ -77,8 +77,8 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
 
                 // アクセスレベル設定(ユーザー/グループ)
                 val accessLevelParams = List(
-                  "id[]" -> dummyUserId, "type[]" -> "1", "accessLevel[]" -> userAccessLevel.toString,
-                  "id[]" -> groupId, "type[]" -> "2", "accessLevel[]" -> groupAccessLevel.toString
+                  "id[]" -> dummyUserId, "type[]" -> OwnerType.User.toString, "accessLevel[]" -> userAccessLevel.toString,
+                  "id[]" -> groupId, "type[]" -> OwnerType.Group.toString, "accessLevel[]" -> groupAccessLevel.toString
                 )
                 post("/api/datasets/" + datasetId + "/acl", accessLevelParams) { checkStatus() }
 

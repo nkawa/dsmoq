@@ -25,7 +25,7 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
   private val dummyFile = new File("README.md")
   private val dummyImage = new File("../client/www/dummy/images/nagoya.jpg")
-  private val dummyUserUUID = "eb7a596d-e50c-483f-bbc7-50019eea64d7"
+  private val dummyUserUUID = "eb7a596d-e50c-483f-bbc7-50019eea64d7"  // dummy 4
   private val dummyUserLoginParams = Map("id" -> "dummy4", "password" -> "password")
 
   // multi-part file upload config
@@ -63,12 +63,14 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
       "グループ一覧が取得できるか" in {
         session {
           signIn()
-          val params = Map("limit" -> "10", "offset" -> "5")
+          val groupId = createGroup()
+
+          val params = Map("limit" -> "10")
           get("/api/groups", params) {
             status should be(200)
             val result = parse(body).extract[AjaxResponse[RangeSlice[GroupsSummary]]]
             result.data.summary.count should be(10)
-            result.data.summary.offset should be(5)
+            result.data.results.map(_.id).contains(groupId)
           }
         }
       }
@@ -111,12 +113,14 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           put("/api/groups/" + groupId, params) {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Group]]
+            result.data.name should be(changeGroupName)
             result.data.description should be (changeDescription)
           }
           get("/api/groups/" + groupId) {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Group]]
             result.data.name should be (changeGroupName)
+            result.data.description should be (changeDescription)
           }
         }
       }
@@ -244,6 +248,7 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           get("/api/groups/" + groupId + "/members") {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[RangeSlice[MemberSummary]]]
+            // IDの有無をチェック後、付随するデータのチェック
             assert(result.data.results.map(_.id).contains(dummyUserUUID))
             result.data.results.map {x =>
               if (x.id == dummyUserUUID) {
