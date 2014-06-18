@@ -13,7 +13,7 @@ import org.json4s.{DefaultFormats, Formats}
 import org.scalatest.{BeforeAndAfter, FreeSpec}
 import org.scalatra.servlet.MultipartConfig
 import org.scalatra.test.scalatest.ScalatraSuite
-import scalikejdbc.config.DBs
+import scalikejdbc.config.{DBsWithEnv, DBs}
 
 class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
@@ -32,17 +32,23 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
     ).toMultipartConfigElement
   )
 
-  before {
-    DBs.setup()
+  override def beforeAll() {
+    super.beforeAll()
+    DBsWithEnv("test").setup()
+    System.setProperty(org.scalatra.EnvironmentKey, "test")
+  }
 
-    // FIXME
-    System.setProperty(org.scalatra.EnvironmentKey, "development")
+  override def afterAll() {
+    DBsWithEnv("test").close()
+    super.afterAll()
+  }
+
+  before {
     SpecCommonLogic.insertDummyData()
   }
 
   after {
     SpecCommonLogic.deleteAllCreateData()
-    DBs.close()
   }
 
   "Authorization Test" - {

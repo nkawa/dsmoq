@@ -13,7 +13,7 @@ import org.json4s.jackson.JsonMethods._
 import org.scalatest.{BeforeAndAfter, FreeSpec}
 import org.scalatra.servlet.MultipartConfig
 import org.scalatra.test.scalatest.ScalatraSuite
-import scalikejdbc.config.DBs
+import scalikejdbc.config.{DBsWithEnv, DBs}
 
 class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
@@ -33,17 +33,23 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
   )
   addServlet(classOf[FileController], "/files/*")
 
-  before {
-    DBs.setup()
+  override def beforeAll() {
+    super.beforeAll()
+    DBsWithEnv("test").setup()
+    System.setProperty(org.scalatra.EnvironmentKey, "test")
+  }
 
-    // FIXME
-    System.setProperty(org.scalatra.EnvironmentKey, "development")
+  override def afterAll() {
+    DBsWithEnv("test").close()
+    super.afterAll()
+  }
+
+  before {
     SpecCommonLogic.insertDummyData()
   }
 
   after {
     SpecCommonLogic.deleteAllCreateData()
-    DBs.close()
   }
 
   "Authorization Test" - {

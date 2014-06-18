@@ -17,7 +17,6 @@ object SpecCommonLogic {
 
   def insertDummyData() {
     val ts = DateTime.now
-    // FIXME name あとで修正
     // user1 create
     DB localTx { implicit s =>
       persistence.User.create(
@@ -242,7 +241,6 @@ object SpecCommonLogic {
   }
 
   def deleteAllCreateData() {
-    // TODO
     DB localTx { implicit s =>
       //  テーブルにinsertしたデータ削除(licenses, images以外)
       deleteAllData(deleteFrom(persistence.Annotation))

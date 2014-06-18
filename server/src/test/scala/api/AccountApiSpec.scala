@@ -1,10 +1,10 @@
 package api
 
 import api.logic.SpecCommonLogic
-import org.scalatest.{BeforeAndAfter, FreeSpec}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfter, FreeSpec}
 import org.scalatra.test.scalatest.ScalatraSuite
 import org.json4s.{DefaultFormats, Formats}
-import scalikejdbc.config.DBs
+import scalikejdbc.config.{DBsWithEnv, DBs}
 import dsmoq.controllers.{AjaxResponse, ApiController}
 import org.json4s.jackson.JsonMethods._
 import dsmoq.services.data.{MailValidationResult, License, User}
@@ -31,17 +31,23 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     ).toMultipartConfigElement
   )
 
-  before {
-    DBs.setup()
+  override def beforeAll() {
+    super.beforeAll()
+    DBsWithEnv("test").setup()
+    System.setProperty(org.scalatra.EnvironmentKey, "test")
+  }
 
-    // FIXME
-    System.setProperty(org.scalatra.EnvironmentKey, "development")
+  override def afterAll() {
+    DBsWithEnv("test").close()
+    super.afterAll()
+  }
+
+  before {
     SpecCommonLogic.insertDummyData()
   }
 
   after {
     SpecCommonLogic.deleteAllCreateData()
-    DBs.close()
   }
 
   "API test" - {

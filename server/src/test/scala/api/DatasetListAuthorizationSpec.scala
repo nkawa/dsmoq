@@ -15,7 +15,7 @@ import org.json4s.{DefaultFormats, Formats}
 import org.scalatest.{BeforeAndAfterEach, BeforeAndAfter, FreeSpec}
 import org.scalatra.servlet.MultipartConfig
 import org.scalatra.test.scalatest.ScalatraSuite
-import scalikejdbc.config.DBs
+import scalikejdbc.config.{DBsWithEnv, DBs}
 import scalikejdbc._, SQLInterpolation._
 
 class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
@@ -37,17 +37,23 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
     ).toMultipartConfigElement
   )
 
-  before {
-    DBs.setup()
+  override def beforeAll() {
+    super.beforeAll()
+    DBsWithEnv("test").setup()
+    System.setProperty(org.scalatra.EnvironmentKey, "test")
+  }
 
-    // FIXME
-    System.setProperty(org.scalatra.EnvironmentKey, "development")
+  override def afterAll() {
+    DBsWithEnv("test").close()
+    super.afterAll()
+  }
+
+  before {
     SpecCommonLogic.insertDummyData()
   }
 
   after {
     SpecCommonLogic.deleteAllCreateData()
-    DBs.close()
   }
 
   "Authorization Test" - {
