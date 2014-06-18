@@ -344,9 +344,6 @@ object GroupService {
             errors.put("role", "role is empty")
             Seq.empty
         }
-        if (userIds.size != roles.size) {
-          errors.put("id", "parameters are not same size")
-        }
         roles.foreach { r =>
           r match {
             case GroupMemberRole.Deny => // do nothing
@@ -868,17 +865,21 @@ object GroupService {
   }
 
   private def isValidUser(userId: String)(implicit s: DBSession) = {
-    val u = persistence.User.syntax("u")
-    withSQL {
-      select(u.result.id)
-      .from(persistence.User as u)
-      .where
-      .eq(u.id, sqls.uuid(userId))
-      .and
-      .isNull(u.deletedAt)
-    }.map(rs => rs.string(u.resultName.id)).single().apply match {
-      case Some(x) => true
-      case None => false
+    if (StringUtil.isUUID(userId)) {
+      val u = persistence.User.syntax("u")
+      withSQL {
+        select(u.result.id)
+          .from(persistence.User as u)
+          .where
+          .eq(u.id, sqls.uuid(userId))
+          .and
+          .isNull(u.deletedAt)
+      }.map(rs => rs.string(u.resultName.id)).single().apply match {
+        case Some(x) => true
+        case None => false
+      }
+    } else {
+      false
     }
   }
 
