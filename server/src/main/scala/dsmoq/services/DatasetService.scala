@@ -224,7 +224,6 @@ object DatasetService {
   }
 
   def getDatasetSummary(groups: Seq[String], subQuery: TableAsAliasSQLSyntax, limit: Int, offset: Int, userInfo: User)(implicit s: DBSession) = {
-    // FIXME
     val datasets = findDatasets(groups, subQuery, limit, offset)
     val datasetIds = datasets.map(_._1.id)
 
@@ -371,7 +370,7 @@ object DatasetService {
               )
             }
         }
-        Success(item.groupId)
+        Success(Unit)
       }
     } catch {
       case e: RuntimeException => Failure(e)
@@ -1101,32 +1100,6 @@ object DatasetService {
     }
   }
 
-  private def getPrivateGroups(user: User, owner: String)(implicit s: DBSession): Seq[String] = {
-    if (user.isGuest) {
-      Seq.empty
-    } else {
-      try {
-        val g = persistence.Group.syntax("g")
-        val m = persistence.Member.syntax("m")
-        withSQL {
-          select(g.id)
-            .from(persistence.Group as g)
-            .innerJoin(persistence.Member as m).on(m.groupId, g.id)
-            .where
-            .eq(m.userId, sqls.uuid(owner))
-            .and
-            .eq(g.groupType, GroupType.Personal)
-            .and
-            .isNull(g.deletedAt)
-            .and
-            .isNull(m.deletedAt)
-        }.map(_.string("id")).list().apply()
-      } catch {
-        case e: Exception => Seq.empty
-      }
-    }
-  }
-
   private def getPersonalGroup(userId: String)(implicit s: DBSession) = {
     val g = persistence.Group.syntax("g")
     val m = persistence.Member.syntax("m")
@@ -1140,22 +1113,6 @@ object DatasetService {
           .eq(g.groupType, persistence.GroupType.Personal)
         .limit(1)
     }.map(rs => persistence.Group(g.resultName)(rs)).single().apply()
-  }
-
-  private def getGroup(groupId: String)(implicit s: DBSession) = {
-    if (groupId == AppConf.guestGroupId) {
-      persistence.Group(
-        id = groupId,
-        name = "guest",
-        description = "",
-        groupType = persistence.GroupType.Public,
-        createdBy = AppConf.systemUserId,
-        createdAt = new DateTime(0),
-        updatedBy = AppConf.systemUserId,
-        updatedAt = new DateTime(0))
-    } else {
-      persistence.Group.find(groupId).get
-    }
   }
 
   private def countDatasets(groups : Seq[String], subQuery: TableAsAliasSQLSyntax)(implicit s: DBSession) = {
@@ -1397,34 +1354,6 @@ object DatasetService {
     owner ++ sortedPartial
   }
 
-  private def getAttributes(datasetIds: Seq[String])(implicit s: DBSession) = {
-    if (datasetIds.nonEmpty) {
-      //val k = ds
-//      withSQL {
-//        select()
-//      }.map(_.toMap()).list().apply()
-      Map.empty
-    } else {
-      Map.empty
-    }
-
-    //          // attributes
-    //          val attrs = sql"""
-    //            SELECT
-    //              v.*,
-    //              k.name
-    //            FROM
-    //              attribute_values AS v
-    //              INNER JOIN attribute_keys AS k ON v.attribute_key_id = k.id
-    //            WHERE
-    //              v.dataset_id IN (${datasetIdSqls})
-    //            """
-    //            .map {x => (x.string(""), DatasetAttribute(name=x.string("name"), value=x.string("value"))) }
-    //            .list().apply()
-    //            .groupBy {x => x._1 }
-
-  }
-
   private def getAttributes(datasetId: String)(implicit s: DBSession) = {
     val da = persistence.DatasetAnnotation.syntax("da")
     val a = persistence.Annotation.syntax("d")
@@ -1517,10 +1446,6 @@ object DatasetService {
         updatedAt = x._1.updatedAt.toString()
       )
     )
-  }
-
-  private def getFiles(datasetIds: Seq[String])(implicit s: DBSession) = {
-    Map.empty
   }
 
   private def updateDatasetFileStatus(datasetId: String, userId:String, timestamp: DateTime)(implicit s: DBSession) = {
