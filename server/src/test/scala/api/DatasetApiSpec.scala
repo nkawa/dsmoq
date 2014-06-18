@@ -389,28 +389,12 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             checkStatus()
             parse(body).extract[AjaxResponse[Dataset]].data.files(0).url
           }
-          post("/api/signout") { checkStatus() }
-          println(url)
 
-          // 別途clientを使用してファイルDL検証
-          val client = createClient
-          try {
-            signInWithHttpClient(client)
-
-            val fileGet = new HttpGet(url)
-            val fileResponse = client.execute(fileGet)
-            val byte = EntityUtils.toByteArray(fileResponse.getEntity)
-            fileResponse.getStatusLine.getStatusCode should be(HttpStatus.SC_OK)
-
-            // バイトサイズのみでチェック ファイルは書き込まない
-            byte.size should be(dummyFile.length())
-          } catch {
-            case e: Exception =>
-              println(e.getMessage)
-              println(e.getStackTraceString)
-              fail()
-          } finally {
-            client.getConnectionManager.shutdown()
+          // ダウンロードチェック(バイトサイズのみチェック)
+          val uri = new java.net.URI(url)
+          get(uri.getPath) {
+            status should be(200)
+            bodyBytes.size should be(dummyFile.length())
           }
         }
       }
@@ -426,26 +410,11 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             result.data.images(0).url
           }
 
-          println(url)
-          // 別途clientを使用して画像DL検証
-          val client = createClient
-          try {
-            signInWithHttpClient(client)
-
-            val fileGet = new HttpGet(url)
-            val fileResponse = client.execute(fileGet)
-            val byte = EntityUtils.toByteArray(fileResponse.getEntity)
-            fileResponse.getStatusLine.getStatusCode should be(HttpStatus.SC_OK)
-
-            // バイトサイズのみでチェック ファイルは書き込まない
-            byte.size should be(dummyImage.length())
-          } catch {
-            case e: Exception =>
-              println(e.getMessage)
-              println(e.getStackTraceString)
-              fail()
-          } finally {
-            client.getConnectionManager.shutdown()
+          // ダウンロードチェック(バイトサイズのみチェック)
+          val uri = new java.net.URI(url)
+          get(uri.getPath) {
+            status should be(200)
+            bodyBytes.size should be(dummyImage.length())
           }
         }
       }
@@ -744,17 +713,5 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
       checkStatus()
       parse(body).extract[AjaxResponse[Dataset]].data.id
     }
-  }
-
-  private def signInWithHttpClient(client: DefaultHttpClient) {
-    val signInPost = new HttpPost(host + "/api/signin")
-    signInPost.setHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
-    val params = new util.ArrayList[NameValuePair]()
-    params.add(new BasicNameValuePair("id", "dummy1"))
-    params.add(new BasicNameValuePair("password", "password"))
-    signInPost.setEntity(new UrlEncodedFormEntity(params))
-    val signInResponse = client.execute(signInPost)
-    signInResponse.getStatusLine.getStatusCode should be(HttpStatus.SC_OK)
-    signInResponse.getEntity.getContent.close()
   }
 }
