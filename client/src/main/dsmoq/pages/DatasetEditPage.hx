@@ -360,6 +360,21 @@ class DatasetEditPage {
                     });
 
                     // Access Control
+                    root.find("#dataset-owner-add").on("click", function (_) {
+                        var name = Typeahead.getVal(root.find("#dataset-owner-typeahead"));
+                        Service.instance.getOwner(name).then(function (owner) {
+                            var ownerships = JsViews.arrayObservable(data.dataset.ownerships);
+                            ownerships.insert({
+                                id: owner.id,
+                                name: owner.name,
+                                fullname: owner.fullname,
+                                organization: owner.organization,
+                                image: owner.image,
+                                ownerType: owner.dataType,
+                                accessLevel: 1,
+                            });
+                        });
+                    });
                     root.find("#dataset-ownership-submit").on("click", function (_) {
                         BootstrapButton.setLoading(root.find("#dataset-ownership-submit"));
                         root.find("#dataset-owner-list").find("input,select,.btn").attr("disabled", true);
