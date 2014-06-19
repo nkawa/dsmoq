@@ -56,7 +56,7 @@ class Main {
                     case Async.Pending:
                         "<img src='/resources/loading-large.gif'>";
                     case Async.Completed(x):
-                        tagDef.tagCtx.render(x, false);
+                        tagDef.tagCtx.render(x, true);
                 };
             }
         });
