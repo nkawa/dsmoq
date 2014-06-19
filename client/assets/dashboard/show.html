@@ -71,9 +71,9 @@
     <div class="panel-heading">My Groups</div>
     <div class="panel-body" id="my-groups">
       {^{async myGroups}}
-        {^{if #parent.data.length > 0}}
+        {^{if #data.length > 0}}
           <ul>
-            {^{for #parent.data}}
+            {^{for #data}}
               <li class="dataset-item">
                 <div class="row">
                   <div class="pull-left"><img src="{{>image}}"></div>
