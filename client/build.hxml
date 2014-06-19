@@ -1,8 +1,6 @@
 -main dsmoq.Main
 -js www/application.js
 -cp src/main/
--cp lib/jqhx/src/
--cp lib/JsViews-Haxe/src/
 -cp lib/promhx/src/main/
 -D jsviews_enable_jqhx
 -resource assets/_share/pagination.html@share/pagination
@@ -19,4 +17,3 @@
 -resource assets/group/dataset-list.html@share/group/dataset/list
 -resource assets/group/edit.html@template/group/edit
 -resource assets/profile/edit.html@template/profile/edit
--debug
