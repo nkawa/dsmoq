@@ -24,14 +24,9 @@ import dsmoq.services.data.Image
 import scala.collection.mutable
 
 object DatasetService {
-  // FIXME 暫定パラメータ
-  // 以前の設計でgroupにも編集権限を付与するとしていた設計都合上の実装
-  // 現在はgroupには編集権限は付与せず、user/groupによって権限値の意味が異なるため、
-  // userかgroupかによって権限判定処理を修正する必要がある
-  // (現状は同じ値を使用しているため動きはする)
+  // FIXME 暫定パラメータのため、将来的には削除する
   private val UserAndGroupAccessDeny = 0
   private val UserAndGroupAllowDownload = 2
-  private val UserAndGroupAccessAllowAll = 3
 
   /**
    * データセットを新規作成します。
@@ -282,6 +277,11 @@ object DatasetService {
         } yield {
           println(dataset)
           // 権限チェック
+          // FIXME チェック時、user権限はUserAccessLevelクラス, groupの場合はGroupAccessLevelクラスの定数を使用する
+          // (UserAndGroupAccessDeny 定数を削除する)
+          // 旧仕様ではuser/groupは同じ権限を付与していたが、
+          // 現仕様はuser/groupによって権限の扱いが異なる(groupには編集権限は付与しない)
+          // 実装時間の都合と現段階の実装でも問題がない(値が同じ)ため対応していない
           if (permission == UserAndGroupAccessDeny) {
             throw new NotAuthorizedException
           }
@@ -1066,6 +1066,11 @@ object DatasetService {
           DatasetService.getGuestAccessLevel(datasetId)
         } else {
           val groups = DatasetService.getJoinedGroups(user)
+          // FIXME チェック時、user権限はUserAccessLevelクラス, groupの場合はGroupAccessLevelクラスの定数を使用する
+          // (UserAndGroupAccessDeny, UserAndGroupAllowDownload 定数を削除する)
+          // 旧仕様ではuser/groupは同じ権限を付与していたが、
+          // 現仕様はuser/groupによって権限の扱いが異なる(groupには編集権限は付与しない)
+          // 実装時間の都合と現段階の実装でも問題がない(値が同じ)ため対応していない
           DatasetService.getPermission(datasetId, groups).getOrElse(UserAndGroupAccessDeny)
         }
         if (permission < UserAndGroupAllowDownload) {
@@ -1149,7 +1154,7 @@ object DatasetService {
         .where
         .inByUuid(x(o).groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
         .and
-        .gt(x(o).accessLevel, UserAndGroupAccessDeny)
+        .gt(x(o).accessLevel, GroupAccessLevel.Deny)
         .and
         .isNull(ds.deletedAt)
         .and
@@ -1263,12 +1268,19 @@ object DatasetService {
           .where
             .inByUuid(o.datasetId, datasetIds)
             .and
-            // FIXME 暫定措置
-            // 以前の設計でgroupにも編集権限を付与するとしていた設計都合上の実装
-            // 現在はgroupには編集権限は付与せず、user/groupによって権限値の意味が異なるため、
-            // userかgroupかによって権限判定処理を修正する必要がある
-            // (現状は同じ値を使用しているため動きはする)
-            .eq(o.accessLevel, UserAndGroupAccessAllowAll)
+            .append(sqls"(")
+              .append(sqls"(")
+                .eq(g.groupType, GroupType.Personal)
+                .and
+                .eq(o.accessLevel, UserAccessLevel.Owner)
+              .append(sqls")")
+              .or
+              .append(sqls"(")
+                .eq(g.groupType, GroupType.Public)
+                .and
+                .eq(o.accessLevel, GroupAccessLevel.Provider)
+              .append(sqls")")
+            .append(sqls")")
             .and
             .isNull(o.deletedAt)
       }.map(rs =>
@@ -1332,12 +1344,19 @@ object DatasetService {
         .where
           .eq(o.datasetId, sqls.uuid(datasetId))
           .and
-          // FIXME 暫定措置
-          // 以前の設計でgroupにも編集権限を付与するとしていた設計都合上の実装
-          // 現在はgroupには編集権限は付与せず、user/groupによって権限値の意味が異なるため、
-          // userかgroupかによって権限判定処理を修正する必要がある
-          // (現状は同じ値を使用しているため動きはする)
-          .gt(o.accessLevel, UserAndGroupAccessDeny)
+          .append(sqls"(")
+            .append(sqls"(")
+              .eq(g.groupType, GroupType.Personal)
+              .and
+              .gt(o.accessLevel, UserAccessLevel.Deny)
+            .append(sqls")")
+            .or
+            .append(sqls"(")
+              .eq(g.groupType, GroupType.Public)
+              .and
+              .gt(o.accessLevel, GroupAccessLevel.Deny)
+            .append(sqls")")
+          .append(sqls")")
           .and
           .isNull(o.deletedAt)
     }.map(rs =>
