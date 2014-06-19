@@ -1,5 +1,7 @@
 package dsmoq.logic
 
+import java.util.UUID
+
 object StringUtil {
   /**
    * 空白文字(全角含む)のtrim
@@ -9,10 +11,11 @@ object StringUtil {
   }
 
   def isUUID(str: String) = {
-    val pattern = "\\A[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-f]{4}-[0-9a-fA-f]{4}-[0-9a-fA-f]{12}\\z".r
-    str.trim match {
-      case pattern() => true
-      case _ => false
+    try {
+      val uuid = UUID.fromString(str.trim)
+      uuid.toString.toLowerCase == str.trim.toLowerCase
+    } catch {
+      case _ :IllegalArgumentException => false
     }
   }
 }
