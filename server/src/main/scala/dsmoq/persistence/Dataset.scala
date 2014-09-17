@@ -40,11 +40,11 @@ object Dataset extends SQLSyntaxSupport[Dataset] {
     filesCount = rs.int(d.filesCount),
     filesSize = rs.long(d.filesSize),
     createdBy = rs.string(d.createdBy),
-    createdAt = rs.timestamp(d.createdAt).toDateTime,
+    createdAt = rs.timestamp(d.createdAt).toJodaDateTime,
     updatedBy = rs.string(d.updatedBy),
-    updatedAt = rs.timestamp(d.updatedAt).toDateTime,
+    updatedAt = rs.timestamp(d.updatedAt).toJodaDateTime,
     deletedBy = rs.stringOpt(d.deletedBy),
-    deletedAt = rs.timestampOpt(d.deletedAt).map(_.toDateTime)
+    deletedAt = rs.timestampOpt(d.deletedAt).map(_.toJodaDateTime)
   )
       
   val d = Dataset.syntax("d")

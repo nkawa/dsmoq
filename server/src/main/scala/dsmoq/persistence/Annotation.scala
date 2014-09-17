@@ -32,11 +32,11 @@ object Annotation extends SQLSyntaxSupport[Annotation] {
     id = rs.string(a.id),
     name = rs.string(a.name),
     createdBy = rs.string(a.createdBy),
-    createdAt = rs.timestamp(a.createdAt).toDateTime,
+    createdAt = rs.timestamp(a.createdAt).toJodaDateTime,
     updatedBy = rs.string(a.updatedBy),
-    updatedAt = rs.timestamp(a.updatedAt).toDateTime,
+    updatedAt = rs.timestamp(a.updatedAt).toJodaDateTime,
     deletedBy = rs.stringOpt(a.deletedBy),
-    deletedAt = rs.timestampOpt(a.deletedAt).map(_.toDateTime)
+    deletedAt = rs.timestampOpt(a.deletedAt).map(_.toJodaDateTime)
   )
       
   val a = Annotation.syntax("a")

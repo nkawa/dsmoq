@@ -36,11 +36,11 @@ object DatasetAnnotation extends SQLSyntaxSupport[DatasetAnnotation] {
     annotationId = rs.string(da.annotationId),
     data = rs.string(da.data),
     createdBy = rs.string(da.createdBy),
-    createdAt = rs.timestamp(da.createdAt).toDateTime,
+    createdAt = rs.timestamp(da.createdAt).toJodaDateTime,
     updatedBy = rs.string(da.updatedBy),
-    updatedAt = rs.timestamp(da.updatedAt).toDateTime,
+    updatedAt = rs.timestamp(da.updatedAt).toJodaDateTime,
     deletedBy = rs.stringOpt(da.deletedBy),
-    deletedAt = rs.timestampOpt(da.deletedAt).map(_.toDateTime)
+    deletedAt = rs.timestampOpt(da.deletedAt).map(_.toJodaDateTime)
   )
       
   val da = DatasetAnnotation.syntax("da")

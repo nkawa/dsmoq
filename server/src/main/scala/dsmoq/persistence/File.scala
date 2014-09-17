@@ -42,11 +42,11 @@ object File extends SQLSyntaxSupport[File] {
     fileMime = rs.string(f.fileMime),
     fileSize = rs.long(f.fileSize),
     createdBy = rs.string(f.createdBy),
-    createdAt = rs.timestamp(f.createdAt).toDateTime,
+    createdAt = rs.timestamp(f.createdAt).toJodaDateTime,
     updatedBy = rs.string(f.updatedBy),
-    updatedAt = rs.timestamp(f.updatedAt).toDateTime,
+    updatedAt = rs.timestamp(f.updatedAt).toJodaDateTime,
     deletedBy = rs.stringOpt(f.deletedBy),
-    deletedAt = rs.timestampOpt(f.deletedAt).map(_.toDateTime)
+    deletedAt = rs.timestampOpt(f.deletedAt).map(_.toJodaDateTime)
   )
       
   val f = File.syntax("f")

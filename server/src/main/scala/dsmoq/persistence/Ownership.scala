@@ -36,11 +36,11 @@ object Ownership extends SQLSyntaxSupport[Ownership] {
     groupId = rs.string(o.groupId),
     accessLevel = rs.int(o.accessLevel),
     createdBy = rs.string(o.createdBy),
-    createdAt = rs.timestamp(o.createdAt).toDateTime,
+    createdAt = rs.timestamp(o.createdAt).toJodaDateTime,
     updatedBy = rs.string(o.updatedBy),
-    updatedAt = rs.timestamp(o.updatedAt).toDateTime,
+    updatedAt = rs.timestamp(o.updatedAt).toJodaDateTime,
     deletedBy = rs.stringOpt(o.deletedBy),
-    deletedAt = rs.timestampOpt(o.deletedAt).map(_.toDateTime)
+    deletedAt = rs.timestampOpt(o.deletedAt).map(_.toJodaDateTime)
   )
       
   val o = Ownership.syntax("o")

@@ -36,11 +36,11 @@ object GroupImage extends SQLSyntaxSupport[GroupImage] {
     imageId = rs.string(gi.imageId),
     isPrimary = rs.boolean(gi.isPrimary),
     createdBy = rs.string(gi.createdBy),
-    createdAt = rs.timestamp(gi.createdAt).toDateTime,
+    createdAt = rs.timestamp(gi.createdAt).toJodaDateTime,
     updatedBy = rs.string(gi.updatedBy),
-    updatedAt = rs.timestamp(gi.updatedAt).toDateTime,
+    updatedAt = rs.timestamp(gi.updatedAt).toJodaDateTime,
     deletedBy = rs.stringOpt(gi.deletedBy),
-    deletedAt = rs.timestampOpt(gi.deletedAt).map(_.toDateTime)
+    deletedAt = rs.timestampOpt(gi.deletedAt).map(_.toJodaDateTime)
   )
       
   val gi = GroupImage.syntax("gi")

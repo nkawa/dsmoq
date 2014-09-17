@@ -34,11 +34,11 @@ object License extends SQLSyntaxSupport[License] {
     name = rs.string(l.name),
     displayOrder = rs.int(l.displayOrder),
     createdBy = rs.string(l.createdBy),
-    createdAt = rs.timestamp(l.createdAt).toDateTime,
+    createdAt = rs.timestamp(l.createdAt).toJodaDateTime,
     updatedBy = rs.string(l.updatedBy),
-    updatedAt = rs.timestamp(l.updatedAt).toDateTime,
+    updatedAt = rs.timestamp(l.updatedAt).toJodaDateTime,
     deletedBy = rs.stringOpt(l.deletedBy),
-    deletedAt = rs.timestampOpt(l.deletedAt).map(_.toDateTime)
+    deletedAt = rs.timestampOpt(l.deletedAt).map(_.toJodaDateTime)
   )
       
   val l = License.syntax("l")

@@ -34,11 +34,11 @@ object Password extends SQLSyntaxSupport[Password] {
     userId = rs.string(p.userId),
     hash = rs.string(p.hash),
     createdBy = rs.string(p.createdBy),
-    createdAt = rs.timestamp(p.createdAt).toDateTime,
+    createdAt = rs.timestamp(p.createdAt).toJodaDateTime,
     updatedBy = rs.string(p.updatedBy),
-    updatedAt = rs.timestamp(p.updatedAt).toDateTime,
+    updatedAt = rs.timestamp(p.updatedAt).toJodaDateTime,
     deletedBy = rs.stringOpt(p.deletedBy),
-    deletedAt = rs.timestampOpt(p.deletedAt).map(_.toDateTime)
+    deletedAt = rs.timestampOpt(p.deletedAt).map(_.toJodaDateTime)
   )
       
   val p = Password.syntax("p")

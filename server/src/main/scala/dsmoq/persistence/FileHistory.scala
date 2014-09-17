@@ -40,11 +40,11 @@ object FileHistory extends SQLSyntaxSupport[FileHistory] {
     filePath = rs.string(fh.filePath),
     fileSize = rs.long(fh.fileSize),
     createdBy = rs.string(fh.createdBy),
-    createdAt = rs.timestamp(fh.createdAt).toDateTime,
+    createdAt = rs.timestamp(fh.createdAt).toJodaDateTime,
     updatedBy = rs.string(fh.updatedBy),
-    updatedAt = rs.timestamp(fh.updatedAt).toDateTime,
+    updatedAt = rs.timestamp(fh.updatedAt).toJodaDateTime,
     deletedBy = rs.stringOpt(fh.deletedBy),
-    deletedAt = rs.timestampOpt(fh.deletedAt).map(_.toDateTime)
+    deletedAt = rs.timestampOpt(fh.deletedAt).map(_.toJodaDateTime)
   )
       
   val fh = FileHistory.syntax("fh")

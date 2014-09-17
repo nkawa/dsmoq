@@ -36,11 +36,11 @@ object Group extends SQLSyntaxSupport[Group] {
     description = rs.string(g.description),
     groupType = rs.int(g.groupType),
     createdBy = rs.string(g.createdBy),
-    createdAt = rs.timestamp(g.createdAt).toDateTime,
+    createdAt = rs.timestamp(g.createdAt).toJodaDateTime,
     updatedBy = rs.string(g.updatedBy),
-    updatedAt = rs.timestamp(g.updatedAt).toDateTime,
+    updatedAt = rs.timestamp(g.updatedAt).toJodaDateTime,
     deletedBy = rs.stringOpt(g.deletedBy),
-    deletedAt = rs.timestampOpt(g.deletedAt).map(_.toDateTime)
+    deletedAt = rs.timestampOpt(g.deletedAt).map(_.toJodaDateTime)
   )
       
   val g = Group.syntax("g")

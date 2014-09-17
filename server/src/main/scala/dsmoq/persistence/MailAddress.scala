@@ -36,11 +36,11 @@ object MailAddress extends SQLSyntaxSupport[MailAddress] {
     address = rs.string(ma.address),
     status = rs.int(ma.status),
     createdBy = rs.string(ma.createdBy),
-    createdAt = rs.timestamp(ma.createdAt).toDateTime,
+    createdAt = rs.timestamp(ma.createdAt).toJodaDateTime,
     updatedBy = rs.string(ma.updatedBy),
-    updatedAt = rs.timestamp(ma.updatedAt).toDateTime,
+    updatedAt = rs.timestamp(ma.updatedAt).toJodaDateTime,
     deletedBy = rs.stringOpt(ma.deletedBy),
-    deletedAt = rs.timestampOpt(ma.deletedAt).map(_.toDateTime)
+    deletedAt = rs.timestampOpt(ma.deletedAt).map(_.toJodaDateTime)
   )
       
   val ma = MailAddress.syntax("ma")

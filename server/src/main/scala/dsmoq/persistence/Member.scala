@@ -38,11 +38,11 @@ object Member extends SQLSyntaxSupport[Member] {
     role = rs.int(m.role),
     status = rs.int(m.status),
     createdBy = rs.string(m.createdBy),
-    createdAt = rs.timestamp(m.createdAt).toDateTime,
+    createdAt = rs.timestamp(m.createdAt).toJodaDateTime,
     updatedBy = rs.string(m.updatedBy),
-    updatedAt = rs.timestamp(m.updatedAt).toDateTime,
+    updatedAt = rs.timestamp(m.updatedAt).toJodaDateTime,
     deletedBy = rs.stringOpt(m.deletedBy),
-    deletedAt = rs.timestampOpt(m.deletedAt).map(_.toDateTime)
+    deletedAt = rs.timestampOpt(m.deletedAt).map(_.toJodaDateTime)
   )
       
   val m = Member.syntax("m")

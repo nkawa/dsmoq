@@ -1,10 +1,7 @@
 package dsmoq.persistence
 
-import scalikejdbc.SQLInterpolation._
+import scalikejdbc._
 
-/**
- * Created by terurou on 14/03/19.
- */
 object PostgresqlHelper {
 
   implicit class UuidConditionSQLBuilder[A](val self: ConditionSQLBuilder[A]) extends AnyVal {

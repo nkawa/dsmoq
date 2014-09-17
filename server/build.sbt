@@ -5,7 +5,7 @@ scalikejdbcSettings
 
 assemblySettings
 
-scalaVersion := "2.10.3"
+scalaVersion := "2.11.2"
 
 mainClass in assembly := Some("dsmoq.JettyLauncher")
 

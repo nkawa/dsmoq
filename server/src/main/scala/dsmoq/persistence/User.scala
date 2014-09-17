@@ -42,11 +42,11 @@ object User extends SQLSyntaxSupport[User] {
     description = rs.string(u.description),
     imageId = rs.string(u.imageId),
     createdBy = rs.string(u.createdBy),
-    createdAt = rs.timestamp(u.createdAt).toDateTime,
+    createdAt = rs.timestamp(u.createdAt).toJodaDateTime,
     updatedBy = rs.string(u.updatedBy),
-    updatedAt = rs.timestamp(u.updatedAt).toDateTime,
+    updatedAt = rs.timestamp(u.updatedAt).toJodaDateTime,
     deletedBy = rs.stringOpt(u.deletedBy),
-    deletedAt = rs.timestampOpt(u.deletedAt).map(_.toDateTime)
+    deletedAt = rs.timestampOpt(u.deletedAt).map(_.toJodaDateTime)
   )
       
   val u = User.syntax("u")

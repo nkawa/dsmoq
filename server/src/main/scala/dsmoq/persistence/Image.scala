@@ -40,11 +40,11 @@ object Image extends SQLSyntaxSupport[Image] {
     filePath = rs.string(i.filePath),
     presetType = rs.int(i.presetType),
     createdBy = rs.string(i.createdBy),
-    createdAt = rs.timestamp(i.createdAt).toDateTime,
+    createdAt = rs.timestamp(i.createdAt).toJodaDateTime,
     updatedBy = rs.string(i.updatedBy),
-    updatedAt = rs.timestamp(i.updatedAt).toDateTime,
+    updatedAt = rs.timestamp(i.updatedAt).toJodaDateTime,
     deletedBy = rs.stringOpt(i.deletedBy),
-    deletedAt = rs.timestampOpt(i.deletedAt).map(_.toDateTime)
+    deletedAt = rs.timestampOpt(i.deletedAt).map(_.toJodaDateTime)
   )
       
   val i = Image.syntax("i")

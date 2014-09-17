@@ -34,11 +34,11 @@ object GoogleUser extends SQLSyntaxSupport[GoogleUser] {
     userId = rs.string(gu.userId),
     googleId = rs.string(gu.googleId),
     createdBy = rs.string(gu.createdBy),
-    createdAt = rs.timestamp(gu.createdAt).toDateTime,
+    createdAt = rs.timestamp(gu.createdAt).toJodaDateTime,
     updatedBy = rs.string(gu.updatedBy),
-    updatedAt = rs.timestamp(gu.updatedAt).toDateTime,
+    updatedAt = rs.timestamp(gu.updatedAt).toJodaDateTime,
     deletedBy = rs.stringOpt(gu.deletedBy),
-    deletedAt = rs.timestampOpt(gu.deletedAt).map(_.toDateTime)
+    deletedAt = rs.timestampOpt(gu.deletedAt).map(_.toJodaDateTime)
   )
       
   val gu = GoogleUser.syntax("gu")

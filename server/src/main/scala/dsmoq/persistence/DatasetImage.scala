@@ -36,11 +36,11 @@ object DatasetImage extends SQLSyntaxSupport[DatasetImage] {
     imageId = rs.string(di.imageId),
     isPrimary = rs.boolean(di.isPrimary),
     createdBy = rs.string(di.createdBy),
-    createdAt = rs.timestamp(di.createdAt).toDateTime,
+    createdAt = rs.timestamp(di.createdAt).toJodaDateTime,
     updatedBy = rs.string(di.updatedBy),
-    updatedAt = rs.timestamp(di.updatedAt).toDateTime,
+    updatedAt = rs.timestamp(di.updatedAt).toJodaDateTime,
     deletedBy = rs.stringOpt(di.deletedBy),
-    deletedAt = rs.timestampOpt(di.deletedAt).map(_.toDateTime)
+    deletedAt = rs.timestampOpt(di.deletedAt).map(_.toJodaDateTime)
   )
       
   val di = DatasetImage.syntax("di")

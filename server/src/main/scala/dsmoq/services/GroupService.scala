@@ -1,27 +1,18 @@
 package dsmoq.services
 
-import dsmoq.services.data._
-import scala.util.{Failure, Success, Try}
-import scalikejdbc.{DBSession, DB}
-import dsmoq.{AppConf, persistence}
-import scalikejdbc.SQLInterpolation._
-import scala.util.Failure
-import dsmoq.services.data.RangeSliceSummary
-import scala.util.Success
-import dsmoq.services.data.RangeSlice
-import dsmoq.persistence.PostgresqlHelper._
-import dsmoq.persistence.{GroupType, PresetType, GroupMemberRole, GroupAccessLevel}
-import org.joda.time.DateTime
-import dsmoq.exceptions._
 import java.util.UUID
-import dsmoq.logic.{StringUtil, ImageSaveLogic}
-import scala.util.Failure
-import scala.Some
-import scala.util.Success
-import dsmoq.services.data.RangeSlice
-import dsmoq.services.data.RangeSliceSummary
-import dsmoq.services.data.Image
+
+import dsmoq.exceptions._
+import dsmoq.logic.{ImageSaveLogic, StringUtil}
+import dsmoq.persistence.{GroupAccessLevel, GroupMemberRole, GroupType, PresetType}
+import dsmoq.services.data.{Image, RangeSlice, RangeSliceSummary, _}
+import dsmoq.{AppConf, persistence}
+import org.joda.time.DateTime
+import scalikejdbc._
+import dsmoq.persistence.PostgresqlHelper._
+
 import scala.collection.mutable
+import scala.util.{Failure, Success, Try}
 
 object GroupService {
   def search(params: GroupData.SearchGroupsParams): Try[RangeSlice[GroupData.GroupsSummary]] = {
@@ -686,6 +677,7 @@ object GroupService {
   private def countDatasets(groups : Seq[String])(implicit s: DBSession) = {
     val ds = persistence.Dataset.syntax("ds")
     val o = persistence.Ownership.syntax("o")
+
     withSQL {
       select(o.groupId, sqls.count(sqls.distinct(ds.id)).append(sqls"count"))
         .from(persistence.Dataset as ds)
