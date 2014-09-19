@@ -1,47 +1,44 @@
 package dsmoq.pages;
 
-import dsmoq.framework.types.PageContent;
-import js.support.ControllableStream;
 import js.html.Element;
-import js.jsviews.JsViews;
+import hxgnd.js.jsviews.JsViews;
+import hxgnd.js.Html;
 import dsmoq.models.Service;
-import dsmoq.framework.View;
 import dsmoq.Async;
+import hxgnd.Promise;
+import hxgnd.Unit;
+import hxgnd.Stream;
+import conduitbox.PageNavigation;
 
 class DashboardPage {
 
-    public static function create(): PageContent<Page> {
-        return {
-            navigation: new ControllableStream(),
-            invalidate: function (container: Element) {
-                var profile = Service.instance.profile;
+    public static function render(html: Html, onClose: Promise<Unit>): Stream<PageNavigation<Page>> {
+        var profile = Service.instance.profile;
 
-                var data = {
-                    isGuest: profile.isGuest,
-                    recentDatasets: Async.Pending,
-                    myDatasets: Async.Pending,
-                    myGroups: Async.Pending,
-                };
+        var data = {
+            isGuest: profile.isGuest,
+            recentDatasets: Async.Pending,
+            myDatasets: Async.Pending,
+            myGroups: Async.Pending,
+        };
 
-                var binding = JsViews.objectObservable(data);
-                View.getTemplate("dashboard/show").link(container, data);
+        var binding = JsViews.observable(data);
+        View.getTemplate("dashboard/show").link(html, data);
 
-                Service.instance.findDatasets({ limit: 3 }).then(function (x) {
-                    binding.setProperty("recentDatasets", Async.Completed(x.results));
-                });
+        Service.instance.findDatasets({ limit: 3 }).then(function (x) {
+            binding.setProperty("recentDatasets", Async.Completed(x.results));
+        });
 
-                if (!profile.isGuest) {
-                    Service.instance.findDatasets({owner: profile.id, limit: 3}).then(function (x) {
-                        binding.setProperty("myDatasets", Async.Completed(x.results));
-                    });
-                    Service.instance.findGroups({user: profile.id, limit: 3}).then(function (x) {
-                        binding.setProperty("myGroups", Async.Completed(x.results));
-                    });
-                }
-            },
-            dispose: function () {
-            }
+        if (!profile.isGuest) {
+            Service.instance.findDatasets({owner: profile.id, limit: 3}).then(function (x) {
+                binding.setProperty("myDatasets", Async.Completed(x.results));
+            });
+            Service.instance.findGroups({user: profile.id, limit: 3}).then(function (x) {
+                binding.setProperty("myGroups", Async.Completed(x.results));
+            });
         }
+
+        return new Stream(function (_) { });
     }
 
 }

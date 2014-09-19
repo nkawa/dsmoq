@@ -1,6 +1,6 @@
 package dsmoq;
 
-import js.support.PositiveInt;
+import hxgnd.PositiveInt;
 
 enum Page {
     Dashboard;

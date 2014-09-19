@@ -1,7 +1,9 @@
 -main dsmoq.Main
 -js www/application.js
 -cp src/main/
--cp lib/promhx/src/main/
+-cp lib/hxgnd/src/main
+-cp lib/hxgnd.jsviews/src
+-cp lib/ConduitBox/src/main
 -D jsviews_enable_jqhx
 -resource assets/_share/pagination.html@share/pagination
 -resource assets/header.html@template/header

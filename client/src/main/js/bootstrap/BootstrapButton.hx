@@ -1,6 +1,6 @@
 package js.bootstrap;
 
-import js.jqhx.JqHtml;
+import hxgnd.js.JqHtml;
 
 class BootstrapButton {
     public static inline function set(html: JqHtml, state: String): JqHtml {

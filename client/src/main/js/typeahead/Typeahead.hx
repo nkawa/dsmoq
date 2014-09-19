@@ -1,6 +1,6 @@
 package js.typeahead;
 
-import js.jqhx.JqHtml;
+import hxgnd.js.JqHtml;
 
 class Typeahead {
     public static function initialize<T>(

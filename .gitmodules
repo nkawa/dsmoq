@@ -1,3 +1,12 @@
 [submodule "client/lib/mocha.js-haxe"]
 	path = client/lib/mocha.js-haxe
 	url = https://github.com/illi-ichi/mocha.js-haxe.git
+[submodule "client/lib/hxgnd"]
+	path = client/lib/hxgnd
+	url = https://github.com/DenkiYagi/hxgnd
+[submodule "client/lib/hxgnd.jsviews"]
+	path = client/lib/hxgnd.jsviews
+	url = https://github.com/DenkiYagi/hxgnd.jsviews
+[submodule "client/lib/ConduitBox"]
+	path = client/lib/ConduitBox
+	url = https://github.com/DenkiYagi/ConduitBox

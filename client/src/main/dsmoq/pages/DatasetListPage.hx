@@ -1,50 +1,44 @@
 package dsmoq.pages;
 
+import conduitbox.PageNavigation;
 import dsmoq.Async;
-import dsmoq.framework.types.PageContent;
-import dsmoq.framework.types.PageNavigation;
-import dsmoq.framework.View;
 import dsmoq.models.Service;
-import js.html.Element;
-import js.jqhx.JqHtml;
-import js.jsviews.JsViews;
-import js.support.ControllableStream;
-import js.support.PositiveInt;
+import hxgnd.js.Html;
+import hxgnd.js.JqHtml;
+import hxgnd.js.jsviews.JsViews;
+import hxgnd.PositiveInt;
+import hxgnd.Promise;
+import hxgnd.Stream;
+import hxgnd.StreamBroker;
+import hxgnd.Unit;
 
 class DatasetListPage {
-    public static function create(page: PositiveInt): PageContent<Page> {
-        var navigation = new ControllableStream();
+    public static function render(html: Html, onClose: Promise<Unit>, pageNum: PositiveInt): Stream<PageNavigation<Page>> {
+        var navigation = new StreamBroker();
 
-        return {
-            navigation: navigation,
-            invalidate: function (container: Element) {
-                var root = new JqHtml(container);
+        var rootBinding = JsViews.observable({ data: Async.Pending });
+        View.getTemplate("dataset/list").link(html, rootBinding.data());
 
-                var rootBinding = JsViews.objectObservable({ data: Async.Pending });
-                View.getTemplate("dataset/list").link(container, rootBinding.data());
+        Service.instance.findDatasets({ offset: 20 * (pageNum - 1) }).then(function (x) {
+            var data = {
+                condition: { },
+                result: {
+                    index: Math.ceil(x.summary.offset / 20),
+                    total: x.summary.total,
+                    items: x.results,
+                    pages: Math.ceil(x.summary.total / 20)
+                }
+            };
+            rootBinding.setProperty("data", data);
 
-                Service.instance.findDatasets({ offset: 20 * (page - 1) }).then(function (x) {
-                    var data = {
-                        condition: { },
-                        result: {
-                            index: Math.ceil(x.summary.offset / 20),
-                            total: x.summary.total,
-                            items: x.results,
-                            pages: Math.ceil(x.summary.total / 20)
-                        }
-                    };
-                    rootBinding.setProperty("data", data);
+            JsViews.observe(data, "result.index", function (_, _) {
+                var page = data.result.index + 1;
+                navigation.update(PageNavigation.Navigate(Page.DatasetList(page)));
+            });
+        }, function (err) {
+            Notification.show("error", "error happened");
+        });
 
-                    JsViews.observe(data, "result.index", function (_, _) {
-                        var page = data.result.index + 1;
-                        navigation.update(PageNavigation.Navigate(Page.DatasetList(page)));
-                    });
-                }, function (err) {
-                    Notification.show("error", "error happened");
-                });
-            },
-            dispose: function () {
-            }
-        };
+        return navigation.stream;
     }
 }

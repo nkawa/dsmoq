@@ -2,16 +2,13 @@ package dsmoq.models;
 
 import js.Cookie;
 import js.Error;
-import js.jqhx.JqHtml;
-import js.jqhx.JQuery;
-import js.support.ControllablePromise;
-import js.support.PositiveInt;
-import js.support.Promise;
-import js.support.Stream;
-import js.support.Unit;
-
-using dsmoq.framework.helper.JQueryTools;
-using dsmoq.framework.helper.LangHelper;
+import hxgnd.Unit;
+import hxgnd.LangTools;
+import hxgnd.Promise;
+import hxgnd.PositiveInt;
+import hxgnd.Stream;
+import hxgnd.js.JQuery;
+import hxgnd.js.JqHtml;
 
 class Service extends Stream<ServiceEvent> {
     public static inline var QueryLimit: UInt = 20;
@@ -23,7 +20,7 @@ class Service extends Stream<ServiceEvent> {
     public var licenses(default, null): Array<License>;
 
     function new() {
-        super(function (_, _, _) {
+        super(function (_) {
             return function () {};
         });
 
@@ -137,7 +134,7 @@ class Service extends Stream<ServiceEvent> {
 //
     public function changeDatasetImage(datasetId: String, form: JqHtml): Promise<{images: Array<Image>, primaryImage: String}> {
         // TODO 既存イメージ削除
-        return sendForm('/api/datasets/$datasetId/images', form).bind(function (res) {
+        return sendForm('/api/datasets/$datasetId/images', form).flatMap(function (res) {
             return send(Put, '/api/datasets/$datasetId/images/primary', { id: res.images[0].id } ).map(function (_) {
                 return { images: cast res.images, primaryImage: cast res.images[0].id };
             });
@@ -204,9 +201,9 @@ class Service extends Stream<ServiceEvent> {
 
     public function getGroupMembers(groupId: String, ?params: { ?offset: Int, ?limit: Int })
             : Promise<RangeSlice<GroupMember>> {
-        var params = params.orElse({});
-        return send(Get, '/api/groups/$groupId/members', { offset: params.offset.orElse(0),
-                                                           limit: params.limit.orElse(QueryLimit) });
+        var params = LangTools.orElse(params, {});
+        return send(Get, '/api/groups/$groupId/members', { offset: LangTools.orElse(params.offset, 0),
+                                                           limit: LangTools.orElse(params.limit, QueryLimit) });
     }
 
     public function updateGroupBasics(groupId: String, name: String, description: String): Promise<Group> {
@@ -215,7 +212,7 @@ class Service extends Stream<ServiceEvent> {
 
     public function changeGroupImage(groupId: String, form: JqHtml): Promise<{images: Array<Image>, primaryImage: String}> {
         // TODO 既存イメージ削除
-        return sendForm('/api/groups/$groupId/images', form).bind(function (res) {
+        return sendForm('/api/groups/$groupId/images', form).flatMap(function (res) {
             return send(Put, '/api/groups/$groupId/images/primary', { id: res.images[0].id } ).map(function (_) {
                 return { images: cast res.images, primaryImage: cast res.images[0].id };
             });
@@ -252,9 +249,9 @@ class Service extends Stream<ServiceEvent> {
     }
 
     public function getOwner(name: String): Promise<SuggestedOwner> {
-        return send(Get, '/api/suggests/users_and_groups', {query: name}).bind(function (list: Array<SuggestedOwner>) {
+        return send(Get, '/api/suggests/users_and_groups', {query: name}).flatMap(function (list: Array<SuggestedOwner>) {
             return if (list.length > 0 && list[0].name == name) {
-                Promise.resolved(list[0]);
+                Promise.fulfilled(list[0]);
             } else {
                 Promise.rejected(new Error("NotFound"));
             }
@@ -278,11 +275,13 @@ class Service extends Stream<ServiceEvent> {
     }
 
     function send<T>(method: RequestMethod, url: String, ?data: Dynamic): Promise<T> {
-        return JQuery.ajax(url, {type: method, dataType: "json", cache: false, data: data, traditional: true}).toPromise()
-            .bind(function (response: ApiResponse) {
+        var str: String = method;
+
+        return JQuery.ajax(url, {type: str, dataType: "json", cache: false, data: data, traditional: true}).toPromise()
+            .flatMap(function (response: ApiResponse) {
                 return switch (response.status) {
                     case ApiStatus.OK:
-                        Promise.resolved(cast response.data);
+                        Promise.fulfilled(cast response.data);
                     case ApiStatus.NotFound:
                         Promise.rejected(new ServiceError("NotFound", NotFound));
                     case ApiStatus.BadRequest:
@@ -300,33 +299,33 @@ class Service extends Stream<ServiceEvent> {
     }
 
     function sendForm<T>(url: String, form: JqHtml, ?optData: {}): Promise<T> {
-        var p = new ControllablePromise();
-        untyped form.ajaxSubmit({
-            url: url,
-            type: "post",
-            dataType: "json",
-            data: optData,
-            success: function (response) {
-                switch (response.status) {
-                    case ApiStatus.OK:
-                        p.resolve(cast response.data);
-                    case ApiStatus.NotFound:
-                        Promise.rejected(new ServiceError("NotFound", NotFound));
-                    case ApiStatus.BadRequest:
-                        p.reject(new ServiceError(response.status, BadRequest, response.data));
-                    case ApiStatus.Unauthorized:
-                        if (!profile.isGuest) {
-                            profile = guest();
-                            update(SignedOut);
-                        }
-                        p.reject(new ServiceError(response.status, Unauthorized));
-                    case _:
-                        p.reject(new ServiceError("Unknown", Unknown));
-                }
-            },
-            error: p.reject
+        return new Promise(function (ctx) {
+            untyped form.ajaxSubmit({
+                url: url,
+                type: "post",
+                dataType: "json",
+                data: optData,
+                success: function (response) {
+                    switch (response.status) {
+                        case ApiStatus.OK:
+                            ctx.fulfill(cast response.data);
+                        case ApiStatus.NotFound:
+                            ctx.rejected(new ServiceError("NotFound", NotFound));
+                        case ApiStatus.BadRequest:
+                            ctx.reject(new ServiceError(response.status, BadRequest, response.data));
+                        case ApiStatus.Unauthorized:
+                            if (!profile.isGuest) {
+                                profile = guest();
+                                update(SignedOut);
+                            }
+                            ctx.reject(new ServiceError(response.status, Unauthorized));
+                        case _:
+                            ctx.reject(new ServiceError("Unknown", Unknown));
+                    }
+                },
+                error: ctx.reject
+            });
         });
-        return p;
     }
 }
 
@@ -353,7 +352,7 @@ class ServiceError extends Error {
     }
 }
 
-@:enum private abstract RequestMethod(String) {
+@:enum private abstract RequestMethod(String) to String {
     var Get = "get";
     var Post = "post";
     var Head = "head";

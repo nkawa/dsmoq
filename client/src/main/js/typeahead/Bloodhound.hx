@@ -1,6 +1,7 @@
 package js.typeahead;
-import js.jqhx.JQuery;
-import js.jqhx.JqXHR;
+
+import hxgnd.js.JQuery;
+import hxgnd.js.JqXHR;
 
 @:native("Bloodhound")
 extern class Bloodhound<T> {
@@ -40,7 +41,7 @@ typedef BloodhoundPrefechOptions<T> = {
     ?ttl: Int,
     ?thumbprint: String,
     ?filter: Dynamic -> Array<T>,
-    ?ajax: JqAjaxOption
+    ?ajax: JqAjaxSettings
 }
 
 abstract BloodhoundRemote<T>(Dynamic) from BloodhoundRemoteOptions<T> from String {}
@@ -51,7 +52,7 @@ typedef BloodhoundRemoteOptions<T> = {
     ?rateLimitBy: BloodhoundRateLimitBy,
     ?rateLimitWait: Int,
     ?filter: Dynamic -> Array<T>,
-    ?ajax: JqAjaxOption
+    ?ajax: JqAjaxSettings
 }
 
 @:enum abstract BloodhoundRateLimitBy(String) {

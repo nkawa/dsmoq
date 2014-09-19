@@ -1,15 +1,17 @@
-package dsmoq.framework;
+package dsmoq;
 
 import js.Error;
-import js.support.Result;
-import js.support.Unit;
+import hxgnd.Result;
+import hxgnd.Unit;
 import js.html.Element;
-import js.jsviews.JsViews;
-import js.jsviews.JsViews.Template in JsTemplate;
-import js.jqhx.JQuery;
+import hxgnd.js.jsviews.JsViews;
+import hxgnd.js.jsviews.JsViews.Template in JsTemplate;
+import hxgnd.js.JQuery;
 import haxe.Resource;
-using js.support.ResultTools;
-using js.support.OptionTools;
+import hxgnd.js.Html;
+
+using hxgnd.ResultTools;
+using hxgnd.OptionTools;
 
 class View {
     static var uninitialized = true;
@@ -32,7 +34,6 @@ class View {
     public static function link(name: String, target: Html, ?binding: {}): Void {
         initialize();
 
-        target.toElement().appendChild;
         JsViews.getTemplate(name)
             .getOrThrow(new Error('undefined template: \'$name\''))
             .link(target, binding);

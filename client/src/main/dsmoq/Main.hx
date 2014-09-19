@@ -1,34 +1,28 @@
 package dsmoq;
 
-import dsmoq.framework.ApplicationContext;
-import dsmoq.framework.Engine;
-import dsmoq.framework.types.Location;
-import dsmoq.framework.types.PageContent;
-import dsmoq.framework.types.PageFrame;
+import hxgnd.Error;
+import hxgnd.Unit;
+import hxgnd.Option;
+import conduitbox.Application.LocationMapping;
+import conduitbox.Engine;
+import conduitbox.ApplicationContext;
+import hxgnd.Promise;
+import hxgnd.js.JsTools;
+import hxgnd.LangTools;
+import dsmoq.pages.*;
+
+
 import dsmoq.models.Profile;
 import dsmoq.models.Service;
 import dsmoq.Page;
-import dsmoq.pages.DashboardPage;
-import dsmoq.pages.DatasetEditPage;
-import dsmoq.pages.DatasetListPage;
-import dsmoq.pages.DatasetShowPage;
-import dsmoq.pages.Frame;
-import dsmoq.pages.GroupEditPage;
-import dsmoq.pages.GroupListPage;
-import dsmoq.pages.GroupShowPage;
-import dsmoq.pages.ProfilePage;
 import haxe.Resource;
-import js.jqhx.JqHtml;
-import js.jsviews.JsViews;
-import js.support.JsTools;
-import js.support.Option;
-import js.support.PositiveInt;
-import js.support.Promise;
-import js.support.Unit;
+import hxgnd.js.JqHtml;
+import hxgnd.js.jsviews.JsViews;
+import hxgnd.js.JsTools;
+import hxgnd.PositiveInt;
 
 using StringTools;
-using js.support.OptionTools;
-using dsmoq.framework.helper.JQueryTools;
+using hxgnd.OptionTools;
 
 /**
  * EntryPoint
@@ -140,7 +134,7 @@ class Main {
 
                 var cls: String = tagDef.tagCtx.props["class"];
                 var index: Int = tagDef.tagCtx.args[0];
-                var pageDelta: Int = JsTools.orElse(tagDef.tagCtx.props["pagedelta"], 5);
+                var pageDelta: Int = LangTools.orElse(tagDef.tagCtx.props["pagedelta"], 5);
                 var pageDeltaCenter = Math.floor(pageDelta / 2);
                 var pages: Int = tagDef.tagCtx.args[1];
 
@@ -179,87 +173,89 @@ class Main {
             //}
         });
 
-        Engine.start(new Main());
-    }
 
-    public function new() : Void {
-    }
 
-    public function bootstrap(): Promise<Unit> {
-        return Service.instance.bootstrap;
-    }
 
-    public function frame(context: ApplicationContext): PageFrame<Page> {
-        return Frame.create(context);
-    }
 
-    public function content(page: Page): PageContent<Page> {
-        return switch (page) {
-            case Dashboard: DashboardPage.create();
-            case DatasetList(page): DatasetListPage.create(page);
-            case DatasetShow(id): DatasetShowPage.create(id);
-            case DatasetEdit(id): DatasetEditPage.create(id);
-            case GroupList(page): GroupListPage.create(page);
-            case GroupShow(id): GroupShowPage.create(id);
-            case GroupEdit(id): GroupEditPage.create(id);
-            case Profile: ProfilePage.create();
-        };
-    }
 
-    public function fromLocation(location: Location): Option<Page> {
-        var path = location.path.split("/");
-        path.shift();
+        Engine.start({
+            locationMapping: LocationMapping.Mapping({
+                from: function (location) {
+                    var path = location.path.split("/");
+                    path.shift();
 
-        function parsePositiveInt(x: String) {
-            var i = Std.parseInt(x);
-            return (i == null) ? None : Some(cast(i, PositiveInt));
-        }
+                    function parsePositiveInt(x: String) {
+                        var i = Std.parseInt(x);
+                        return (i == null) ? None : Some(cast(i, PositiveInt));
+                    }
 
-        return switch (path) {
-            case [""]:
-                Some(Dashboard);
-            case ["datasets"]:
-                Some(DatasetList(parsePositiveInt(location.query["page"]).getOrDefault(1)));
-            case ["datasets", id]:
-                Some(DatasetShow(id));
-            case ["datasets", id, "edit"]:
-                Some(DatasetEdit(id));
-            case ["groups"]:
-                Some(GroupList(parsePositiveInt(location.query["page"]).getOrDefault(1)));
-            case ["groups", id]:
-                Some(GroupShow(id));
-            case ["groups", id, "edit"]:
-                Some(GroupEdit(id));
-            case ["profile"]:
-                Some(Profile);
-            case _:
-                None;
-        }
-    }
+                    return switch (path) {
+                        case [""]:
+                            Dashboard;
+                        case ["datasets"]:
+                            DatasetList(parsePositiveInt(location.query["page"]).getOrDefault(1));
+                        case ["datasets", id]:
+                            DatasetShow(id);
+                        case ["datasets", id, "edit"]:
+                            DatasetEdit(id);
+                        case ["groups"]:
+                            GroupList(parsePositiveInt(location.query["page"]).getOrDefault(1));
+                        case ["groups", id]:
+                            GroupShow(id);
+                        case ["groups", id, "edit"]:
+                            GroupEdit(id);
+                        case ["profile"]:
+                            Profile;
+                        case _:
+                            throw new Error("invalid path");
+                    }
+                },
+                to: function (page) {
+                    return switch (page) {
+                        case Dashboard:
+                            { path: "/" };
 
-    public function toLocation(page: Page): Location {
-        return switch (page) {
-            case Dashboard:
-                { path: "/" };
+                        case DatasetList(page):
+                            var query = new Map();
+                            query["page"] = Std.string(page);
+                            { path: "/datasets", query: query };
+                        case DatasetShow(id):
+                            { path: '/datasets/$id' };
+                        case DatasetEdit(id):
+                            { path: '/datasets/$id/edit' };
 
-            case DatasetList(page):
-                var query = new Map();
-                query["page"] = Std.string(page);
-                { path: "/datasets", query: query };
-            case DatasetShow(id):
-                { path: '/datasets/$id' };
-            case DatasetEdit(id):
-                { path: '/datasets/$id/edit' };
+                        case GroupList(page):
+                            { path: "/groups" };
+                        case GroupShow(id):
+                            { path: '/groups/$id' };
+                        case GroupEdit(id):
+                            { path: '/groups/$id/edit' };
 
-            case GroupList(page):
-                { path: "/groups" };
-            case GroupShow(id):
-                { path: '/groups/$id' };
-            case GroupEdit(id):
-                { path: '/groups/$id/edit' };
+                        case Profile:
+                            { path: "/profile" };
+                    };
+                }
+            }),
 
-            case Profile:
-                { path: "/profile" };
-        };
+            bootstrap: function () {
+                return Service.instance.bootstrap;
+            },
+
+            createFrame: Frame.create,
+
+            createRenderer: function (page) {
+                return switch (page) {
+                    case Dashboard: DashboardPage.render;
+                    case DatasetList(pageNum): DatasetListPage.render.bind(_, _, pageNum);
+                    case DatasetShow(id): DatasetShowPage.render.bind(_, _, id);
+                    case DatasetEdit(id): DatasetEditPage.render.bind(_, _, id);
+                    case GroupList(pageNum): GroupListPage.render.bind(_, _, pageNum);
+                    case GroupShow(id): GroupShowPage.render.bind(_, _, id);
+                    case GroupEdit(id): GroupEditPage.render.bind(_, _, id);
+                    case Profile: ProfilePage.render;
+                    default: DashboardPage.render;
+                }
+            }
+        });
     }
 }

@@ -1,32 +1,30 @@
 package dsmoq.pages;
 
-import dsmoq.framework.ApplicationContext;
-import dsmoq.framework.helper.PageHelper;
-import dsmoq.framework.LocationTools;
-import dsmoq.framework.types.PageFrame;
-import dsmoq.framework.types.PageNavigation;
-import dsmoq.framework.View;
+import conduitbox.ApplicationContext;
+import conduitbox.PageFrame;
+import conduitbox.PageNavigation;
 import dsmoq.models.Service;
 import dsmoq.Page;
+import dsmoq.View;
+import hxgnd.js.JQuery;
+import hxgnd.js.jsviews.JsViews;
+import hxgnd.StreamBroker;
 import js.bootstrap.BootstrapButton;
 import js.Browser;
 import js.html.Event;
-import js.jqhx.JQuery;
-import js.jqhx.JqHtml;
-import js.jsviews.JsViews;
-import js.support.ControllableStream;
-import js.support.JsTools;
+import hxgnd.js.JsTools;
 
 using StringTools;
-using js.support.ArrayTools;
+using hxgnd.ArrayTools;
 
 class Frame {
-    public static function create(context: ApplicationContext): PageFrame<Page> {
-        var body = JQuery.wrap(Browser.document.body);
-        var navigation = new ControllableStream();
+    public static function create(context: ApplicationContext<Page>): PageFrame<Page> {
+        var body = JQuery._(Browser.document.body);
+        var navigation = new StreamBroker();
 
-        function url(location) {
-            return "/oauth/signin_google?location=" + LocationTools.toUrl(location).urlEncode();
+        function url(page: Page) {
+            return ""; //TODO 修正
+            //return "/oauth/signin_google?location=" + LocationTools.toUrl(location).urlEncode();
         }
 
         var data = {
@@ -40,16 +38,17 @@ class Frame {
                 name: "",
                 errors: { name: "" }
             },
-            location: url(LocationTools.currentLocation())
+            location: ""
+            //location: url(LocationTools.currentLocation())
         };
 
-        var binding = JsViews.objectObservable(data);
+        var binding = JsViews.observable(data);
 
-        var header = JQuery.find("#header");
+        var header = JQuery._("#header");
         View.link("header", header, data);
 
-        context.location.then(function (location) {
-            binding.setProperty("location", url(location));
+        context.pageChanged.then(function (page) {
+            binding.setProperty("location", url(page));
         });
 
         function updateProfile(profile) {
@@ -78,8 +77,8 @@ class Frame {
         header.on("submit", "#signin-form", function (event: Event) {
             event.preventDefault();
 
-            BootstrapButton.setLoading(JQuery.find("#signin-submit"));
-            JQuery.find("#signin-with-google").attr("disabled", true);
+            BootstrapButton.setLoading(JQuery._("#signin-submit"));
+            JQuery._("#signin-with-google").attr("disabled", true);
             Service.instance.signin(data.signinData.id, data.signinData.password).then(
                 function (_) {
                     binding.setProperty("signinData.id", "");
@@ -94,8 +93,8 @@ class Frame {
                     }
                 },
                 function () {
-                    BootstrapButton.reset(JQuery.find("#signin-submit"));
-                    JQuery.find("#signin-with-google").removeAttr("disabled");
+                    BootstrapButton.reset(JQuery._("#signin-submit"));
+                    JQuery._("#signin-with-google").removeAttr("disabled");
                 }
             );
         });
@@ -104,34 +103,34 @@ class Frame {
             Service.instance.signout();
         });
 
-        JQuery.find("#new-dataset-dialog").on("hide.bs.modal", function (_) {
-            JQuery.find("#new-dataset-dialog form .form-group").remove();
-            JQuery.find("#new-dataset-dialog form")
+        JQuery._("#new-dataset-dialog").on("hide.bs.modal", function (_) {
+            JQuery._("#new-dataset-dialog form .form-group").remove();
+            JQuery._("#new-dataset-dialog form")
                 .append("<div class=\"form-group\"><input type=\"file\" name=\"file[]\"></div>");
         });
 
-        JQuery.find("#new-dataset-dialog form").on("change", "input[type='file']", function (event: Event) {
-            var form = JQuery.find("#new-dataset-dialog form");
+        JQuery._("#new-dataset-dialog form").on("change", "input[type='file']", function (event: Event) {
+            var form = JQuery._("#new-dataset-dialog form");
 
             form.find("input[type='file']")
                 .toArray()
-                .filter(function (x) return JQuery.wrap(x).val() == "")
-                .iter(function (x) JQuery.wrap(x).parent().remove());
+                .filter(function (x) return JQuery._(x).val() == "")
+                .iter(function (x) JQuery._(x).parent().remove());
 
             if (form.find("input[type='file']").length == 0) {
-                JQuery.find("#new-dataset-dialog-submit").attr("disabled", true);
+                JQuery._("#new-dataset-dialog-submit").attr("disabled", true);
             } else {
-                JQuery.find("#new-dataset-dialog-submit").removeAttr("disabled");
+                JQuery._("#new-dataset-dialog-submit").removeAttr("disabled");
             }
 
             form.append("<div class=\"form-group\"><input type=\"file\" name=\"file[]\"></div>");
         });
 
-        JQuery.find("#new-dataset-dialog-submit").on("click", function (event: Event) {
-            BootstrapButton.setLoading(JQuery.find("#new-dataset-dialog-submit"));
-            Service.instance.createDataset(JQuery.find("#new-dataset-dialog form")).then(function (data) {
-                untyped JQuery.find("#new-dataset-dialog").modal("hide");
-                JQuery.find("#new-dataset-dialog form")
+        JQuery._("#new-dataset-dialog-submit").on("click", function (event: Event) {
+            BootstrapButton.setLoading(JQuery._("#new-dataset-dialog-submit"));
+            Service.instance.createDataset(JQuery._("#new-dataset-dialog form")).then(function (data) {
+                untyped JQuery._("#new-dataset-dialog").modal("hide");
+                JQuery._("#new-dataset-dialog form")
                     .find("input[type='file']").remove().end()
                     .append("<div class=\"form-group\"><input type=\"file\" name=\"file[]\"></div>");
                 navigation.update(PageNavigation.Navigate(DatasetShow(data.id)));
@@ -139,19 +138,19 @@ class Frame {
             }, function (err) {
                 Notification.show("error", "error happened");
             }, function () {
-                BootstrapButton.reset(JQuery.find("#new-dataset-dialog-submit"));
+                BootstrapButton.reset(JQuery._("#new-dataset-dialog-submit"));
             });
         });
 
         function toggleNewGroupSubmit() {
-            if (JQuery.find("#new-group-dialog input[name='name']").val().length <= 0) {
-                JQuery.find("#new-group-dialog-submit").attr("disabled", true);
+            if (JQuery._("#new-group-dialog input[name='name']").val().length <= 0) {
+                JQuery._("#new-group-dialog-submit").attr("disabled", true);
             } else {
-                JQuery.find("#new-group-dialog-submit").removeAttr("disabled");
+                JQuery._("#new-group-dialog-submit").removeAttr("disabled");
             }
         }
 
-        JQuery.find("#new-group-dialog input[name='name']")
+        JQuery._("#new-group-dialog input[name='name']")
             .on("paste", function (event: Event) {
                 JsTools.setImmediate(toggleNewGroupSubmit);
             })
@@ -165,14 +164,14 @@ class Frame {
                 JsTools.setImmediate(toggleNewGroupSubmit);
             });
 
-        JQuery.find("#new-group-dialog-submit").on("click", function (event: Event) {
-            BootstrapButton.setLoading(JQuery.find("#new-group-dialog-submit"));
+        JQuery._("#new-group-dialog-submit").on("click", function (event: Event) {
+            BootstrapButton.setLoading(JQuery._("#new-group-dialog-submit"));
 
             Service.instance.createGroup(data.groupForm.name).then(function (data) {
-                untyped JQuery.find("#new-group-dialog").modal("hide");
+                untyped JQuery._("#new-group-dialog").modal("hide");
                 binding.setProperty('groupForm.name', "");
                 binding.setProperty('groupForm.errors.name', "");
-                JQuery.find("#new-group-dialog-submit").attr("disabled", true);
+                JQuery._("#new-group-dialog-submit").attr("disabled", true);
                 Notification.show("success", "create successful");
                 navigation.update(PageNavigation.Navigate(GroupShow(data.id)));
             }, function (err) {
@@ -184,15 +183,17 @@ class Frame {
                 }
                 Notification.show("error", "error happened");
             }, function () {
-                BootstrapButton.reset(JQuery.find("#new-group-dialog-submit"));
+                BootstrapButton.reset(JQuery._("#new-group-dialog-submit"));
             });
         });
 
         body.removeClass("loading");
 
-        return PageHelper.toFrame({
-            html: cast JQuery.find("#main")[0],
-            navigation: navigation
-        });
+        return {
+            navigation: navigation.stream,
+            createSlot: function () {
+                return JQuery._(JQuery._("#main")[0]);
+            }
+        }
     }
 }
