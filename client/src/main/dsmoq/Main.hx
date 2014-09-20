@@ -253,7 +253,6 @@ class Main {
                     case GroupShow(id): GroupShowPage.render.bind(_, _, id);
                     case GroupEdit(id): GroupEditPage.render.bind(_, _, id);
                     case Profile: ProfilePage.render;
-                    default: DashboardPage.render;
                 }
             }
         });

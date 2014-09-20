@@ -1,6 +1,7 @@
 package dsmoq.pages;
 
 import conduitbox.ApplicationContext;
+import conduitbox.Engine;
 import conduitbox.PageFrame;
 import conduitbox.PageNavigation;
 import dsmoq.models.Service;
@@ -22,11 +23,6 @@ class Frame {
         var body = JQuery._(Browser.document.body);
         var navigation = new StreamBroker();
 
-        function url(page: Page) {
-            return ""; //TODO 修正
-            //return "/oauth/signin_google?location=" + LocationTools.toUrl(location).urlEncode();
-        }
-
         var data = {
             profile: Service.instance.profile,
             signinData: {
@@ -38,8 +34,7 @@ class Frame {
                 name: "",
                 errors: { name: "" }
             },
-            location: ""
-            //location: url(LocationTools.currentLocation())
+            location: getAuthUrl()
         };
 
         var binding = JsViews.observable(data);
@@ -47,8 +42,8 @@ class Frame {
         var header = JQuery._("#header");
         View.link("header", header, data);
 
-        context.pageChanged.then(function (page) {
-            binding.setProperty("location", url(page));
+        context.pageChanged.then(function (_) {
+            binding.setProperty("location", getAuthUrl());
         });
 
         function updateProfile(profile) {
@@ -192,8 +187,12 @@ class Frame {
         return {
             navigation: navigation.stream,
             createSlot: function () {
-                return JQuery._(JQuery._("#main")[0]);
+                return JQuery._("<div></div>").appendTo("#main");
             }
         }
+    }
+
+    static function getAuthUrl() {
+        return "/oauth/signin_google?location=" + Engine.currentUrl.urlEncode();
     }
 }

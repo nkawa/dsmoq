@@ -7,12 +7,12 @@
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>
       </button>
-      {{a class="navbar-brand" href="/"}}COI Data Store{{/a}}
+      <a data-navigation class="navbar-brand" href="/">COI Data Store</a>
     </div>
     <div class="collapse navbar-collapse">
       <ul class="nav navbar-nav">
-        <li>{{a href="/datasets"}}Datasets{{/a}}</li>
-       　<li>{{a href="/groups"}}Groups{{/a}}</li>
+        <li><a data-navigation href="/datasets">Datasets</a></li>
+       　<li><a data-navigation href="/groups">Groups</a></li>
         {^{if profile == null || profile.isGuest === false}}
           <li><a data-toggle="modal" data-target="#new-dataset-dialog"><span class="glyphicon glyphicon-cloud-upload"></span> Create Dataset</a></li>
         {{/if}}
@@ -56,7 +56,7 @@
             <a href="#" class="dropdown-toggle" data-toggle="dropdown">{^{>profile.fullname}} <b class="caret"></b></a>
             <ul class="dropdown-menu">
               <li><a data-toggle="modal" data-target="#new-group-dialog">Create Group</a></li>
-              <li>{{a class="control-label" href="/profile"}}Edit Profile{{/a}}</li>
+              <li><a data-navigation class="control-label" href="/profile">Edit Profile</a></li>
               <li class="divider"></li>
               <li><a class="control-label" href="javascript:void 0;" id="signout-button">Signout</a></li>
             </ul>
