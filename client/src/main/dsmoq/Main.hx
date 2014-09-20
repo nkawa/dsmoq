@@ -64,7 +64,7 @@ class Main {
                 var v = Reflect.field(props, k);
                 buf.push('${StringTools.urlEncode(k)}="${JsTools.encodeURI(v)}"');
             }
-            return '<a data-history ${buf.join(" ")}>${ctx.render()}</a>';
+            return '<a data-navigation ${buf.join(" ")}>${ctx.render()}</a>';
         });
 
         JsViews.views.tags("img", function (_) {
