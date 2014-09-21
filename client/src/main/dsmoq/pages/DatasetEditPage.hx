@@ -1,6 +1,6 @@
 package dsmoq.pages;
 
-import conduitbox.PageNavigation;
+import conduitbox.Navigation;
 import dsmoq.models.DatasetPermission;
 import dsmoq.models.Service;
 import haxe.Resource;
@@ -19,7 +19,7 @@ import js.typeahead.Bloodhound;
 import js.typeahead.Typeahead;
 
 class DatasetEditPage {
-    public static function render(root: Html, onClose: Promise<Unit>, id: String): Promise<PageNavigation<Page>> {
+    public static function render(root: Html, onClose: Promise<Unit>, id: String): Promise<Navigation<Page>> {
         var navigation = new PromiseBroker();
         var attrbuteEngine = createAttributeBloodhound();
         var ownerEngine = createOwnerBloodhound();
@@ -104,7 +104,7 @@ class DatasetEditPage {
             setOwnerTypeahead(root);
 
             root.find("#dataset-finish-editing").on("click", function (_) {
-                navigation.fulfill(PageNavigation.Navigate(Page.DatasetShow(id)));
+                navigation.fulfill(Navigation.Navigate(Page.DatasetShow(id)));
             });
 
             // basics

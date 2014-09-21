@@ -1,26 +1,22 @@
 package dsmoq;
 
-import hxgnd.Error;
-import hxgnd.js.Html;
-import hxgnd.Unit;
-import hxgnd.Option;
-import conduitbox.Application.LocationMapping;
 import conduitbox.Engine;
-import conduitbox.ApplicationContext;
-import hxgnd.Promise;
-import hxgnd.js.JsTools;
-import hxgnd.LangTools;
-import dsmoq.pages.*;
-
-
+import conduitbox.LocationMapping;
 import dsmoq.models.Profile;
 import dsmoq.models.Service;
 import dsmoq.Page;
+import dsmoq.pages.*;
 import haxe.Resource;
+import hxgnd.Error;
+import hxgnd.js.Html;
 import hxgnd.js.JqHtml;
-import hxgnd.js.jsviews.JsViews;
 import hxgnd.js.JsTools;
+import hxgnd.js.jsviews.JsViews;
+import hxgnd.LangTools;
 import hxgnd.PositiveInt;
+import hxgnd.Promise;
+import hxgnd.Unit;
+import hxgnd.Option;
 
 using StringTools;
 using hxgnd.OptionTools;
@@ -181,7 +177,7 @@ class Main {
 
         Engine.start({
             locationMapping: LocationMapping.Mapping({
-                from: function (location) {
+                toPage: function (location) {
                     var path = location.path.split("/");
                     path.shift();
 
@@ -211,7 +207,7 @@ class Main {
                             throw new Error("invalid path");
                     }
                 },
-                to: function (page) {
+                toLocation: function (page) {
                     return switch (page) {
                         case Dashboard:
                             { path: "/" };

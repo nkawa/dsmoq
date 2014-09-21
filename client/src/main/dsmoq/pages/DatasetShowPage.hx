@@ -12,13 +12,13 @@ import hxgnd.Promise;
 import hxgnd.Unit;
 import hxgnd.PromiseBroker;
 import hxgnd.js.Html;
-import conduitbox.PageNavigation;
+import conduitbox.Navigation;
 import hxgnd.js.JsTools;
 import haxe.ds.Option;
 using dsmoq.JQueryTools;
 
 class DatasetShowPage {
-    public static function render(html: Html, onClose: Promise<Unit>, id: String): Promise<PageNavigation<Page>> {
+    public static function render(html: Html, onClose: Promise<Unit>, id: String): Promise<Navigation<Page>> {
         var navigation = new PromiseBroker();
         var data = { data: Async.Pending };
         var binding = JsViews.observable(data);
@@ -42,7 +42,7 @@ class DatasetShowPage {
             }));
 
             html.find("#dataset-edit").on("click", function (_) {
-                navigation.fulfill(PageNavigation.Navigate(Page.DatasetEdit(id)));
+                navigation.fulfill(Navigation.Navigate(Page.DatasetEdit(id)));
             });
 
             html.find("#dataset-delete").createEventStream("click").chain(function (_) {
@@ -51,7 +51,7 @@ class DatasetShowPage {
                 return Service.instance.deleteDeataset(id);
             }).then(function (_) {
                 // TODO 削除対象データセット閲覧履歴（このページ）をHistoryから消す
-                navigation.fulfill(PageNavigation.Navigate(Page.DatasetList(1)));
+                navigation.fulfill(Navigation.Navigate(Page.DatasetList(1)));
             });
         }, function (err) {
             switch (err.name) {

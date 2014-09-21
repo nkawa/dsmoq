@@ -1,6 +1,6 @@
 package dsmoq.pages;
 
-import conduitbox.PageNavigation;
+import conduitbox.Navigation;
 import dsmoq.models.Service;
 import dsmoq.Page;
 import hxgnd.js.Html;
@@ -11,7 +11,7 @@ import hxgnd.Unit;
 import js.bootstrap.BootstrapButton;
 
 class ProfilePage {
-    public static function render(root: Html, onClose: Promise<Unit>): Promise<PageNavigation<Page>> {
+    public static function render(root: Html, onClose: Promise<Unit>): Promise<Navigation<Page>> {
         var navigation = new PromiseBroker();
         if (Service.instance.profile.isGuest) {
             root.html("unauthorized");

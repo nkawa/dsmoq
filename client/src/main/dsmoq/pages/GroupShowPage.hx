@@ -1,6 +1,6 @@
 package dsmoq.pages;
 
-import conduitbox.PageNavigation;
+import conduitbox.Navigation;
 import dsmoq.Async;
 import dsmoq.models.Service;
 import dsmoq.Page;
@@ -13,7 +13,7 @@ import hxgnd.Unit;
 using dsmoq.JQueryTools;
 
 class GroupShowPage {
-    public static function render(root: Html, onClose: Promise<Unit>, id: String): Promise<PageNavigation<Page>> {
+    public static function render(root: Html, onClose: Promise<Unit>, id: String): Promise<Navigation<Page>> {
         var navigation = new PromiseBroker();
 
         var rootBinding = JsViews.observable({ data: Async.Pending });
@@ -80,7 +80,7 @@ class GroupShowPage {
             });
 
             root.find("#group-edit").on("click", function (_) {
-                navigation.fulfill(PageNavigation.Navigate(GroupEdit(id)));
+                navigation.fulfill(Navigation.Navigate(GroupEdit(id)));
             });
 
             root.find("#group-delete").createEventStream("click").chain(function (_) {
@@ -88,7 +88,7 @@ class GroupShowPage {
             }).then(function (_) {
                 Service.instance.deleteGroup(id).then(function (_) {
                     Notification.show("success", "delete successful");
-                    navigation.fulfill(PageNavigation.Navigate(Page.GroupList(1)));
+                    navigation.fulfill(Navigation.Navigate(Page.GroupList(1)));
                 }, function (err) {
                     Notification.show("error", "error happened");
                 });

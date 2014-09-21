@@ -7,11 +7,11 @@ import dsmoq.models.Service;
 import dsmoq.Async;
 import hxgnd.Promise;
 import hxgnd.Unit;
-import conduitbox.PageNavigation;
+import conduitbox.Navigation;
 
 class DashboardPage {
 
-    public static function render(html: Html, onClose: Promise<Unit>): Promise<PageNavigation<Page>> {
+    public static function render(html: Html, onClose: Promise<Unit>): Promise<Navigation<Page>> {
         var profile = Service.instance.profile;
 
         var data = {

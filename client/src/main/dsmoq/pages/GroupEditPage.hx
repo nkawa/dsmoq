@@ -1,6 +1,6 @@
 package dsmoq.pages;
 
-import conduitbox.PageNavigation;
+import conduitbox.Navigation;
 import dsmoq.models.GroupMember;
 import dsmoq.models.GroupRole;
 import dsmoq.models.Profile;
@@ -17,7 +17,7 @@ import js.typeahead.Bloodhound;
 import js.typeahead.Typeahead;
 
 class GroupEditPage {
-    public static function render(root: Html, onClose: Promise<Unit>, id: String): Promise<PageNavigation<Page>> {
+    public static function render(root: Html, onClose: Promise<Unit>, id: String): Promise<Navigation<Page>> {
         var engine = createAccountEngine();
         var navigation = new PromiseBroker();
 
@@ -172,7 +172,7 @@ class GroupEditPage {
             });
 
             root.find("#group-finish-editing").on("click", function (_) {
-                navigation.fulfill(PageNavigation.Navigate(Page.GroupShow(id)));
+                navigation.fulfill(Navigation.Navigate(Page.GroupShow(id)));
             });
         });
 

@@ -1,5 +1,16 @@
 {^{async data}}
   <h2>Dataset List</h2>
+<div class="row">
+  <div class="col-md-12">
+    <div class="input-group">
+      <input type="text" class="form-control">
+      <span class="input-group-btn">
+        <button class="btn btn-default" type="button">Search</button>
+      </span>
+    </div>
+  </div>
+</div>
+
   {^{if result.total > 0}}
     <strong>Found {^{>result.total}} records</strong>
     <ul>

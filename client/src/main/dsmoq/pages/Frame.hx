@@ -1,14 +1,14 @@
 package dsmoq.pages;
 
-import conduitbox.ApplicationContext;
 import conduitbox.Engine;
-import conduitbox.PageFrame;
-import conduitbox.PageNavigation;
+import conduitbox.Frame;
+import conduitbox.Navigation;
 import dsmoq.models.Service;
 import dsmoq.Page;
 import dsmoq.View;
 import hxgnd.js.JQuery;
 import hxgnd.js.jsviews.JsViews;
+import hxgnd.Stream;
 import hxgnd.StreamBroker;
 import js.bootstrap.BootstrapButton;
 import js.Browser;
@@ -19,7 +19,7 @@ using StringTools;
 using hxgnd.ArrayTools;
 
 class Frame {
-    public static function create(context: ApplicationContext<Page>): PageFrame<Page> {
+    public static function create(onNavigated: Stream<Page>) {
         var body = JQuery._(Browser.document.body);
         var navigation = new StreamBroker();
 
@@ -42,7 +42,7 @@ class Frame {
         var header = JQuery._("#header");
         View.link("header", header, data);
 
-        context.pageChanged.then(function (_) {
+        onNavigated.then(function (_) {
             binding.setProperty("location", getAuthUrl());
         });
 
@@ -63,7 +63,7 @@ class Frame {
             switch (e) {
                 case SignedIn, SignedOut:
                     updateProfile(Service.instance.profile);
-                    navigation.update(PageNavigation.Reload);
+                    navigation.update(Navigation.Reload);
                 case ProfileUpdated:
                     updateProfile(Service.instance.profile);
             }
@@ -128,7 +128,7 @@ class Frame {
                 JQuery._("#new-dataset-dialog form")
                     .find("input[type='file']").remove().end()
                     .append("<div class=\"form-group\"><input type=\"file\" name=\"file[]\"></div>");
-                navigation.update(PageNavigation.Navigate(DatasetShow(data.id)));
+                navigation.update(Navigation.Navigate(DatasetShow(data.id)));
                 Notification.show("success", "create successful");
             }, function (err) {
                 Notification.show("error", "error happened");
@@ -168,7 +168,7 @@ class Frame {
                 binding.setProperty('groupForm.errors.name', "");
                 JQuery._("#new-group-dialog-submit").attr("disabled", true);
                 Notification.show("success", "create successful");
-                navigation.update(PageNavigation.Navigate(GroupShow(data.id)));
+                navigation.update(Navigation.Navigate(GroupShow(data.id)));
             }, function (err) {
                 switch (err.name) {
                     case ServiceErrorType.BadRequest:
@@ -186,9 +186,7 @@ class Frame {
 
         return {
             navigation: navigation.stream,
-            createSlot: function () {
-                return JQuery._("<div></div>").appendTo("#main");
-            }
+            slot: JQuery._("#main")
         }
     }
 
