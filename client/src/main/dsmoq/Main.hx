@@ -1,6 +1,7 @@
 package dsmoq;
 
 import hxgnd.Error;
+import hxgnd.js.Html;
 import hxgnd.Unit;
 import hxgnd.Option;
 import conduitbox.Application.LocationMapping;
@@ -243,16 +244,16 @@ class Main {
 
             createFrame: Frame.create,
 
-            createRenderer: function (page) {
+            renderPage: function (page: Page, slot: Html, onClosed: Promise<Unit>) {
                 return switch (page) {
-                    case Dashboard: DashboardPage.render;
-                    case DatasetList(pageNum): DatasetListPage.render.bind(_, _, pageNum);
-                    case DatasetShow(id): DatasetShowPage.render.bind(_, _, id);
-                    case DatasetEdit(id): DatasetEditPage.render.bind(_, _, id);
-                    case GroupList(pageNum): GroupListPage.render.bind(_, _, pageNum);
-                    case GroupShow(id): GroupShowPage.render.bind(_, _, id);
-                    case GroupEdit(id): GroupEditPage.render.bind(_, _, id);
-                    case Profile: ProfilePage.render;
+                    case Dashboard: DashboardPage.render(slot, onClosed);
+                    case DatasetList(pageNum): DatasetListPage.render(slot, onClosed, pageNum);
+                    case DatasetShow(id): DatasetShowPage.render(slot, onClosed, id);
+                    case DatasetEdit(id): DatasetEditPage.render(slot, onClosed, id);
+                    case GroupList(pageNum): GroupListPage.render(slot, onClosed, pageNum);
+                    case GroupShow(id): GroupShowPage.render(slot, onClosed, id);
+                    case GroupEdit(id): GroupEditPage.render(slot, onClosed, id);
+                    case Profile: ProfilePage.render(slot, onClosed);
                 }
             }
         });

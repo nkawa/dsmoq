@@ -10,8 +10,7 @@ import hxgnd.js.JqHtml;
 import hxgnd.js.jsviews.JsViews;
 import hxgnd.Promise;
 import hxgnd.Unit;
-import hxgnd.Stream;
-import hxgnd.StreamBroker;
+import hxgnd.PromiseBroker;
 import hxgnd.js.Html;
 import conduitbox.PageNavigation;
 import hxgnd.js.JsTools;
@@ -19,8 +18,8 @@ import haxe.ds.Option;
 using dsmoq.JQueryTools;
 
 class DatasetShowPage {
-    public static function render(html: Html, onClose: Promise<Unit>, id: String): Stream<PageNavigation<Page>> {
-        var navigation = new StreamBroker();
+    public static function render(html: Html, onClose: Promise<Unit>, id: String): Promise<PageNavigation<Page>> {
+        var navigation = new PromiseBroker();
         var data = { data: Async.Pending };
         var binding = JsViews.observable(data);
         View.getTemplate("dataset/show").link(html, data);
@@ -43,7 +42,7 @@ class DatasetShowPage {
             }));
 
             html.find("#dataset-edit").on("click", function (_) {
-                navigation.update(PageNavigation.Navigate(Page.DatasetEdit(id)));
+                navigation.fulfill(PageNavigation.Navigate(Page.DatasetEdit(id)));
             });
 
             html.find("#dataset-delete").createEventStream("click").chain(function (_) {
@@ -52,7 +51,7 @@ class DatasetShowPage {
                 return Service.instance.deleteDeataset(id);
             }).then(function (_) {
                 // TODO 削除対象データセット閲覧履歴（このページ）をHistoryから消す
-                navigation.update(PageNavigation.Navigate(Page.DatasetList(1)));
+                navigation.fulfill(PageNavigation.Navigate(Page.DatasetList(1)));
             });
         }, function (err) {
             switch (err.name) {
@@ -65,6 +64,6 @@ class DatasetShowPage {
             }
         });
 
-        return navigation.stream;
+        return navigation.promise;
     }
 }

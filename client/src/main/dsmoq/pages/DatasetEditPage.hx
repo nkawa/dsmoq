@@ -10,8 +10,7 @@ import hxgnd.js.JQuery;
 import hxgnd.js.JsTools;
 import hxgnd.js.jsviews.JsViews;
 import hxgnd.Promise;
-import hxgnd.Stream;
-import hxgnd.StreamBroker;
+import hxgnd.PromiseBroker;
 import hxgnd.Unit;
 import js.bootstrap.BootstrapButton;
 import js.html.Element;
@@ -20,8 +19,8 @@ import js.typeahead.Bloodhound;
 import js.typeahead.Typeahead;
 
 class DatasetEditPage {
-    public static function render(root: Html, onClose: Promise<Unit>, id: String): Stream<PageNavigation<Page>> {
-        var navigation = new StreamBroker();
+    public static function render(root: Html, onClose: Promise<Unit>, id: String): Promise<PageNavigation<Page>> {
+        var navigation = new PromiseBroker();
         var attrbuteEngine = createAttributeBloodhound();
         var ownerEngine = createOwnerBloodhound();
 
@@ -105,7 +104,7 @@ class DatasetEditPage {
             setOwnerTypeahead(root);
 
             root.find("#dataset-finish-editing").on("click", function (_) {
-                navigation.update(PageNavigation.Navigate(Page.DatasetShow(id)));
+                navigation.fulfill(PageNavigation.Navigate(Page.DatasetShow(id)));
             });
 
             // basics
@@ -415,7 +414,7 @@ class DatasetEditPage {
             });
         });
 
-        return navigation.stream;
+        return navigation.promise;
     }
 
     static function createAttributeBloodhound() {

@@ -1,21 +1,19 @@
 package dsmoq.pages;
 
+import conduitbox.PageNavigation;
 import dsmoq.Async;
 import dsmoq.models.Service;
 import dsmoq.Page;
-import hxgnd.PositiveInt;
-import hxgnd.StreamBroker;
-import js.html.Element;
-import hxgnd.Promise;
-import hxgnd.Unit;
-import hxgnd.Stream;
-import conduitbox.PageNavigation;
 import hxgnd.js.Html;
 import hxgnd.js.jsviews.JsViews;
+import hxgnd.PositiveInt;
+import hxgnd.Promise;
+import hxgnd.PromiseBroker;
+import hxgnd.Unit;
 
 class GroupListPage {
-    public static function render(html: Html, onClose: Promise<Unit>, pageNum: PositiveInt): Stream<PageNavigation<Page>> {
-        var navigation = new StreamBroker();
+    public static function render(html: Html, onClose: Promise<Unit>, pageNum: PositiveInt): Promise<PageNavigation<Page>> {
+        var navigation = new PromiseBroker();
 
         var rootBinding = JsViews.observable({data: Async.Pending});
         View.getTemplate("group/list").link(html, rootBinding.data());
@@ -34,12 +32,12 @@ class GroupListPage {
 
             JsViews.observe(data, "result.index", function (_, _) {
                 var page = data.result.index + 1;
-                navigation.update(PageNavigation.Navigate(Page.DatasetList(page)));
+                navigation.fulfill(PageNavigation.Navigate(Page.DatasetList(page)));
             });
         }, function (err) {
             Notification.show("error", "error happened");
         });
 
-        return navigation.stream;
+        return navigation.promise;
     }
 }

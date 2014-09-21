@@ -1,22 +1,20 @@
 package dsmoq.pages;
 
+import conduitbox.PageNavigation;
 import dsmoq.Async;
 import dsmoq.models.Service;
 import dsmoq.Page;
-import js.html.Element;
 import hxgnd.js.Html;
-import hxgnd.Unit;
-import hxgnd.Promise;
-import hxgnd.Stream;
-import hxgnd.StreamBroker;
-import conduitbox.PageNavigation;
-import hxgnd.js.jsviews.JsViews;
 import hxgnd.js.JsTools;
+import hxgnd.js.jsviews.JsViews;
+import hxgnd.Promise;
+import hxgnd.PromiseBroker;
+import hxgnd.Unit;
 using dsmoq.JQueryTools;
 
 class GroupShowPage {
-    public static function render(root: Html, onClose: Promise<Unit>, id: String): Stream<PageNavigation<Page>> {
-        var navigation = new StreamBroker();
+    public static function render(root: Html, onClose: Promise<Unit>, id: String): Promise<PageNavigation<Page>> {
+        var navigation = new PromiseBroker();
 
         var rootBinding = JsViews.observable({ data: Async.Pending });
         View.getTemplate("group/show").link(root, rootBinding.data());
@@ -82,7 +80,7 @@ class GroupShowPage {
             });
 
             root.find("#group-edit").on("click", function (_) {
-                navigation.update(PageNavigation.Navigate(GroupEdit(id)));
+                navigation.fulfill(PageNavigation.Navigate(GroupEdit(id)));
             });
 
             root.find("#group-delete").createEventStream("click").chain(function (_) {
@@ -90,7 +88,7 @@ class GroupShowPage {
             }).then(function (_) {
                 Service.instance.deleteGroup(id).then(function (_) {
                     Notification.show("success", "delete successful");
-                    navigation.update(PageNavigation.Navigate(Page.GroupList(1)));
+                    navigation.fulfill(PageNavigation.Navigate(Page.GroupList(1)));
                 }, function (err) {
                     Notification.show("error", "error happened");
                 });
@@ -107,6 +105,6 @@ class GroupShowPage {
             });
         });
 
-        return navigation.stream;
+        return navigation.promise;
     }
 }

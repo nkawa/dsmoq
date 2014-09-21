@@ -8,13 +8,12 @@ import hxgnd.js.JqHtml;
 import hxgnd.js.jsviews.JsViews;
 import hxgnd.PositiveInt;
 import hxgnd.Promise;
-import hxgnd.Stream;
-import hxgnd.StreamBroker;
+import hxgnd.PromiseBroker;
 import hxgnd.Unit;
 
 class DatasetListPage {
-    public static function render(html: Html, onClose: Promise<Unit>, pageNum: PositiveInt): Stream<PageNavigation<Page>> {
-        var navigation = new StreamBroker();
+    public static function render(html: Html, onClose: Promise<Unit>, pageNum: PositiveInt): Promise<PageNavigation<Page>> {
+        var navigation = new PromiseBroker();
 
         var rootBinding = JsViews.observable({ data: Async.Pending });
         View.getTemplate("dataset/list").link(html, rootBinding.data());
@@ -33,12 +32,12 @@ class DatasetListPage {
 
             JsViews.observe(data, "result.index", function (_, _) {
                 var page = data.result.index + 1;
-                navigation.update(PageNavigation.Navigate(Page.DatasetList(page)));
+                navigation.fulfill(PageNavigation.Navigate(Page.DatasetList(page)));
             });
         }, function (err) {
             Notification.show("error", "error happened");
         });
 
-        return navigation.stream;
+        return navigation.promise;
     }
 }

@@ -1,26 +1,25 @@
 package dsmoq.pages;
 
+import conduitbox.PageNavigation;
 import dsmoq.models.GroupMember;
 import dsmoq.models.GroupRole;
 import dsmoq.models.Profile;
 import dsmoq.models.Service;
+import hxgnd.js.Html;
+import hxgnd.js.JQuery;
+import hxgnd.js.jsviews.JsViews;
+import hxgnd.Promise;
+import hxgnd.PromiseBroker;
+import hxgnd.Stream;
+import hxgnd.Unit;
 import js.bootstrap.BootstrapButton;
-import js.html.Element;
 import js.typeahead.Bloodhound;
 import js.typeahead.Typeahead;
-import hxgnd.Unit;
-import hxgnd.Promise;
-import hxgnd.Stream;
-import conduitbox.PageNavigation;
-import hxgnd.js.Html;
-import hxgnd.StreamBroker;
-import hxgnd.js.jsviews.JsViews;
-import hxgnd.js.JQuery;
 
 class GroupEditPage {
-    public static function render(root: Html, onClose: Promise<Unit>, id: String): Stream<PageNavigation<Page>> {
+    public static function render(root: Html, onClose: Promise<Unit>, id: String): Promise<PageNavigation<Page>> {
         var engine = createAccountEngine();
-        var navigation = new StreamBroker();
+        var navigation = new PromiseBroker();
 
         var rootBinding = JsViews.observable({data: Async.Pending});
         View.getTemplate("group/edit").link(root, rootBinding.data());
@@ -173,11 +172,11 @@ class GroupEditPage {
             });
 
             root.find("#group-finish-editing").on("click", function (_) {
-                navigation.update(PageNavigation.Navigate(Page.GroupShow(id)));
+                navigation.fulfill(PageNavigation.Navigate(Page.GroupShow(id)));
             });
         });
 
-        return navigation.stream;
+        return navigation.promise;
     }
 
     static function createAccountEngine() {

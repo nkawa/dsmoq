@@ -1,21 +1,18 @@
 package dsmoq.pages;
 
+import conduitbox.PageNavigation;
 import dsmoq.models.Service;
 import dsmoq.Page;
-import hxgnd.StreamBroker;
-import js.bootstrap.BootstrapButton;
-import js.html.Element;
-import hxgnd.Unit;
-import hxgnd.Promise;
 import hxgnd.js.Html;
-import hxgnd.Stream;
-import conduitbox.PageNavigation;
 import hxgnd.js.jsviews.JsViews;
-import hxgnd.js.JQuery;
+import hxgnd.Promise;
+import hxgnd.PromiseBroker;
+import hxgnd.Unit;
+import js.bootstrap.BootstrapButton;
 
 class ProfilePage {
-    public static function render(root: Html, onClose: Promise<Unit>): Stream<PageNavigation<Page>> {
-        var navigation = new StreamBroker();
+    public static function render(root: Html, onClose: Promise<Unit>): Promise<PageNavigation<Page>> {
+        var navigation = new PromiseBroker();
         if (Service.instance.profile.isGuest) {
             root.html("unauthorized");
         } else {
@@ -157,6 +154,6 @@ class ProfilePage {
             });
         }
 
-        return navigation.stream;
+        return navigation.promise;
     }
 }

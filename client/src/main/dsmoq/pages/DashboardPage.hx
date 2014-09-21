@@ -7,12 +7,11 @@ import dsmoq.models.Service;
 import dsmoq.Async;
 import hxgnd.Promise;
 import hxgnd.Unit;
-import hxgnd.Stream;
 import conduitbox.PageNavigation;
 
 class DashboardPage {
 
-    public static function render(html: Html, onClose: Promise<Unit>): Stream<PageNavigation<Page>> {
+    public static function render(html: Html, onClose: Promise<Unit>): Promise<PageNavigation<Page>> {
         var profile = Service.instance.profile;
 
         var data = {
@@ -38,7 +37,7 @@ class DashboardPage {
             });
         }
 
-        return new Stream(function (_) { });
+        return new Promise(function (_) { });
     }
 
 }
