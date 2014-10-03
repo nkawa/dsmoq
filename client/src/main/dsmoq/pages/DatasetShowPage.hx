@@ -45,9 +45,9 @@ class DatasetShowPage {
                 navigation.fulfill(Navigation.Navigate(Page.DatasetEdit(id)));
             });
 
-            html.find("#dataset-delete").createEventStream("click").chain(function (_) {
+            html.find("#dataset-delete").createEventStream("click").flatMap(function (_) {
                 return JsTools.confirm("Are you sure you want to delete this dataset?");
-            }).chain(function (_) {
+            }).flatMap(function (_) {
                 return Service.instance.deleteDeataset(id);
             }).then(function (_) {
                 // TODO 削除対象データセット閲覧履歴（このページ）をHistoryから消す

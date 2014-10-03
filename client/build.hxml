@@ -19,3 +19,7 @@
 -resource assets/group/dataset-list.html@share/group/dataset/list
 -resource assets/group/edit.html@template/group/edit
 -resource assets/profile/edit.html@template/profile/edit
+
+--next
+
+-cmd lessc assets/style.less > www/style.css

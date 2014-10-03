@@ -1,182 +1,205 @@
 body {
-  padding-top: 64px; 
+  padding-top: 64px;
 }
-
-body, h1, h2, h3, h4, h5, h6 {
+body,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: "Segoe UI", "游ゴシック", YuGothic, Verdana, "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
 }
-
 input::-ms-clear {
-    display: none;
+  display: none;
 }
-
 .page-heading {
   margin-top: 0px;
   margin-bottom: 16px;
 }
-
 .tab-pane {
   padding-top: 8px;
 }
-
 .modal-dialog-center {
-    margin: 0;
-    position: absolute;
-    top: 50%;
-    left: 50%;
+  margin: 0;
+  position: absolute;
+  top: 50%;
+  left: 50%;
 }
-
-
 .loading {
-    height: "100%";
-    background-image: url("/resources/loading-large.gif");
-    background-repeat: no-repeat;
-    background-position: center center;
+  height: "100%";
+  background-image: url("/resources/loading-large.gif");
+  background-repeat: no-repeat;
+  background-position: center center;
 }
-
-.well{
+.well {
   margin-bottom: 10px;
 }
-
 .dataset-item {
   list-style: none outside none;
-  border-bottom: 1px dashed gray
+  border-bottom: 1px dashed #808080;
 }
-
-.panel li p, .panel li h4 {
+.panel li p,
+.panel li h4 {
   margin: 0px;
 }
-
 .table {
   margin-bottom: 0px;
 }
 .panel-with-pagination .panel-heading {
-    padding-bottom: 0;
+  padding-bottom: 0;
 }
-
-.panel-with-pagination .input-group{
-    padding-bottom: 4px;
+.panel-with-pagination .input-group {
+  padding-bottom: 4px;
 }
-
-.panel .pagination{    
-    margin-top: 0;
-    margin-bottom: 0;
+.panel .pagination {
+  margin-top: 0;
+  margin-bottom: 0;
 }
-
 .panel-request-to-join table > tbody > tr > td {
-    vertical-align: inherit;
+  vertical-align: inherit;
 }
-
 hr {
-    margin: 5px;
+  margin: 5px;
 }
 .form-group {
-    margin-bottom: 7px;
+  margin-bottom: 7px;
 }
-
-.dataset-item  {
-    padding-bottom: 8px;
+.dataset-item {
+  padding-bottom: 8px;
 }
 .dataset-item img {
-    width: 64px;
-	height: 64px;
+  width: 64px;
+  height: 64px;
 }
 .dataset-item .result-list-body {
-    margin-left:125px;
+  margin-left: 125px;
 }
-
 .panel .dataset-item .result-list-body {
-    margin-left: 72px;
+  margin-left: 72px;
 }
-.panel img.icon, .table img.icon, .well img.icon, .form-control img.icon{
-    width:16px;
-	height:16px;
-    margin-right:2px;
+.panel img.icon,
+.table img.icon,
+.well img.icon,
+.form-control img.icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 2px;
 }
 .panel ul {
-    padding-left:15px;
+  padding-left: 15px;
 }
 .panel li h3 {
-    margin-top:5px;
-    margin-bottom:5px;
+  margin-top: 5px;
+  margin-bottom: 5px;
 }
-
 .statictics .large {
-    font-size: x-large;
+  font-size: x-large;
 }
-
 .col-selections {
-    width:200px;
+  width: 200px;
 }
 .col-buttons {
-    width:150px;
+  width: 150px;
 }
 .col-min-width {
-    width:40px;
+  width: 40px;
 }
-
 .login-form .dropdown-menu {
-    min-width:320px;
-    padding-right:4px;
+  min-width: 320px;
+  padding-right: 4px;
 }
-
 .panel .view-description {
-    min-height:40px;
+  min-height: 40px;
 }
-
 .status {
-    padding: 0px 3px 5px;
-    font-size: 70%;
+  padding: 0px 3px 5px;
+  font-size: 70%;
 }
-
 .title-owners {
-    font-size: 60%;
+  font-size: 60%;
 }
-
 .dataset-view-body {
-    border-top: solid 1px rgba(0,0,0,0.2);
-    padding-top: 15px;    
+  border-top: solid 1px rgba(0, 0, 0, 0.2);
+  padding-top: 15px;
 }
-
 .tab-panel {
-    border-left: 1px solid #DDDDDD;
-    border-right: 1px solid #DDDDDD;
-    border-bottom: 1px solid #DDDDDD;
-    padding:10px 10px 5px;
+  border-left: 1px solid #DDDDDD;
+  border-right: 1px solid #DDDDDD;
+  border-bottom: 1px solid #DDDDDD;
+  padding: 10px 10px 5px;
 }
-
 .login-failure {
-    color: red;
-    font-size: x-small;
+  color: red;
+  font-size: x-small;
 }
 .upload-area {
-    border-style:dashed;
-    border-width:3px;
+  border-style: dashed;
+  border-width: 3px;
 }
 a:hover {
-    cursor: pointer;
+  cursor: pointer;
 }
-
-.container[name="page-body"]{
-    padding-top: 10px;
+.container[name="page-body"] {
+  padding-top: 10px;
 }
-
-select.disabled, .can-disable.disabled {
+select.disabled,
+.can-disable.disabled {
   pointer-events: none;
   cursor: not-allowed;
   opacity: 0.65;
   filter: alpha(opacity=65);
   -webkit-box-shadow: none;
-          box-shadow: none;
+  box-shadow: none;
 }
-
-
-
-// for twitter typeahead.js
+.autocomplete-suggestion {
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+  padding: 6px 0px;
+  font-size: 14px;
+  background-color: white;
+  position: absolute;
+  z-index: 1500;
+  max-height: 80px;
+  overflow-y: auto;
+}
+.autocomplete-suggestion-item {
+  padding: 6px 12px;
+  cursor: pointer;
+}
+.autocomplete-suggestion-item-hover {
+  background-color: #d9edf7;
+}
+.autocomplete-suggestion-item-selected {
+  color: white;
+  background-color: #428bca;
+}
+.dsmoq-filter .row {
+  margin-top: 8px;
+}
+.dsmoq-filter .row:first-of-type {
+  margin-top: 0;
+}
+.dsmoq-filter .list-group {
+  margin: 0;
+  float: left;
+}
+.dsmoq-filter .list-group .list-group-item {
+  float: left;
+  margin-right: 5px;
+  border-radius: 0;
+  padding: 6px 12px;
+}
+.form-group .twitter-typeahead {
+  width: 100%;
+}
+.popover {
+  max-width: 600px;
+}
 .tt-hint {
-  color: #999
+  color: #999999;
 }
-
 .tt-dropdown-menu {
   width: 422px;
   margin-top: 12px;
@@ -185,24 +208,21 @@ select.disabled, .can-disable.disabled {
   border: 1px solid #ccc;
   border: 1px solid rgba(0, 0, 0, 0.2);
   -webkit-border-radius: 8px;
-    -moz-border-radius: 8px;
-          border-radius: 8px;
-  -webkit-box-shadow: 0 5px 10px rgba(0,0,0,.2);
-    -moz-box-shadow: 0 5px 10px rgba(0,0,0,.2);
-          box-shadow: 0 5px 10px rgba(0,0,0,.2);
+  -moz-border-radius: 8px;
+  border-radius: 8px;
+  -webkit-box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+  -moz-box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
 }
-
 .tt-suggestion {
   padding: 3px 20px;
   font-size: 16px;
   line-height: 22px;
 }
-
 .tt-suggestion.tt-cursor {
   color: #fff;
   background-color: #0097cf;
 }
-
 .tt-suggestion p {
   margin: 0;
 }

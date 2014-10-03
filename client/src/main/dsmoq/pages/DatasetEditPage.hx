@@ -3,6 +3,7 @@ package dsmoq.pages;
 import conduitbox.Navigation;
 import dsmoq.models.DatasetPermission;
 import dsmoq.models.Service;
+import dsmoq.views.AutoComplete;
 import haxe.Resource;
 import hxgnd.js.Html;
 import hxgnd.js.JqHtml;
@@ -17,39 +18,23 @@ import js.html.Element;
 import js.html.Event;
 import js.typeahead.Bloodhound;
 import js.typeahead.Typeahead;
+import dsmoq.views.OwnerTypeahead;
+import dsmoq.views.AttributeNameTypeahead;
 
 class DatasetEditPage {
     public static function render(root: Html, onClose: Promise<Unit>, id: String): Promise<Navigation<Page>> {
         var navigation = new PromiseBroker();
-        var attrbuteEngine = createAttributeBloodhound();
-        var ownerEngine = createOwnerBloodhound();
 
         function setAttributeTypeahead(root: JqHtml) {
-            Typeahead.initialize(root.find(".attribute-typeahead"), {
-                source: attrbuteEngine.ttAdapter(),
-            });
+            AttributeNameTypeahead.initialize(root.find(".attribute-typeahead"));
             function trigger(e: Event) { new JqHtml(e.target).trigger("change"); }
-            root.find(".attribute-typeahead").on("typeahead:autocompleted", trigger);
-            root.find(".attribute-typeahead").on("typeahead:selected", trigger);
+            root.find(".attribute-typeahead")
+                .on("typeahead:autocompleted", trigger)
+                .on("typeahead:selected", trigger);
         }
 
         function removeAttributeTypeahead(root: JqHtml) {
             Typeahead.destroy(root.find(".attribute-typeahead"));
-        }
-
-        function setOwnerTypeahead(root: JqHtml) {
-            Typeahead.initialize(root.find("#dataset-owner-typeahead"), {}, {
-                source: ownerEngine.ttAdapter(),
-                displayKey: "name",
-                templates: {
-                    suggestion: function (x) {
-                        return '<p>${x.name}</p>';
-                    },
-                    empty: null,
-                    footer: null,
-                    header: null
-                }
-            });
         }
 
         var rootBinding = JsViews.observable({ data: dsmoq.Async.Pending });
@@ -101,7 +86,7 @@ class DatasetEditPage {
             var binding = JsViews.observable(rootBinding.data().data);
 
             setAttributeTypeahead(root);
-            setOwnerTypeahead(root);
+            OwnerTypeahead.initialize(root.find("#dataset-owner-typeahead"));
 
             root.find("#dataset-finish-editing").on("click", function (_) {
                 navigation.fulfill(Navigation.Navigate(Page.DatasetShow(id)));
@@ -415,41 +400,5 @@ class DatasetEditPage {
         });
 
         return navigation.promise;
-    }
-
-    static function createAttributeBloodhound() {
-        var attrbuteEngine = new Bloodhound({
-            datumTokenizer: Bloodhound.tokenizers.obj.whitespace("value"),
-            queryTokenizer: Bloodhound.tokenizers.whitespace,
-            remote: {
-                url: "/api/suggests/attributes",
-                replace: function (url, query) {
-                    return '$url?query=$query';
-                },
-                filter: function (x: {status: String, data: Array<String>}) {
-                    return (x.status == "OK") ? x.data.map(function (x) return {value: x}) : [];
-                }
-            }
-        });
-        attrbuteEngine.initialize();
-        return attrbuteEngine;
-    }
-
-    static function createOwnerBloodhound() {
-        var ownerEngine = new Bloodhound({
-            datumTokenizer: Bloodhound.tokenizers.obj.whitespace("name"),
-            queryTokenizer: Bloodhound.tokenizers.whitespace,
-            remote: {
-                url: "/api/suggests/users_and_groups",
-                replace: function (url, query) {
-                    return '$url?query=$query';
-                },
-                filter: function (x: {status: String, data: Array<Dynamic>}) {
-                    return (x.status == "OK") ? x.data : [];
-                }
-            }
-        });
-        ownerEngine.initialize();
-        return ownerEngine;
     }
 }

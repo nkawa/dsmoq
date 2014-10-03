@@ -83,7 +83,7 @@ class GroupShowPage {
                 navigation.fulfill(Navigation.Navigate(GroupEdit(id)));
             });
 
-            root.find("#group-delete").createEventStream("click").chain(function (_) {
+            root.find("#group-delete").createEventStream("click").flatMap(function (_) {
                 return JsTools.confirm("Are you sure you want to delete this group?", false);
             }).then(function (_) {
                 Service.instance.deleteGroup(id).then(function (_) {

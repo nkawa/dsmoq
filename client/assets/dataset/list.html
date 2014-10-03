@@ -1,12 +1,64 @@
+<ol class="breadcrumb">
+  <li><a href="/">Top</a></li>
+  <li class="active">Dataset List</li>
+</ol>
+
+<div style="display:none" id="filter-add-form">
+  <ul class="nav nav-tabs" role="tablist">
+    <li class="active"><a role="tab" data-toggle="tab" href="#filter-owner-tab"><span class="glyphicon glyphicon-user"></span> Owner</a></li>
+    <li><a role="tab" data-toggle="tab" href="#filter-attribute-tab"><span class="glyphicon glyphicon-tag"></span> Attribute</a></li>
+  </ul>
+  <div class="tab-content" style="width: 280px;">
+    <div class="tab-pane active" id="filter-owner-tab">
+      <div class="form-group">
+        <!-- <div type="text" class="form-control" id="filter-owner-input" placeholder="Enter owner"></div> -->
+        <input type="text" class="form-control" id="filter-owner-input" placeholder="Enter owner">
+      </div>
+      <div class="form-group">
+        <button type="button" class="btn btn-primary" id="filter-owner-apply">Apply</button>
+      </div>
+    </div>
+    <div class="tab-pane" id="filter-attribute-tab">
+      <div class="form-group">
+        <input type="text" class="form-control" id="filter-attribute-name-input" placeholder="Enter name">
+      </div>
+      <div class="form-group">
+        <input type="text" class="form-control" id="filter-attribute-value-input" placeholder="Enter value">
+      </div>
+      <div class="form-group">
+        <button type="button" class="btn btn-primary" id="filter-attribute-apply">Apply</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {^{async data}}
-  <h2>Dataset List</h2>
-<div class="row">
-  <div class="col-md-12">
-    <div class="input-group">
-      <input type="text" class="form-control">
-      <span class="input-group-btn">
-        <button class="btn btn-default" type="button">Search</button>
-      </span>
+<div class="well well-sm dsmoq-filter">
+  <div class="row">
+    <div class="col-md-12">
+      <div class="input-group" style="float:left; width: 400px;">
+        <input type="text" class="form-control" placeholder="query">
+        <span class="input-group-btn">
+          <button class="btn btn-primary" type="button"><span class="glyphicon glyphicon-search"></span></button>
+        </span>
+      </div>
+      <button id="add-filter-button" class="btn btn-default" style="margin-left: 8px;"><span class="glyphicon glyphicon-plus"></span> Filter</button>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-12">
+      <ul class="list-group">
+        <li class="list-group-item list-group-item-success">
+          <span class="glyphicon glyphicon-user"></span> 八木照朗
+          <button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+        </li>
+        <li class="list-group-item list-group-item-info">
+           <span class="glyphicon glyphicon-tag"></span> foo : value
+          <button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+        </li>
+        <li class="list-group-item" style="padding: 0; border-width: 0;">
+        </li>
+      </ul>
     </div>
   </div>
 </div>
