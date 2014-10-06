@@ -58,31 +58,25 @@ class AutoComplete {
                         { value: value, items: x };
                     } else {
                         var items = option.filter(x).get();
-
-                        {
-                            value: value,
-                            items: items.concat(items.map(function (x) {
-                                var clone = Reflect.copy(x);
-                                clone.name += "_x";
-                                return clone;
-                            })).concat(items.map(function (x) {
-                                var clone = Reflect.copy(x);
-                                clone.name += "_y";
-                                return clone;
-                            }))
-                        };
-
-                        //{ value: value, items: option.filter(x).get() };
+                        { value: value, items: option.filter(x).get() };
                     }
                 });
             }
         }
 
-        function complate(i: Int) {
+        function complete(i: Int) {
             if (selections[i] != null) {
                 var item = selections[i];
                 elem.__coumpleted = item;
                 target.val(resolve(item));
+                target.trigger("autocomplete:complated");
+            }
+        }
+
+        function uncomplete() {
+            if (elem.__coumpleted != null) {
+                elem.__coumpleted = null;
+                target.trigger("autocomplete:uncomplated");
             }
         }
 
@@ -116,7 +110,7 @@ class AutoComplete {
             });
             suggestion.on("mousedown.autocomplete", ".autocomplete-suggestion-item", function (e: Event) {
                 var index: Int = JQuery._(e.currentTarget).data("index");
-                complate(index);
+                complete(index);
                 close();
             });
             suggestion.appendTo("body");
@@ -180,14 +174,14 @@ class AutoComplete {
                 case 40: //down
                     selectNext();
                     e.preventDefault();
-                case 38: //top
+                case 38: //up
                     selectPrev();
                     e.preventDefault();
                 case 9: //tab
                     switch(selectedIndex) {
                         case Some(i):
                             if (selections.length == 1) {
-                                complate(i);
+                                complete(i);
                                 close();
                             } else {
                                 if (event.shiftKey) {
@@ -201,7 +195,7 @@ class AutoComplete {
                     }
                     e.preventDefault();
                 case 13: //enter
-                    complate(selectedIndex.getOrDefault(-1));
+                    complete(selectedIndex.getOrDefault(-1));
                     close();
                     e.preventDefault();
                 case 27: //esc
@@ -213,21 +207,58 @@ class AutoComplete {
 
         target.on("blur.autocomplete", function (_) close());
 
+        target.on("keydown.autocomplete", function (e: Event) {
+            if (!isOpen) return;
+
+            var event: KeyboardEvent = cast e;
+            switch (event.keyCode) {
+                case 40: //down
+                    selectNext();
+                    e.preventDefault();
+                case 38: //up
+                    selectPrev();
+                    e.preventDefault();
+                case 9: //tab
+                    switch(selectedIndex) {
+                        case Some(i):
+                            if (selections.length == 1) {
+                                complete(i);
+                                close();
+                            } else {
+                                if (event.shiftKey) {
+                                    selectPrev();
+                                } else {
+                                    selectNext();
+                                }
+                            }
+                        case None:
+                            select(0);
+                    }
+                    e.preventDefault();
+                case 13: //enter
+                    complete(selectedIndex.getOrDefault(-1));
+                    close();
+                    e.preventDefault();
+                case 27: //esc
+                    close();
+                    e.preventDefault();
+                default:
+            }
+        });
+
         var stream = target.asEventStream("input.autocomplete")
                         .debounce(400)
                         .map(function (e: Event) {
                             var elem: InputElement = cast e.currentTarget;
                             return elem.value;
                         });
-
         stream.then(function (_) {
-            elem.__coumpleted = null;
+            uncomplete();
         });
-
         stream.flatMapLastest(request).then(function (record) {
             if (record.items.length > 0) {
                 if (record.items.length == 1 && record.value == resolve(record.items[0])) {
-                    complate(0);
+                    complete(0);
                     close();
                 } else {
                     open(record.items);
