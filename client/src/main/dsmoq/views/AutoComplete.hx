@@ -235,6 +235,10 @@ class AutoComplete {
         elem.__stream = stream;
     }
 
+    public static function clear(target: Html): Void {
+        setValue(target, "");
+    }
+
     public static function setValue(target: Html, value: String): Void {
         getElement(target).iter(function (elem) {
             elem.__setValue(value);
