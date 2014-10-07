@@ -166,47 +166,7 @@ class AutoComplete {
             });
         }
 
-        target.on("keydown.autocomplete", function (e: Event) {
-            if (!isOpen) return;
-
-            var event: KeyboardEvent = cast e;
-            switch (event.keyCode) {
-                case 40: //down
-                    selectNext();
-                    e.preventDefault();
-                case 38: //up
-                    selectPrev();
-                    e.preventDefault();
-                case 9: //tab
-                    switch(selectedIndex) {
-                        case Some(i):
-                            if (selections.length == 1) {
-                                complete(i);
-                                close();
-                            } else {
-                                if (event.shiftKey) {
-                                    selectPrev();
-                                } else {
-                                    selectNext();
-                                }
-                            }
-                        case None:
-                            select(0);
-                    }
-                    e.preventDefault();
-                case 13: //enter
-                    complete(selectedIndex.getOrDefault(-1));
-                    close();
-                    e.preventDefault();
-                case 27: //esc
-                    close();
-                    e.preventDefault();
-                default:
-            }
-        });
-
         target.on("blur.autocomplete", function (_) close());
-
         target.on("keydown.autocomplete", function (e: Event) {
             if (!isOpen) return;
 
