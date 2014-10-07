@@ -15,7 +15,7 @@
         <input type="text" class="form-control" id="filter-owner-input" placeholder="Enter owner">
       </div>
       <div class="form-group">
-        <button type="button" class="btn btn-primary" id="filter-owner-apply">Apply</button>
+        <button type="button" class="btn btn-primary" id="filter-owner-apply" disabled>Apply</button>
       </div>
     </div>
     <div class="tab-pane" id="filter-attribute-tab">
@@ -48,10 +48,16 @@
   <div class="row">
     <div class="col-md-12">
       <ul class="list-group">
-        <li class="list-group-item list-group-item-success">
-          <span class="glyphicon glyphicon-user"></span> 八木照朗
-          <button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
-        </li>
+        {^{for condition.filters}}
+          {{if (type == "owner")}}
+            <li class="list-group-item list-group-item-success">
+              <span class="glyphicon glyphicon-user"></span> {{>item.name}} ({{>item.fullname}})
+              <button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+            </li>
+        {{else}}
+            {{>#data/}}
+          {{/if}}
+        {{/for}}
         <li class="list-group-item list-group-item-info">
            <span class="glyphicon glyphicon-tag"></span> foo : value
           <button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>

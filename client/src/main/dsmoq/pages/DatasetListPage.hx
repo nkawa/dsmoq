@@ -17,6 +17,7 @@ import dsmoq.views.OwnerTypeahead;
 import dsmoq.views.AttributeNameTypeahead;
 import js.typeahead.Typeahead;
 import dsmoq.views.AutoComplete;
+import js.bootstrap.BootstrapPopover;
 
 class DatasetListPage {
     public static function render(root: Html, onClose: Promise<Unit>, pageNum: PositiveInt): Promise<Navigation<Page>> {
@@ -40,7 +41,7 @@ class DatasetListPage {
             };
             rootBinding.setProperty("data", data);
 
-            untyped JQuery._("#add-filter-button").popover({
+            BootstrapPopover.initialize("#add-filter-button", {
                 content: JQuery._("#filter-add-form").children(),
                 placement: "bottom",
                 html: true
@@ -65,12 +66,27 @@ class DatasetListPage {
                     }
                 }
             });
-            AttributeNameTypeahead.initialize("#filter-attribute-name-input");
-
-            root.find("#filter-owner-apply").on("click", function (_) {
-                var val = Typeahead.getVal(root.find("#filter-owner-input"));
-                trace(val);
+            JQuery._("#filter-owner-input").on("autocomplete:complated", function (_) {
+                JQuery._("#filter-owner-apply").attr("disabled", false);
             });
+            JQuery._("#filter-owner-input").on("autocomplete:uncomplated", function (_) {
+                JQuery._("#filter-owner-apply").attr("disabled", true);
+            });
+
+            JQuery._("#filter-owner-apply").on("click", function (_) {
+                var item = AutoComplete.getCompletedItem("#filter-owner-input");
+                JsViews.observable(data.condition.filters).insert({
+                    type: 'owner',
+                    item: item
+                });
+                AutoComplete.clear("#filter-owner-input");
+                BootstrapPopover.hide("#add-filter-button");
+
+                // TODO 再検索
+            });
+
+
+            AttributeNameTypeahead.initialize("#filter-attribute-name-input");
 
 
 
