@@ -156,12 +156,14 @@ class AutoComplete {
         }
 
         function setValue(value: String) {
+            target.val(value);
+            elem.__coumpleted = null;
+            target.trigger("autocomplete:uncomplated");
+
             request(value).then(function (record) {
-                target.val(value);
                 if (record.items.length == 1 && resolve(record.items[0]) == value) {
                     elem.__coumpleted = record.items[0];
-                } else {
-                    elem.__coumpleted = null;
+                    target.trigger("autocomplete:complated");
                 }
             });
         }
