@@ -73,8 +73,8 @@ class Service extends Stream<ServiceEvent> {
     }
 
     public function findDatasets(?params: {?query: String,
-                                           ?group: String,
-                                           ?owner: String,
+                                           ?group: Array<String>,
+                                           ?owner: Array<String>,
                                            ?attributes: Array<DatasetAttribute>,
                                            ?offset: Int,
                                            ?limit: Int}): Promise<RangeSlice<DatasetSummary>> {
@@ -277,7 +277,7 @@ class Service extends Stream<ServiceEvent> {
     function send<T>(method: RequestMethod, url: String, ?data: Dynamic): Promise<T> {
         var str: String = method;
 
-        return JQuery.ajax(url, {type: str, dataType: "json", cache: false, data: data, traditional: true}).toPromise()
+        return JQuery.ajax(url, {type: str, dataType: "json", cache: false, data: data}).toPromise()
             .flatMap(function (response: ApiResponse) {
                 return switch (response.status) {
                     case ApiStatus.OK:

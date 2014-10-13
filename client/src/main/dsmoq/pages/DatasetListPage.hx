@@ -30,7 +30,7 @@ class DatasetListPage {
             var data = {
                 condition: {
                     query: "",
-                    filters: []
+                    filters: new Array<{type: String, item: Dynamic}>()
                 },
                 result: {
                     index: Math.ceil(x.summary.offset / 20),
@@ -39,7 +39,7 @@ class DatasetListPage {
                     pages: Math.ceil(x.summary.total / 20)
                 }
             };
-            rootBinding.setProperty("data", data);
+            rootBinding.setProperty("data", Async.Completed(data));
 
             BootstrapPopover.initialize("#add-filter-button", {
                 content: JQuery._("#filter-add-form").children(),
@@ -82,13 +82,26 @@ class DatasetListPage {
                 AutoComplete.clear("#filter-owner-input");
                 BootstrapPopover.hide("#add-filter-button");
 
-                // TODO 再検索
+                var owners = data.condition.filters
+                                .filter(function (x) return x.type == "owner")
+                                .map(function (x) return x.item.name);
+
+                rootBinding.setProperty("data", Async.Pending);
+                Service.instance.findDatasets({
+                    offset: 20 * (pageNum - 1),
+                    owner: owners
+                }).then(function (x) {
+                    data.result = {
+                        index: Math.ceil(x.summary.offset / 20),
+                        total: x.summary.total,
+                        items: x.results,
+                        pages: Math.ceil(x.summary.total / 20)
+                    }
+                    rootBinding.setProperty("data", Async.Completed(data));
+                });
             });
 
-
             AttributeNameTypeahead.initialize("#filter-attribute-name-input");
-
-
 
             JsViews.observe(data, "result.index", function (_, _) {
                 var page = data.result.index + 1;
