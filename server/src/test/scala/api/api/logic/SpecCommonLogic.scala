@@ -263,7 +263,7 @@ object SpecCommonLogic {
         val i = persistence.Image.syntax("i")
         deleteFrom(persistence.Image as i)
           .where
-          .notInByUuid(i.id, presetImageIds)
+          .notInUuid(i.id, presetImageIds)
       }.update().apply
 
       // ファイル/画像の削除

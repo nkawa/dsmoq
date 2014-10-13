@@ -683,7 +683,7 @@ object GroupService {
         .from(persistence.Dataset as ds)
         .innerJoin(persistence.Ownership as o).on(o.datasetId, ds.id)
         .where
-        .inByUuid(o.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
+        .inUuid(o.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
         .and
         .gt(o.accessLevel, GroupAccessLevel.Deny)
         .and
@@ -700,7 +700,7 @@ object GroupService {
       select(m.groupId, sqls.count(sqls.distinct(m.id)).append(sqls"count"))
         .from(persistence.Member as m)
         .where
-        .inByUuid(m.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
+        .inUuid(m.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
         .and
         .not.eq(m.role, GroupMemberRole.Deny)
         .and
@@ -732,7 +732,7 @@ object GroupService {
         select(gi.result.*)
           .from(persistence.GroupImage as gi)
           .where
-          .inByUuid(gi.groupId, groupIds)
+          .inUuid(gi.groupId, groupIds)
           .and
           .eq(gi.isPrimary, true)
           .and

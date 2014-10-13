@@ -3,19 +3,23 @@ package dsmoq.persistence
 import scalikejdbc._
 
 object PostgresqlHelper {
-
-  implicit class UuidConditionSQLBuilder[A](val self: ConditionSQLBuilder[A]) extends AnyVal {
-    def inByUuid(column: SQLSyntax, values: Seq[String]): ConditionSQLBuilder[A] = self.append(sqls.inByUuid(column, values))
-    def notInByUuid(column: SQLSyntax, values: Seq[String]): ConditionSQLBuilder[A] = self.append(sqls.notInByUuid(column, values))
+  implicit class PgConditionSQLBuilder[A](val self: ConditionSQLBuilder[A]) extends AnyVal {
+    def inUuid(column: SQLSyntax, values: Seq[String]): ConditionSQLBuilder[A] = self.append(sqls.inUuid(column, values))
+    def notInUuid(column: SQLSyntax, values: Seq[String]): ConditionSQLBuilder[A] = self.append(sqls.notInUuid(column, values))
+    def eqUuid(column: SQLSyntax, value: String): ConditionSQLBuilder[A] = self.append(sqls.eqUuid(column, value))
     def lowerEq(column: SQLSyntax, value: String): ConditionSQLBuilder[A] = self.append(sqls.lowerEq(column, value))
   }
 
-  implicit class UuidSQLSyntax(val self: sqls.type) extends AnyVal {
-    def uuid(value: String): SQLSyntax = sqls"UUID(${value})"
-
+  implicit class PgSQLSyntax(val self: sqls.type) extends AnyVal {
     def coalesce(column: SQLSyntax, value: Any): SQLSyntax = sqls"COALESCE(${column}, ${value})"
 
-    def inByUuid(column: SQLSyntax, values: Seq[String]) = {
+    def countDistinct(column: SQLSyntax) = sqls.count(sqls.distinct(column))
+
+    def uuid(value: String): SQLSyntax = sqls"UUID(${value})"
+
+    def eqUuid(column: SQLSyntax, value: String) = sqls.eq(column, sqls.uuid(value))
+
+    def inUuid(column: SQLSyntax, values: Seq[String]) = {
       if (values.nonEmpty) {
         sqls"${column} in ( ${sqls.join(values.map(x => sqls.uuid(x)), sqls",")} )"
       } else {
@@ -23,7 +27,7 @@ object PostgresqlHelper {
       }
     }
 
-    def notInByUuid(column: SQLSyntax, values: Seq[String]) = {
+    def notInUuid(column: SQLSyntax, values: Seq[String]) = {
       if (values.nonEmpty) {
         sqls"${column} not in ( ${sqls.join(values.map(x => sqls.uuid(x)), sqls",")} )"
       } else {

@@ -14,6 +14,7 @@ import dsmoq.AppConf
 import dsmoq.services.data.ProfileData.UpdateProfileParams
 import dsmoq.exceptions.{InputValidationException, NotFoundException, NotAuthorizedException}
 import com.sun.corba.se.spi.orbutil.fsm.Input
+import scala.util.control.Exception._
 
 class ApiController extends ScalatraServlet
     with JacksonJsonSupport with SessionTrait with FileUploadSupport {
@@ -170,15 +171,15 @@ class ApiController extends ScalatraServlet
 
   get("/datasets") {
     val query = params.get("query")
-    val group = params.get("group")
-    val attributes = multiParams.toMap
-    val owner = params.get("owner")
-    val limit = params.get("limit")
-    val offset = params.get("offset")
+    val owners = multiParams("owner[]")
+    val groups = multiParams("group[]")
+    val attributes = multiParams("attribute[][name]").zip(multiParams("attribute[][value]"))
+    val limit = params.get("limit").flatMap({ x => allCatch opt x.toInt })
+    val offset = params.get("offset").flatMap({ x => allCatch opt x.toInt })
 
     val response = for {
       userInfo <- getUserInfoFromSession()
-      facadeParams = SearchDatasetsParams(query, group, attributes, owner, limit, offset, userInfo)
+      facadeParams = SearchDatasetsParams(query, owners, groups, attributes, limit, offset, userInfo)
       datasets <- DatasetService.search(facadeParams)
     } yield {
       AjaxResponse("OK", datasets)
@@ -188,7 +189,9 @@ class ApiController extends ScalatraServlet
       case Failure(e) =>
         e match {
           case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
+          case e: Throwable =>
+            this.log("unkown", e)
+            AjaxResponse("NG")
         }
     }
   }

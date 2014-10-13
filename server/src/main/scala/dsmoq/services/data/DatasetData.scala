@@ -4,90 +4,87 @@ import LoginData._
 import org.scalatra.servlet.FileItem
 import org.joda.time.DateTime
 
-/**
- * Created by terurou on 2014/03/20.
- */
 object DatasetData {
   // request
   case class SearchDatasetsParams(
-                                   query: Option[String],
-                                   group: Option[String],
-                                   attributes: Map[String, Seq[String]],
-                                   owner: Option[String],
-                                   limit: Option[String],
-                                   offset: Option[String],
-                                   userInfo: User
-                                   )
+    query: Option[String],
+    owners: Seq[String],
+    groups: Seq[String],
+    attributes: Seq[(String, String)],
+    limit: Option[Int],
+    offset: Option[Int],
+    userInfo: User
+  )
 
   case class GetDatasetParams(
-                               id: String,
-                               userInfo: User
-                               )
+    id: String,
+    userInfo: User
+  )
 
   case class CreateDatasetParams(
-                                  userInfo: User,
-                                  files: Option[Seq[FileItem]]
-                                  )
+    userInfo: User,
+    files: Option[Seq[FileItem]]
+  )
 
   case class AddFilesToDatasetParams(
-                                      userInfo: User,
-                                      datasetId: String,
-                                      files: Option[Seq[FileItem]]
-                                      )
+    userInfo: User,
+    datasetId: String,
+    files: Option[Seq[FileItem]]
+  )
   case class ModifyDatasetMetadataParams(
-                                          userInfo: User,
-                                          datasetId: String,
-                                          fileId: String,
-                                          filename: Option[String],
-                                          description: Option[String]
-                                          )
+    userInfo: User,
+    datasetId: String,
+    fileId: String,
+    filename: Option[String],
+    description: Option[String]
+  )
   case class DeleteDatasetFileParams(
-                                      userInfo: User,
-                                      datasetId: String,
-                                      fileId: String
-                                      )
+    userInfo: User,
+    datasetId: String,
+    fileId: String
+  )
 
   case class UpdateFileParams(
-                               userInfo: User,
-                               datasetId: String,
-                               fileId: String,
-                               file: Option[FileItem]
-                               )
+     userInfo: User,
+     datasetId: String,
+     fileId: String,
+     file: Option[FileItem]
+  )
 
   case class ModifyDatasetMetaParams(
-                                      userInfo: User,
-                                      datasetId: String,
-                                      name: Option[String],
-                                      description: Option[String],
-                                      licenseId: Option[String],
-                                      attributes: Seq[(String, String)]
-                                      )
+    userInfo: User,
+    datasetId: String,
+    name: Option[String],
+    description: Option[String],
+    licenseId: Option[String],
+    attributes: Seq[(String, String)]
+  )
 
   case class AddImagesToDatasetParams(
-                                       userInfo: User,
-                                       datasetId: String,
-                                       images: Option[Seq[FileItem]]
-                                       )
+    userInfo: User,
+    datasetId: String,
+    images: Option[Seq[FileItem]]
+  )
 
   case class ChangePrimaryImageParams(
-                                       userInfo: User,
-                                       id: Option[String],
-                                       datasetId: String
-                                       )
+    userInfo: User,
+    id: Option[String],
+    datasetId: String
+  )
 
   case class DeleteImageParams(
-                                userInfo: User,
-                                imageId: String,
-                                datasetId: String
-                                )
+    userInfo: User,
+    imageId: String,
+    datasetId: String
+  )
 
   case class AccessControlParams(
-                                  datasetId: String,
-                                  userInfo: User,
-                                  ids: Seq[String],
-                                  types: Seq[String],
-                                  accessLevels: Seq[String]
-                                  )
+    datasetId: String,
+    userInfo: User,
+    ids: Seq[String],
+    types: Seq[String],
+    accessLevels: Seq[String]
+  )
 
   // response
   case class DatasetsSummary(
@@ -118,29 +115,29 @@ object DatasetData {
   )
 
   case class DatasetMetaData(
-                              name: String,
-                              description: String,
-                              license : String,
-                              attributes: Seq[DatasetAttribute]
-                              )
+    name: String,
+    description: String,
+    license : String,
+    attributes: Seq[DatasetAttribute]
+  )
 
   case class DatasetAttribute(
-                               name: String,
-                               value: String
-                               )
+    name: String,
+    value: String
+  )
 
   case class DatasetAddFiles(
-                              files: Seq[DatasetFile]
-                              )
+    files: Seq[DatasetFile]
+  )
 
   case class DatasetAddImages(
-                              images: Seq[Image],
-                              primaryImage: String
-                               )
+    images: Seq[Image],
+    primaryImage: String
+  )
 
   case class DatasetDeleteImage(
-                                 primaryImage: String
-                                 )
+    primaryImage: String
+  )
 
   case class DatasetFile(
     id: String,
@@ -152,14 +149,14 @@ object DatasetData {
     createdAt: String,
     updatedBy: User,
     updatedAt: String
-    )
+  )
 
   case class DatasetOwnership (
     id: String,
     name: String,
     fullname: String,
-    organization: String,
-    title: String,
+    //organization: String,
+    //title: String,
     image: String,
     accessLevel: Int,
     ownerType: Int
