@@ -10,6 +10,7 @@ import hxgnd.PositiveInt;
 import hxgnd.Promise;
 import hxgnd.PromiseBroker;
 import hxgnd.Unit;
+import hxgnd.js.JQuery;
 
 class GroupListPage {
     public static function render(html: Html, onClose: Promise<Unit>, pageNum: PositiveInt): Promise<Navigation<Page>> {
@@ -26,21 +27,36 @@ class GroupListPage {
 
         View.getTemplate("group/list").link(html, binding.data());
 
+        function load() {
+            binding.setProperty("result", Async.Pending);
+            Service.instance.findGroups({
+                query: (condition.query != "") ? condition.query : null,
+                offset: 20 * condition.index,
+                limit: 20
+            }).then(function (x) {
+                binding.setProperty("result", Async.Completed({
+                    total: x.summary.total,
+                    items: x.results,
+                    pages: Math.ceil(x.summary.total / 20)
+                }));
+            }, function (err) {
+                Notification.show("error", "error happened");
+            });
+        }
+
+        // observe binding
         JsViews.observe(condition, "index", function (_, args) {
             var page = args.value + 1;
             navigation.fulfill(Navigation.Navigate(Page.DatasetList(page)));
         });
 
-        Service.instance.findGroups({ offset: 20 * (pageNum - 1) }).then(function (x) {
-            binding.setProperty("result", Async.Completed({
-                total: x.summary.total,
-                items: x.results,
-                pages: Math.ceil(x.summary.total / 20)
-            }));
-
-        }, function (err) {
-            Notification.show("error", "error happened");
+        // init search form
+        JQuery._("#search-button").on("click", function (_) {
+            load();
         });
+
+
+        load();
 
         return navigation.promise;
     }
