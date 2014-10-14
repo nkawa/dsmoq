@@ -64,9 +64,6 @@ class DatasetListPage {
         }
 
         // observe binding
-        JsViews.observe(condition, "query", function (_, _) {
-            load();
-        });
         JsViews.observe(condition, "filters", function (_, _) {
             load();
         });
@@ -76,6 +73,10 @@ class DatasetListPage {
         });
 
         // init search form
+        JQuery._("#search-button").on("click", function (_) {
+            load();
+        });
+
         BootstrapPopover.initialize("#add-filter-button", {
             content: JQuery._("#filter-add-form").children(),
             placement: "bottom",

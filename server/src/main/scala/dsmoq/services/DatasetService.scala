@@ -185,9 +185,9 @@ object DatasetService {
         val slice = (for {
           userGroupIds <- getGroupIdsByUserName(params.owners)
           groupIds <- getGroupIdsByGroupName(params.groups)
-          count <- countDatasets(joinedGroups, userGroupIds, groupIds, params.attributes)
+          count <- countDatasets(joinedGroups, params.query, userGroupIds, groupIds, params.attributes)
         } yield {
-          val records = findDatasets(joinedGroups, userGroupIds, groupIds, params.attributes, limit, offset)
+          val records = findDatasets(joinedGroups, params.query, userGroupIds, groupIds, params.attributes, limit, offset)
           RangeSlice(RangeSliceSummary(count, limit, offset), records)
         }).getOrElse(RangeSlice(RangeSliceSummary(0, limit, offset), List.empty))
 
@@ -256,23 +256,25 @@ object DatasetService {
     }
   }
 
-  private def countDatasets(joindGroups : Seq[String], ownerUsers: List[String],
-                            ownerGroups: List[String], attributes: List[Attribute])(implicit s: DBSession) = {
+  private def countDatasets(joindGroups : Seq[String], query: Option[String],
+                            ownerUsers: List[String], ownerGroups: List[String],
+                            attributes: List[Attribute])(implicit s: DBSession) = {
     withSQL {
       createDatasetSql(select.apply[Int](sqls.countDistinct(persistence.Dataset.d.id)),
-                       joindGroups, ownerUsers, ownerGroups, attributes)
+                       joindGroups, query, ownerUsers, ownerGroups, attributes)
     }.map(implicit rs => rs.int(1)).single().apply()
       .flatMap(x => if (x > 0) Some(x) else None)
   }
 
-  private def findDatasets(joindGroups : Seq[String], ownerUsers: List[String],
-                           ownerGroups: List[String], attributes: List[Attribute],
-                           limit: Int, offset: Int)(implicit s: DBSession) = {
+  private def findDatasets(joindGroups : Seq[String], query: Option[String],
+                           ownerUsers: List[String], ownerGroups: List[String],
+                           attributes: List[Attribute], limit: Int, offset: Int)(implicit s: DBSession) = {
     val ds = persistence.Dataset.d
     val o = persistence.Ownership.o
 
     val datasets = withSQL {
-      createDatasetSql(select.apply[Any](ds.resultAll, sqls.max(o.accessLevel).append(sqls"access_level")), joindGroups, ownerUsers, ownerGroups, attributes)
+      createDatasetSql(select.apply[Any](ds.resultAll, sqls.max(o.accessLevel).append(sqls"access_level")),
+                                         joindGroups, query, ownerUsers, ownerGroups, attributes)
         .groupBy(ds.id)
         .orderBy(ds.updatedAt).desc
         .offset(offset)
@@ -305,8 +307,9 @@ object DatasetService {
     })
   }
 
-  private def createDatasetSql[A](selectSql: SelectSQLBuilder[A], joindGroups : Seq[String], ownerUsers: List[String],
-                                ownerGroups: List[String], attributes: List[Attribute]) = {
+  private def createDatasetSql[A](selectSql: SelectSQLBuilder[A], joindGroups : Seq[String],
+                                  query: Option[String], ownerUsers: List[String], ownerGroups: List[String],
+                                  attributes: List[Attribute]) = {
     val ds = persistence.Dataset.d
     val g = persistence.Group.g
     val o = persistence.Ownership.o
@@ -316,40 +319,40 @@ object DatasetService {
     val xda = SubQuery.syntax("xda", da.resultName, a.resultName)
 
     selectSql
-        .from(persistence.Dataset as ds)
-        .innerJoin(persistence.Ownership as o).on(o.datasetId, ds.id)
-        .map { sql =>
-          if (ownerUsers.nonEmpty || ownerGroups.nonEmpty) {
-            sql.innerJoin(
-              select.apply[String](o.result.datasetId)
-                .from(persistence.Ownership as o)
-                .innerJoin(persistence.Group as g).on(o.groupId, g.id)
-                .where
-                  .isNull(o.deletedAt).and.isNull(g.deletedAt)
-                  .and
-                  .withRoundBracket(
-                    _.map { q =>
-                      if (ownerUsers.nonEmpty) {
-                        q.append(sqls.join(ownerUsers.map { sqls.eqUuid(o.groupId, _).and.eq(o.accessLevel, 3) }, sqls"or"))
-                      } else {
-                        q
-                      }
+      .from(persistence.Dataset as ds)
+      .innerJoin(persistence.Ownership as o).on(o.datasetId, ds.id)
+      .map { sql =>
+        if (ownerUsers.nonEmpty || ownerGroups.nonEmpty) {
+          sql.innerJoin(
+            select.apply[String](o.result.datasetId)
+              .from(persistence.Ownership as o)
+              .innerJoin(persistence.Group as g).on(o.groupId, g.id)
+              .where
+                .isNull(o.deletedAt).and.isNull(g.deletedAt)
+                .and
+                .withRoundBracket(
+                  _.map { q =>
+                    if (ownerUsers.nonEmpty) {
+                      q.append(sqls.join(ownerUsers.map { sqls.eqUuid(o.groupId, _).and.eq(o.accessLevel, 3) }, sqls"or"))
+                    } else {
+                      q
                     }
-                    .map { q =>
-                      if (ownerGroups.nonEmpty) {
-                        q.append(sqls.join(ownerGroups.map { sqls.eqUuid(o.groupId, _).and.eq(o.accessLevel, 3) }, sqls"or"))
-                      } else {
-                        q
-                      }
+                  }
+                  .map { q =>
+                    if (ownerGroups.nonEmpty) {
+                      q.append(sqls.join(ownerGroups.map { sqls.eqUuid(o.groupId, _).and.eq(o.accessLevel, 3) }, sqls"or"))
+                    } else {
+                      q
                     }
-                  )
-                .groupBy(o.datasetId).having(sqls.eq(sqls.count(o.datasetId), ownerUsers.length + ownerGroups.length))
-                .as(xo)
-            ).on(ds.id, xo(o).datasetId)
-          } else {
-            sql
-          }
+                  }
+                )
+              .groupBy(o.datasetId).having(sqls.eq(sqls.count(o.datasetId), ownerUsers.length + ownerGroups.length))
+              .as(xo)
+          ).on(ds.id, xo(o).datasetId)
+        } else {
+          sql
         }
+      }
       .map(sql =>
         if (attributes.nonEmpty) {
           sql.innerJoin(
@@ -375,6 +378,14 @@ object DatasetService {
         .gt(o.accessLevel, GroupAccessLevel.Deny)
         .and
         .isNull(ds.deletedAt)
+        .map { sql =>
+          query match {
+            case Some(x) =>
+              sql.and.like(ds.name, "%" + x + "%")
+            case None =>
+              sql
+          }
+        }
   }
 
   private def getGuestAccessLevelMap(datasetIds: Seq[String])(implicit s: DBSession): Map[String, Int] = {
