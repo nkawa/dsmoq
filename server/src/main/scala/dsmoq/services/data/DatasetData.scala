@@ -36,11 +36,10 @@ object DatasetData {
     files: Option[Seq[FileItem]]
   )
   case class ModifyDatasetMetadataParams(
-    userInfo: User,
     datasetId: String,
     fileId: String,
-    filename: Option[String],
-    description: Option[String]
+    filename: Option[String] = None,
+    description: Option[String] = None
   )
   case class DeleteDatasetFileParams(
     userInfo: User,
@@ -56,12 +55,10 @@ object DatasetData {
   )
 
   case class ModifyDatasetMetaParams(
-    userInfo: User,
-    datasetId: String,
-    name: Option[String],
-    description: Option[String],
-    licenseId: Option[String],
-    attributes: Seq[(String, String)]
+    name: Option[String] = None,
+    description: Option[String] = None,
+    license: Option[String] = None,
+    attributes: Seq[(String, String)] = Seq.empty
   )
 
   case class AddImagesToDatasetParams(

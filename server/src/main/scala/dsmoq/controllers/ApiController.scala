@@ -273,9 +273,9 @@ class ApiController extends ScalatraServlet
     val description = params.get("description")
 
     val response = for {
-      userInfo <- getUserInfoFromSession()
-      facadeParams = ModifyDatasetMetadataParams(userInfo, datasetId, fileId, filename, description)
-      files <- DatasetService.modifyFileMetadata(facadeParams)
+      user <- getUserInfoFromSession()
+      facadeParams = ModifyDatasetMetadataParams(datasetId, fileId, filename, description)
+      files <- DatasetService.modifyFileMetadata(facadeParams, user)
     } yield {
       AjaxResponse("OK", files)
     }
@@ -315,15 +315,15 @@ class ApiController extends ScalatraServlet
 
   put("/datasets/:datasetId/metadata") {
     val datasetId = params("datasetId")
-    val name = params.get("name")
-    val description = params.get("description")
-    val license = params.get("license")
-    val attributes = multiParams("attributes[][name]").zip(multiParams("attributes[][value]"))
+    val data = params.get("d").map(x => {
+      JsonMethods.parse(x).extract[ModifyDatasetMetaParams]
+    }).getOrElse {
+      ModifyDatasetMetaParams()
+    }
 
     val response = for {
-      userInfo <- getUserInfoFromSession()
-      facadeParams = ModifyDatasetMetaParams(userInfo, datasetId, name, description, license, attributes)
-      result <- DatasetService.modifyDatasetMeta(facadeParams)
+      user <- getUserInfoFromSession()
+      result <- DatasetService.modifyDatasetMeta(datasetId, data, user)
     } yield {
       result
     }

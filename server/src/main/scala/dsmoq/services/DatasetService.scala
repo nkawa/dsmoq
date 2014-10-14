@@ -573,7 +573,7 @@ object DatasetService {
               .eq(o.groupId, sqls.uuid(item.groupId))
         ).map(persistence.Ownership(o.resultName)).single.apply match {
           case Some(x) =>
-            if (item.accessLevel != x.accessLevel) {
+            if (item.accessLevel.getOrElse(-1) != x.accessLevel) {
               persistence.Ownership(
                 id = x.id,
                 datasetId = x.datasetId,
@@ -816,8 +816,8 @@ object DatasetService {
     }
   }
 
-  def modifyFileMetadata(params: DatasetData.ModifyDatasetMetadataParams) = {
-    if (params.userInfo.isGuest) throw new NotAuthorizedException
+  def modifyFileMetadata(params: DatasetData.ModifyDatasetMetadataParams, user: User) = {
+    if (user.isGuest) throw new NotAuthorizedException
 
     // input validation
     val errors = mutable.LinkedHashMap.empty[String, String]
@@ -835,12 +835,12 @@ object DatasetService {
       DB localTx { implicit s =>
         getDataset(params.datasetId) match {
           case Some(x) =>
-            if (!isOwner(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+            if (!isOwner(user.id, params.datasetId)) throw new NotAuthorizedException
           case None => throw new NotFoundException
         }
         if (!isValidFile(params.datasetId, params.fileId)) throw new NotFoundException
 
-        val myself = persistence.User.find(params.userInfo.id).get
+        val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
         withSQL {
           val f = persistence.File.column
@@ -860,9 +860,9 @@ object DatasetService {
           description = result.description,
           size = result.fileSize,
           url = AppConf.fileDownloadRoot + params.datasetId + "/" + result.id,
-          createdBy = params.userInfo,
+          createdBy = user,
           createdAt = timestamp.toString(),
-          updatedBy = params.userInfo,
+          updatedBy = user,
           updatedAt = timestamp.toString()
         ))
       }
@@ -909,8 +909,8 @@ object DatasetService {
     }
   }
 
-  def modifyDatasetMeta(params: DatasetData.ModifyDatasetMetaParams): Try[String] = {
-    if (params.userInfo.isGuest) throw new NotAuthorizedException
+  def modifyDatasetMeta(id: String, params: DatasetData.ModifyDatasetMetaParams, user: User): Try[String] = {
+    if (user.isGuest) throw new NotAuthorizedException
 
     try {
       DB localTx { implicit s =>
@@ -921,7 +921,7 @@ object DatasetService {
           errors.put("name", "name is empty")
         }
         val description = params.description.getOrElse("")
-        val licenseId = params.licenseId.getOrElse("")
+        val licenseId = params.license.getOrElse("")
         if (licenseId.isEmpty) {
             errors.put("license", "license is empty")
         } else {
@@ -938,13 +938,13 @@ object DatasetService {
           throw new InputValidationException(errors)
         }
 
-        getDataset(params.datasetId) match {
+        getDataset(id) match {
           case Some(x) =>
-            if (!isOwner(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+            if (!isOwner(user.id, id)) throw new NotAuthorizedException
           case None => throw new NotFoundException
         }
 
-        val myself = persistence.User.find(params.userInfo.id).get
+        val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
 
         withSQL {
@@ -953,7 +953,7 @@ object DatasetService {
             .set(d.name -> name, d.description -> description, d.licenseId -> sqls.uuid(licenseId),
               d.updatedBy -> sqls.uuid(myself.id), d.updatedAt -> timestamp)
             .where
-            .eq(d.id, sqls.uuid(params.datasetId))
+            .eq(d.id, sqls.uuid(id))
         }.update().apply
 
         val da = persistence.DatasetAnnotation.syntax("da")
@@ -964,7 +964,7 @@ object DatasetService {
             .from(persistence.Annotation as a)
             .innerJoin(persistence.DatasetAnnotation as da).on(sqls.eq(da.annotationId, a.id).and.isNull(da.deletedAt))
             .where
-            .eq(da.datasetId, sqls.uuid(params.datasetId))
+            .eq(da.datasetId, sqls.uuid(id))
             .and
             .isNull(a.deletedAt)
         }.map(rs => (rs.string(a.resultName.name).toLowerCase, rs.string(a.resultName.id))).list().apply
@@ -973,7 +973,7 @@ object DatasetService {
         withSQL {
           delete.from(persistence.DatasetAnnotation as da)
             .where
-            .eq(da.datasetId, sqls.uuid(params.datasetId))
+            .eq(da.datasetId, sqls.uuid(id))
         }.update().apply
 
         // annotation(name)が既存のものかチェック なければ作る
@@ -1005,7 +1005,7 @@ object DatasetService {
             // DatasetAnnotation再作成
             persistence.DatasetAnnotation.create(
               id = UUID.randomUUID().toString,
-              datasetId = params.datasetId,
+              datasetId = id,
               annotationId = annotationId,
               data = x._2,
               createdBy = myself.id,
@@ -1037,7 +1037,7 @@ object DatasetService {
           }
         }
       }
-      Success(params.datasetId)
+      Success(id)
     } catch {
       case e: Exception => Failure(e)
     }

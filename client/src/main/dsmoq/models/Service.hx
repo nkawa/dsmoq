@@ -116,13 +116,7 @@ class Service extends Stream<ServiceEvent> {
     }
 
     public function updateDatasetMetadata(datasetId: String, metadata: DatasetMetadata): Promise<Unit> {
-        return send(Put, '/api/datasets/$datasetId/metadata', {
-            name: metadata.name,
-            description: metadata.description,
-            "attributes[][name]": metadata.attributes.map(function (x) return x.name),
-            "attributes[][value]": metadata.attributes.map(function (x) return x.value),
-            license: metadata.license
-        });
+        return send(Put, '/api/datasets/$datasetId/metadata', metadata);
     }
 
     //public function addDatasetImage(datasetId: String, form: JqHtml): Promise<{images: Array<Image>, primaryImage: String}> {
