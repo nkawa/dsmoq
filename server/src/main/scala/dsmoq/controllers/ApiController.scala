@@ -125,10 +125,13 @@ class ApiController extends ScalatraServlet
   }
 
   post("/signin") {
-    val id = params.get("id")
-    val password = params.get("password")
-    val facadeParams = SigninParams(id, password)
-    AccountService.getAuthenticatedUser(facadeParams) match {
+    val data = params.get("d").map(x => {
+      JsonMethods.parse(x).extract[SigninParams]
+    }).getOrElse {
+      SigninParams(None, None)
+    }
+
+    AccountService.getAuthenticatedUser(data) match {
       case Success(x) =>
         setUserInfoToSession(x)
         AjaxResponse("OK", getUserInfoFromSession().get)
