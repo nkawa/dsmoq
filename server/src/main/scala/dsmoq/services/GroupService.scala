@@ -15,7 +15,7 @@ import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
 object GroupService {
-  def search(params: GroupData.SearchGroupsParams): Try[RangeSlice[GroupData.GroupsSummary]] = {
+  def search(params: GroupData.SearchGroupsParams, user: User): Try[RangeSlice[GroupData.GroupsSummary]] = {
     try {
       // FIXME input parameter check
       val offset = try {
@@ -30,9 +30,10 @@ object GroupService {
       }
 
       DB readOnly { implicit s =>
-        val groups = params.user match {
-          case Some(x) => getUserGroups(x, offset, limit)
-          case None => getGroups(offset, limit)
+        val groups = if (user.isGuest) {
+          getGroups(offset, limit)
+        } else {
+          getUserGroups(user.id, offset, limit)
         }
         val count = groups.size
         val groupIds = groups.map(_.id)

@@ -3,14 +3,13 @@ package dsmoq.services.data
 import org.scalatra.servlet.FileItem
 
 object GroupData {
-  // request
   case class SearchGroupsParams(
-                                 userInfo: User,
-                                 query: Option[String],
-                                 user: Option[String],
-                                 limit: Option[String],
-                                 offset: Option[String]
-                                 )
+    query: Option[String] = None,
+    user: Option[String] = None,
+    limit: Option[String] = None,
+    offset: Option[String] = None
+  )
+
   case class GetGroupParams(
                              userInfo: User,
                              groupId: String

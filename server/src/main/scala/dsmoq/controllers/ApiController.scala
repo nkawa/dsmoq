@@ -151,7 +151,9 @@ class ApiController extends ScalatraServlet
     AjaxResponse("OK", getUserInfoFromSession().get)
   }
 
-  // dataset JSON API
+  // --------------------------------------------------------------------------
+  // dataset api
+
   post("/datasets") {
     val files = fileMultiParams.get("file[]")
 
@@ -455,16 +457,19 @@ class ApiController extends ScalatraServlet
     }
   }
 
+  // --------------------------------------------------------------------------
+  // group api
+
   get("/groups") {
-    val query = params.get("query")
-    val user = params.get("user")
-    val limit = params.get("limit")
-    val offset = params.get("offset")
+    val data = params.get("d").map(x => {
+      JsonMethods.parse(x).extract[SearchGroupsParams]
+    }).getOrElse {
+      SearchGroupsParams()
+    }
 
     val response = for {
-      userInfo <- getUserInfoFromSession()
-      facadeParams = SearchGroupsParams(userInfo, query, user, limit, offset)
-      groups <- GroupService.search(facadeParams)
+      user <- getUserInfoFromSession()
+      groups <- GroupService.search(data, user)
     } yield {
       AjaxResponse("OK", groups)
     }
