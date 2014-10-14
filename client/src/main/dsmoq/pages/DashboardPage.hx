@@ -29,7 +29,7 @@ class DashboardPage {
         });
 
         if (!profile.isGuest) {
-            Service.instance.findDatasets({owner: [profile.id], limit: 3}).then(function (x) {
+            Service.instance.findDatasets({owners: [profile.id], limit: 3}).then(function (x) {
                 binding.setProperty("myDatasets", Async.Completed(x.results));
             });
             Service.instance.findGroups({user: profile.id, limit: 3}).then(function (x) {

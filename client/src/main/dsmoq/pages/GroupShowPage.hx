@@ -54,7 +54,7 @@ class GroupShowPage {
                 Notification.show("error", "error happened");
             });
 
-            Service.instance.findDatasets({group: [id]}).then(function (x) {
+            Service.instance.findDatasets({groups: [id]}).then(function (x) {
                 var datasets = {
                     index: Math.ceil(x.summary.offset / 20),
                     total: x.summary.total,
@@ -65,7 +65,7 @@ class GroupShowPage {
 
                 JsViews.observe(datasets, "index", function (_, _) {
                     var i = datasets.index;
-                    Service.instance.findDatasets({group: [id], offset: 20 * i}).then(function (x) {
+                    Service.instance.findDatasets({groups: [id], offset: 20 * i}).then(function (x) {
                         var b = JsViews.observable(datasets);
                         b.setProperty("index", i);
                         b.setProperty("total", x.summary.total);

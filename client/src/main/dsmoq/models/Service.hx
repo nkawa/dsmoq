@@ -1,5 +1,6 @@
 package dsmoq.models;
 
+import haxe.Json;
 import js.Cookie;
 import js.Error;
 import hxgnd.Unit;
@@ -73,8 +74,8 @@ class Service extends Stream<ServiceEvent> {
     }
 
     public function findDatasets(?params: {?query: String,
-                                           ?group: Array<String>,
-                                           ?owner: Array<String>,
+                                           ?owners: Array<String>,
+                                           ?groups: Array<String>,
                                            ?attributes: Array<DatasetAttribute>,
                                            ?offset: Int,
                                            ?limit: Int}): Promise<RangeSlice<DatasetSummary>> {
@@ -274,10 +275,16 @@ class Service extends Stream<ServiceEvent> {
         }
     }
 
-    function send<T>(method: RequestMethod, url: String, ?data: Dynamic): Promise<T> {
+    function send<T>(method: RequestMethod, url: String, ?data: {}): Promise<T> {
         var str: String = method;
 
-        return JQuery.ajax(url, {type: str, dataType: "json", cache: false, data: data}).toPromise()
+        var d = if (data == null) {
+            null;
+        } else {
+            { d: Json.stringify(data) };
+        }
+
+        return JQuery.ajax(url, {type: str, dataType: "json", cache: false, data: d}).toPromise()
             .flatMap(function (response: ApiResponse) {
                 return switch (response.status) {
                     case ApiStatus.OK:

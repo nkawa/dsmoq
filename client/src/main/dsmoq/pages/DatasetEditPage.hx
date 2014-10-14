@@ -18,19 +18,37 @@ import js.html.Element;
 import js.html.Event;
 import js.typeahead.Bloodhound;
 import js.typeahead.Typeahead;
-import dsmoq.views.OwnerTypeahead;
-import dsmoq.views.AttributeNameTypeahead;
+import dsmoq.views.AutoComplete;
+import hxgnd.Result;
+import hxgnd.Error;
 
 class DatasetEditPage {
     public static function render(root: Html, onClose: Promise<Unit>, id: String): Promise<Navigation<Page>> {
         var navigation = new PromiseBroker();
 
         function setAttributeTypeahead(root: JqHtml) {
-            AttributeNameTypeahead.initialize(root.find(".attribute-typeahead"));
-            function trigger(e: Event) { new JqHtml(e.target).trigger("change"); }
-            root.find(".attribute-typeahead")
-                .on("typeahead:autocompleted", trigger)
-                .on("typeahead:selected", trigger);
+            AutoComplete.initialize(root.find(".attribute-typeahead"), {
+                url: function (query: String) {
+                    return '/api/suggests/attributes?query=${query}';
+                },
+                filter: function (data: Dynamic) {
+                    return if (data.status == "OK" && Std.is(data.data, Array)) {
+                        Result.Success(data.data);
+                    } else {
+                        Result.Failure(new Error("Network Error"));
+                    }
+                },
+                template: {
+                    suggestion: function (x) {
+                        return '<div>${x}</div>';
+                    }
+                }
+            });
+            //AttributeNameTypeahead.initialize(root.find(".attribute-typeahead"));
+            //function trigger(e: Event) { new JqHtml(e.target).trigger("change"); }
+            //root.find(".attribute-typeahead")
+                //.on("typeahead:autocompleted", trigger)
+                //.on("typeahead:selected", trigger);
         }
 
         function removeAttributeTypeahead(root: JqHtml) {
@@ -86,7 +104,24 @@ class DatasetEditPage {
             var binding = JsViews.observable(rootBinding.data().data);
 
             setAttributeTypeahead(root);
-            OwnerTypeahead.initialize(root.find("#dataset-owner-typeahead"));
+            AutoComplete.initialize(root.find("#dataset-owner-typeahead"), {
+                url: function (query: String) {
+                    return '/api/suggests/users_and_groups?query=${query}';
+                },
+                path: "name",
+                filter: function (data: Dynamic) {
+                    return if (data.status == "OK" && Std.is(data.data, Array)) {
+                        Result.Success(data.data);
+                    } else {
+                        Result.Failure(new Error("Network Error"));
+                    }
+                },
+                template: {
+                    suggestion: function (x) {
+                        return '<div>${x.name}</div>';
+                    }
+                }
+            });
 
             root.find("#dataset-finish-editing").on("click", function (_) {
                 navigation.fulfill(Navigation.Navigate(Page.DatasetShow(id)));
