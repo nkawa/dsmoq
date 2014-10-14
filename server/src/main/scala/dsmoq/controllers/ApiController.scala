@@ -1,5 +1,7 @@
 package dsmoq.controllers
 
+import org.json4s._
+import org.json4s.jackson.JsonMethods
 import org.scalatra.ScalatraServlet
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatra.json.JacksonJsonSupport
@@ -170,17 +172,15 @@ class ApiController extends ScalatraServlet
   }
 
   get("/datasets") {
-    val query = params.get("query")
-    val owners = multiParams("owner[]")
-    val groups = multiParams("group[]")
-    val attributes = multiParams("attribute[][name]").zip(multiParams("attribute[][value]"))
-    val limit = params.get("limit").flatMap({ x => allCatch opt x.toInt })
-    val offset = params.get("offset").flatMap({ x => allCatch opt x.toInt })
+    val data = params.get("d").map(x => {
+      JsonMethods.parse(x).extract[SearchDatasetsParams]
+    }).getOrElse(
+      SearchDatasetsParams(None, List.empty, List.empty, List.empty, None, None)
+    )
 
     val response = for {
-      userInfo <- getUserInfoFromSession()
-      facadeParams = SearchDatasetsParams(query, owners, groups, attributes, limit, offset, userInfo)
-      datasets <- DatasetService.search(facadeParams)
+      user <- getUserInfoFromSession()
+      datasets <- DatasetService.search(data, user)
     } yield {
       AjaxResponse("OK", datasets)
     }

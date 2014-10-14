@@ -8,12 +8,16 @@ object DatasetData {
   // request
   case class SearchDatasetsParams(
     query: Option[String],
-    owners: Seq[String],
-    groups: Seq[String],
-    attributes: Seq[(String, String)],
+    owners: List[String],
+    groups: List[String],
+    attributes: List[Attribute],
     limit: Option[Int],
-    offset: Option[Int],
-    userInfo: User
+    offset: Option[Int]
+  )
+
+  case class Attribute(
+    name: String,
+    value: String
   )
 
   case class GetDatasetParams(

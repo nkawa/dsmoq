@@ -1,5 +1,8 @@
 package dsmoq.services
 
+import dsmoq.services.data.DatasetData.Attribute
+import rl.UserInfo
+
 import scala.util.{Failure, Try, Success}
 import scalikejdbc._, SQLInterpolation._
 import java.util.UUID
@@ -168,15 +171,16 @@ object DatasetService {
   /**
    * データセットを検索し、該当するデータセットの一覧を取得します。
    * @param params
+   * @param user
    * @return
    */
-  def search(params: DatasetData.SearchDatasetsParams): Try[RangeSlice[DatasetData.DatasetsSummary]] = {
+  def search(params: DatasetData.SearchDatasetsParams, user: User): Try[RangeSlice[DatasetData.DatasetsSummary]] = {
     try {
       val offset = params.offset.getOrElse(0)
       val limit = params.limit.getOrElse(20)
 
       DB readOnly { implicit s =>
-        val joinedGroups = getJoinedGroups(params.userInfo)
+        val joinedGroups = getJoinedGroups(user)
 
         val slice = (for {
           userGroupIds <- getGroupIdsByUserName(params.owners)
@@ -252,8 +256,8 @@ object DatasetService {
     }
   }
 
-  private def countDatasets(joindGroups : Seq[String], ownerUsers: Seq[String],
-                            ownerGroups: Seq[String], attributes: Seq[(String, String)])(implicit s: DBSession) = {
+  private def countDatasets(joindGroups : Seq[String], ownerUsers: List[String],
+                            ownerGroups: List[String], attributes: List[Attribute])(implicit s: DBSession) = {
     withSQL {
       createDatasetSql(select.apply[Int](sqls.countDistinct(persistence.Dataset.d.id)),
                        joindGroups, ownerUsers, ownerGroups, attributes)
@@ -261,8 +265,8 @@ object DatasetService {
       .flatMap(x => if (x > 0) Some(x) else None)
   }
 
-  private def findDatasets(joindGroups : Seq[String], ownerUsers: Seq[String],
-                           ownerGroups: Seq[String], attributes: Seq[(String, String)],
+  private def findDatasets(joindGroups : Seq[String], ownerUsers: List[String],
+                           ownerGroups: List[String], attributes: List[Attribute],
                            limit: Int, offset: Int)(implicit s: DBSession) = {
     val ds = persistence.Dataset.d
     val o = persistence.Ownership.o
@@ -301,8 +305,8 @@ object DatasetService {
     })
   }
 
-  private def createDatasetSql[A](selectSql: SelectSQLBuilder[A], joindGroups : Seq[String], ownerUsers: Seq[String],
-                                ownerGroups: Seq[String], attributes: Seq[(String, String)]) = {
+  private def createDatasetSql[A](selectSql: SelectSQLBuilder[A], joindGroups : Seq[String], ownerUsers: List[String],
+                                ownerGroups: List[String], attributes: List[Attribute]) = {
     val ds = persistence.Dataset.d
     val g = persistence.Group.g
     val o = persistence.Ownership.o
@@ -356,11 +360,11 @@ object DatasetService {
                 .isNull(a.deletedAt).and.isNull(da.deletedAt)
                 .and
                 .withRoundBracket(
-                  _.append(sqls.join(attributes.map(x => sqls.eq(a.name, x._1).and.eq(da.data, x._2)), sqls"or"))
+                  _.append(sqls.join(attributes.map(x => sqls.eq(a.name, x.name).and.eq(da.data, x.value)), sqls"or"))
                 )
               .groupBy(da.datasetId).having(sqls.eq(sqls.count(da.datasetId), attributes.length))
               .as(xda)
-          ).on(ds.id, sqls"xda.dataset_id") //xda(da).datasetIdだと、SQLがうまく生成できない
+          ).on(ds.id, xda(da).datasetId)
         } else {
           sql
         }
