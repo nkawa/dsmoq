@@ -1,9 +1,26 @@
-{^{async data}}
-  <h2>Group List</h2>
-  {^{if result.total > 0}}
-    <strong>Found {^{>result.total}} records</strong>
+<ol class="breadcrumb">
+  <li><a href="/">Top</a></li>
+  <li class="active">Group List</li>
+</ol>
+
+<div class="well well-sm dsmoq-filter" id="conditions">
+  <div class="row">
+    <div class="col-md-12">
+      <div class="input-group" style="float:left; width: 400px;">
+        <input type="text" class="form-control" placeholder="query" data-link="condition.query">
+        <span class="input-group-btn">
+          <button class="btn btn-primary" type="button" id="search-button"><span class="glyphicon glyphicon-search"></span></button>
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+{^{async result ~condition=condition}}
+  {^{if total > 0}}
+    <strong>Found {^{>total}} records</strong>
     <ul>
-      {^{for result.items}}
+      {^{for items}}
         <li class="dataset-item">
           <div class="row">
             <div class="pull-left">
@@ -17,7 +34,7 @@
         </li>
       {{/for}}
     </ul>
-    {^{pagination result.index result.pages id="group-pagination" pagedelta=5 /}}
+    {^{pagination ~condition.index pages id="group-pagination" pagedelta=5 /}}
   {{else}}
      <p>There are no groups.</p>
   {{/if}}

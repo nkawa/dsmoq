@@ -32,6 +32,10 @@ input::-ms-clear {
   background-repeat: no-repeat;
   background-position: center center;
 }
+.breadcrumb > .active {
+  color: #555;
+  font-weight: bold;
+}
 .well {
   margin-bottom: 10px;
 }

@@ -15,25 +15,29 @@ class GroupListPage {
     public static function render(html: Html, onClose: Promise<Unit>, pageNum: PositiveInt): Promise<Navigation<Page>> {
         var navigation = new PromiseBroker();
 
-        var rootBinding = JsViews.observable({data: Async.Pending});
-        View.getTemplate("group/list").link(html, rootBinding.data());
+        var condition = {
+            query: "",
+            index: pageNum - 1
+        };
+        var binding = JsViews.observable({
+            condition: condition,
+            result: Async.Pending
+        });
+
+        View.getTemplate("group/list").link(html, binding.data());
+
+        JsViews.observe(condition, "index", function (_, args) {
+            var page = args.value + 1;
+            navigation.fulfill(Navigation.Navigate(Page.DatasetList(page)));
+        });
 
         Service.instance.findGroups({ offset: 20 * (pageNum - 1) }).then(function (x) {
-            var data = {
-                condition: { },
-                result: {
-                    index: Math.ceil(x.summary.offset / 20),
-                    total: x.summary.total,
-                    items: x.results,
-                    pages: Math.ceil(x.summary.total / 20)
-                }
-            };
-            rootBinding.setProperty("data", data);
+            binding.setProperty("result", Async.Completed({
+                total: x.summary.total,
+                items: x.results,
+                pages: Math.ceil(x.summary.total / 20)
+            }));
 
-            JsViews.observe(data, "result.index", function (_, _) {
-                var page = data.result.index + 1;
-                navigation.fulfill(Navigation.Navigate(Page.DatasetList(page)));
-            });
         }, function (err) {
             Notification.show("error", "error happened");
         });
