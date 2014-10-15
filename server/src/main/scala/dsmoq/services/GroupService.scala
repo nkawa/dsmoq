@@ -27,9 +27,6 @@ object GroupService {
       val limit = params.limit.getOrElse(20)
 
       DB readOnly { implicit s =>
-        val g = persistence.Group.g
-        val m = persistence.Member.m
-
         val count = countGroup(params.query, params.user)
 
         val result = if (count > 0) {
