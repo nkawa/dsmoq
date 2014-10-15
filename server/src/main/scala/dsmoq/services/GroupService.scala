@@ -15,35 +15,32 @@ import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
 object GroupService {
+  /**
+   * グループを検索します。
+   * @param params
+   * @param user
+   * @return
+   */
   def search(params: GroupData.SearchGroupsParams, user: User): Try[RangeSlice[GroupData.GroupsSummary]] = {
     try {
-      // FIXME input parameter check
-      val offset = try {
-        params.offset.getOrElse("0").toInt
-      } catch {
-        case e: Exception => throw new InputValidationException(Map("offset" -> "wrong parameter"))
-      }
-      val limit = try {
-        params.limit.getOrElse("20").toInt
-      } catch {
-        case e: Exception => throw new InputValidationException(Map("limit" -> "wrong parameter"))
-      }
+      val offset = params.offset.getOrElse(0)
+      val limit = params.limit.getOrElse(20)
 
       DB readOnly { implicit s =>
-        val groups = if (user.isGuest) {
-          getGroups(offset, limit)
-        } else {
-          getUserGroups(user.id, offset, limit)
-        }
-        val count = groups.size
-        val groupIds = groups.map(_.id)
-        val datasetsCount = countDatasets(groupIds)
-        val membersCount = countMembers(groupIds)
-        val groupImages = getGroupImageIds(groups.map(_.id))
+        val g = persistence.Group.g
+        val m = persistence.Member.m
 
-        val summary = RangeSliceSummary(count, limit, offset)
-        val results = if (count > offset) {
-          groups.map(x => {
+        val count = countGroup(params.query, params.user)
+
+        val result = if (count > 0) {
+          val groups = selectGroup(params.query, params.user, limit, offset)
+
+          val groupIds = groups.map(_.id)
+          val datasetsCount = countDatasets(groupIds)
+          val membersCount = countMembers(groupIds)
+          val groupImages = getGroupImageIds(groups.map(_.id))
+
+          RangeSlice(RangeSliceSummary(count, limit, offset), groups.map(x => {
             GroupData.GroupsSummary(
               id = x.id,
               name = x.name,
@@ -55,15 +52,59 @@ object GroupService {
               members = membersCount.get(x.id).getOrElse(0),
               datasets = datasetsCount.get(x.id).getOrElse(0)
             )
-          })
+          }))
         } else {
-          List.empty
+          RangeSlice(RangeSliceSummary(0, limit, offset), List.empty[GroupData.GroupsSummary])
         }
-        Success(RangeSlice(summary, results))
+
+        Success(result)
       }
     } catch {
       case e: Exception => Failure(e)
     }
+  }
+
+  private def countGroup(query: Option[String], user: Option[String])(implicit s: DBSession): Int = {
+    val g = persistence.Group.g
+    withSQL {
+      createGroupSelectSql(select.apply(sqls.countDistinct(g.id)), query, user)
+    }.map(rs => rs.int(1)).single().apply.get
+  }
+
+  private def selectGroup(query: Option[String], user: Option[String], limit: Int, offset: Int)(implicit s: DBSession) = {
+    val g = persistence.Group.g
+    withSQL {
+      createGroupSelectSql(select.apply(sqls.distinct(g.resultAll)), query, user)
+        .orderBy(g.updatedAt).desc
+        .limit(limit).offset(offset)
+    }.map(rs => persistence.Group(g.resultName)(rs)).list().apply
+  }
+
+  private def createGroupSelectSql[A](builder: SelectSQLBuilder[A], query: Option[String], user: Option[String]) = {
+    val g = persistence.Group.g
+    val m = persistence.Member.m
+    builder
+      .from(persistence.Group as g)
+        .map { sql =>
+          user match {
+            case Some(_) => sql.innerJoin(persistence.Member as m).on(m.groupId, g.id)
+            case None => sql
+          }
+        }
+      .where
+        .eq(g.groupType, persistence.GroupType.Public).and.isNull(g.deletedAt)
+        .map { sql =>
+          user match {
+            case Some(x) => sql.and.eqUuid(m.userId, x).and.isNull(m.deletedAt)
+            case None => sql
+          }
+        }
+        .map { sql =>
+          query match {
+            case Some(x) => sql.and.like(g.name, "%" + x + "%")
+            case None => sql
+          }
+        }
   }
 
   def get(params: GroupData.GetGroupParams): Try[GroupData.Group] = {
@@ -634,46 +675,6 @@ object GroupService {
     }
   }
 
-
-  private def getGroups(offset: Int, limit: Int)(implicit s: DBSession): Seq[persistence.Group] = {
-    val g = persistence.Group.syntax("g")
-    withSQL {
-      select(g.result.*)
-        .from(persistence.Group as g)
-        .where
-        .eq(g.groupType, persistence.GroupType.Public)
-        .and
-        .isNull(g.deletedAt)
-        .orderBy(g.updatedAt).desc
-        .offset(offset)
-        .limit(limit)
-    }.map(rs => persistence.Group(g.resultName)(rs)).list().apply
-  }
-
-  private def getUserGroups(userId: String, offset: Int, limit: Int)(implicit s: DBSession): Seq[persistence.Group] = {
-    try {
-      val g = persistence.Group.syntax("g")
-      val m = persistence.Member.syntax("m")
-      withSQL {
-        select(g.result.*)
-          .from(persistence.Group as g)
-          .innerJoin(persistence.Member as m).on(g.id, m.groupId)
-          .where
-          .eq(g.groupType, persistence.GroupType.Public)
-          .and
-          .eq(m.userId, sqls.uuid(userId))
-          .and
-          .isNull(g.deletedAt)
-          .and
-          .isNull(m.deletedAt)
-          .orderBy(g.updatedAt).desc
-          .offset(offset)
-          .limit(limit)
-      }.map(rs => persistence.Group(g.resultName)(rs)).list().apply
-    } catch {
-      case e: Exception => Seq.empty
-    }
-  }
 
   private def countDatasets(groups : Seq[String])(implicit s: DBSession) = {
     val ds = persistence.Dataset.syntax("ds")

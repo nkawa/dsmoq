@@ -6,8 +6,8 @@ object GroupData {
   case class SearchGroupsParams(
     query: Option[String] = None,
     user: Option[String] = None,
-    limit: Option[String] = None,
-    offset: Option[String] = None
+    limit: Option[Int] = None,
+    offset: Option[Int] = None
   )
 
   case class GetGroupParams(
