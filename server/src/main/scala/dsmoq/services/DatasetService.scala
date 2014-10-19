@@ -791,12 +791,12 @@ object DatasetService {
    * @return
    */
   def modifyDatasetMeta(id: String, name: Option[String], description: Option[String],
-                        license: Option[String], attributes: List[(String, String)], user: User): Try[Unit] = {
+                        license: Option[String], attributes: List[DataSetAttribute], user: User): Try[Unit] = {
     try {
       val name_ = StringUtil.trimAllSpaces(name.getOrElse(""))
       val description_ = description.getOrElse("")
       val license_ = license.getOrElse("")
-      val attributes_ = attributes.map(x => x._1 -> StringUtil.trimAllSpaces(x._2))
+      val attributes_ = attributes.map(x => x.name -> StringUtil.trimAllSpaces(x.value))
 
       DB localTx { implicit s =>
         // input parameter check
@@ -832,7 +832,7 @@ object DatasetService {
         withSQL {
           val d = persistence.Dataset.column
           update(persistence.Dataset)
-            .set(d.name -> name, d.description -> description, d.licenseId -> sqls.uuid(license_),
+            .set(d.name -> name_, d.description -> description_, d.licenseId -> sqls.uuid(license_),
               d.updatedBy -> sqls.uuid(myself.id), d.updatedAt -> timestamp)
             .where
             .eq(d.id, sqls.uuid(id))
@@ -899,7 +899,7 @@ object DatasetService {
 
         // データ追加前のnameが他で使われているかチェック 使われていなければ削除
         oldAnnotations.foreach {x =>
-          if (!attributes.map(_._1.toLowerCase).contains(x._1)) {
+          if (!attributes_.map(_._1.toLowerCase).contains(x._1)) {
             val datasetAnnotations = withSQL {
               select(da.result.id)
                 .from(persistence.DatasetAnnotation as da)
@@ -920,7 +920,7 @@ object DatasetService {
       }
       Success(Unit)
     } catch {
-      case e: Exception => Failure(e)
+      case e: Throwable => Failure(e)
     }
   }
 

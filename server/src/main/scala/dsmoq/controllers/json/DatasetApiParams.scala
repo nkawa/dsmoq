@@ -20,7 +20,7 @@ case class ModifyDatasetMetaParams(
   name: Option[String] = None,
   description: Option[String] = None,
   license: Option[String] = None,
-  attributes: List[(String, String)] = List.empty
+  attributes: List[DataSetAttribute] = List.empty
 )
 
 case class ChangePrimaryImageParams(

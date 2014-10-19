@@ -23,22 +23,6 @@ class ApiController extends ScalatraServlet
     contentType = formats("json")
   }
 
-//  before("/*") {
-//    if (getSignedInUser().isEmpty) {
-//      if (!((request.getRequestURI == "/api/profile" && request.getMethod == "GET") ||
-//          (request.getRequestURI == "/api/licenses" && request.getMethod == "GET") ||
-//          (request.getRequestURI == "/api/accounts" && request.getMethod == "GET") ||
-//          (request.getRequestURI == "/api/suggests/attributes" && request.getMethod == "GET"))) {
-//        cookies.get(sessionId) match {
-//          case Some(x) =>
-//            clearSessionCookie()
-//            halt(body = AjaxResponse("Unauthorized"))
-//          case None => // do nothing
-//        }
-//      }
-//    }
-//  }
-
   get("/*") {
     throw new Exception("err")
   }

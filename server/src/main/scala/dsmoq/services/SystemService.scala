@@ -97,20 +97,19 @@ object SystemService {
     }
   }
 
-  def getAttributes(param: Option[String]) = {
-    val query = param match {
-      case Some(x) => x + "%"
-      case None => ""
-    }
-
+  def getAttributes(query: Option[String]) = {
     val a = persistence.Annotation.a
     DB readOnly { implicit s =>
       val attributes = withSQL {
-        select(a.result.*)
+        select.apply[Any](a.result.*)
           .from(persistence.Annotation as a)
           .where
-          .like(a.name, query)
-          .and
+          .map {sql =>
+            query match {
+                case Some(x) => sql.like(a.name, x + "%").and
+                case None => sql
+              }
+          }
           .isNull(a.deletedAt)
           .orderBy(a.name)
           .limit(100)
