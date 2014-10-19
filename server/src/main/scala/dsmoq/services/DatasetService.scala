@@ -183,17 +183,17 @@ object DatasetService {
 
       DB readOnly { implicit s =>
         val joinedGroups = getJoinedGroups(user)
+        val userGroupIds = getGroupIdsByUserName(owners)
+        val groupIds = getGroupIdsByGroupName(groups)
 
-        val slice = (for {
-          userGroupIds <- getGroupIdsByUserName(owners)
-          groupIds <- getGroupIdsByGroupName(groups)
-          count <- countDataSets(joinedGroups, query, userGroupIds, groupIds, attributes)
-        } yield {
-          val records = findDataSets(joinedGroups, query, userGroupIds, groupIds, attributes, limit_, offset_)
-          RangeSlice(RangeSliceSummary(count, limit_, offset_), records)
-        }).getOrElse(RangeSlice(RangeSliceSummary(0, limit_, offset_), List.empty))
+        val count = countDataSets(joinedGroups, query, userGroupIds, groupIds, attributes)
+        val records = if (count > 0) {
+          findDataSets(joinedGroups, query, userGroupIds, groupIds, attributes, limit_, offset_)
+        } else {
+          List.empty
+        }
 
-        Success(slice)
+        Success(RangeSlice(RangeSliceSummary(count, limit_, offset_), records))
       }
     } catch {
       case e: Throwable => Failure(e)
@@ -205,8 +205,7 @@ object DatasetService {
       val g = persistence.Group.g
       val m = persistence.Member.m
       val u = persistence.User.u
-
-      val ids = withSQL {
+      withSQL {
         select.apply(g.id)
           .from(persistence.Group as g)
           .innerJoin(persistence.Member as m).on(m.groupId, g.id)
@@ -222,22 +221,15 @@ object DatasetService {
           .and
           .isNull(u.deletedAt)
       }.map(rs => rs.string(1)).list().apply()
-
-      if (ids.length == names.length) {
-        Some(ids)
-      } else {
-        None
-      }
     } else {
-      Some(List.empty)
+      List.empty
     }
   }
 
   private def getGroupIdsByGroupName(names: Seq[String])(implicit s: DBSession) = {
     if (names.nonEmpty) {
       val g = persistence.Group.g
-
-      val ids = withSQL {
+      withSQL {
         select.apply(g.id)
           .from(persistence.Group as g)
           .where
@@ -247,14 +239,8 @@ object DatasetService {
           .and
           .isNull(g.deletedAt)
       }.map(rs => rs.string(1)).list().apply()
-
-      if (ids.length == names.length) {
-        Some(ids)
-      } else {
-        None
-      }
     } else {
-      Some(List.empty)
+      List.empty
     }
   }
 
@@ -264,8 +250,7 @@ object DatasetService {
     withSQL {
       createDatasetSql(select.apply[Int](sqls.countDistinct(persistence.Dataset.d.id)),
                        joindGroups, query, ownerUsers, ownerGroups, attributes)
-    }.map(implicit rs => rs.int(1)).single().apply()
-      .flatMap(x => if (x > 0) Some(x) else None)
+    }.map(implicit rs => rs.int(1)).single().apply().get
   }
 
   private def findDataSets(joindGroups : Seq[String], query: Option[String],
@@ -309,7 +294,7 @@ object DatasetService {
     })
   }
 
-  private def createDatasetSql[A](selectSql: SelectSQLBuilder[A], joindGroups : Seq[String],
+  private def createDatasetSql[A](selectSql: SelectSQLBuilder[A], joinedGroups : Seq[String],
                                   query: Option[String], ownerUsers: Seq[String], ownerGroups: Seq[String],
                                   attributes: Seq[DataSetAttribute]) = {
     val ds = persistence.Dataset.d
@@ -375,7 +360,7 @@ object DatasetService {
         }
       )
       .where
-        .inUuid(o.groupId, Seq.concat(joindGroups, Seq(AppConf.guestGroupId)))
+        .inUuid(o.groupId, Seq.concat(joinedGroups, Seq(AppConf.guestGroupId)))
         .and
         .gt(o.accessLevel, GroupAccessLevel.Deny)
         .and
@@ -1346,15 +1331,15 @@ object DatasetService {
       val fileInfo = DB readOnly { implicit s =>
         // 権限によりダウンロード可否の決定
         val permission = if (user.isGuest) {
-          DatasetService.getGuestAccessLevel(datasetId)
+          getGuestAccessLevel(datasetId)
         } else {
-          val groups = DatasetService.getJoinedGroups(user)
+          val groups = getJoinedGroups(user)
           // FIXME チェック時、user権限はUserAccessLevelクラス, groupの場合はGroupAccessLevelクラスの定数を使用する
           // (UserAndGroupAccessDeny, UserAndGroupAllowDownload 定数を削除する)
           // 旧仕様ではuser/groupは同じ権限を付与していたが、
           // 現仕様はuser/groupによって権限の扱いが異なる(groupには編集権限は付与しない)
           // 実装時間の都合と現段階の実装でも問題がない(値が同じ)ため対応していない
-          DatasetService.getPermission(datasetId, groups).getOrElse(UserAndGroupAccessDeny)
+          getPermission(datasetId, groups).getOrElse(UserAndGroupAccessDeny)
         }
         if (permission < UserAndGroupAllowDownload) {
           throw new RuntimeException("access denied")
