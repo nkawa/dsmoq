@@ -8,17 +8,17 @@ import dsmoq.controllers.{ImageController, FileController, ApiController}
 import scalikejdbc.config.{DBsWithEnv, DBs}
 import org.json4s.jackson.JsonMethods._
 import java.io.File
-import dsmoq.services.data.DatasetData._
+import dsmoq.services.json.DatasetData._
 import dsmoq.AppConf
 import org.scalatra.servlet.MultipartConfig
-import dsmoq.services.data.DatasetData.DatasetDeleteImage
-import dsmoq.services.data.DatasetData.DatasetAddFiles
-import dsmoq.services.data.DatasetData.Dataset
+import dsmoq.services.json.DatasetData.DatasetDeleteImage
+import dsmoq.services.json.DatasetData.DatasetAddFiles
+import dsmoq.services.json.DatasetData.Dataset
 import scala.Some
 import dsmoq.controllers.AjaxResponse
-import dsmoq.services.data.DatasetData.DatasetAddImages
-import dsmoq.services.data.RangeSlice
-import dsmoq.services.data.GroupData.Group
+import dsmoq.services.json.DatasetData.DatasetAddImages
+import dsmoq.services.json.RangeSlice
+import dsmoq.services.json.GroupData.Group
 import org.apache.http.client.methods.{HttpGet, HttpPost}
 import org.apache.http.message.BasicNameValuePair
 import org.apache.http.{HttpStatus, NameValuePair}

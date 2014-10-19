@@ -6,8 +6,8 @@ import java.util.UUID
 import _root_.api.api.logic.SpecCommonLogic
 import dsmoq.controllers.{AjaxResponse, ApiController}
 import dsmoq.persistence._
-import dsmoq.services.data.DatasetData.Dataset
-import dsmoq.services.data.GroupData.Group
+import dsmoq.services.json.DatasetData.Dataset
+import dsmoq.services.json.GroupData.Group
 import org.json4s.jackson.JsonMethods._
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatest.{BeforeAndAfter, FreeSpec}

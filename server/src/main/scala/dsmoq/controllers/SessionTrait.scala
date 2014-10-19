@@ -1,30 +1,40 @@
 package dsmoq.controllers
 
+import dsmoq.exceptions.NotAuthorizedException
+import dsmoq.services.User
 import org.scalatra.ScalatraServlet
-import dsmoq.services.data.User
 import scala.util.{Try, Failure, Success}
 
 trait SessionTrait extends ScalatraServlet {
   private val SessionKey = "user"
-  val sessionId = "JSESSIONID"
+  private val sessionId = "JSESSIONID"
 
-  def getUserInfoFromSession(): Try[User] = {
+  def isValidSession() = {
+    sessionOption.map(_ => true)
+      .getOrElse(cookies.get(sessionId).map(_ => true).getOrElse(false))
+  }
+
+  def signedInUser: Try[User] = {
     sessionOption match {
       case Some(_) => session.get(SessionKey) match {
-        case Some(x) => Success(x.asInstanceOf[User])
+        case Some(x) =>
+          Success(x.asInstanceOf[User])
         case None =>
           clearSession()
-          clearSessionCookie()
-          Success(User("", "", "", "", "", "http://xxxx", "", "", true, false))
+          Failure(new NotAuthorizedException())
       }
       case None =>
-        clearSessionCookie()
-        Success(User("", "", "", "", "", "http://xxxx", "", "", true, false))
+        clearSession()
+        Failure(new NotAuthorizedException())
     }
   }
 
-  def setUserInfoToSession(user: User) {
-    session.setAttribute(SessionKey, user)
+  def setSignedInUser(x: User) = {
+    session.setAttribute(SessionKey, x)
+  }
+
+  def guestUser = {
+    User("", "", "", "", "", "http://xxxx", "", "", true, false)
   }
 
   def clearSession() {
@@ -33,16 +43,6 @@ trait SessionTrait extends ScalatraServlet {
       case Some(_) => session.invalidate()
       case None => // do nothing
     }
-  }
-
-  def isValidSession() = {
-    sessionOption match {
-      case Some(_) => true
-      case None => false
-    }
-  }
-
-  def clearSessionCookie() {
     cookies.delete(sessionId)
   }
 }

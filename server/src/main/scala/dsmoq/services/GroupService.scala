@@ -5,7 +5,7 @@ import java.util.UUID
 import dsmoq.exceptions._
 import dsmoq.logic.{ImageSaveLogic, StringUtil}
 import dsmoq.persistence.{GroupAccessLevel, GroupMemberRole, GroupType, PresetType}
-import dsmoq.services.data.{Image, RangeSlice, RangeSliceSummary, _}
+import dsmoq.services.json.{Image, RangeSlice, RangeSliceSummary, _}
 import dsmoq.{AppConf, persistence}
 import org.joda.time.DateTime
 import scalikejdbc._

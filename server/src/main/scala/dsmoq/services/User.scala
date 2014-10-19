@@ -1,4 +1,4 @@
-package dsmoq.services.data
+package dsmoq.services
 
 case class User(
   id: String,

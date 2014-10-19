@@ -1,5 +1,6 @@
-package dsmoq.services.data
+package dsmoq.services.json
 
+import dsmoq.services.User
 import org.scalatra.servlet.FileItem
 
 object GroupData {

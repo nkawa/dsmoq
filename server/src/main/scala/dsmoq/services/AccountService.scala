@@ -5,48 +5,38 @@ import scalikejdbc._, SQLInterpolation._
 import java.security.MessageDigest
 import dsmoq.{AppConf, persistence}
 import dsmoq.persistence.PostgresqlHelper._
-import dsmoq.services.data._
+import dsmoq.services.json._
 import dsmoq.exceptions._
 import org.joda.time.DateTime
-import dsmoq.services.data.ProfileData.UpdateProfileParams
-import dsmoq.controllers.SessionTrait
-import java.nio.file.Paths
 import java.util.UUID
-import java.awt.image.BufferedImage
 import org.scalatra.servlet.FileItem
 import dsmoq.logic.{StringUtil, ImageSaveLogic}
 import dsmoq.persistence.{SuggestType, GroupType, PresetType}
 import scala.util.Failure
-import scala.Some
-import dsmoq.services.data.ProfileData.UpdateProfileParams
 import scala.util.Success
 import scala.collection.mutable
-import dsmoq.services.data.MailValidationResult
+import dsmoq.services.json.MailValidationResult
 
-object AccountService extends SessionTrait {
-
-  def getAuthenticatedUser(params: LoginData.SigninParams): Try[User] = {
-    // TODO dbアクセス時エラーでFailure返す try~catch
+object AccountService {
+  /**
+   * IDとパスワードを指定してユーザを検索します。
+   * @param id アカウント名 or メールアドレス
+   * @param password パスワード
+   * @return
+   */
+  def findUserByIdAndPassword(id: String, password: String): Try[User] = {
     try {
       val errors = mutable.LinkedHashMap.empty[String, String]
-      val id = params.id match {
-        case Some(x) => x
-        case None =>
-          errors.put("id", "ID is empty")
-          ""
+
+      if (id.isEmpty()) {
+        errors.put("id", "ID is empty")
       }
-      val password = params.password match {
-        case Some(x) => x
-        case None =>
-          errors.put("password", "password is empty")
-          ""
+      if (password.isEmpty()) {
+        errors.put("id", "password is empty")
       }
       if (errors.size != 0) {
         throw new InputValidationException(errors)
       }
-
-      // TODO パスワードソルトを追加
-      val hash = MessageDigest.getInstance("SHA-256").digest(password.getBytes("UTF-8")).map("%02x".format(_)).mkString
 
       DB readOnly { implicit s =>
         val u = persistence.User.u
@@ -56,16 +46,14 @@ object AccountService extends SessionTrait {
         val user = withSQL {
           select(u.result.*, ma.result.address)
             .from(persistence.User as u)
-            .innerJoin(persistence.MailAddress as ma).on(u.id, ma.userId)
             .innerJoin(persistence.Password as p).on(u.id, p.userId)
+            .innerJoin(persistence.MailAddress as ma).on(u.id, ma.userId)
             .where
-              .append(sqls"(")
-                .eq(u.name, id)
-                .or
-                .eq(ma.address, id)
-              .append(sqls")")
+              .withRoundBracket { sql =>
+                sql.eq(u.name, id).or.eq(ma.address, id)
+              }
               .and
-              .eq(p.hash, hash)
+              .eq(p.hash, createPasswordHash(password))
         }
         .map(rs => (persistence.User(u.resultName)(rs), rs.string(ma.resultName.address))).single().apply
         .map(x => User(x._1, x._2))
@@ -76,70 +64,75 @@ object AccountService extends SessionTrait {
         }
       }
     } catch {
-      case e: RuntimeException => Failure(e)
+      case e: Throwable => Failure(e)
     }
   }
 
-  def changeUserEmail(user: User, email: Option[String]) = {
+  /**
+   * 指定したユーザのメールアドレスを更新します。
+   * @param id ユーザID
+   * @param email
+   * @return
+   */
+  def changeUserEmail(id: String, email: Option[String]) = {
     try {
-      if (user.isGuest) throw new NotAuthorizedException
-
       // Eメールアドレスのフォーマットチェックはしていない
-      val mail = email.getOrElse("").trim
-      if (mail.isEmpty) {
-        throw new InputValidationException(Map("email" -> "email is empty"))
-      }
+      val email_ = email.getOrElse("").trim
 
       DB localTx {implicit s =>
-        val u = persistence.User.u
-        val ma = persistence.MailAddress.ma
-        val userAddress = withSQL {
-          select(ma.result.*)
-            .from(persistence.MailAddress as ma)
-            .innerJoin(persistence.User as u).on(u.id, ma.userId)
-            .where
-            .eq(u.id, sqls.uuid(user.id))
-            .and
-            .isNull(ma.deletedAt)
-        }.map(persistence.MailAddress(ma.resultName)).single.apply
-
-        // FIXME メールアドレス変更確認メールを送り、変更を待つようにはしていない(≒データを直接変更している)
-        userAddress match {
-          case Some(x) =>
-            withSQL {
-              val ma = persistence.MailAddress.column
-              update(persistence.MailAddress)
-                .set(ma.address -> mail, ma.updatedAt -> DateTime.now, ma.updatedBy -> sqls.uuid(user.id))
-                .where
-                .eq(ma.id, sqls.uuid(x.id))
-            }.update.apply
-          case None => throw new RuntimeException("user mail address is not found.")
+        // validation
+        if (email_.isEmpty) {
+          throw new InputValidationException(Map("email" -> "email is empty"))
+        } else if (existsSameEmail(id, email_)) {
+          throw new InputValidationException(Map("email" -> "email is alread exists"))
         }
 
-        // 新しいユーザー情報を取得
-        val newUser = withSQL {
-          select(u.result.*, ma.result.address)
-            .from(persistence.User as u)
-            .innerJoin(persistence.MailAddress as ma).on(u.id, ma.userId)
-            .where
-            .eq(u.id, sqls.uuid(user.id))
-        }.map(rs => (persistence.User(u.resultName)(rs), rs.string(ma.resultName.address))).single().apply
-          .map(x => User(x._1, x._2))
-
-        newUser match {
+        (for {
+          user <- persistence.User.find(id)
+          address <- persistence.MailAddress.findByUserId(id)
+        } yield {
+          // TODO 本当はメールアドレス変更確認フローを行わなければならない
+          persistence.MailAddress(
+            id = address.id,
+            userId = address.userId,
+            address = email_,
+            status = address.status,
+            createdBy = address.createdBy,
+            createdAt = address.createdAt,
+            updatedBy = user.id,
+            updatedAt = DateTime.now
+          ).save
+          User(user, email_)
+        }) match {
           case Some(x) => Success(x)
-          case None => throw new RuntimeException("user data not found.")
+          case None => throw new NotFoundException()
         }
       }
     } catch {
-      case e: Exception => Failure(e)
+      case e: Throwable => Failure(e)
     }
   }
 
-  def changeUserPassword(user: User, currentPassword: Option[String], newPassword: Option[String]): Try[String] = {
-    try {
-      if (user.isGuest) throw new NotAuthorizedException
+  private def existsSameEmail(id: String, email: String)(implicit s: DBSession): Boolean = {
+    val ma = persistence.MailAddress.ma
+    withSQL {
+      select(sqls"1")
+        .from(persistence.MailAddress as ma)
+        .where
+          .eqUuid(ma.userId, id).and.eq(ma.address, email)
+    }.map(_ => Unit).single().apply.isEmpty
+  }
 
+  /**
+   * 指定したユーザのパスワードを変更します。
+   * @param id ユーザID
+   * @param currentPassword 現在のパスワード
+   * @param newPassword 新しいパスワード
+   * @return
+   */
+  def changeUserPassword(id: String, currentPassword: Option[String], newPassword: Option[String]): Try[Unit] = {
+    // TODO リファクタリング
+    try {
       DB localTx { implicit s =>
         // input validation
         val errors = mutable.LinkedHashMap.empty[String, String]
@@ -153,7 +146,7 @@ object AccountService extends SessionTrait {
             .from(persistence.Password as p)
             .innerJoin(persistence.User as u).on(u.id, p.userId)
             .where
-            .eq(u.id, sqls.uuid(user.id))
+            .eq(u.id, sqls.uuid(id))
             .and
             .eq(p.hash, oldPasswordHash)
             .and
@@ -175,292 +168,124 @@ object AccountService extends SessionTrait {
         withSQL {
           val p = persistence.Password.column
           update(persistence.Password)
-            .set(p.hash -> newPasswordHash, p.updatedAt -> DateTime.now, p.updatedBy -> sqls.uuid(user.id))
+            .set(p.hash -> newPasswordHash, p.updatedAt -> DateTime.now, p.updatedBy -> sqls.uuid(id))
             .where
             .eq(p.id, sqls.uuid(pwd.get.id))
         }.update().apply
       }
-      Success("")
+      Success(Unit)
     } catch {
-      case e: Exception => Failure(e)
+      case e: Throwable => Failure(e)
     }
   }
 
-  def updateUserProfile(user: User, params: UpdateProfileParams): Try[User]  = {
+  /**
+   * 指定したユーザの基本情報を更新します。
+   * @param id ユーザID
+   * @param name
+   * @param fullname
+   * @param organization
+   * @param title
+   * @param description
+   * @param image
+   * @return
+   */
+  def updateUserProfile(id: String,
+                        name: Option[String],
+                        fullname: Option[String],
+                        organization: Option[String],
+                        title: Option[String],
+                        description: Option[String],
+                        image: Option[FileItem]): Try[User]  = {
+    // TODO リファクタリング
     try {
-      if (user.isGuest) throw new NotAuthorizedException
-
       DB localTx { implicit s =>
+        val name_ = StringUtil.trimAllSpaces(name.getOrElse(""))
+        val fullname_ = StringUtil.trimAllSpaces(fullname.getOrElse(""))
+        val organization_ = StringUtil.trimAllSpaces(organization.getOrElse(""))
+        val title_ = StringUtil.trimAllSpaces(title.getOrElse(""))
+        val description_ = description.getOrElse("")
+
         // input validation
         val errors = mutable.LinkedHashMap.empty[String, String]
 
-        val name = StringUtil.trimAllSpaces(params.name.getOrElse(""))
-        if (name.isEmpty) {
+        if (name_.isEmpty) {
           errors.put("name", "name is empty")
+        } else if (existsSameName(id, name_)) {
+          errors.put("name", "name is already exists")
         }
-        // 同名チェック
-        val u = persistence.User.syntax("u")
-        val users = withSQL {
-          select(u.result.id)
-            .from(persistence.User as u)
-            .where
-            .lowerEq(u.name, name)
-            .and
-            .ne(u.id, sqls.uuid(user.id))
-        }.map(_.string(u.resultName.id)).list().apply
-        if (users.size != 0) {
-          errors.put("name", "same name")
-        }
-        val fullname = StringUtil.trimAllSpaces(params.fullname.getOrElse(""))
-        if (fullname.isEmpty) {
+
+        if (fullname_.isEmpty) {
           errors.put("fullname", "fullname is empty")
         }
-        val organization = StringUtil.trimAllSpaces(params.organization.getOrElse(""))
-        val title = StringUtil.trimAllSpaces(params.title.getOrElse(""))
-        val description = params.description.getOrElse("")
 
-        if (errors.size != 0) {
+        if (errors.nonEmpty) {
           throw new InputValidationException(errors)
         }
 
-        withSQL {
-          val u = persistence.User.column
-          update(persistence.User)
-            .set(u.name -> name, u.fullname -> fullname, u.organization -> organization,
-              u.title -> title, u.description -> description,
-              u.updatedAt -> DateTime.now, u.updatedBy -> sqls.uuid(user.id))
-            .where
-            .eq(u.id, sqls.uuid(user.id))
-        }.update().apply
-
-        // imageがある場合、画像保存処理
-        params.image match {
+        persistence.User.find(id) match {
           case Some(x) =>
-            if (x.size > 0) {
-              // save image file
+            val img = image.map {x =>
               val imageId = UUID.randomUUID().toString
-              ImageSaveLogic.writeImageFile(imageId, x)
-
+              val path = ImageSaveLogic.writeImageFile(imageId, x)
               val bufferedImage = javax.imageio.ImageIO.read(x.getInputStream)
+
               persistence.Image.create(
                 id = imageId,
                 name = x.getName,
                 width = bufferedImage.getWidth,
                 height = bufferedImage.getWidth,
-                filePath = "/" + ImageSaveLogic.uploadPath + "/" + imageId,
+                filePath = path,
                 presetType = PresetType.Default,
-                createdBy = user.id,
+                createdBy = id,
                 createdAt = DateTime.now,
-                updatedBy = user.id,
+                updatedBy = id,
                 updatedAt = DateTime.now
               )
-
-              withSQL {
-                val u = persistence.User.column
-                update(persistence.User)
-                  .set(u.imageId -> sqls.uuid(imageId))
-                  .where
-                  .eq(u.id, sqls.uuid(user.id))
-              }.update().apply
             }
-          case None => // do nothing
-        }
 
-        // 新しいユーザー情報を取得
-        val ma = persistence.MailAddress.ma
-        val newUser = withSQL {
-          select(u.result.*, ma.result.address)
-            .from(persistence.User as u)
-            .innerJoin(persistence.MailAddress as ma).on(u.id, ma.userId)
-            .where
-            .eq(u.id, sqls.uuid(user.id))
-        }.map(rs => (persistence.User(u.resultName)(rs), rs.string(ma.resultName.address))).single().apply
-        .map(x => User(x._1, x._2))
+            val user = persistence.User(
+              id = x.id,
+              name = name_,
+              fullname = fullname_,
+              organization = organization_,
+              title = title_,
+              description = description_,
+              imageId = img.map(_.id).getOrElse(x.imageId),
+              createdBy = x.createdBy,
+              createdAt = x.createdAt,
+              updatedBy = id,
+              updatedAt = DateTime.now
+            )
+            user.save
 
-        newUser match {
-          case Some(x) => Success(x)
-          case None => throw new RuntimeException("user data not found.")
+            val address = persistence.MailAddress.findByUserId(user.id) match {
+              case Some(x) => x.address
+              case None => ""
+            }
+
+            Success(User.apply(user, address))
+          case None =>
+            throw new NotFoundException()
         }
       }
     } catch {
-      case e: Exception => Failure(e)
+      case e: Throwable => Failure(e)
     }
   }
 
-  def isValidEmail(user: User, value: Option[String]) = {
-    val email = value match {
-      case Some(x) =>
-        // メールアドレスバリデーションはHTHML5準拠(RFC5322には違反)
-        val pattern = "\\A[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\\.[a-zA-Z0-9-]+)*\\z".r
-        x.trim match {
-          case pattern() => x.trim
-          case _ => throw new ValidationException
-        }
-      case None => throw new InputValidationException(Map("email" -> "email is empty"))
-    }
-
-    val result = DB readOnly { implicit s =>
-      val ma = persistence.MailAddress.syntax("ma")
-      withSQL {
-        select(ma.result.id)
-          .from(persistence.MailAddress as ma)
-          .where
-          .eq(ma.address, email)
-      }.map(rs => rs.string(ma.resultName.id)).single().apply match {
-        case Some(x) => MailValidationResult(isValid = false)
-        case None => MailValidationResult(isValid = true)
-      }
-    }
-    Success(result)
-  }
-
-  def getLicenses()  = {
-    val licenses = DB readOnly { implicit s =>
-      persistence.License.findOrderedAll()
-    }
-    licenses.map(x =>
-      dsmoq.services.data.License(
-        id = x.id,
-        name = x.name
-    ))
-  }
-
-  def getAccounts() = {
-    DB readOnly { implicit s =>
-      val u = persistence.User.u
-      val ma = persistence.MailAddress.ma
-      withSQL {
-        select(u.result.*, ma.result.address)
-          .from(persistence.User as u)
-          .innerJoin(persistence.MailAddress as ma).on(u.id, ma.userId)
-          .where
-          .isNull(u.deletedAt)
-          .and
-          .isNull(ma.deletedAt)
-          .orderBy(u.name)
-      }.map(rs => (persistence.User(u.resultName)(rs), rs.string(ma.resultName.address))).list().apply
-      .map(x => User(x._1, x._2))
-    }
-  }
-
-  def getUsersAndGroups(param: Option[String]) = {
-    val query = param match {
-      case Some(x) => x + "%"
-      case None => ""
-    }
-
-    DB readOnly { implicit s =>
-      val u = persistence.User.u
-      val g = persistence.Group.g
-      val gi = persistence.GroupImage.gi
-
-      withSQL {
-        select(u.id, u.name, u.imageId, u.fullname, u.organization, sqls"'1' as type")
-          .from(persistence.User as u)
-          .where
-          .like(u.name, query)
-          .or
-          .like(u.fullname, query)
-          .and
-          .isNull(u.deletedAt)
-          .union(
-            select(g.id, g.name,gi.imageId, sqls"null, null, '2' as type")
-              .from(persistence.Group as g)
-              .innerJoin(persistence.GroupImage as gi)
-                .on(sqls.eq(g.id, gi.groupId).and.eq(gi.isPrimary, true).and.isNull(gi.deletedAt))
-              .where
-              .like(g.name, query)
-              .and
-              .eq(g.groupType, GroupType.Public)
-              .and
-              .isNull(g.deletedAt)
-          )
-          .orderBy(sqls"name")
-          .limit(100)
-      }.map(rs => (rs.string("id"),
-        rs.string("name"),
-        rs.string("image_id"),
-        rs.string("fullname"),
-        rs.string("organization"),
-        rs.int("type"))).list().apply
-      .map {x =>
-        if(x._6 == SuggestType.User) {
-          SuggestData.User(
-            dataType = SuggestType.User,
-            id = x._1,
-            name = x._2,
-            fullname = x._4,
-            organization = x._5,
-            image = AppConf.imageDownloadRoot + x._3
-          )
-        } else if (x._6 == SuggestType.Group){
-          SuggestData.Group(
-            dataType = SuggestType.Group,
-            id = x._1,
-            name = x._2,
-            image = AppConf.imageDownloadRoot + x._3
-          )
-        }
-      }
-    }
-  }
-
-  def getAttributes(param: Option[String]) = {
-    val query = param match {
-      case Some(x) => x + "%"
-      case None => ""
-    }
-
-    val a = persistence.Annotation.a
-    DB readOnly { implicit s =>
-      val attributes = withSQL {
-        select(a.result.*)
-          .from(persistence.Annotation as a)
-          .where
-          .like(a.name, query)
-          .and
-          .isNull(a.deletedAt)
-          .orderBy(a.name)
-          .limit(100)
-      }.map(rs => rs.string(a.resultName.name)).list().apply
-      attributes
-    }
-  }
-
-  def getGroups(param: Option[String]) = {
-    val query = param match {
-      case Some(x) => x + "%"
-      case None => ""
-    }
-
-    val g = persistence.Group.g
-    val gi = persistence.GroupImage.gi
-    DB readOnly { implicit s =>
-      withSQL {
-        select(g.result.*, gi.result.*)
-          .from(persistence.Group as g)
-          .innerJoin(persistence.GroupImage as gi)
-            .on(sqls.eq(g.id, gi.groupId).and.eq(gi.isPrimary, true).and.isNull(gi.deletedAt))
-          .where
-          .like(g.name, query)
-          .and
-          .eq(g.groupType, GroupType.Public)
-          .and
-          .isNull(g.deletedAt)
-          .orderBy(g.name, g.createdAt).desc
-          .limit(100)
-      }.map(rs => (persistence.Group(g.resultName)(rs), persistence.GroupImage(gi.resultName)(rs))).list().apply
-      .map{ x =>
-        SuggestData.GroupWithoutType(
-          id = x._1.id,
-          name = x._1.name,
-          image = AppConf.imageDownloadRoot + x._2.imageId
-        )
-      }
-    }
+  private def existsSameName(id: String, name: String)(implicit s: DBSession): Boolean = {
+    val u = persistence.User.u
+    withSQL {
+      select(sqls"1")
+        .from(persistence.User as u)
+        .where.lowerEq(u.name, name).and.ne(u.id, sqls.uuid(id))
+        .limit(1)
+    }.map(x => Unit).single().apply.nonEmpty
   }
 
   private def createPasswordHash(password: String) = {
+    // TODO パスワードソルトを追加
     MessageDigest.getInstance("SHA-256").digest(password.getBytes("UTF-8")).map("%02x".format(_)).mkString
   }
 }

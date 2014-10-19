@@ -1,6 +1,7 @@
 package api
 
 import _root_.api.api.logic.SpecCommonLogic
+import dsmoq.services.User
 import org.scalatest.{BeforeAndAfter, FreeSpec}
 import org.scalatra.test.scalatest.ScalatraSuite
 import org.json4s.{DefaultFormats, Formats}
@@ -8,15 +9,15 @@ import java.io.File
 import dsmoq.controllers.{ImageController, FileController, ApiController}
 import scalikejdbc.config.{DBsWithEnv, DBs}
 import org.json4s.jackson.JsonMethods._
-import dsmoq.services.data.GroupData._
-import dsmoq.services.data.GroupData.Group
+import dsmoq.services.json.GroupData._
+import dsmoq.services.json.GroupData.Group
 import org.scalatra.servlet.MultipartConfig
-import dsmoq.services.data.GroupData.GroupAddImages
+import dsmoq.services.json.GroupData.GroupAddImages
 import scala.Some
-import dsmoq.services.data.GroupData.GroupsSummary
+import dsmoq.services.json.GroupData.GroupsSummary
 import dsmoq.controllers.AjaxResponse
-import dsmoq.services.data.{User, RangeSlice}
-import dsmoq.services.data.DatasetData.{DatasetsSummary, Dataset}
+import dsmoq.services.json.RangeSlice
+import dsmoq.services.json.DatasetData.{DatasetsSummary, Dataset}
 import dsmoq.persistence.GroupMemberRole
 import java.util.UUID
 

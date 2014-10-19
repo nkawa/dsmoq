@@ -1,5 +1,6 @@
 package dsmoq.controllers
 
+import dsmoq.services.User
 import org.scalatra.ScalatraServlet
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.googleapis.auth.oauth2.{GoogleAuthorizationCodeRequestUrl, GoogleAuthorizationCodeFlow}
@@ -11,7 +12,7 @@ import org.joda.time.DateTime
 
 // あとで消す
 import scalikejdbc._, SQLInterpolation._
-import dsmoq.{AppConf, persistence}
+import dsmoq.{services, AppConf, persistence}
 
 class MockController extends ScalatraServlet with SessionTrait {
   get("/") {
@@ -129,10 +130,10 @@ class MockController extends ScalatraServlet with SessionTrait {
       """.map(_.toMap()).single().apply()
     }
 
-    val bbb = result match {
+    val currentUser = result match {
       case Some(x) =>
         // FIXME 暫定 あとで↑のSQLとともに直す
-        dsmoq.services.data.User(
+        User(
           id = result.get("id").toString,
           name = result.get("name").toString,
           fullname = result.get("fullname").toString,
@@ -206,12 +207,12 @@ class MockController extends ScalatraServlet with SessionTrait {
             )
             u
         }
-        dsmoq.services.data.User(aaa, user.getEmail)
+        services.User(aaa, user.getEmail)
     }
 
     // セッション作成
     clearSession()
-    setUserInfoToSession(bbb)
+    setSignedInUser(currentUser)
 
     // 元いたページに戻す
     redirect(userRedirectUri)

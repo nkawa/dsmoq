@@ -1,4 +1,4 @@
-package dsmoq.services.data
+package dsmoq.services.json
 
 object SuggestData {
   case class User(

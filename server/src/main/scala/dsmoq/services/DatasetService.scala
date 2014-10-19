@@ -1,29 +1,23 @@
 package dsmoq.services
 
-import dsmoq.services.data.DatasetData.Attribute
-import rl.UserInfo
-
 import scala.util.{Failure, Try, Success}
 import scalikejdbc._, SQLInterpolation._
 import java.util.UUID
 import java.nio.file.Paths
 import dsmoq.AppConf
-import dsmoq.services.data._
+import dsmoq.services.json._
 import dsmoq.persistence
 import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.exceptions._
 import org.joda.time.DateTime
-import org.scalatra.servlet.FileItem
 import dsmoq.persistence.{GroupType, PresetType, OwnerType, DefaultAccessLevel, GroupAccessLevel, UserAccessLevel}
 import dsmoq.logic.{StringUtil, ImageSaveLogic}
 import scala.util.Failure
-import scala.Some
 import scala.util.Success
-import dsmoq.services.data.RangeSlice
+import dsmoq.services.json.RangeSlice
 import org.scalatra.servlet.FileItem
-import dsmoq.forms.AccessControl
-import dsmoq.services.data.RangeSliceSummary
-import dsmoq.services.data.Image
+import dsmoq.services.json.RangeSliceSummary
+import dsmoq.services.json.Image
 import scala.collection.mutable
 
 object DatasetService {
@@ -33,26 +27,23 @@ object DatasetService {
 
   /**
    * データセットを新規作成します。
-   * @param params
+   * @param files
+   * @param user
    * @return
    */
-  def create(params: DatasetData.CreateDatasetParams): Try[DatasetData.Dataset] = {
+  def create(files: Seq[FileItem], user: User): Try[DatasetData.Dataset] = {
     try {
-      if (params.userInfo.isGuest) throw new NotAuthorizedException
-      val files = params.files match {
-        case Some(x) => x.filter(_.name.length != 0)
-        case None => Seq.empty
-      }
-      if (files.size == 0) throw new InputValidationException(Map("files" -> "file is empty"))
+      val files_ = files.filter(_.name.nonEmpty)
+      if (files_.isEmpty) throw new InputValidationException(Map("files" -> "file is empty"))
 
       DB localTx { implicit s =>
-        val myself = persistence.User.find(params.userInfo.id).get
+        val myself = persistence.User.find(user.id).get
         val myGroup = getPersonalGroup(myself.id).get
 
         val datasetId = UUID.randomUUID().toString
         val timestamp = DateTime.now()
 
-        val f = files.map(f => {
+        val f = files_.map(f => {
           val file = persistence.File.create(
             id = UUID.randomUUID.toString,
             datasetId = datasetId,
@@ -129,9 +120,9 @@ object DatasetService {
             description = x._1.description,
             size = x._2.fileSize,
             url = AppConf.fileDownloadRoot + datasetId + "/" + x._1.id,
-            createdBy = params.userInfo,
+            createdBy = user,
             createdAt = timestamp.toString(),
-            updatedBy = params.userInfo,
+            updatedBy = user,
             updatedAt = timestamp.toString()
           )),
           images = Seq(Image(
@@ -154,7 +145,7 @@ object DatasetService {
         ))
       }
     } catch {
-      case e: RuntimeException => Failure(e)
+      case e: Throwable => Failure(e)
     }
   }
 
@@ -170,31 +161,42 @@ object DatasetService {
 
   /**
    * データセットを検索し、該当するデータセットの一覧を取得します。
-   * @param params
+   * @param query
+   * @param owners
+   * @param groups
+   * @param attributes
+   * @param limit
+   * @param offset
    * @param user
    * @return
    */
-  def search(params: DatasetData.SearchDatasetsParams, user: User): Try[RangeSlice[DatasetData.DatasetsSummary]] = {
+  def search(query: Option[String] = None,
+             owners: Seq[String] = Seq.empty,
+             groups: Seq[String] = Seq.empty,
+             attributes: Seq[DataSetAttribute] = Seq.empty,
+             limit: Option[Int] = None,
+             offset: Option[Int] = None,
+             user: User): Try[RangeSlice[DatasetData.DatasetsSummary]] = {
     try {
-      val offset = params.offset.getOrElse(0)
-      val limit = params.limit.getOrElse(20)
+      val limit_ = limit.getOrElse(20)
+      val offset_ = offset.getOrElse(0)
 
       DB readOnly { implicit s =>
         val joinedGroups = getJoinedGroups(user)
 
         val slice = (for {
-          userGroupIds <- getGroupIdsByUserName(params.owners)
-          groupIds <- getGroupIdsByGroupName(params.groups)
-          count <- countDatasets(joinedGroups, params.query, userGroupIds, groupIds, params.attributes)
+          userGroupIds <- getGroupIdsByUserName(owners)
+          groupIds <- getGroupIdsByGroupName(groups)
+          count <- countDataSets(joinedGroups, query, userGroupIds, groupIds, attributes)
         } yield {
-          val records = findDatasets(joinedGroups, params.query, userGroupIds, groupIds, params.attributes, limit, offset)
-          RangeSlice(RangeSliceSummary(count, limit, offset), records)
-        }).getOrElse(RangeSlice(RangeSliceSummary(0, limit, offset), List.empty))
+          val records = findDataSets(joinedGroups, query, userGroupIds, groupIds, attributes, limit_, offset_)
+          RangeSlice(RangeSliceSummary(count, limit_, offset_), records)
+        }).getOrElse(RangeSlice(RangeSliceSummary(0, limit_, offset_), List.empty))
 
         Success(slice)
       }
     } catch {
-      case e: Exception => Failure(e)
+      case e: Throwable => Failure(e)
     }
   }
 
@@ -256,9 +258,9 @@ object DatasetService {
     }
   }
 
-  private def countDatasets(joindGroups : Seq[String], query: Option[String],
-                            ownerUsers: List[String], ownerGroups: List[String],
-                            attributes: List[Attribute])(implicit s: DBSession) = {
+  private def countDataSets(joindGroups : Seq[String], query: Option[String],
+                            ownerUsers: Seq[String], ownerGroups: Seq[String],
+                            attributes: Seq[DataSetAttribute])(implicit s: DBSession) = {
     withSQL {
       createDatasetSql(select.apply[Int](sqls.countDistinct(persistence.Dataset.d.id)),
                        joindGroups, query, ownerUsers, ownerGroups, attributes)
@@ -266,9 +268,9 @@ object DatasetService {
       .flatMap(x => if (x > 0) Some(x) else None)
   }
 
-  private def findDatasets(joindGroups : Seq[String], query: Option[String],
-                           ownerUsers: List[String], ownerGroups: List[String],
-                           attributes: List[Attribute], limit: Int, offset: Int)(implicit s: DBSession) = {
+  private def findDataSets(joindGroups : Seq[String], query: Option[String],
+                           ownerUsers: Seq[String], ownerGroups: Seq[String],
+                           attributes: Seq[DataSetAttribute], limit: Int, offset: Int)(implicit s: DBSession) = {
     val ds = persistence.Dataset.d
     val o = persistence.Ownership.o
 
@@ -308,8 +310,8 @@ object DatasetService {
   }
 
   private def createDatasetSql[A](selectSql: SelectSQLBuilder[A], joindGroups : Seq[String],
-                                  query: Option[String], ownerUsers: List[String], ownerGroups: List[String],
-                                  attributes: List[Attribute]) = {
+                                  query: Option[String], ownerUsers: Seq[String], ownerGroups: Seq[String],
+                                  attributes: Seq[DataSetAttribute]) = {
     val ds = persistence.Dataset.d
     val g = persistence.Group.g
     val o = persistence.Ownership.o
@@ -480,26 +482,27 @@ object DatasetService {
 
   /**
    * 指定したデータセットの詳細情報を取得します。
-   * @param params
+   * @param id
+   * @param user
    * @return
    */
-  def get(params: DatasetData.GetDatasetParams): Try[DatasetData.Dataset] = {
+  def get(id: String, user: User): Try[DatasetData.Dataset] = {
     try {
       DB readOnly { implicit s =>
         // データセットが存在しない場合例外
-        val dataset = getDataset(params.id) match {
+        val dataset = getDataset(id) match {
           case Some(x) => x
           case None => throw new NotFoundException
         }
         (for {
-          groups <- Some(getJoinedGroups(params.userInfo))
-          permission <- getPermission(params.id, groups)
-          guestAccessLevel <- Some(getGuestAccessLevel(params.id))
-          owners <- Some(getAllOwnerships(params.id, params.userInfo))
-          files <- Some(getFiles(params.id))
-          attributes <- Some(getAttributes(params.id))
-          images <- Some(getImages(params.id))
-          primaryImage <- getPrimaryImageId(params.id)
+          groups <- Some(getJoinedGroups(user))
+          permission <- getPermission(id, groups)
+          guestAccessLevel <- Some(getGuestAccessLevel(id))
+          owners <- Some(getAllOwnerships(id, user))
+          files <- Some(getFiles(id))
+          attributes <- Some(getAttributes(id))
+          images <- Some(getImages(id))
+          primaryImage <- getPrimaryImageId(id)
         } yield {
           println(dataset)
           // 権限チェック
@@ -532,313 +535,190 @@ object DatasetService {
         .map(x => Success(x)).getOrElse(Failure(new NotAuthorizedException()))
       }
     } catch {
-      case e: Exception => Failure(e)
+      case e: Throwable => Failure(e)
     }
   }
 
   /**
-   *
+   * 指定したデータセットにファイルを追加します。
+   * @param id データセットID
+   * @param files ファイルリスト
    * @param user
-   * @param item
    * @return
    */
-  def setGroupAccessControl(user: User, item: AccessControl) = {
+  def addFiles(id: String, files: Seq[FileItem], user: User): Try[DatasetData.DatasetAddFiles] = {
     try {
-      if (user.isGuest) throw new NotAuthorizedException
-
-      val accessLevel = try {
-        item.accessLevel match {
-          case Some(x) => x.toInt
-          case None => throw new InputValidationException(Map("accessLevel" -> "access level is empty"))
-        }
-      } catch {
-       case e: InputValidationException => throw e
-       case e: Exception => throw new InputValidationException(Map("accessLevel" -> "access level is invalid"))
-      }
-
       DB localTx { implicit s =>
-        getDataset(item.datasetId) match {
-          case Some(x) =>
-            if (!isOwner(user.id, item.datasetId)) throw new NotAuthorizedException
-          case None => throw new NotFoundException
-        }
+        // input validation
+        if (files.isEmpty) throw new InputValidationException(Map("files" -> "file is empty"))
 
-        val o = persistence.Ownership.o
-        withSQL(
-          select(o.result.*)
-            .from(persistence.Ownership as o)
-            .where
-              .eq(o.datasetId, sqls.uuid(item.datasetId))
-              .and
-              .eq(o.groupId, sqls.uuid(item.groupId))
-        ).map(persistence.Ownership(o.resultName)).single.apply match {
+        getDataset(id) match {
           case Some(x) =>
-            if (item.accessLevel.getOrElse(-1) != x.accessLevel) {
-              persistence.Ownership(
-                id = x.id,
-                datasetId = x.datasetId,
-                groupId = x.groupId,
-                accessLevel = accessLevel,
-                createdBy = x.createdBy,
-                createdAt = x.createdAt,
-                updatedBy = user.id,
-                updatedAt = DateTime.now
-              ).save()
-            }
+            if (!isOwner(user.id, id)) throw new NotAuthorizedException
           case None =>
-            if (accessLevel > 0) {
-              val ts = DateTime.now
-              persistence.Ownership.create(
-                id = UUID.randomUUID.toString,
-                datasetId = item.datasetId,
-                groupId = item.groupId,
-                accessLevel = accessLevel,
-                createdBy = user.id,
-                createdAt = ts,
-                updatedBy = user.id,
-                updatedAt = ts
-              )
-            }
+            throw new NotFoundException
         }
-        Success(Unit)
+
+        val myself = persistence.User.find(user.id).get
+        val timestamp = DateTime.now()
+        val f = files.map(f => {
+          val file = persistence.File.create(
+            id = UUID.randomUUID.toString,
+            datasetId = id,
+            name = f.name,
+            description = "",
+            fileType = 0,
+            fileMime = "application/octet-stream",
+            fileSize = f.size,
+            createdBy = myself.id,
+            createdAt = timestamp,
+            updatedBy = myself.id,
+            updatedAt = timestamp
+          )
+          val historyId = UUID.randomUUID.toString
+          val history = persistence.FileHistory.create(
+            id = historyId,
+            fileId = file.id,
+            fileType = 0,
+            fileMime = "application/octet-stream",
+            filePath = "/" + id + "/" + file.id + "/" + historyId,
+            fileSize = f.size,
+            createdBy = myself.id,
+            createdAt = timestamp,
+            updatedBy = myself.id,
+            updatedAt = timestamp
+          )
+          writeFile(id, file.id, history.id, f)
+          (file, history)
+        })
+
+        // datasetsのfiles_size, files_countの更新
+        updateDatasetFileStatus(id, myself.id, timestamp)
+
+        Success(DatasetData.DatasetAddFiles(
+          files = f.map(x => DatasetData.DatasetFile(
+            id = x._1.id,
+            name = x._1.name,
+            description = x._1.description,
+            size = x._2.fileSize,
+            url = AppConf.fileDownloadRoot + id + "/" + x._1.id,
+            createdBy = user,
+            createdAt = timestamp.toString(),
+            updatedBy = user,
+            updatedAt = timestamp.toString()
+          ))
+        ))
       }
     } catch {
-      case e: RuntimeException => Failure(e)
+      case e: Throwable => Failure(e)
     }
   }
 
-  def setAccessControl(params: DatasetData.AccessControlParams): Try[Seq[DatasetData.DatasetOwnership]] = {
-    if (params.userInfo.isGuest) throw new NotAuthorizedException
-    // input validation
-    if (params.ids.size != params.types.size || params.types.size != params.accessLevels.size) {
-      throw new InputValidationException(Map("ids" -> "params are not same size"))
-    }
-    val accessLevels = try {
-      params.accessLevels.map(_.toInt)
-    } catch {
-      case e: Exception => throw new InputValidationException(Map("accessLevel" -> "access level is not number"))
-    }
-    val types = try {
-      params.types.map(_.toInt)
-    } catch {
-      case e: Exception => throw new InputValidationException(Map("type" -> "type is not number"))
-    }
-
-    DB localTx { implicit s =>
-      getDataset(params.datasetId) match {
-        case Some(x) =>
-          if (!isOwner(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
-        case None => throw new NotFoundException
-      }
-
-      val ownerships = (0 to params.ids.length - 1).map{ i =>
-        val id = params.ids(i)
-        val accessLevel = accessLevels(i)
-        types(i) match {
-          case OwnerType.User =>
-            val u = persistence.User.syntax("u")
-            val m = persistence.Member.syntax("m")
-            val g = persistence.Group.syntax("g")
-            val groupId = withSQL {
-              select(g.result.id)
-                .from(persistence.Group as g)
-                .innerJoin(persistence.Member as m).on(sqls.eq(g.id, m.groupId).and.isNull(m.deletedAt))
-                .innerJoin(persistence.User as u).on(sqls.eq(u.id, m.userId).and.isNull(u.deletedAt))
-                .where
-                .eq(u.id, sqls.uuid(id))
-                .and
-                .eq(g.groupType, GroupType.Personal)
-                .and
-                .isNull(g.deletedAt)
-                .and
-                .isNull(m.deletedAt)
-                .limit(1)
-            }.map(rs => rs.string(g.resultName.id)).single().apply.get
-            saveOrCreateOwnerships(params.userInfo, params.datasetId, groupId, accessLevel)
-
-            val user = persistence.User.find(id).get
-            DatasetData.DatasetOwnership(
-              id = id,
-              name = user.name,
-              fullname = user.fullname,
-              //organization = user.organization,
-              //title = user.title,
-              image = AppConf.imageDownloadRoot + user.imageId,
-              accessLevel = accessLevel,
-              ownerType = OwnerType.User
-            )
-          case OwnerType.Group =>
-            saveOrCreateOwnerships(params.userInfo, params.datasetId, id, accessLevel)
-
-            val group = persistence.Group.find(id).get
-            DatasetData.DatasetOwnership(
-              id = id,
-              name = group.name,
-              fullname = "",
-              //organization = "",
-              //title = "",
-              image = "",
-              accessLevel = accessLevel,
-              ownerType = OwnerType.Group
-            )
+  /**
+   * 指定したファイルを更新します。
+   * @param datasetId
+   * @param fileId
+   * @param file
+   * @param user
+   * @return
+   */
+  def updateFile(datasetId: String, fileId: String, file: Option[FileItem], user: User) = {
+    try {
+      DB localTx { implicit s =>
+        val file_ = file match {
+          case Some(x) => x
+          case None => throw new InputValidationException(Map("file" -> "file is empty"))
         }
-      }
-      Success(ownerships)
-    }
-  }
+        if (file_.getSize <= 0) throw new InputValidationException(Map("file" -> "file is empty"))
 
-  def addFiles(params: DatasetData.AddFilesToDatasetParams): Try[DatasetData.DatasetAddFiles] = {
-    if (params.userInfo.isGuest) throw new NotAuthorizedException
-    // input validation
-    val files = params.files match {
-      case Some(x) => x.filter(_.name.length != 0)
-      case None => Seq.empty
-    }
-    if (files.size == 0) throw new InputValidationException(Map("files" -> "file is empty"))
+        getDataset(datasetId) match {
+          case Some(x) =>
+            if (!isOwner(user.id, datasetId)) throw new NotAuthorizedException
+          case None =>
+            throw new NotFoundException
+        }
+        if (!existsFile(datasetId, fileId)) throw new NotFoundException
 
-    DB localTx { implicit s =>
-      getDataset(params.datasetId) match {
-        case Some(x) =>
-          if (!isOwner(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
-        case None => throw new NotFoundException
-      }
+        val myself = persistence.User.find(user.id).get
+        val timestamp = DateTime.now()
 
-      val myself = persistence.User.find(params.userInfo.id).get
-      val timestamp = DateTime.now()
-      val f = files.map(f => {
-        val file = persistence.File.create(
-          id = UUID.randomUUID.toString,
-          datasetId = params.datasetId,
-          name = f.name,
-          description = "",
-          fileType = 0,
-          fileMime = "application/octet-stream",
-          fileSize = f.size,
-          createdBy = myself.id,
-          createdAt = timestamp,
-          updatedBy = myself.id,
-          updatedAt = timestamp
-        )
+        withSQL {
+          val f = persistence.File.column
+          update(persistence.File)
+            .set(f.fileSize -> file.size, f.updatedBy -> sqls.uuid(myself.id), f.updatedAt -> timestamp)
+            .where
+            .eq(f.id, sqls.uuid(fileId))
+        }.update().apply
+
         val historyId = UUID.randomUUID.toString
         val history = persistence.FileHistory.create(
           id = historyId,
-          fileId = file.id,
+          fileId = fileId,
           fileType = 0,
           fileMime = "application/octet-stream",
-          filePath = "/" + params.datasetId + "/" + file.id + "/" + historyId,
-          fileSize = f.size,
+          filePath = "/" + datasetId + "/" + fileId + "/" + historyId,
+          fileSize = file.size,
           createdBy = myself.id,
           createdAt = timestamp,
           updatedBy = myself.id,
           updatedAt = timestamp
         )
-        writeFile(params.datasetId, file.id, history.id, f)
-        (file, history)
-      })
+        writeFile(datasetId, fileId, history.id, file_)
 
-      // datasetsのfiles_size, files_countの更新
-      updateDatasetFileStatus(params.datasetId, myself.id, timestamp)
+        // datasetsのfiles_size, files_countの更新
+        updateDatasetFileStatus(datasetId, myself.id, timestamp)
 
-      Success(DatasetData.DatasetAddFiles(
-        files = f.map(x => DatasetData.DatasetFile(
-          id = x._1.id,
-          name = x._1.name,
-          description = x._1.description,
-          size = x._2.fileSize,
-          url = AppConf.fileDownloadRoot + params.datasetId + "/" + x._1.id,
-          createdBy = params.userInfo,
+        val result = persistence.File.find(fileId).get
+        Success(DatasetData.DatasetFile(
+          id = result.id,
+          name = result.name,
+          description = result.description,
+          size = result.fileSize,
+          url = AppConf.fileDownloadRoot + datasetId + "/" + result.id,
+          createdBy = user,
           createdAt = timestamp.toString(),
-          updatedBy = params.userInfo,
+          updatedBy = user,
           updatedAt = timestamp.toString()
         ))
-      ))
-    }
-  }
-
-  def updateFile(params: DatasetData.UpdateFileParams) = {
-    if (params.userInfo.isGuest) throw new NotAuthorizedException
-
-    val file = params.file match {
-      case Some(x) => x
-      case None => throw new InputValidationException(Map("file" -> "file is empty"))
-    }
-    if (file.name.length == 0) throw new InputValidationException(Map("file" -> "file is empty"))
-
-    DB localTx { implicit s =>
-      getDataset(params.datasetId) match {
-        case Some(x) =>
-          if (!isOwner(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
-        case None => throw new NotFoundException
       }
-      if (!isValidFile(params.datasetId, params.fileId)) throw new NotFoundException
-
-      val myself = persistence.User.find(params.userInfo.id).get
-      val timestamp = DateTime.now()
-
-      withSQL {
-        val f = persistence.File.column
-        update(persistence.File)
-          .set(f.fileSize -> file.size, f.updatedBy -> sqls.uuid(myself.id), f.updatedAt -> timestamp)
-          .where
-          .eq(f.id, sqls.uuid(params.fileId))
-      }.update().apply
-
-      val historyId = UUID.randomUUID.toString
-      val history = persistence.FileHistory.create(
-        id = historyId,
-        fileId = params.fileId,
-        fileType = 0,
-        fileMime = "application/octet-stream",
-        filePath = "/" + params.datasetId + "/" + params.fileId + "/" + historyId,
-        fileSize = file.size,
-        createdBy = myself.id,
-        createdAt = timestamp,
-        updatedBy = myself.id,
-        updatedAt = timestamp
-      )
-      writeFile(params.datasetId, params.fileId, history.id, file)
-
-      // datasetsのfiles_size, files_countの更新
-      updateDatasetFileStatus(params.datasetId, myself.id, timestamp)
-
-      val result = persistence.File.find(params.fileId).get
-      Success(DatasetData.DatasetFile(
-        id = result.id,
-        name = result.name,
-        description = result.description,
-        size = result.fileSize,
-        url = AppConf.fileDownloadRoot + params.datasetId + "/" + result.id,
-        createdBy = params.userInfo,
-        createdAt = timestamp.toString(),
-        updatedBy = params.userInfo,
-        updatedAt = timestamp.toString()
-      ))
+    } catch {
+      case e: Throwable => Failure(e)
     }
   }
 
-  def modifyFileMetadata(params: DatasetData.ModifyDatasetMetadataParams, user: User) = {
-    if (user.isGuest) throw new NotAuthorizedException
-
-    // input validation
-    val errors = mutable.LinkedHashMap.empty[String, String]
-    val filename = StringUtil.trimAllSpaces(params.filename.getOrElse(""))
-    if (filename.isEmpty) {
-      errors.put("name", "name is empty")
-    }
-    val description = params.description.getOrElse("")
-
-    if (errors.size != 0) {
-      throw new InputValidationException(errors)
-    }
-
+  /**
+   * 指定したファイルのメタデータを更新します。
+   * @param datasetId
+   * @param fileId
+   * @param filename
+   * @param description
+   * @param user
+   * @return
+   */
+  def modifyFileMetadata(datasetId: String, fileId: String, filename: Option[String],
+                         description: Option[String], user: User) = {
     try {
+      val filename_ = StringUtil.trimAllSpaces(filename.getOrElse(""))
+      val description_ = description.getOrElse("")
+
+      // input validation
+      val errors = mutable.LinkedHashMap.empty[String, String]
+
+      if (filename.isEmpty) {
+        errors.put("name", "name is empty")
+      }
+
+      if (errors.nonEmpty) {
+        throw new InputValidationException(errors)
+      }
+
       DB localTx { implicit s =>
-        getDataset(params.datasetId) match {
+        getDataset(datasetId) match {
           case Some(x) =>
-            if (!isOwner(user.id, params.datasetId)) throw new NotAuthorizedException
+            if (!isOwner(user.id, datasetId)) throw new NotAuthorizedException
           case None => throw new NotFoundException
         }
-        if (!isValidFile(params.datasetId, params.fileId)) throw new NotFoundException
+        if (!existsFile(datasetId, fileId)) throw new NotFoundException
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -848,18 +728,18 @@ object DatasetService {
             .set(f.name -> filename, f.description -> description,
               f.updatedBy -> sqls.uuid(myself.id), f.updatedAt -> timestamp)
             .where
-            .eq(f.id, sqls.uuid(params.fileId))
+            .eq(f.id, sqls.uuid(fileId))
             .and
-            .eq(f.datasetId, sqls.uuid(params.datasetId))
+            .eq(f.datasetId, sqls.uuid(datasetId))
         }.update().apply
 
-        val result = persistence.File.find(params.fileId).get
+        val result = persistence.File.find(fileId).get
         Success(DatasetData.DatasetFile(
           id = result.id,
           name = result.name,
           description = result.description,
           size = result.fileSize,
-          url = AppConf.fileDownloadRoot + params.datasetId + "/" + result.id,
+          url = AppConf.fileDownloadRoot + datasetId + "/" + result.id,
           createdBy = user,
           createdAt = timestamp.toString(),
           updatedBy = user,
@@ -871,19 +751,25 @@ object DatasetService {
     }
   }
 
-  def deleteDatasetFile(params: DatasetData.DeleteDatasetFileParams): Try[String] = {
-    if (params.userInfo.isGuest) throw new NotAuthorizedException
-
+  /**
+   * 指定したファイルを削除します。
+   * @param datasetId
+   * @param fileId
+   * @param user
+   * @return
+   */
+  def deleteDatasetFile(datasetId: String, fileId: String, user: User): Try[Unit] = {
     try {
       DB localTx { implicit s =>
-        getDataset(params.datasetId) match {
+        getDataset(datasetId) match {
           case Some(x) =>
-            if (!isOwner(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
-          case None => throw new NotFoundException
+            if (!isOwner(user.id, datasetId)) throw new NotAuthorizedException
+          case None =>
+            throw new NotFoundException
         }
-        if (!isValidFile(params.datasetId, params.fileId)) throw new NotFoundException
+        if (!existsFile(datasetId,fileId)) throw new NotFoundException
 
-        val myself = persistence.User.find(params.userInfo.id).get
+        val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
 
         withSQL {
@@ -892,42 +778,53 @@ object DatasetService {
             .set(f.deletedBy -> sqls.uuid(myself.id), f.deletedAt -> timestamp,
               f.updatedBy -> sqls.uuid(myself.id), f.updatedAt -> timestamp)
             .where
-            .eq(f.id, sqls.uuid(params.fileId))
+            .eq(f.id, sqls.uuid(fileId))
             .and
-            .eq(f.datasetId, sqls.uuid(params.datasetId))
+            .eq(f.datasetId, sqls.uuid(datasetId))
             .and
             .isNull(f.deletedAt)
         }.update().apply
 
         // datasetsのfiles_size, files_countの更新
-        updateDatasetFileStatus(params.datasetId, myself.id, timestamp)
+        updateDatasetFileStatus(datasetId, myself.id, timestamp)
 
-        Success(params.fileId)
+        Success(Unit)
       }
     } catch {
       case e: Exception => Failure(e)
     }
   }
 
-  def modifyDatasetMeta(id: String, params: DatasetData.ModifyDatasetMetaParams, user: User): Try[String] = {
-    if (user.isGuest) throw new NotAuthorizedException
-
+  /**
+   * 指定したデータセットのメタデータを更新します。
+   * @param id
+   * @param name
+   * @param description
+   * @param license
+   * @param attributes
+   * @param user
+   * @return
+   */
+  def modifyDatasetMeta(id: String, name: Option[String], description: Option[String],
+                        license: Option[String], attributes: List[(String, String)], user: User): Try[Unit] = {
     try {
+      val name_ = StringUtil.trimAllSpaces(name.getOrElse(""))
+      val description_ = description.getOrElse("")
+      val license_ = license.getOrElse("")
+      val attributes_ = attributes.map(x => x._1 -> StringUtil.trimAllSpaces(x._2))
+
       DB localTx { implicit s =>
         // input parameter check
         val errors = mutable.LinkedHashMap.empty[String, String]
-        val name = StringUtil.trimAllSpaces(params.name.getOrElse(""))
-        if (name.isEmpty) {
+        if (name_.isEmpty) {
           errors.put("name", "name is empty")
         }
-        val description = params.description.getOrElse("")
-        val licenseId = params.license.getOrElse("")
-        if (licenseId.isEmpty) {
+        if (license_.isEmpty) {
             errors.put("license", "license is empty")
         } else {
           // licenseの存在チェック
-          if (StringUtil.isUUID(licenseId)) {
-            if (persistence.License.find(licenseId).isEmpty) {
+          if (StringUtil.isUUID(license_)) {
+            if (persistence.License.find(license_).isEmpty) {
               errors.put("license", "license is invalid")
             }
           } else {
@@ -950,7 +847,7 @@ object DatasetService {
         withSQL {
           val d = persistence.Dataset.column
           update(persistence.Dataset)
-            .set(d.name -> name, d.description -> description, d.licenseId -> sqls.uuid(licenseId),
+            .set(d.name -> name, d.description -> description, d.licenseId -> sqls.uuid(license_),
               d.updatedBy -> sqls.uuid(myself.id), d.updatedAt -> timestamp)
             .where
             .eq(d.id, sqls.uuid(id))
@@ -984,8 +881,7 @@ object DatasetService {
             .isNull(a.deletedAt)
         }.map(rs => (rs.string(a.resultName.name).toLowerCase, rs.string(a.resultName.id))).list().apply.toMap
 
-        val attributes = params.attributes.map(x => x._1 -> StringUtil.trimAllSpaces(x._2))
-        attributes.foreach { x =>
+        attributes_.foreach { x =>
           if (x._1.length != 0) {
             val annotationId = if (annotationMap.keySet.contains(x._1.toLowerCase)) {
               annotationMap(x._1.toLowerCase)
@@ -1037,145 +933,163 @@ object DatasetService {
           }
         }
       }
-      Success(id)
+      Success(Unit)
     } catch {
       case e: Exception => Failure(e)
     }
   }
 
-  def addImages(params: DatasetData.AddImagesToDatasetParams): Try[DatasetData.DatasetAddImages] = {
-    if (params.userInfo.isGuest) throw new NotAuthorizedException
-    val inputImages = params.images match {
-      case Some(x) => x.filter(_.name.length != 0)
-      case None => Seq.empty
-    }
-    if (inputImages.size == 0) throw new InputValidationException(Map("image" -> "image is empty"))
+  /**
+   * 指定したデータセットに画像を追加します。
+   * @param datasetId
+   * @param images
+   * @param user
+   * @return
+   */
+  def addImages(datasetId: String, images: Seq[FileItem], user: User): Try[DatasetData.DatasetAddImages] = {
+    try {
+      val images_ = images.filter(_.name.nonEmpty)
 
-    DB localTx { implicit s =>
-      if (!isOwner(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
+      if (images_.isEmpty) throw new InputValidationException(Map("image" -> "image is empty"))
 
-      val myself = persistence.User.find(params.userInfo.id).get
-      val timestamp = DateTime.now()
-      val primaryImage = getPrimaryImageId(params.datasetId)
-      var isFirst = true
+      DB localTx { implicit s =>
+        if (!isOwner(user.id, datasetId)) throw new NotAuthorizedException
 
-      val images = inputImages.map(i => {
-        val imageId = UUID.randomUUID().toString
-        val bufferedImage = javax.imageio.ImageIO.read(i.getInputStream)
+        val myself = persistence.User.find(user.id).get
+        val timestamp = DateTime.now()
+        val primaryImage = getPrimaryImageId(datasetId)
+        var isFirst = true
 
-        val image = persistence.Image.create(
-          id = imageId,
-          name = i.getName,
-          width = bufferedImage.getWidth,
-          height = bufferedImage.getWidth,
-          filePath = "/" + ImageSaveLogic.uploadPath + "/" + imageId,
-          presetType = PresetType.Default,
-          createdBy = myself.id,
-          createdAt = DateTime.now,
-          updatedBy = myself.id,
-          updatedAt = DateTime.now
-        )
-        val datasetImage = persistence.DatasetImage.create(
-          id = UUID.randomUUID.toString,
-          datasetId = params.datasetId,
-          imageId = imageId,
-          isPrimary = if (isFirst && primaryImage.isEmpty) true else false,
-          createdBy = myself.id,
-          createdAt = timestamp,
-          updatedBy = myself.id,
-          updatedAt = timestamp
-        )
-        isFirst = false
-        // write image
-        ImageSaveLogic.writeImageFile(imageId, i)
-        image
-      })
+        val images = images_.map(i => {
+          val imageId = UUID.randomUUID().toString
+          val bufferedImage = javax.imageio.ImageIO.read(i.getInputStream)
 
-      Success(DatasetData.DatasetAddImages(
+          val image = persistence.Image.create(
+            id = imageId,
+            name = i.getName,
+            width = bufferedImage.getWidth,
+            height = bufferedImage.getWidth,
+            filePath = "/" + ImageSaveLogic.uploadPath + "/" + imageId,
+            presetType = PresetType.Default,
+            createdBy = myself.id,
+            createdAt = DateTime.now,
+            updatedBy = myself.id,
+            updatedAt = DateTime.now
+          )
+          val datasetImage = persistence.DatasetImage.create(
+            id = UUID.randomUUID.toString,
+            datasetId = datasetId,
+            imageId = imageId,
+            isPrimary = if (isFirst && primaryImage.isEmpty) true else false,
+            createdBy = myself.id,
+            createdAt = timestamp,
+            updatedBy = myself.id,
+            updatedAt = timestamp
+          )
+          isFirst = false
+          // write image
+          ImageSaveLogic.writeImageFile(imageId, i)
+          image
+        })
+
+        Success(DatasetData.DatasetAddImages(
           images = images.map(x => Image(
             id = x.id,
             url = AppConf.imageDownloadRoot + x.id
           )),
-      primaryImage = getPrimaryImageId(params.datasetId).getOrElse("")
-      ))
+          primaryImage = getPrimaryImageId(datasetId).getOrElse("")
+        ))
+      }
+    } catch {
+      case e: Throwable => Failure(e)
     }
   }
 
-  def changePrimaryImage(params: DatasetData.ChangePrimaryImageParams) = {
-    if (params.userInfo.isGuest) throw new NotAuthorizedException
+  /**
+   * 指定したデータセットのプライマリ画像を変更します。
+   * @param datasetId
+   * @param imageId
+   * @param user
+   * @return
+   */
+  def changePrimaryImage(datasetId: String, imageId: String, user: User): Try[Unit] = {
+    try {
+      if (imageId.isEmpty) throw new InputValidationException(Map("id" -> "ID is empty"))
 
-    val imageId = params.id match {
-      case Some(x) => x
-      case None => throw new InputValidationException(Map("id" -> "ID is empty"))
-    }
+      DB localTx { implicit s =>
+        getDataset(datasetId) match {
+          case Some(x) =>
+            if (!isOwner(user.id, datasetId)) throw new NotAuthorizedException
+          case None => throw new NotFoundException
+        }
+        if (!existsImage(datasetId, imageId)) throw new NotFoundException
 
-    DB localTx { implicit s =>
-      getDataset(params.datasetId) match {
-        case Some(x) =>
-          if (!isOwner(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
-        case None => throw new NotFoundException
+        val myself = persistence.User.find(user.id).get
+        val timestamp = DateTime.now()
+        withSQL {
+          val di = persistence.DatasetImage.column
+          update(persistence.DatasetImage)
+            .set(di.isPrimary -> true, di.updatedBy -> sqls.uuid(myself.id), di.updatedAt -> timestamp)
+            .where
+            .eq(di.imageId, sqls.uuid(imageId))
+            .and
+            .eq(di.datasetId, sqls.uuid(datasetId))
+            .and
+            .isNull(di.deletedAt)
+        }.update().apply
+
+        withSQL {
+          val di = persistence.DatasetImage.column
+          update(persistence.DatasetImage)
+            .set(di.isPrimary -> false, di.updatedBy -> sqls.uuid(myself.id), di.updatedAt -> timestamp)
+            .where
+            .ne(di.imageId, sqls.uuid(imageId))
+            .and
+            .eq(di.datasetId, sqls.uuid(datasetId))
+            .and
+            .isNull(di.deletedAt)
+        }.update().apply
+
+        Success(Unit)
       }
-      if (!isValidImage(params.datasetId, imageId)) throw new NotFoundException
-
-      val myself = persistence.User.find(params.userInfo.id).get
-      val timestamp = DateTime.now()
-      withSQL {
-        val di = persistence.DatasetImage.column
-        update(persistence.DatasetImage)
-          .set(di.isPrimary -> true, di.updatedBy -> sqls.uuid(myself.id), di.updatedAt -> timestamp)
-          .where
-          .eq(di.imageId, sqls.uuid(imageId))
-          .and
-          .eq(di.datasetId, sqls.uuid(params.datasetId))
-          .and
-          .isNull(di.deletedAt)
-      }.update().apply
-
-      withSQL{
-        val di = persistence.DatasetImage.column
-        update(persistence.DatasetImage)
-          .set(di.isPrimary -> false, di.updatedBy -> sqls.uuid(myself.id), di.updatedAt -> timestamp)
-          .where
-          .ne(di.imageId, sqls.uuid(imageId))
-          .and
-          .eq(di.datasetId, sqls.uuid(params.datasetId))
-          .and
-          .isNull(di.deletedAt)
-      }.update().apply
-
-      Success(params.id)
+    } catch {
+      case e: Throwable => Failure(e)
     }
   }
 
-  def deleteImage(params: DatasetData.DeleteImageParams) = {
-    if (params.userInfo.isGuest) throw new NotAuthorizedException
+  /**
+   * 指定したデータセットの画像を削除します。
+   * @param datasetId
+   * @param imageId
+   * @param user
+   * @return
+   */
+  def deleteImage(datasetId: String, imageId: String, user: User) = {
+    try {
+      DB localTx { implicit s =>
+        getDataset(datasetId) match {
+          case Some(x) =>
+            if (!isOwner(user.id, datasetId)) throw new NotAuthorizedException
+          case None => throw new NotFoundException
+        }
+        if (!existsImage(datasetId, imageId)) throw new NotFoundException
 
-    val primaryImage = DB localTx { implicit s =>
-      getDataset(params.datasetId) match {
-        case Some(x) =>
-          if (!isOwner(params.userInfo.id, params.datasetId)) throw new NotAuthorizedException
-        case None => throw new NotFoundException
-      }
-      if (!isValidImage(params.datasetId, params.imageId)) throw new NotFoundException
+        val myself = persistence.User.find(user.id).get
+        val timestamp = DateTime.now()
+        withSQL {
+          val di = persistence.DatasetImage.column
+          update(persistence.DatasetImage)
+            .set(di.deletedBy -> sqls.uuid(myself.id), di.deletedAt -> timestamp, di.isPrimary -> false,
+              di.updatedBy -> sqls.uuid(myself.id), di.updatedAt -> timestamp)
+            .where
+            .eq(di.datasetId, sqls.uuid(datasetId))
+            .and
+            .eq(di.imageId, sqls.uuid(imageId))
+            .and
+            .isNull(di.deletedAt)
+        }.update().apply
 
-      val myself = persistence.User.find(params.userInfo.id).get
-      val timestamp = DateTime.now()
-      withSQL {
-        val di = persistence.DatasetImage.column
-        update(persistence.DatasetImage)
-          .set(di.deletedBy -> sqls.uuid(myself.id), di.deletedAt -> timestamp, di.isPrimary -> false,
-            di.updatedBy -> sqls.uuid(myself.id), di.updatedAt -> timestamp)
-          .where
-          .eq(di.datasetId, sqls.uuid(params.datasetId))
-          .and
-          .eq(di.imageId, sqls.uuid(params.imageId))
-          .and
-          .isNull(di.deletedAt)
-      }.update().apply
-
-      getPrimaryImageId(params.datasetId) match {
-        case Some(x) => x
-        case None =>
+        val primaryImageId = getPrimaryImageId(datasetId).getOrElse({
           // primaryImageの差し替え
           val di = persistence.DatasetImage.syntax("di")
           val i = persistence.Image.syntax("i")
@@ -1186,7 +1100,7 @@ object DatasetService {
               .from(persistence.Image as i)
               .innerJoin(persistence.DatasetImage as di).on(i.id, di.imageId)
               .where
-              .eq(di.datasetId, sqls.uuid(params.datasetId))
+              .eq(di.datasetId, sqls.uuid(datasetId))
               .and
               .isNull(di.deletedAt)
               .and
@@ -1195,46 +1109,189 @@ object DatasetService {
               .limit(1)
           }.map(rs => (rs.string(di.resultName.id), rs.string(i.resultName.id))).single().apply
 
-        primaryImage match {
-          case Some(x) =>
-            val di = persistence.DatasetImage.column
-            withSQL {
-              update(persistence.DatasetImage)
-                .set(di.isPrimary -> true, di.updatedBy -> sqls.uuid(myself.id), di.updatedAt -> timestamp)
-                .where
-                .eq(di.id, sqls.uuid(x._1))
-            }.update().apply
-            x._2
-          case None => ""
-        }
+          primaryImage match {
+            case Some(x) =>
+              val di = persistence.DatasetImage.column
+              withSQL {
+                update(persistence.DatasetImage)
+                  .set(di.isPrimary -> true, di.updatedBy -> sqls.uuid(myself.id), di.updatedAt -> timestamp)
+                  .where
+                  .eq(di.id, sqls.uuid(x._1))
+              }.update().apply
+              x._2
+            case None => ""
+          }
+        })
+        Success(DatasetData.DatasetDeleteImage(primaryImage = primaryImageId))
       }
+    } catch {
+      case e: Throwable => Failure(e)
     }
-
-    Success(DatasetData.DatasetDeleteImage(
-      primaryImage = primaryImage
-    ))
   }
 
-  def deleteDataset(user: User, datasetId: String) = {
-    if (user.isGuest) throw new NotAuthorizedException
+  /**
+   * 指定したデータセットのアクセスコントロールを設定します。
+   * @param datasetId
+   * @param acl
+   * @param user
+   * @return
+   */
+  def setAccessControl(datasetId: String, acl: List[DataSetAccessControlItem], user: User): Try[Seq[DatasetData.DatasetOwnership]] = {
+    try {
+      DB localTx { implicit s =>
+        getDataset(datasetId) match {
+          case Some(x) =>
+            if (!isOwner(user.id, datasetId)) throw new NotAuthorizedException
+          case None =>
+            throw new NotFoundException
+        }
 
-    val timestamp = DateTime.now()
-    DB localTx { implicit s =>
-      getDataset(datasetId) match {
-        case Some(x) => // do nothing
-        case None => throw new NotFoundException
+        val ownerships = acl.map { x =>
+          x.ownerType match {
+            case OwnerType.User =>
+              val u = persistence.User.syntax("u")
+              val m = persistence.Member.syntax("m")
+              val g = persistence.Group.syntax("g")
+              val groupId = withSQL {
+                select(g.result.id)
+                  .from(persistence.Group as g)
+                  .innerJoin(persistence.Member as m).on(sqls.eq(g.id, m.groupId).and.isNull(m.deletedAt))
+                  .innerJoin(persistence.User as u).on(sqls.eq(u.id, m.userId).and.isNull(u.deletedAt))
+                  .where
+                  .eq(u.id, sqls.uuid(x.id))
+                  .and
+                  .eq(g.groupType, GroupType.Personal)
+                  .and
+                  .isNull(g.deletedAt)
+                  .and
+                  .isNull(m.deletedAt)
+                  .limit(1)
+              }.map(rs => rs.string(g.resultName.id)).single().apply.get
+              saveOrCreateOwnerships(user, datasetId, groupId, x.accessLevel)
+
+              val user_ = persistence.User.find(x.id).get
+              DatasetData.DatasetOwnership(
+                id = user_.id,
+                name = user_.name,
+                fullname = user_.fullname,
+                //organization = user.organization,
+                //title = user.title,
+                image = AppConf.imageDownloadRoot + user_.imageId,
+                accessLevel = x.accessLevel,
+                ownerType = OwnerType.User
+              )
+            case OwnerType.Group =>
+              saveOrCreateOwnerships(user, datasetId, x.id, x.accessLevel)
+
+              val group = persistence.Group.find(x.id).get
+              DatasetData.DatasetOwnership(
+                id = x.id,
+                name = group.name,
+                fullname = "",
+                //organization = "",
+                //title = "",
+                image = "",
+                accessLevel = x.accessLevel,
+                ownerType = OwnerType.Group
+              )
+          }
+        }
+        Success(ownerships)
       }
-
-      if (!isOwner(user.id, datasetId)) throw new NotAuthorizedException
-      val d = persistence.Dataset.column
-      withSQL {
-        update(persistence.Dataset)
-          .set(d.deletedAt -> timestamp, d.deletedBy -> sqls.uuid(user.id))
-          .where
-          .eq(d.id, sqls.uuid(datasetId))
-      }.update().apply
+    } catch {
+      case e: Throwable => Failure(e)
     }
-    datasetId
+  }
+
+  /**
+   * 指定したデータセットのゲストアクセスレベルを設定します。
+   * @param datasetId
+   * @param accessLevel
+   * @param user
+   * @return
+   */
+  def setGuestAccessLevel(datasetId: String, accessLevel: Int, user: User) = {
+    try {
+      DB localTx { implicit s =>
+        getDataset(datasetId) match {
+          case Some(x) =>
+            if (!isOwner(user.id, datasetId)) throw new NotAuthorizedException
+          case None =>
+            throw new NotFoundException
+        }
+
+        val o = persistence.Ownership.o
+        withSQL(
+          select(o.result.*)
+            .from(persistence.Ownership as o)
+            .where
+            .eq(o.datasetId, sqls.uuid(datasetId))
+            .and
+            .eq(o.groupId, sqls.uuid(AppConf.guestGroupId))
+        ).map(persistence.Ownership(o.resultName)).single.apply match {
+          case Some(x) =>
+            if (accessLevel != x.accessLevel) {
+              persistence.Ownership(
+                id = x.id,
+                datasetId = x.datasetId,
+                groupId = AppConf.guestGroupId,
+                accessLevel = accessLevel,
+                createdBy = x.createdBy,
+                createdAt = x.createdAt,
+                updatedBy = user.id,
+                updatedAt = DateTime.now
+              ).save()
+            }
+          case None =>
+            if (accessLevel > 0) {
+              val ts = DateTime.now
+              persistence.Ownership.create(
+                id = UUID.randomUUID.toString,
+                datasetId = datasetId,
+                groupId = AppConf.guestGroupId,
+                accessLevel = accessLevel,
+                createdBy = user.id,
+                createdAt = ts,
+                updatedBy = user.id,
+                updatedAt = ts
+              )
+            }
+        }
+        Success(Unit)
+      }
+    } catch {
+      case e: Throwable => Failure(e)
+    }
+  }
+
+  /**
+   * 指定したデータセットを削除します。
+   * @param datasetId
+   * @param user
+   * @return
+   */
+  def deleteDataset(datasetId: String, user: User): Try[Unit] = {
+    try {
+      val timestamp = DateTime.now()
+      DB localTx { implicit s =>
+        getDataset(datasetId) match {
+          case Some(x) => // do nothing
+          case None => throw new NotFoundException
+        }
+
+        if (!isOwner(user.id, datasetId)) throw new NotAuthorizedException
+        val d = persistence.Dataset.column
+        withSQL {
+          update(persistence.Dataset)
+            .set(d.deletedAt -> timestamp, d.deletedBy -> sqls.uuid(user.id))
+            .where
+            .eq(d.id, sqls.uuid(datasetId))
+        }.update().apply
+      }
+      Success(Unit)
+    } catch {
+      case e:Throwable => Failure(e)
+    }
   }
 
   private def isOwner(userId: String, datasetId: String)(implicit s: DBSession) = {
@@ -1667,7 +1724,7 @@ object DatasetService {
     }.map(rs => rs.string(i.resultName.id)).single().apply
   }
 
-  private def isValidImage(datasetId: String, imageId: String)(implicit s: DBSession) = {
+  private def existsImage(datasetId: String, imageId: String)(implicit s: DBSession) = {
     val i = persistence.Image.syntax("i")
     val di = persistence.DatasetImage.syntax("di")
     withSQL {
@@ -1688,7 +1745,7 @@ object DatasetService {
     }
   }
 
-  private def isValidFile(datasetId: String, fileId: String)(implicit s: DBSession) = {
+  private def existsFile(datasetId: String, fileId: String)(implicit s: DBSession) = {
     val f = persistence.File.syntax("f")
     val d = persistence.Dataset.syntax("d")
     withSQL {
@@ -1703,13 +1760,10 @@ object DatasetService {
         .isNull(f.deletedAt)
         .and
         .isNull(d.deletedAt)
-    }.map(rs => rs.string(f.resultName.id)).single().apply match {
-      case Some(x) => true
-      case None => false
-    }
+    }.map(rs => rs.string(f.resultName.id)).single().apply.isDefined
   }
 
-  private def saveOrCreateOwnerships(userInfo: User,datasetId: String, groupId: String, accessLevel: Int)(implicit s: DBSession) {
+  private def saveOrCreateOwnerships(userInfo: User, datasetId: String, groupId: String, accessLevel: Int)(implicit s: DBSession) {
     val myself = persistence.User.find(userInfo.id).get
     val timestamp = DateTime.now()
 

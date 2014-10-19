@@ -7,9 +7,9 @@ import _root_.api.api.logic.SpecCommonLogic
 import dsmoq.AppConf
 import dsmoq.controllers.{AjaxResponse, ApiController}
 import dsmoq.persistence._
-import dsmoq.services.data.DatasetData.{DatasetsSummary, Dataset}
-import dsmoq.services.data.GroupData.Group
-import dsmoq.services.data.RangeSlice
+import dsmoq.services.json.DatasetData.{DatasetsSummary, Dataset}
+import dsmoq.services.json.GroupData.Group
+import dsmoq.services.json.RangeSlice
 import org.json4s.jackson.JsonMethods._
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatest.{BeforeAndAfterEach, BeforeAndAfter, FreeSpec}

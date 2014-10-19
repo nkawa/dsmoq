@@ -47,9 +47,15 @@ object MailAddress extends SQLSyntaxSupport[MailAddress] {
 
   //val autoSession = AutoSession
 
-  def find(id: Any)(implicit session: DBSession = autoSession): Option[MailAddress] = {
+  def find(id: String)(implicit session: DBSession = autoSession): Option[MailAddress] = {
     withSQL { 
-      select.from(MailAddress as ma).where.eq(ma.id, id)
+      select.from(MailAddress as ma).where.eq(ma.id, sqls.uuid(id))
+    }.map(MailAddress(ma.resultName)).single.apply()
+  }
+
+  def findByUserId(id: String)(implicit session: DBSession = autoSession): Option[MailAddress] = {
+    withSQL {
+      select.from(MailAddress as ma).where.eq(ma.userId, sqls.uuid(id))
     }.map(MailAddress(ma.resultName)).single.apply()
   }
           

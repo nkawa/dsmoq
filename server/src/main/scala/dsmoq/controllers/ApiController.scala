@@ -8,15 +8,12 @@ import org.scalatra.json.JacksonJsonSupport
 import dsmoq.services._
 import scala.util.{Success, Failure}
 import org.scalatra.servlet.FileUploadSupport
-import dsmoq.services.data.LoginData._
-import dsmoq.services.data.DatasetData._
-import dsmoq.services.data.GroupData._
+import dsmoq.controllers.json._
+import dsmoq.services.json.DatasetData._
+import dsmoq.services.json.GroupData._
 import dsmoq.forms._
 import dsmoq.AppConf
-import dsmoq.services.data.ProfileData.UpdateProfileParams
 import dsmoq.exceptions.{InputValidationException, NotFoundException, NotAuthorizedException}
-import com.sun.corba.se.spi.orbutil.fsm.Input
-import scala.util.control.Exception._
 
 class ApiController extends ScalatraServlet
     with JacksonJsonSupport with SessionTrait with FileUploadSupport {
@@ -26,118 +23,42 @@ class ApiController extends ScalatraServlet
     contentType = formats("json")
   }
 
-  before("/*") {
-    if (!isValidSession()) {
-      if (!((request.getRequestURI == "/api/profile" && request.getMethod == "GET") ||
-          (request.getRequestURI == "/api/licenses" && request.getMethod == "GET") ||
-          (request.getRequestURI == "/api/accounts" && request.getMethod == "GET") ||
-          (request.getRequestURI == "/api/suggests/attributes" && request.getMethod == "GET"))) {
-        cookies.get(sessionId) match {
-          case Some(x) =>
-            clearSessionCookie()
-            halt(body = AjaxResponse("Unauthorized"))
-          case None => // do nothing
-        }
-      }
-    }
-  }
+//  before("/*") {
+//    if (getSignedInUser().isEmpty) {
+//      if (!((request.getRequestURI == "/api/profile" && request.getMethod == "GET") ||
+//          (request.getRequestURI == "/api/licenses" && request.getMethod == "GET") ||
+//          (request.getRequestURI == "/api/accounts" && request.getMethod == "GET") ||
+//          (request.getRequestURI == "/api/suggests/attributes" && request.getMethod == "GET"))) {
+//        cookies.get(sessionId) match {
+//          case Some(x) =>
+//            clearSessionCookie()
+//            halt(body = AjaxResponse("Unauthorized"))
+//          case None => // do nothing
+//        }
+//      }
+//    }
+//  }
 
   get("/*") {
     throw new Exception("err")
   }
 
-  // JSON API
-  get("/profile") {
-    getUserInfoFromSession() match {
-      case Success(x) => AjaxResponse("OK", x)
-      case Failure(e) => AjaxResponse("NG")
-    }
-  }
-
-  post("/profile") {
-    val name = params.get("name")
-    val fullname = params.get("fullname")
-    val organization = params.get("organization")
-    val title = params.get("title")
-    val description = params.get("description")
-    val image = fileParams.get("image")
-
-    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
-
-    val response = for {
-      userInfo <- getUserInfoFromSession()
-      facadeParams = UpdateProfileParams(name, fullname, organization, title, description, image)
-      user <- AccountService.updateUserProfile(userInfo, facadeParams)
-    } yield {
-      setUserInfoToSession(user)
-      AjaxResponse("OK", user)
-    }
-    response match {
-      case Success(x) => x
-      case Failure(e) =>
-        e match {
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
-  }
-
-  post("/profile/email_change_requests") {
-    val email = params.get("email")
-
-    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
-
-    (for {
-      userInfo <- getUserInfoFromSession()
-      user <- AccountService.changeUserEmail(userInfo, email)
-    } yield {
-      setUserInfoToSession(user)
-    }) match {
-      case Success(x) => AjaxResponse("OK")
-      case Failure(e) =>
-        e match {
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
-  }
-
-  put("/profile/password") {
-    val currentPassword = params.get("current_password")
-    val newPassword = params.get("new_password")
-
-    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
-
-    val response = for {
-      userInfo <- getUserInfoFromSession()
-      result <- AccountService.changeUserPassword(userInfo, currentPassword, newPassword)
-    } yield {
-      result
-    }
-    response match {
-      case Success(x) => AjaxResponse("OK")
-      case Failure(e) =>
-        e match {
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
-  }
-
+  // --------------------------------------------------------------------------
+  // auth api
+  // --------------------------------------------------------------------------
   post("/signin") {
-    val data = params.get("d").map(x => {
+    val json = params.get("d").map(x => {
       JsonMethods.parse(x).extract[SigninParams]
     }).getOrElse {
-      SigninParams(None, None)
+      SigninParams()
     }
 
-    AccountService.getAuthenticatedUser(data) match {
+    AccountService.findUserByIdAndPassword(json.id.getOrElse(""), json.password.getOrElse("")) match {
       case Success(x) =>
-        setUserInfoToSession(x)
-        AjaxResponse("OK", getUserInfoFromSession().get)
+        setSignedInUser(x)
+        AjaxResponse("OK", x)
       case Failure(e) =>
         clearSession()
-        clearSessionCookie()
         e match {
           case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
           case _ => AjaxResponse ("NG")
@@ -147,99 +68,158 @@ class ApiController extends ScalatraServlet
 
   post("/signout") {
     clearSession()
-    clearSessionCookie()
-    AjaxResponse("OK", getUserInfoFromSession().get)
+    AjaxResponse("OK", guestUser)
+  }
+
+  // --------------------------------------------------------------------------
+  // profile api
+  // --------------------------------------------------------------------------
+  get("/profile") {
+    signedInUser match {
+      case Success(x) => AjaxResponse("OK", x)
+      case Failure(e) => AjaxResponse("NG")
+    }
+  }
+
+  post("/profile") {
+    val json = params.get("d").map(JsonMethods.parse(_).extract[UpdateProfileParams])
+                               .getOrElse(UpdateProfileParams())
+    (for {
+      user <- signedInUser
+      userNew <- AccountService.updateUserProfile(user.id, json.name, json.fullname,json.organization,
+                                                  json.title, json.description, json.image)
+    } yield {
+      setSignedInUser(userNew)
+      userNew
+    }) match {
+      case Success(x) =>
+        AjaxResponse("OK", x)
+      case Failure(e) =>
+        e match {
+          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+          case _ => AjaxResponse("NG")
+        }
+    }
+  }
+
+  post("/profile/email_change_requests") {
+    val json = params.get("d").map(JsonMethods.parse(_).extract[UpdateMailAddressParams])
+                               .getOrElse(UpdateMailAddressParams())
+    (for {
+      user <- signedInUser
+      userNew <- AccountService.changeUserEmail(user.id, json.email)
+    } yield {
+      setSignedInUser(userNew)
+      userNew
+    }) match {
+      case Success(x) =>
+        AjaxResponse("OK", x)
+      case Failure(e) =>
+        e match {
+          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+          case _ => AjaxResponse("NG")
+        }
+    }
+  }
+
+  put("/profile/password") {
+    val json = params.get("d").map(JsonMethods.parse(_).extract[UpdatePasswordParams])
+                               .getOrElse(UpdatePasswordParams())
+    (for {
+      user <- signedInUser
+      _ <- AccountService.changeUserPassword(user.id, json.currentPassword, json.newPassword)
+    } yield {}) match {
+      case Success(_) =>
+        AjaxResponse("OK")
+      case Failure(e) =>
+        e match {
+          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+          case _ => AjaxResponse("NG")
+        }
+    }
   }
 
   // --------------------------------------------------------------------------
   // dataset api
-
+  // --------------------------------------------------------------------------
   post("/datasets") {
-    val files = fileMultiParams.get("file[]")
-
-    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
-
-    val response = for {
-      userInfo <- getUserInfoFromSession()
-      facadeParams = CreateDatasetParams(userInfo, files)
-      dataset <- DatasetService.create(facadeParams)
+    val files = fileMultiParams("files")
+    (for {
+      user <- signedInUser
+      dataset <- DatasetService.create(files, user)
     } yield {
-      AjaxResponse("OK", dataset)
-    }
-    response match {
-      case Success(x) => x
+      dataset
+    }) match {
+      case Success(x) =>
+        AjaxResponse("OK", x)
       case Failure(e) =>
         e match {
+          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
           case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse ("NG")
+          case _ => AjaxResponse("NG")
         }
     }
   }
 
   get("/datasets") {
-    val data = params.get("d").map(x => {
-      JsonMethods.parse(x).extract[SearchDatasetsParams]
-    }).getOrElse(
-      SearchDatasetsParams(None, List.empty, List.empty, List.empty, None, None)
-    )
-
-    val response = for {
-      user <- getUserInfoFromSession()
-      datasets <- DatasetService.search(data, user)
-    } yield {
-      AjaxResponse("OK", datasets)
-    }
-    response match {
-      case Success(x) => x
+    val json = params.get("d").map(JsonMethods.parse(_).extract[SearchDatasetsParams])
+                               .getOrElse(SearchDatasetsParams())
+    (for {
+      user <- signedInUser
+      datasets <- DatasetService.search(json.query, json.owners, json.groups, json.attributes,
+                                        json.limit, json.offset, user)
+    } yield datasets) match {
+      case Success(x) =>
+        AjaxResponse("OK", x)
       case Failure(e) =>
         e match {
+          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
           case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case e: Throwable =>
-            this.log("unkown", e)
+          case e =>
+            log(e.getMessage, e)
             AjaxResponse("NG")
         }
     }
   }
 
-  get("/datasets/:id") {
-    val id = params("id")
-    val response = for {
-      userInfo <- getUserInfoFromSession()
-      facadeParams = GetDatasetParams(id, userInfo)
-      dataset <- DatasetService.get(facadeParams)
-    } yield {
-      AjaxResponse("OK", dataset)
-    }
-    response match {
-      case Success(x) => x
+  get("/datasets/:datasetId") {
+    val id = params("datasetId")
+    (for {
+      user <- signedInUser
+      dataset <- DatasetService.get(id, user)
+    } yield dataset) match {
+      case Success(x) =>
+        AjaxResponse("OK", x)
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: NotFoundException=> AjaxResponse("NotFound")
-          case _ => AjaxResponse("NG")
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+          case e =>
+            log(e.getMessage, e)
+            AjaxResponse("NG")
         }
     }
   }
 
   post("/datasets/:datasetId/files") {
-    val files = fileMultiParams.get("files[]")
-    val datasetId = params("datasetId")
-
-    val response = for {
-      userInfo <- getUserInfoFromSession()
-      facadeParams = AddFilesToDatasetParams(userInfo, datasetId, files)
-      files <- DatasetService.addFiles(facadeParams)
-    } yield {
-      AjaxResponse("OK", files)
-    }
-    response match {
-      case Success(x) => x
+    val id = params("datasetId")
+    val files = fileMultiParams("files")
+    (for {
+      user <- signedInUser
+      datasets <- DatasetService.addFiles(id, files, user)
+    } yield datasets) match {
+      case Success(x) =>
+        AjaxResponse("OK", x)
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: NotFoundException => AjaxResponse("NotFound")
           case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
+          case e =>
+            log(e.getMessage, e)
+            AjaxResponse("NG")
         }
     }
   }
@@ -249,15 +229,12 @@ class ApiController extends ScalatraServlet
     val fileId = params("fileId")
     val file = fileParams.get("file")
 
-    val response = for {
-      userInfo <- getUserInfoFromSession()
-      facadeParams = UpdateFileParams(userInfo, datasetId, fileId, file)
-      file <- DatasetService.updateFile(facadeParams)
-    } yield {
-      AjaxResponse("OK", file)
-    }
-    response match {
-      case Success(x) => x
+    (for {
+      user <- signedInUser
+      file <- DatasetService.updateFile(datasetId, fileId, file, user)
+    } yield file) match {
+      case Success(x) =>
+        AjaxResponse("OK", x)
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
@@ -271,18 +248,14 @@ class ApiController extends ScalatraServlet
   put("/datasets/:datasetId/files/:fileId/metadata") {
     val datasetId = params("datasetId")
     val fileId = params("fileId")
-    val filename = params.get("name")
-    val description = params.get("description")
-
-    val response = for {
-      user <- getUserInfoFromSession()
-      facadeParams = ModifyDatasetMetadataParams(datasetId, fileId, filename, description)
-      files <- DatasetService.modifyFileMetadata(facadeParams, user)
-    } yield {
-      AjaxResponse("OK", files)
-    }
-    response match {
-      case Success(x) => x
+    val json = params.get("d").map(JsonMethods.parse(_).extract[ModifyDatasetMetadataParams])
+                               .getOrElse(ModifyDatasetMetadataParams())
+    (for {
+      user <- signedInUser
+      file <- DatasetService.modifyFileMetadata(datasetId, fileId, json.filename, json.description, user)
+    } yield file) match {
+      case Success(x) =>
+        AjaxResponse("OK", x)
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
@@ -297,19 +270,17 @@ class ApiController extends ScalatraServlet
     val datasetId = params("datasetId")
     val fileId = params("fileId")
 
-    val response = for {
-      userInfo <- getUserInfoFromSession()
-      facadeParams = DeleteDatasetFileParams(userInfo, datasetId, fileId)
-      result <- DatasetService.deleteDatasetFile(facadeParams)
-    } yield {
-      result
-    }
-    response match {
-      case Success(x) => AjaxResponse("OK")
+    (for {
+      user <- signedInUser
+      file <- DatasetService.deleteDatasetFile(datasetId, fileId, user)
+    } yield file) match {
+      case Success(x) =>
+        AjaxResponse("OK", x)
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
           case e: NotFoundException => AjaxResponse("NotFound")
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
           case _ => AjaxResponse("NG")
         }
     }
@@ -317,20 +288,13 @@ class ApiController extends ScalatraServlet
 
   put("/datasets/:datasetId/metadata") {
     val datasetId = params("datasetId")
-    val data = params.get("d").map(x => {
-      JsonMethods.parse(x).extract[ModifyDatasetMetaParams]
-    }).getOrElse {
-      ModifyDatasetMetaParams()
-    }
-
-    val response = for {
-      user <- getUserInfoFromSession()
-      result <- DatasetService.modifyDatasetMeta(datasetId, data, user)
-    } yield {
-      result
-    }
-    response match {
-      case Success(x) => AjaxResponse("OK")
+    val json = params.get("d").map(JsonMethods.parse(_).extract[ModifyDatasetMetaParams])
+                               .getOrElse(ModifyDatasetMetaParams())
+    (for {
+      user <- signedInUser
+      result <- DatasetService.modifyDatasetMeta(datasetId, json.name, json.description, json.license, json.attributes, user)
+    } yield {}) match {
+      case Success(_) => AjaxResponse("OK")
       case Failure(e) =>
         println(e)
         e match {
@@ -343,18 +307,14 @@ class ApiController extends ScalatraServlet
   }
 
   post("/datasets/:datasetId/images") {
-    val images = fileMultiParams.get("images")
     val datasetId = params("datasetId")
-
-    val response = for {
-      userInfo <- getUserInfoFromSession()
-      facadeParams = AddImagesToDatasetParams(userInfo, datasetId, images)
-      files <- DatasetService.addImages(facadeParams)
-    } yield {
-      AjaxResponse("OK", files)
-    }
-    response match {
-      case Success(x) => x
+    val images = fileMultiParams.get("images").getOrElse(Seq.empty)
+    (for {
+      user <- signedInUser
+      images <- DatasetService.addImages(datasetId, images, user)
+    } yield images) match {
+      case Success(x) =>
+        AjaxResponse("OK", x)
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
@@ -366,17 +326,14 @@ class ApiController extends ScalatraServlet
 
   put("/datasets/:datasetId/images/primary") {
     val datasetId = params("datasetId")
-    val id = params.get("id")
-
-    val response = for {
-      userInfo <- getUserInfoFromSession()
-      facadeParams = ChangePrimaryImageParams(userInfo, id, datasetId)
-      result <- DatasetService.changePrimaryImage(facadeParams)
-    } yield {
-      result
-    }
-    response match {
-      case Success(x) => AjaxResponse("OK")
+    val json = params.get("d").map(JsonMethods.parse(_).extract[ChangePrimaryImageParams])
+                               .getOrElse(ChangePrimaryImageParams())
+    (for {
+      user <- signedInUser
+      result <- DatasetService.changePrimaryImage(datasetId, json.imageId.getOrElse(""), user)
+    } yield result) match {
+      case Success(_) =>
+        AjaxResponse("OK")
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
@@ -389,17 +346,14 @@ class ApiController extends ScalatraServlet
 
   delete("/datasets/:datasetId/images/:imageId") {
     val datasetId = params("datasetId")
-    val imageId = params("imageId")
-
-    val response = for {
-      userInfo <- getUserInfoFromSession()
-      facadeParams = DeleteImageParams(userInfo, imageId, datasetId)
-      primaryImage <- DatasetService.deleteImage(facadeParams)
-    } yield {
-      AjaxResponse("OK", primaryImage)
-    }
-    response match {
-      case Success(x) => x
+    val json = params.get("d").map(JsonMethods.parse(_).extract[DeleteImageParams])
+                               .getOrElse(DeleteImageParams())
+    (for {
+      user <- signedInUser
+      primaryImage <- DatasetService.deleteImage(datasetId, json.imageId.getOrElse(""), user)
+    } yield primaryImage) match {
+      case Success(x) =>
+        AjaxResponse("OK", x)
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
@@ -411,18 +365,14 @@ class ApiController extends ScalatraServlet
 
   post("/datasets/:datasetId/acl") {
     val datasetId = params("datasetId")
-    val ids = multiParams("id[]")
-    val types = multiParams("type[]")
-    val accessLevels = multiParams("accessLevel[]")
-
+    val acl = params.get("d").map(JsonMethods.parse(_).extract[List[DataSetAccessControlItem]])
+                               .getOrElse(List.empty)
     (for {
-      userInfo <- getUserInfoFromSession()
-      facadeParams = AccessControlParams(datasetId, userInfo, ids, types, accessLevels)
-      result <- DatasetService.setAccessControl(facadeParams)
-    } yield {
-      result
-    }) match {
-      case Success(x) => AjaxResponse("OK", x)
+      user <- signedInUser
+      result <- DatasetService.setAccessControl(datasetId, acl, user)
+    } yield result) match {
+      case Success(x) =>
+        AjaxResponse("OK", x)
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
@@ -434,20 +384,34 @@ class ApiController extends ScalatraServlet
   }
 
   put("/datasets/:datasetId/guest_access") {
-    setGuestAccessControl(params("datasetId"), params.get("accessLevel"))
+    val datasetId = params("datasetId")
+    val json = params.get("d").map(JsonMethods.parse(_).extract[UpdateDatasetGuestAccessParams])
+                               .getOrElse(UpdateDatasetGuestAccessParams())
+    (for {
+      user <- signedInUser
+      result <- DatasetService.setGuestAccessLevel(datasetId, json.accessLevel.getOrElse(0), user)
+    } yield result) match {
+      case Success(_) =>
+        AjaxResponse("OK")
+      case Failure(e) =>
+        e match {
+          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case e: NotFoundException => AjaxResponse("NotFound")
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+          case _ => AjaxResponse("NG")
+        }
+    }
   }
 
   delete("/datasets/:datasetId") {
     val datasetId = params("datasetId")
 
-    val response = for {
-      userInfo <- getUserInfoFromSession()
-      result = DatasetService.deleteDataset(userInfo, datasetId)
-     } yield {
-      result
-    }
-    response match {
-      case Success(x) => AjaxResponse("OK")
+    (for {
+      user <- signedInUser
+      result = DatasetService.deleteDataset(datasetId, user)
+    } yield {}) match {
+      case Success(x) =>
+        AjaxResponse("OK")
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
@@ -459,7 +423,7 @@ class ApiController extends ScalatraServlet
 
   // --------------------------------------------------------------------------
   // group api
-
+  // --------------------------------------------------------------------------
   get("/groups") {
     val data = params.get("d").map(x => {
       JsonMethods.parse(x).extract[SearchGroupsParams]
@@ -467,14 +431,12 @@ class ApiController extends ScalatraServlet
       SearchGroupsParams()
     }
 
-    val response = for {
-      user <- getUserInfoFromSession()
+    (for {
+      user <- signedInUser
       groups <- GroupService.search(data, user)
-    } yield {
-      AjaxResponse("OK", groups)
-    }
-    response match {
-      case Success(x) => x
+    } yield groups) match {
+      case Success(x) =>
+        AjaxResponse("OK", x)
       case Failure(e) =>
         e match {
           case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
@@ -486,8 +448,8 @@ class ApiController extends ScalatraServlet
   get("/groups/:groupId") {
     val groupId = params("groupId")
     val response = for {
-      userInfo <- getUserInfoFromSession()
-      facadeParams = GetGroupParams(userInfo, groupId)
+      user <- signedInUser
+      facadeParams = GetGroupParams(user, groupId)
       dataset <- GroupService.get(facadeParams)
     } yield {
       AjaxResponse("OK", dataset)
@@ -508,8 +470,8 @@ class ApiController extends ScalatraServlet
     val offset = params.get("offset")
 
     val response = for {
-      userInfo <- getUserInfoFromSession()
-      facadeParams = GetGroupMembersParams(userInfo, groupId, limit, offset)
+      user <- signedInUser
+      facadeParams = GetGroupMembersParams(user, groupId, limit, offset)
       dataset <- GroupService.getGroupMembers(facadeParams)
     } yield {
       AjaxResponse("OK", dataset)
@@ -531,8 +493,8 @@ class ApiController extends ScalatraServlet
     if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
 
     val response = for {
-      userInfo <- getUserInfoFromSession()
-      facadeParams = CreateGroupParams(userInfo, name, description)
+      user <- signedInUser
+      facadeParams = CreateGroupParams(user, name, description)
       group <- GroupService.createGroup(facadeParams)
     } yield {
       AjaxResponse("OK", group)
@@ -553,8 +515,8 @@ class ApiController extends ScalatraServlet
     val description = params.get("description")
 
     val response = for {
-      userInfo <- getUserInfoFromSession()
-      facadeParams = ModifyGroupParams(userInfo, groupId, name, description)
+      user <- signedInUser
+      facadeParams = ModifyGroupParams(user, groupId, name, description)
       group <- GroupService.modifyGroup(facadeParams)
     } yield {
       AjaxResponse("OK", group)
@@ -576,8 +538,8 @@ class ApiController extends ScalatraServlet
     val images = fileMultiParams.get("images")
 
     val response = for {
-      userInfo <- getUserInfoFromSession()
-      facadeParams = AddImagesToGroupParams(userInfo, groupId, images)
+      user <- signedInUser
+      facadeParams = AddImagesToGroupParams(user, groupId, images)
       files <- GroupService.addImages(facadeParams)
     } yield {
       AjaxResponse("OK", files)
@@ -599,8 +561,8 @@ class ApiController extends ScalatraServlet
     val id = params.get("id")
 
     val response = for {
-      userInfo <- getUserInfoFromSession()
-      facadeParams = ChangeGroupPrimaryImageParams(userInfo, id, groupId)
+      user <- signedInUser
+      facadeParams = ChangeGroupPrimaryImageParams(user, id, groupId)
       result <- GroupService.changePrimaryImage(facadeParams)
     } yield {
       result
@@ -622,8 +584,8 @@ class ApiController extends ScalatraServlet
     val imageId = params("imageId")
 
     val response = for {
-      userInfo <- getUserInfoFromSession()
-      facadeParams = DeleteGroupImageParams(userInfo, imageId, groupId)
+      user <- signedInUser
+      facadeParams = DeleteGroupImageParams(user, imageId, groupId)
       primaryImage <- GroupService.deleteImage(facadeParams)
     } yield {
       AjaxResponse("OK", primaryImage)
@@ -645,8 +607,8 @@ class ApiController extends ScalatraServlet
     val roles = multiParams.get("role[]")
 
     val response = for {
-      userInfo <- getUserInfoFromSession()
-      facadeParams = SetUserRoleParams(userInfo, groupId, userIds, roles)
+      user <- signedInUser
+      facadeParams = SetUserRoleParams(user, groupId, userIds, roles)
       userIds <- GroupService.setUserRole(facadeParams)
     } yield {
       userIds
@@ -667,8 +629,8 @@ class ApiController extends ScalatraServlet
     val groupId = params("groupId")
 
     val response = for {
-      userInfo <- getUserInfoFromSession()
-      facadeParams = DeleteGroupParams(userInfo, groupId)
+      user <- signedInUser
+      facadeParams = DeleteGroupParams(user, groupId)
       result <- GroupService.deleteGroup(facadeParams)
     } yield {
       result
@@ -684,70 +646,38 @@ class ApiController extends ScalatraServlet
     }
   }
 
+  // --------------------------------------------------------------------------
   get("/system/is_valid_email") {
-    val value = params.get("value")
-    val response = for {
-      userInfo <- getUserInfoFromSession()
-      result <- AccountService.isValidEmail(userInfo, value)
-    } yield {
-      AjaxResponse("OK", result)
-    }
-    response match {
-      case Success(x) => x
-      case Failure(e) =>
-        e match {
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse ("NG")
-        }
-    }
+    // TODO not implemented
+    AjaxResponse("OK")
   }
 
   get("/licenses") {
-    val licenses = AccountService.getLicenses()
+    val licenses = SystemService.getLicenses()
     AjaxResponse("OK", licenses)
   }
 
   get("/accounts") {
-    val accounts = AccountService.getAccounts()
+    val accounts = SystemService.getAccounts()
     AjaxResponse("OK", accounts)
   }
 
   get("/suggests/users_and_groups") {
     val query = params.get("query")
-    val result = AccountService.getUsersAndGroups(query)
+    val result = SystemService.getUsersAndGroups(query)
     AjaxResponse("OK", result)
   }
 
   get("/suggests/attributes") {
     val query = params.get("query")
-    val attributes = AccountService.getAttributes(query)
+    val attributes = SystemService.getAttributes(query)
     AjaxResponse("OK", attributes)
   }
 
   get("/suggests/groups") {
     val query = params.get("query")
-    val groups = AccountService.getGroups(query)
+    val groups = SystemService.getGroups(query)
     AjaxResponse("OK", groups)
-  }
-
-  private def setGuestAccessControl(datasetId: String, accessLevel: Option[String]) = {
-    val aci = AccessControl(datasetId, AppConf.guestGroupId, accessLevel)
-
-    (for {
-      userInfo <- getUserInfoFromSession()
-      result <- DatasetService.setGroupAccessControl(userInfo, aci)
-    } yield {
-      result
-    }) match {
-      case Success(x) => AjaxResponse("OK")
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: NotFoundException => AjaxResponse("NotFound")
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
   }
 }
 

@@ -1,5 +1,6 @@
 package com.constructiveproof.example
 
+import dsmoq.services.User
 import org.scalatest.{BeforeAndAfter, FreeSpec}
 import org.scalatra.test.scalatest._
 
@@ -7,8 +8,8 @@ import org.json4s._
 import org.json4s.jackson.JsonMethods._
 import scalikejdbc.config.DBs
 import dsmoq.controllers.{AjaxResponse, ApiController}
-import dsmoq.services.data.{RangeSlice, User}
-import dsmoq.services.data.DatasetData.{DatasetsSummary, Dataset}
+import dsmoq.services.json.RangeSlice
+import dsmoq.services.json.DatasetData.{DatasetsSummary, Dataset}
 
 class OldServerApiTest extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats

@@ -1,4 +1,4 @@
-package dsmoq.services.data
+package dsmoq.services.json
 
 object ImageData {
   case class GetFileParams(

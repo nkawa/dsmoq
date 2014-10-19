@@ -13,7 +13,7 @@ class FileController extends ScalatraServlet with SessionTrait with FileUploadSu
     val id = params("id")
 
     val result = for {
-      user <- getUserInfoFromSession()
+      user <- signedInUser
       fileInfo <- DatasetService.getDownloadFile(datasetId, id, user)
     } yield {
       fileInfo

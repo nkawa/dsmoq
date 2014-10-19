@@ -3,7 +3,7 @@ package dsmoq.services
 import com.google.api.client.googleapis.auth.oauth2.{GoogleAuthorizationCodeRequestUrl, GoogleAuthorizationCodeFlow}
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.jackson.JacksonFactory
-import dsmoq.{AppConf, persistence}
+import dsmoq.{services, AppConf, persistence}
 import com.google.api.services.oauth2.Oauth2
 import org.joda.time.DateTime
 import java.util.UUID
@@ -54,7 +54,7 @@ object OAuthService {
             .eq(gu.googleId, googleUser.getId)
         }
         .map(persistence.User(u.resultName)).single().apply
-        .map(x => dsmoq.services.data.User(x, googleUser.getEmail))
+        .map(x => services.User(x, googleUser.getEmail))
 
         // ユーザーがなければユーザー作成
         val user = coiUser match {
@@ -130,6 +130,6 @@ object OAuthService {
       updatedAt = timestamp
     )
 
-    dsmoq.services.data.User(user, googleUser.getEmail)
+    services.User(user, googleUser.getEmail)
   }
 }

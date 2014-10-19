@@ -1,20 +1,21 @@
 package api
 
 import api.logic.SpecCommonLogic
+import dsmoq.services.User
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfter, FreeSpec}
 import org.scalatra.test.scalatest.ScalatraSuite
 import org.json4s.{DefaultFormats, Formats}
 import scalikejdbc.config.{DBsWithEnv, DBs}
 import dsmoq.controllers.{AjaxResponse, ApiController}
 import org.json4s.jackson.JsonMethods._
-import dsmoq.services.data.{MailValidationResult, License, User}
+import dsmoq.services.json.{MailValidationResult, License}
 import java.io.File
 import org.scalatra.servlet.MultipartConfig
 import dsmoq.persistence.SuggestType
-import dsmoq.services.data.GroupData.Group
+import dsmoq.services.json.GroupData.Group
 import java.util.UUID
 import dsmoq.AppConf
-import dsmoq.services.data.DatasetData.Dataset
+import dsmoq.services.json.DatasetData.Dataset
 
 class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats

@@ -141,12 +141,8 @@ class Service extends Stream<ServiceEvent> {
     }
 
     // TODO パラメータの見直し
-    public function updateDatasetACL(datasetId: String, acl: Array<{id: String, type: DatasetOwnershipType, accessLevel: DatasetPermission}>): Promise<Unit> {
-        return send(Post, '/api/datasets/$datasetId/acl', {
-            "id[]": acl.map(function (x) return x.id),
-            "type[]": acl.map(function (x) return x.type),
-            "accessLevel[]": acl.map(function (x) return x.accessLevel),
-        });
+    public function updateDatasetACL(datasetId: String, acl: Array<{id: String, ownerType: DatasetOwnershipType, accessLevel: DatasetPermission}>): Promise<Unit> {
+        return send(Post, '/api/datasets/$datasetId/acl', acl);
     }
 
     // setで代用可能

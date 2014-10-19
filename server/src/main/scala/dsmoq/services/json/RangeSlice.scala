@@ -1,4 +1,4 @@
-package dsmoq.services.data
+package dsmoq.services.json
 
 /**
  * Created by terurou on 2014/03/20.

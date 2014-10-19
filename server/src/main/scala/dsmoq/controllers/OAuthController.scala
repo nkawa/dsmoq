@@ -31,7 +31,7 @@ class OAuthController extends ScalatraServlet with SessionTrait {
         }) match {
           case Success(y) =>
             clearSession()
-            setUserInfoToSession(y)
+            setSignedInUser(y)
             redirect(userRedirectUri)
           case Failure(e) =>
             // 処理エラー時

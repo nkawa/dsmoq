@@ -1,4 +1,4 @@
-package dsmoq.services.data
+package dsmoq.services.json
 
 case class MailValidationResult (
   isValid: Boolean

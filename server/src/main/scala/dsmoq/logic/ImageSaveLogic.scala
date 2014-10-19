@@ -11,7 +11,7 @@ object ImageSaveLogic {
   val uploadPath = "upload"
   val imageSizes = Array(16, 32, 48, 128)
 
-  def writeImageFile(imageId: String, file: FileItem) {
+  def writeImageFile(imageId: String, file: FileItem): String = {
     // 拡張子判定(現状例外スロー)
     val fileType = file.name.split('.').last.toLowerCase
     if (!ImageIO.getWriterFormatNames.contains(fileType)) {
@@ -39,6 +39,8 @@ object ImageSaveLogic {
         java.awt.Image.SCALE_AREA_AVERAGING), 0, 0, scale._1, scale._2, null)
       ImageIO.write(thumbBufferedImage, fileType, (imageDir.toPath.resolve(size.toString).toFile))
     }
+
+    "/" + uploadPath + "/" + imageId
   }
 
   def calcResizeScale(width: Int, height: Int) = {

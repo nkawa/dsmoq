@@ -1,7 +1,5 @@
 package dsmoq.exceptions
 
-import scala.collection.mutable
-
 class InputValidationException(errors: Iterable[(String, String)]) extends RuntimeException{
   val validationErrors = errors
 

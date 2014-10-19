@@ -399,7 +399,7 @@ class DatasetEditPage {
                 Service.instance.updateDatasetACL(id, data.dataset.ownerships.map(function (x) {
                     return {
                         id: x.id,
-                        type: x.ownerType,
+                        ownerType: x.ownerType,
                         accessLevel: x.accessLevel
                     }
                 })).then(
