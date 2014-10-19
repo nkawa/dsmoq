@@ -14,6 +14,13 @@ trait SessionTrait extends ScalatraServlet {
       .getOrElse(cookies.get(sessionId).map(_ => true).getOrElse(false))
   }
 
+  def currentUser: User = {
+    signedInUser match {
+      case Success(x) => x
+      case Failure(_) => guestUser
+    }
+  }
+
   def signedInUser: Try[User] = {
     sessionOption match {
       case Some(_) => session.get(SessionKey) match {

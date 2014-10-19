@@ -138,27 +138,23 @@ object GroupService {
     }
   }
 
-  def getGroupMembers(params: GroupData.GetGroupMembersParams) = {
+  /**
+   * 指定したグループに所属するメンバーの一覧を取得します。
+   * @param groupId
+   * @param limit
+   * @param offset
+   * @param user
+   * @return
+   */
+  def getGroupMembers(groupId: String, limit: Option[Int], offset: Option[Int], user: User) = {
     try {
-      // FIXME input parameter check
-      val offset = try {
-        params.offset.getOrElse("0").toInt
-      } catch {
-        case e: Exception => throw new InputValidationException(Map("offset" -> "wrong parameter"))
-      }
-      val limit = try {
-        params.limit.getOrElse("20").toInt
-      } catch {
-        case e: Exception => throw new InputValidationException(Map("limit" -> "wrong parameter"))
-      }
+      val limit_ = limit.getOrElse(20)
+      val offset_ = offset.getOrElse(0)
 
       DB readOnly { implicit s =>
-        val members = getMembers(params.groupId, offset, limit)
-        val count = members.size
-
-        val summary = RangeSliceSummary(count, limit, offset)
-        val results = if (count > offset) {
-          members.map(x => {
+        val count = countMembers(groupId)
+        val members = if (count > 0) {
+          getMembers(groupId, offset_, limit_).map{x =>
             GroupData.MemberSummary(
               id = x._1.id,
               name = x._1.name,
@@ -168,14 +164,15 @@ object GroupService {
               image = AppConf.imageDownloadRoot + x._1.imageId,
               role = x._2
             )
-          })
+          }
         } else {
           List.empty
         }
-        Success(RangeSlice(summary, results))
+
+        Success(RangeSlice(RangeSliceSummary(count, limit_, offset_), members))
       }
     } catch {
-      case e: Exception => Failure(e)
+      case e: Throwable => Failure(e)
     }
   }
 
@@ -756,25 +753,42 @@ object GroupService {
     }.map(_.string(gi.resultName.imageId)).single().apply()
   }
 
-  private def getMembers(groupId: String, offset: Int, limit: Int)(implicit s: DBSession): Seq[(persistence.User, Int)] = {
-    val m = persistence.Member.syntax("m")
-    val u = persistence.User.syntax("u")
-    val g = persistence.Group.syntax("g")
+  private def countMembers(groupId: String)(implicit s: DBSession): Int = {
+    val m = persistence.Member.m
     withSQL {
-      select(u.result.*, m.role)
-        .from(persistence.User as u)
-        .innerJoin(persistence.Member as m).on(sqls.eq(m.userId, u.id).and.isNull(m.deletedAt))
-        .innerJoin(persistence.Group as g).on(sqls.eq(g.id, m.groupId).and.isNull(g.deletedAt))
-        .where
-        .eq(m.groupId, sqls.uuid(groupId))
-        .and
-        .not.eq(m.role, GroupMemberRole.Deny)
-        .and
-        .isNull(m.deletedAt)
-        .orderBy(m.role).desc.append(sqls", ").append(m.createdAt).desc
+      createMembersSql(select(sqls.count(m.id)), groupId)
+    }.map(rs => rs.int(1)).single().apply().get
+  }
+
+  private def getMembers(groupId: String, offset: Int, limit: Int)(implicit s: DBSession): Seq[(persistence.User, Int)] = {
+    val m = persistence.Member.m
+    val u = persistence.User.u
+    withSQL {
+      createMembersSql(select.apply(u.result.*, m.role), groupId)
+        .orderBy(m.role.desc, m.createdAt.desc)
         .offset(offset)
         .limit(limit)
     }.map(rs => (persistence.User(u.resultName)(rs), rs.int(persistence.Member.column.role))).list().apply()
+  }
+
+  private def createMembersSql[A](builder: SelectSQLBuilder[A], groupId: String) = {
+    val m = persistence.Member.m
+    val u = persistence.User.u
+    val g = persistence.Group.g
+    builder
+      .from(persistence.User as u)
+      .innerJoin(persistence.Member as m).on(sqls.eq(m.userId, u.id).and.isNull(m.deletedAt))
+      .innerJoin(persistence.Group as g).on(sqls.eq(g.id, m.groupId).and.isNull(g.deletedAt))
+      .where
+      .eqUuid(m.groupId, groupId)
+      .and
+      .not.eq(m.role, GroupMemberRole.Deny)
+      .and
+      .isNull(g.deletedAt)
+      .and
+      .isNull(m.deletedAt)
+      .and
+      .isNull(u.deletedAt)
   }
 
   private def getPrimaryImageId(groupId: String)(implicit s: DBSession) = {

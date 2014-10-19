@@ -75,10 +75,7 @@ class ApiController extends ScalatraServlet
   // profile api
   // --------------------------------------------------------------------------
   get("/profile") {
-    signedInUser match {
-      case Success(x) => AjaxResponse("OK", x)
-      case Failure(e) => AjaxResponse("NG")
-    }
+    AjaxResponse("OK", currentUser)
   }
 
   post("/profile") {
@@ -150,9 +147,7 @@ class ApiController extends ScalatraServlet
     (for {
       user <- signedInUser
       dataset <- DatasetService.create(files, user)
-    } yield {
-      dataset
-    }) match {
+    } yield dataset) match {
       case Success(x) =>
         AjaxResponse("OK", x)
       case Failure(e) =>
@@ -167,11 +162,8 @@ class ApiController extends ScalatraServlet
   get("/datasets") {
     val json = params.get("d").map(JsonMethods.parse(_).extract[SearchDatasetsParams])
                                .getOrElse(SearchDatasetsParams())
-    (for {
-      user <- signedInUser
-      datasets <- DatasetService.search(json.query, json.owners, json.groups, json.attributes,
-                                        json.limit, json.offset, user)
-    } yield datasets) match {
+    DatasetService.search(json.query, json.owners, json.groups, json.attributes,
+                          json.limit, json.offset, currentUser) match {
       case Success(x) =>
         AjaxResponse("OK", x)
       case Failure(e) =>
@@ -187,10 +179,7 @@ class ApiController extends ScalatraServlet
 
   get("/datasets/:datasetId") {
     val id = params("datasetId")
-    (for {
-      user <- signedInUser
-      dataset <- DatasetService.get(id, user)
-    } yield dataset) match {
+    DatasetService.get(id, currentUser) match {
       case Success(x) =>
         AjaxResponse("OK", x)
       case Failure(e) =>
@@ -431,10 +420,7 @@ class ApiController extends ScalatraServlet
       SearchGroupsParams()
     }
 
-    (for {
-      user <- signedInUser
-      groups <- GroupService.search(data, user)
-    } yield groups) match {
+    GroupService.search(data, currentUser) match {
       case Success(x) =>
         AjaxResponse("OK", x)
       case Failure(e) =>
@@ -447,15 +433,8 @@ class ApiController extends ScalatraServlet
 
   get("/groups/:groupId") {
     val groupId = params("groupId")
-    val response = for {
-      user <- signedInUser
-      facadeParams = GetGroupParams(user, groupId)
-      dataset <- GroupService.get(facadeParams)
-    } yield {
-      AjaxResponse("OK", dataset)
-    }
-    response match {
-      case Success(x) => x
+    GroupService.get(GetGroupParams(currentUser, groupId)) match {
+      case Success(x) => AjaxResponse("OK", x)
       case Failure(e) =>
         e match {
           case e: NotFoundException => AjaxResponse("NotFound")
@@ -466,18 +445,11 @@ class ApiController extends ScalatraServlet
 
   get("/groups/:groupId/members") {
     val groupId = params("groupId")
-    val limit = params.get("limit")
-    val offset = params.get("offset")
-
-    val response = for {
-      user <- signedInUser
-      facadeParams = GetGroupMembersParams(user, groupId, limit, offset)
-      dataset <- GroupService.getGroupMembers(facadeParams)
-    } yield {
-      AjaxResponse("OK", dataset)
-    }
-    response match {
-      case Success(x) => x
+    val json = params.get("d").map(x => JsonMethods.parse(x).extract[GetGroupMembersParams])
+                               .getOrElse(GetGroupMembersParams())
+    GroupService.getGroupMembers(groupId, json.limit, json.offset, currentUser) match {
+      case Success(x) =>
+        AjaxResponse("OK", x)
       case Failure(e) =>
         e match {
           case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
