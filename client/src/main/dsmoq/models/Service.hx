@@ -204,7 +204,7 @@ class Service extends Stream<ServiceEvent> {
     public function changeGroupImage(groupId: String, form: JqHtml): Promise<{images: Array<Image>, primaryImage: String}> {
         // TODO 既存イメージ削除
         return sendForm('/api/groups/$groupId/images', form).flatMap(function (res) {
-            return send(Put, '/api/groups/$groupId/images/primary', { id: res.images[0].id } ).map(function (_) {
+            return send(Put, '/api/groups/$groupId/images/primary', { imageId: res.images[0].id } ).map(function (_) {
                 return { images: cast res.images, primaryImage: cast res.images[0].id };
             });
         });
@@ -224,29 +224,11 @@ class Service extends Stream<ServiceEvent> {
     }
 
     public function updateGroupMemberRoles(groupId: String, memberRoles: Array<{id: String, role: GroupRole}>): Promise<Unit> {
-        return send(Post, '/api/groups/$groupId/members', {
-            "id[]": memberRoles.map(function (x) return x.id),
-            "role[]": memberRoles.map(function (x) return x.role)
-        });
+        return send(Post, '/api/groups/$groupId/members', memberRoles);
     }
 
     public function deleteGroup(groupId: String): Promise<Unit> {
         return send(Delete, '/api/groups/$groupId');
-    }
-
-
-    public function getUsers(page: PositiveInt): Promise<Profile> {
-        return send(Get, '/api/accounts');
-    }
-
-    public function getOwner(name: String): Promise<SuggestedOwner> {
-        return send(Get, '/api/suggests/users_and_groups', {query: name}).flatMap(function (list: Array<SuggestedOwner>) {
-            return if (list.length > 0 && list[0].name == name) {
-                Promise.fulfilled(list[0]);
-            } else {
-                Promise.rejected(new Error("NotFound"));
-            }
-        });
     }
 
 

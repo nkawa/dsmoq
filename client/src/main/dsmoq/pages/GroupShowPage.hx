@@ -54,7 +54,7 @@ class GroupShowPage {
                 Notification.show("error", "error happened");
             });
 
-            Service.instance.findDatasets({groups: [id]}).then(function (x) {
+            Service.instance.findDatasets({groups: [res.name]}).then(function (x) {
                 var datasets = {
                     index: Math.ceil(x.summary.offset / 20),
                     total: x.summary.total,

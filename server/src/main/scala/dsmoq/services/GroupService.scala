@@ -8,6 +8,7 @@ import dsmoq.persistence.{GroupAccessLevel, GroupMemberRole, GroupType, PresetTy
 import dsmoq.services.json.{Image, RangeSlice, RangeSliceSummary, _}
 import dsmoq.{AppConf, persistence}
 import org.joda.time.DateTime
+import org.scalatra.servlet.FileItem
 import scalikejdbc._
 import dsmoq.persistence.PostgresqlHelper._
 
@@ -17,27 +18,34 @@ import scala.util.{Failure, Success, Try}
 object GroupService {
   /**
    * グループを検索します。
-   * @param params
+   * @param query
+   * @param member
+   * @param limit
+   * @param offset
    * @param user
    * @return
    */
-  def search(params: GroupData.SearchGroupsParams, user: User): Try[RangeSlice[GroupData.GroupsSummary]] = {
+  def search(query: Option[String] = None,
+             member: Option[String] = None,
+             limit: Option[Int] = None,
+             offset: Option[Int] = None,
+             user: User): Try[RangeSlice[GroupData.GroupsSummary]] = {
     try {
-      val offset = params.offset.getOrElse(0)
-      val limit = params.limit.getOrElse(20)
+      val offset_ = offset.getOrElse(0)
+      val limit_ = limit.getOrElse(20)
 
       DB readOnly { implicit s =>
-        val count = countGroup(params.query, params.user)
+        val count = countGroup(query, member)
 
         val result = if (count > 0) {
-          val groups = selectGroup(params.query, params.user, limit, offset)
+          val groups = selectGroup(query, member, limit_, offset_)
 
           val groupIds = groups.map(_.id)
           val datasetsCount = countDatasets(groupIds)
           val membersCount = countMembers(groupIds)
           val groupImages = getGroupImageIds(groups.map(_.id))
 
-          RangeSlice(RangeSliceSummary(count, limit, offset), groups.map(x => {
+          RangeSlice(RangeSliceSummary(count, limit_, offset_), groups.map(x => {
             GroupData.GroupsSummary(
               id = x.id,
               name = x.name,
@@ -51,39 +59,39 @@ object GroupService {
             )
           }))
         } else {
-          RangeSlice(RangeSliceSummary(0, limit, offset), List.empty[GroupData.GroupsSummary])
+          RangeSlice(RangeSliceSummary(0, limit_, offset_), List.empty[GroupData.GroupsSummary])
         }
 
         Success(result)
       }
     } catch {
-      case e: Exception => Failure(e)
+      case e: Throwable => Failure(e)
     }
   }
 
-  private def countGroup(query: Option[String], user: Option[String])(implicit s: DBSession): Int = {
+  private def countGroup(query: Option[String], member: Option[String])(implicit s: DBSession): Int = {
     val g = persistence.Group.g
     withSQL {
-      createGroupSelectSql(select.apply(sqls.countDistinct(g.id)), query, user)
+      createGroupSelectSql(select.apply(sqls.countDistinct(g.id)), query, member)
     }.map(rs => rs.int(1)).single().apply.get
   }
 
-  private def selectGroup(query: Option[String], user: Option[String], limit: Int, offset: Int)(implicit s: DBSession) = {
+  private def selectGroup(query: Option[String], member: Option[String], limit: Int, offset: Int)(implicit s: DBSession) = {
     val g = persistence.Group.g
     withSQL {
-      createGroupSelectSql(select.apply(sqls.distinct(g.resultAll)), query, user)
+      createGroupSelectSql(select.apply(sqls.distinct(g.resultAll)), query, member)
         .orderBy(g.updatedAt).desc
         .limit(limit).offset(offset)
     }.map(rs => persistence.Group(g.resultName)(rs)).list().apply
   }
 
-  private def createGroupSelectSql[A](builder: SelectSQLBuilder[A], query: Option[String], user: Option[String]) = {
+  private def createGroupSelectSql[A](builder: SelectSQLBuilder[A], query: Option[String], member: Option[String]) = {
     val g = persistence.Group.g
     val m = persistence.Member.m
     builder
       .from(persistence.Group as g)
         .map { sql =>
-          user match {
+      member match {
             case Some(_) => sql.innerJoin(persistence.Member as m).on(m.groupId, g.id)
             case None => sql
           }
@@ -91,7 +99,7 @@ object GroupService {
       .where
         .eq(g.groupType, persistence.GroupType.Public).and.isNull(g.deletedAt)
         .map { sql =>
-          user match {
+      member match {
             case Some(x) => sql.and.eqUuid(m.userId, x).and.isNull(m.deletedAt)
             case None => sql
           }
@@ -104,18 +112,23 @@ object GroupService {
         }
   }
 
-  def get(params: GroupData.GetGroupParams): Try[GroupData.Group] = {
+  /**
+   * 指定したIDのグループを取得します。
+   * @param groupId
+   * @param user
+   * @return
+   */
+  def get(groupId: String, user: User): Try[GroupData.Group] = {
     try {
       DB readOnly { implicit s =>
-        val group = getGroup(params.groupId) match {
+        val group = getGroup(groupId) match {
           case Some(x) => x
           case None => throw new NotFoundException
         }
 
         val images = getGroupImage(group.id)
         val primaryImage = getGroupPrimaryImageId(group.id)
-        println(primaryImage)
-        val groupRole = getGroupRole(params.userInfo, group.id)
+        val groupRole = getGroupRole(user, group.id)
 
         Success(GroupData.Group(
           id = group.id,
@@ -134,7 +147,7 @@ object GroupService {
         ))
       }
     } catch {
-      case e: Exception => Failure(e)
+      case e: Throwable => Failure(e)
     }
   }
 
@@ -176,47 +189,38 @@ object GroupService {
     }
   }
 
-  def createGroup(params: GroupData.CreateGroupParams) = {
-    if (params.userInfo.isGuest) throw new NotAuthorizedException
-
+  /**
+   * グループを新規作成します。
+   * @param name
+   * @param description
+   * @param user
+   * @return
+   */
+  def createGroup(name: String, description: String, user: User) = {
     try {
       DB localTx { implicit s =>
+        val name_ = StringUtil.trimAllSpaces(name)
+
         // input validation
         val errors = mutable.LinkedHashMap.empty[String, String]
 
-        val name = StringUtil.trimAllSpaces(params.name.getOrElse(""))
-        if (name.isEmpty) {
+        if (name_.isEmpty) {
           errors.put("name", "name is empty")
-        } else {
-          // 同名チェック
-          val g = persistence.Group.syntax("g")
-          val sameNameGroups = withSQL {
-            select(g.result.id)
-              .from(persistence.Group as g)
-              .where
-              .lowerEq(g.name, name)
-              .and
-              .eq(g.groupType, GroupType.Public)
-              .and
-              .isNull(g.deletedAt)
-          }.map(_.string(g.resultName.id)).list().apply
-          if (sameNameGroups.size != 0) {
-            errors += ("name" -> "same name")
-          }
+        } else if (existsSameNameGroup(name_)) {
+          errors.put("name", "same name")
         }
-        val description = params.description.getOrElse("")
 
-        if (errors.size != 0) {
+        if (errors.nonEmpty) {
           throw new InputValidationException(errors)
         }
 
-        val myself = persistence.User.find(params.userInfo.id).get
+        val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
         val groupId = UUID.randomUUID.toString
 
         val group = persistence.Group.create(
           id = groupId,
-          name = name,
+          name = name_,
           description = description,
           groupType = persistence.GroupType.Public,
           createdBy = myself.id,
@@ -264,64 +268,72 @@ object GroupService {
     }
   }
 
-  def modifyGroup(params: GroupData.ModifyGroupParams) = {
-    if (params.userInfo.isGuest) throw new NotAuthorizedException
+  private def existsSameNameGroup(name: String)(implicit s: DBSession): Boolean = {
+    val g = persistence.Group.g
+    withSQL {
+      select(sqls"1")
+        .from(persistence.Group as g)
+        .where
+        .lowerEq(g.name, name)
+        .and
+        .eq(g.groupType, GroupType.Public)
+        .and
+        .isNull(g.deletedAt)
+        .limit(1)
+    }.map(_ => Unit).single().apply.isDefined
+  }
 
+  /**
+   * グループの基本情報を更新します。
+   * @param groupId
+   * @param name
+   * @param description
+   * @param user
+   * @return
+   */
+  def updateGroup(groupId: String, name: String, description: String, user: User) = {
     try {
       DB localTx { implicit s =>
+        val name_ = StringUtil.trimAllSpaces(name)
+
         // input validation
         val errors = mutable.LinkedHashMap.empty[String, String]
-        val name = StringUtil.trimAllSpaces(params.name.getOrElse(""))
-        if (name.isEmpty) {
+
+        if (name_.isEmpty) {
           errors.put("name", "name is empty")
-        } else {
-          // 同名チェック
-          val g = persistence.Group.syntax("g")
-          val sameNameGroups = withSQL {
-            select(g.result.id)
-              .from(persistence.Group as g)
-              .where
-              .lowerEq(g.name, name)
-              .and
-              .ne(g.id, sqls.uuid(params.groupId))
-              .and
-              .eq(g.groupType, GroupType.Public)
-              .and
-              .isNull(g.deletedAt)
-          }.map(_.string(g.resultName.id)).list().apply
-          if (sameNameGroups.size != 0) {
-            errors.put("name", "same name")
-          }
+        } else if (existsSameNameGroup(name_)) {
+          errors.put("name", "same name")
         }
-        val description = params.description.getOrElse("")
-        if (errors.size != 0) {
+
+        if (errors.nonEmpty) {
           throw new InputValidationException(errors)
         }
 
-        getGroup(params.groupId) match {
+        getGroup(groupId) match {
           case Some(x) =>
             // 権限チェック
-            if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
-          case None => throw new NotFoundException
+            if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
+          case None =>
+            throw new NotFoundException
         }
 
-        val myself = persistence.User.find(params.userInfo.id).get
+        val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
 
         withSQL {
           val g = persistence.Group.column
           update(persistence.Group)
-            .set(g.name -> name, g.description -> description,
+            .set(g.name -> name_, g.description -> description,
             g.updatedBy -> sqls.uuid(myself.id), g.updatedAt -> timestamp)
             .where
-            .eq(g.id, sqls.uuid(params.groupId))
+            .eq(g.id, sqls.uuid(groupId))
             .and
             .isNull(g.deletedAt)
         }.update().apply
 
-        val group = persistence.Group.find(params.groupId)
-        val images = getGroupImage(params.groupId)
-        val primaryImage = getGroupPrimaryImageId(params.groupId)
+        val group = persistence.Group.find(groupId)
+        val images = getGroupImage(groupId)
+        val primaryImage = getGroupPrimaryImageId(groupId)
 
         Success(GroupData.Group(
           id = group.get.id,
@@ -333,96 +345,140 @@ object GroupService {
           )),
           primaryImage = primaryImage.getOrElse(""),
           isMember = true,
-          role = getGroupRole(params.userInfo, group.get.id).getOrElse(0)
+          role = getGroupRole(user, group.get.id).getOrElse(0)
         ))
       }
     } catch {
-      case e: Exception => Failure(e)
+      case e: Throwable => Failure(e)
     }
   }
 
-  def setUserRole(params: GroupData.SetUserRoleParams) = {
-    if (params.userInfo.isGuest) throw new NotAuthorizedException
+  /**
+   * 指定したグループに画像を追加します。
+   * @param groupId
+   * @param images
+   * @param user
+   * @return
+   */
+  def addImages(groupId: String, images: Seq[FileItem], user: User) = {
+    try {
+      DB localTx { implicit s =>
+        getGroup(groupId) match {
+          case Some(x) =>
+            if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
+          case None =>
+            throw new NotFoundException
+        }
 
+        val myself = persistence.User.find(user.id).get
+        val timestamp = DateTime.now()
+        val primaryImage = getPrimaryImageId(groupId)
+        var isFirst = true
+
+        val addedImages = images.filter(x => x.name.nonEmpty).map(i => {
+          val imageId = UUID.randomUUID().toString
+          val bufferedImage = javax.imageio.ImageIO.read(i.getInputStream)
+          val image = persistence.Image.create(
+            id = imageId,
+            name = i.getName,
+            width = bufferedImage.getWidth,
+            height = bufferedImage.getWidth,
+            filePath = "/" + ImageSaveLogic.uploadPath + "/" + imageId,
+            presetType = PresetType.Default,
+            createdBy = myself.id,
+            createdAt = DateTime.now,
+            updatedBy = myself.id,
+            updatedAt = DateTime.now
+          )
+          val groupImage = persistence.GroupImage.create(
+            id = UUID.randomUUID.toString,
+            groupId = groupId,
+            imageId = imageId,
+            isPrimary = if (isFirst && primaryImage.isEmpty) true else false,
+            createdBy = myself.id,
+            createdAt = timestamp,
+            updatedBy = myself.id,
+            updatedAt = timestamp
+          )
+          isFirst = false
+          // write image
+          ImageSaveLogic.writeImageFile(imageId, i)
+          image
+        })
+
+        Success(GroupData.GroupAddImages(
+          images = addedImages.map(x => Image(id = x.id, url = AppConf.imageDownloadRoot + x.id)),
+          primaryImage = getPrimaryImageId(groupId).getOrElse("")
+        ))
+      }
+    } catch {
+      case e: Throwable => Failure(e)
+    }
+  }
+
+  /**
+   * 指定したグループのユーザロールを設定します。
+   * @param groupId
+   * @param roles
+   * @param user
+   * @return
+   */
+  def setUserRole(groupId: String, roles: Seq[GroupMember], user: User) = {
     try {
       DB localTx { implicit s =>
         // input parameter check
-        val errors = mutable.LinkedHashMap.empty[String, String]
-        val userIds = params.userIds match {
-          case Some(x) => x
-          case None =>
-            errors.put("id", "ID is empty")
-            Seq.empty
-        }
-        userIds.foreach { x =>
-          if (!isValidUser(x)) errors.put("id", "ID is not found")
-        }
-
-        val roles = params.roles match {
-          case Some(x) =>
-            try {
-              x.map(_.toInt)
-            } catch {
-              case e: Exception =>
-                errors.put("role", "role format error")
-                Seq.empty
-            }
-          case None =>
-            errors.put("role", "role is empty")
-            Seq.empty
-        }
-        roles.foreach { r =>
-          r match {
-            case GroupMemberRole.Deny => // do nothing
-            case GroupMemberRole.Manager => // do nothing
-            case GroupMemberRole.Member => // do nothing
-            case _ => errors.put("role", "role value error")
+        val errors = mutable.MutableList.empty[(String, String)]
+        roles.foreach {x =>
+          if (x.id.isEmpty) {
+            errors += ("id" -> "ID is empty")
+          } else if (!List(GroupMemberRole.Deny, GroupMemberRole.Member, GroupMemberRole.Manager).contains(x.role)) {
+            errors += ("role" -> "role is empty")
           }
         }
-        if (errors.size != 0) {
+        if (errors.nonEmpty) {
           throw new InputValidationException(errors)
         }
 
-        getGroup(params.groupId) match {
+        getGroup(groupId) match {
           case Some(x) =>
-            // 権限チェック
-            if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
-          case None => throw new NotFoundException
+            if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
+          case None =>
+            throw new NotFoundException
         }
 
-        val myself = persistence.User.find(params.userInfo.id).get
+        val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
 
-        (0 to userIds.size - 1).foreach {i =>
-          val user = persistence.User.find(userIds(i)).get
+        roles.foreach {x =>
+          val user = persistence.User.find(x.id).get
           val m = persistence.Member.syntax("m")
           withSQL {
             select(m.result.*)
               .from(persistence.Member as m)
               .where
-              .eq(m.userId, sqls.uuid(userIds(i)))
+              .eq(m.userId, sqls.uuid(x.id))
               .and
-              .eq(m.groupId, sqls.uuid(params.groupId))
+              .eq(m.groupId, sqls.uuid(groupId))
           }.map(persistence.Member(m.resultName)).single().apply match {
             case Some(x) =>
               // create
               val m = persistence.Member.column
               withSQL {
                 update(persistence.Member)
-                  .set(m.role -> roles(i), m.status -> 1, m.updatedAt -> timestamp, m.updatedBy -> sqls.uuid(myself.id),
+                  .set(m.role -> x.role, m.status -> 1, m.updatedAt -> timestamp, m.updatedBy -> sqls.uuid(myself.id),
                     m.deletedAt -> null, m.deletedBy -> null)
                   .where
-                  .eq(m.userId, sqls.uuid(userIds(i)))
+                  .eq(m.userId, sqls.uuid(x.userId))
                   .and
-                  .eq(m.groupId, sqls.uuid(params.groupId))
+                  .eq(m.groupId, sqls.uuid(groupId))
               }.update().apply
             case None =>
               // update
               persistence.Member.create(
                 id = UUID.randomUUID.toString,
-                groupId = params.groupId,
+                groupId = groupId,
                 userId = user.id,
-                role = roles(i),
+                role = x.role,
                 status = 1,
                 createdBy = myself.id,
                 createdAt = timestamp,
@@ -431,26 +487,32 @@ object GroupService {
               )
           }
         }
-        Success(userIds)
+        Success(Unit)
       }
     } catch {
-      case e: Exception => Failure(e)
+      case e: Throwable => Failure(e)
     }
   }
 
-  def deleteGroup(params: GroupData.DeleteGroupParams) = {
-    if (params.userInfo.isGuest) throw new NotAuthorizedException
+  /**
+   * 指定したグループを削除します。
+   * @param groupId
+   * @param user
+   * @return
+   */
+  def deleteGroup(groupId: String, user: User) = {
+    if (user.isGuest) throw new NotAuthorizedException
 
     try {
       val result = DB localTx { implicit s =>
-        getGroup(params.groupId) match {
+        getGroup(groupId) match {
           case Some(x) =>
             // 権限チェック
-            if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
+            if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
           case None => throw new NotFoundException
         }
 
-        val myself = persistence.User.find(params.userInfo.id).get
+        val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
 
         withSQL {
@@ -459,7 +521,7 @@ object GroupService {
             .set(g.deletedBy -> sqls.uuid(myself.id), g.deletedAt -> timestamp,
               g.updatedBy -> sqls.uuid(myself.id), g.updatedAt -> timestamp)
             .where
-            .eq(g.id, sqls.uuid(params.groupId))
+            .eq(g.id, sqls.uuid(groupId))
             .and
             .isNull(g.deletedAt)
         }.update().apply
@@ -470,186 +532,133 @@ object GroupService {
     }
   }
 
-  def addImages(params: GroupData.AddImagesToGroupParams) = {
-    if (params.userInfo.isGuest) throw new NotAuthorizedException
+  /**
+   * 指定したグループのプライマリ画像を変更します。
+   * @param groupId
+   * @param imageId
+   * @param user
+   * @return
+   */
+  def changePrimaryImage(groupId: String, imageId: String, user: User): Try[Unit] = {
+    try {
+      DB localTx { implicit s =>
+        getGroup(groupId) match {
+          case Some(x) =>
+            if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
+            if (!existsGroupImage(groupId, imageId)) throw new NotFoundException
+          case None =>
+            throw new NotFoundException
+        }
 
-    val inputImages = params.images match {
-      case Some(x) => x.filter(_.name.length != 0)
-      case None => Seq.empty
+        val myself = persistence.User.find(user.id).get
+        val timestamp = DateTime.now()
+        withSQL {
+          val gi = persistence.GroupImage.column
+          update(persistence.GroupImage)
+            .set(gi.isPrimary -> true, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
+            .where
+            .eq(gi.imageId, sqls.uuid(imageId))
+            .and
+            .eq(gi.groupId, sqls.uuid(groupId))
+            .and
+            .isNull(gi.deletedAt)
+        }.update().apply
+
+        withSQL {
+          val gi = persistence.GroupImage.column
+          update(persistence.GroupImage)
+            .set(gi.isPrimary -> false, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
+            .where
+            .ne(gi.imageId, sqls.uuid(imageId))
+            .and
+            .eq(gi.groupId, sqls.uuid(groupId))
+            .and
+            .isNull(gi.deletedAt)
+        }.update().apply
+
+        Success(Unit)
+      }
+    } catch {
+      case e: Throwable => Failure(e)
     }
-    if (inputImages.size == 0) throw new InputValidationException(Map("image" -> "image is empty"))
+  }
 
-    DB localTx { implicit s =>
-      getGroup(params.groupId) match {
-        case Some(x) =>
-          // 権限チェック
-          if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
-        case None => throw new NotFoundException
+  /**
+   * 指定したグループの画像を削除します。
+   * @param groupId
+   * @param imageId
+   * @param user
+   * @return
+   */
+  def deleteImage(groupId: String, imageId: String, user: User) = {
+    try {
+      val primaryImage = DB localTx { implicit s =>
+        getGroup(groupId) match {
+          case Some(x) =>
+            if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
+            if (!existsGroupImage(groupId, imageId)) throw new NotFoundException
+          case None =>
+            throw new NotFoundException
+        }
+
+        val myself = persistence.User.find(user.id).get
+        val timestamp = DateTime.now()
+        withSQL {
+          val gi = persistence.GroupImage.column
+          update(persistence.GroupImage)
+            .set(gi.deletedBy -> sqls.uuid(myself.id), gi.deletedAt -> timestamp, gi.isPrimary -> false,
+              gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
+            .where
+            .eq(gi.groupId, sqls.uuid(groupId))
+            .and
+            .eq(gi.imageId, sqls.uuid(imageId))
+            .and
+            .isNull(gi.deletedAt)
+        }.update().apply
+
+        getPrimaryImageId(groupId) match {
+          case Some(x) => x
+          case None =>
+            // primaryImageの差し替え
+            val gi = persistence.GroupImage.syntax("di")
+            val i = persistence.Image.syntax("i")
+
+            // primaryImageとなるImageを取得
+            val primaryImage = withSQL {
+              select(gi.result.id, i.result.id)
+                .from(persistence.Image as i)
+                .innerJoin(persistence.GroupImage as gi).on(i.id, gi.imageId)
+                .where
+                .eq(gi.groupId, sqls.uuid(groupId))
+                .and
+                .isNull(gi.deletedAt)
+                .and
+                .isNull(i.deletedAt)
+                .orderBy(gi.createdAt).asc
+                .limit(1)
+            }.map(rs => (rs.string(gi.resultName.id), rs.string(i.resultName.id))).single().apply
+
+            primaryImage match {
+              case Some(x) =>
+                val gi = persistence.GroupImage.column
+                withSQL {
+                  update(persistence.GroupImage)
+                    .set(gi.isPrimary -> true, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
+                    .where
+                    .eq(gi.id, sqls.uuid(x._1))
+                }.update().apply
+                x._2
+              case None => ""
+            }
+        }
       }
 
-      val myself = persistence.User.find(params.userInfo.id).get
-      val timestamp = DateTime.now()
-      val primaryImage = getPrimaryImageId(params.groupId)
-      var isFirst = true
-
-      val images = inputImages.map(i => {
-        val imageId = UUID.randomUUID().toString
-        val bufferedImage = javax.imageio.ImageIO.read(i.getInputStream)
-        val image = persistence.Image.create(
-          id = imageId,
-          name = i.getName,
-          width = bufferedImage.getWidth,
-          height = bufferedImage.getWidth,
-          filePath = "/" + ImageSaveLogic.uploadPath + "/" + imageId,
-          presetType = PresetType.Default,
-          createdBy = myself.id,
-          createdAt = DateTime.now,
-          updatedBy = myself.id,
-          updatedAt = DateTime.now
-        )
-        val groupImage = persistence.GroupImage.create(
-          id = UUID.randomUUID.toString,
-          groupId = params.groupId,
-          imageId = imageId,
-          isPrimary = if (isFirst && primaryImage.isEmpty) true else false,
-          createdBy = myself.id,
-          createdAt = timestamp,
-          updatedBy = myself.id,
-          updatedAt = timestamp
-        )
-        isFirst = false
-        // write image
-        ImageSaveLogic.writeImageFile(imageId, i)
-        image
-      })
-
-      Success(GroupData.GroupAddImages(
-        images = images.map(x => Image(
-          id = x.id,
-          url = AppConf.imageDownloadRoot + x.id
-        )),
-        primaryImage = getPrimaryImageId(params.groupId).getOrElse("")
+      Success(GroupData.GroupDeleteImage(
+        primaryImage = primaryImage
       ))
+    } catch {
+      case e: Throwable => Failure(e)
     }
-  }
-  
-  def changePrimaryImage(params: GroupData.ChangeGroupPrimaryImageParams) = {
-    if (params.userInfo.isGuest) throw new NotAuthorizedException
-
-    // input validation check
-    val imageId = params.id match {
-      case Some(x) => x
-      case None => throw new InputValidationException(Map("id" -> "id is empty"))
-    }
-
-    DB localTx { implicit s =>
-      getGroup(params.groupId) match {
-        case Some(x) =>
-          // 権限チェック
-          if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
-          // image_idの存在チェック
-          if (!isValidGroupImage(params.groupId, imageId)) throw new NotFoundException
-        case None => throw new NotFoundException
-      }
-
-      val myself = persistence.User.find(params.userInfo.id).get
-      val timestamp = DateTime.now()
-      withSQL {
-        val gi = persistence.GroupImage.column
-        update(persistence.GroupImage)
-          .set(gi.isPrimary -> true, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
-          .where
-          .eq(gi.imageId, sqls.uuid(imageId))
-          .and
-          .eq(gi.groupId, sqls.uuid(params.groupId))
-          .and
-          .isNull(gi.deletedAt)
-      }.update().apply
-
-      withSQL{
-        val gi = persistence.GroupImage.column
-        update(persistence.GroupImage)
-          .set(gi.isPrimary -> false, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
-          .where
-          .ne(gi.imageId, sqls.uuid(imageId))
-          .and
-          .eq(gi.groupId, sqls.uuid(params.groupId))
-          .and
-          .isNull(gi.deletedAt)
-      }.update().apply
-
-      Success(params.id)
-    }
-  }
-
-  def deleteImage(params: GroupData.DeleteGroupImageParams) = {
-    if (params.userInfo.isGuest) throw new NotAuthorizedException
-
-    val primaryImage = DB localTx { implicit s =>
-      getGroup(params.groupId) match {
-        case Some(x) =>
-          // 権限チェック
-          if (!isGroupAdministrator(params.userInfo, params.groupId)) throw new NotAuthorizedException
-          // image_idの存在チェック
-          if (!isValidGroupImage(params.groupId, params.imageId)) throw new NotFoundException
-        case None => throw new NotFoundException
-      }
-
-      val myself = persistence.User.find(params.userInfo.id).get
-      val timestamp = DateTime.now()
-      withSQL {
-        val gi = persistence.GroupImage.column
-        update(persistence.GroupImage)
-          .set(gi.deletedBy -> sqls.uuid(myself.id), gi.deletedAt -> timestamp, gi.isPrimary -> false,
-            gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
-          .where
-          .eq(gi.groupId, sqls.uuid(params.groupId))
-          .and
-          .eq(gi.imageId, sqls.uuid(params.imageId))
-          .and
-          .isNull(gi.deletedAt)
-      }.update().apply
-
-      getPrimaryImageId(params.groupId) match {
-        case Some(x) => x
-        case None =>
-          // primaryImageの差し替え
-          val gi = persistence.GroupImage.syntax("di")
-          val i = persistence.Image.syntax("i")
-
-          // primaryImageとなるImageを取得
-          val primaryImage = withSQL {
-            select(gi.result.id, i.result.id)
-              .from(persistence.Image as i)
-              .innerJoin(persistence.GroupImage as gi).on(i.id, gi.imageId)
-              .where
-              .eq(gi.groupId, sqls.uuid(params.groupId))
-              .and
-              .isNull(gi.deletedAt)
-              .and
-              .isNull(i.deletedAt)
-              .orderBy(gi.createdAt).asc
-              .limit(1)
-          }.map(rs => (rs.string(gi.resultName.id), rs.string(i.resultName.id))).single().apply
-
-          primaryImage match {
-            case Some(x) =>
-              val gi = persistence.GroupImage.column
-              withSQL {
-                update(persistence.GroupImage)
-                  .set(gi.isPrimary -> true, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
-                  .where
-                  .eq(gi.id, sqls.uuid(x._1))
-              }.update().apply
-              x._2
-            case None => ""
-          }
-      }
-    }
-
-    Success(GroupData.GroupDeleteImage(
-      primaryImage = primaryImage
-    ))
   }
   private def getGroup(groupId: String)(implicit s: DBSession) = {
     if (StringUtil.isUUID(groupId)) {
@@ -848,7 +857,7 @@ object GroupService {
     }.map(x => true).single.apply().getOrElse(false)
   }
   
-  private def isValidGroupImage(groupId: String, imageId: String)(implicit s: DBSession) = {
+  private def existsGroupImage(groupId: String, imageId: String)(implicit s: DBSession) = {
     val gi = persistence.GroupImage.syntax("gi")
     val i = persistence.Image.syntax("i")
     withSQL {

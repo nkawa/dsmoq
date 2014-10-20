@@ -120,7 +120,6 @@ class GroupEditPage {
                 switch (data.members) {
                     case Async.Completed(members):
                         var name = Typeahead.getVal(root.find("#group-user-typeahead"));
-                        trace(name);
                         engine.get(name, function (res) {
                             if (res.length == 1) {
                                 var item: GroupMember = {

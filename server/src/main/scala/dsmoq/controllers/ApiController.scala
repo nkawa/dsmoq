@@ -9,10 +9,6 @@ import dsmoq.services._
 import scala.util.{Success, Failure}
 import org.scalatra.servlet.FileUploadSupport
 import dsmoq.controllers.json._
-import dsmoq.services.json.DatasetData._
-import dsmoq.services.json.GroupData._
-import dsmoq.forms._
-import dsmoq.AppConf
 import dsmoq.exceptions.{InputValidationException, NotFoundException, NotAuthorizedException}
 
 class ApiController extends ScalatraServlet
@@ -127,7 +123,7 @@ class ApiController extends ScalatraServlet
   // dataset api
   // --------------------------------------------------------------------------
   post("/datasets") {
-    val files = fileMultiParams("files")
+    val files = fileMultiParams("file[]")
     (for {
       user <- signedInUser
       dataset <- DatasetService.create(files, user)
@@ -221,8 +217,8 @@ class ApiController extends ScalatraServlet
   put("/datasets/:datasetId/files/:fileId/metadata") {
     val datasetId = params("datasetId")
     val fileId = params("fileId")
-    val json = params.get("d").map(JsonMethods.parse(_).extract[ModifyDatasetFileMetadataParams])
-                               .getOrElse(ModifyDatasetFileMetadataParams())
+    val json = params.get("d").map(JsonMethods.parse(_).extract[UpdateDatasetFileMetadataParams])
+                               .getOrElse(UpdateDatasetFileMetadataParams())
     (for {
       user <- signedInUser
       file <- DatasetService.updateFileMetadata(datasetId, fileId, json.name.getOrElse(""), json.description.getOrElse(""), user)
@@ -261,8 +257,8 @@ class ApiController extends ScalatraServlet
 
   put("/datasets/:datasetId/metadata") {
     val datasetId = params("datasetId")
-    val json = params.get("d").map(JsonMethods.parse(_).extract[ModifyDatasetMetaParams])
-                               .getOrElse(ModifyDatasetMetaParams())
+    val json = params.get("d").map(JsonMethods.parse(_).extract[UpdateDatasetMetaParams])
+                               .getOrElse(UpdateDatasetMetaParams())
     (for {
       user <- signedInUser
       result <- DatasetService.modifyDatasetMeta(datasetId, json.name, json.description, json.license, json.attributes, user)
@@ -378,7 +374,6 @@ class ApiController extends ScalatraServlet
 
   delete("/datasets/:datasetId") {
     val datasetId = params("datasetId")
-
     (for {
       user <- signedInUser
       result = DatasetService.deleteDataset(datasetId, user)
@@ -398,13 +393,9 @@ class ApiController extends ScalatraServlet
   // group api
   // --------------------------------------------------------------------------
   get("/groups") {
-    val data = params.get("d").map(x => {
-      JsonMethods.parse(x).extract[SearchGroupsParams]
-    }).getOrElse {
-      SearchGroupsParams()
-    }
-
-    GroupService.search(data, currentUser) match {
+    val json = params.get("d").map(JsonMethods.parse(_).extract[SearchGroupsParams])
+                               .getOrElse(SearchGroupsParams())
+    GroupService.search(json.query, json.user, json.limit, json.offset, currentUser) match {
       case Success(x) =>
         AjaxResponse("OK", x)
       case Failure(e) =>
@@ -417,8 +408,9 @@ class ApiController extends ScalatraServlet
 
   get("/groups/:groupId") {
     val groupId = params("groupId")
-    GroupService.get(GetGroupParams(currentUser, groupId)) match {
-      case Success(x) => AjaxResponse("OK", x)
+    GroupService.get(groupId, currentUser) match {
+      case Success(x) =>
+        AjaxResponse("OK", x)
       case Failure(e) =>
         e match {
           case e: NotFoundException => AjaxResponse("NotFound")
@@ -443,20 +435,14 @@ class ApiController extends ScalatraServlet
   }
 
   post("/groups") {
-    val name = params.get("name")
-    val description = params.get("description")
-
-    if (!isValidSession()) halt(body = AjaxResponse("Unauthorized"))
-
-    val response = for {
+    val json = params.get("d").map(x => JsonMethods.parse(x).extract[CreateGroupParams])
+                               .getOrElse(CreateGroupParams())
+    (for {
       user <- signedInUser
-      facadeParams = CreateGroupParams(user, name, description)
-      group <- GroupService.createGroup(facadeParams)
-    } yield {
-      AjaxResponse("OK", group)
-    }
-    response match {
-      case Success(x) => x
+      group <- GroupService.createGroup(json.name.getOrElse(""), json.description.getOrElse(""), user)
+    } yield group) match {
+      case Success(x) =>
+        AjaxResponse("OK", x)
       case Failure(e) =>
         e match {
           case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
@@ -467,18 +453,14 @@ class ApiController extends ScalatraServlet
 
   put("/groups/:groupId") {
     val groupId = params("groupId")
-    val name = params.get("name")
-    val description = params.get("description")
-
-    val response = for {
+    val json = params.get("d").map(x => JsonMethods.parse(x).extract[UpdateGroupParams])
+                               .getOrElse(UpdateGroupParams())
+    (for {
       user <- signedInUser
-      facadeParams = ModifyGroupParams(user, groupId, name, description)
-      group <- GroupService.modifyGroup(facadeParams)
-    } yield {
-      AjaxResponse("OK", group)
-    }
-    response match {
-      case Success(x) => x
+      group <- GroupService.updateGroup(groupId, json.name.getOrElse(""), json.description.getOrElse(""), user)
+    } yield group) match {
+      case Success(x) =>
+        AjaxResponse("OK", x)
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
@@ -491,17 +473,13 @@ class ApiController extends ScalatraServlet
 
   post("/groups/:groupId/images") {
     val groupId = params("groupId")
-    val images = fileMultiParams.get("images")
-
-    val response = for {
+    val images = fileMultiParams.get("images").getOrElse(Seq.empty)
+    (for {
       user <- signedInUser
-      facadeParams = AddImagesToGroupParams(user, groupId, images)
-      files <- GroupService.addImages(facadeParams)
-    } yield {
-      AjaxResponse("OK", files)
-    }
-    response match {
-      case Success(x) => x
+      files <- GroupService.addImages(groupId, images, user)
+    } yield files) match {
+      case Success(x) =>
+        AjaxResponse("OK", x)
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
@@ -514,17 +492,14 @@ class ApiController extends ScalatraServlet
 
   put("/groups/:groupId/images/primary") {
     val groupId = params("groupId")
-    val id = params.get("id")
-
-    val response = for {
+    val json = params.get("d").map(x => JsonMethods.parse(x).extract[ChangeGroupPrimaryImageParams])
+                               .getOrElse(ChangeGroupPrimaryImageParams())
+    (for {
       user <- signedInUser
-      facadeParams = ChangeGroupPrimaryImageParams(user, id, groupId)
-      result <- GroupService.changePrimaryImage(facadeParams)
-    } yield {
-      result
-    }
-    response match {
-      case Success(x) => AjaxResponse("OK")
+      _ <- GroupService.changePrimaryImage(groupId, json.imageId.getOrElse(""), user)
+    } yield {}) match {
+      case Success(x) =>
+        AjaxResponse("OK")
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
@@ -538,16 +513,12 @@ class ApiController extends ScalatraServlet
   delete("/groups/:groupId/images/:imageId") {
     val groupId = params("groupId")
     val imageId = params("imageId")
-
-    val response = for {
+    (for {
       user <- signedInUser
-      facadeParams = DeleteGroupImageParams(user, imageId, groupId)
-      primaryImage <- GroupService.deleteImage(facadeParams)
-    } yield {
-      AjaxResponse("OK", primaryImage)
-    }
-    response match {
-      case Success(x) => x
+      primaryImage <- GroupService.deleteImage(groupId, imageId, user)
+    } yield primaryImage) match {
+      case Success(x) =>
+        AjaxResponse("OK", x)
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
@@ -559,18 +530,14 @@ class ApiController extends ScalatraServlet
 
   post("/groups/:groupId/members") {
     val groupId = params("groupId")
-    val userIds = multiParams.get("id[]")
-    val roles = multiParams.get("role[]")
-
-    val response = for {
+    val roles = params.get("d").map(JsonMethods.parse(_).extract[List[GroupMember]])
+                                .getOrElse(List.empty)
+    (for {
       user <- signedInUser
-      facadeParams = SetUserRoleParams(user, groupId, userIds, roles)
-      userIds <- GroupService.setUserRole(facadeParams)
-    } yield {
-      userIds
-    }
-    response match {
-      case Success(x) => AjaxResponse("OK")
+      _ <- GroupService.setUserRole(groupId, roles, user)
+    } yield {}) match {
+      case Success(x) =>
+        AjaxResponse("OK")
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")
@@ -583,16 +550,12 @@ class ApiController extends ScalatraServlet
 
   delete("/groups/:groupId") {
     val groupId = params("groupId")
-
-    val response = for {
+    (for {
       user <- signedInUser
-      facadeParams = DeleteGroupParams(user, groupId)
-      result <- GroupService.deleteGroup(facadeParams)
-    } yield {
-      result
-    }
-    response match {
-      case Success(x) => AjaxResponse("OK")
+      _ <- GroupService.deleteGroup(groupId, user)
+    } yield {}) match {
+      case Success(_) =>
+        AjaxResponse("OK")
       case Failure(e) =>
         e match {
           case e: NotAuthorizedException => AjaxResponse("Unauthorized")

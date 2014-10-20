@@ -183,17 +183,24 @@ object DatasetService {
 
       DB readOnly { implicit s =>
         val joinedGroups = getJoinedGroups(user)
-        val userGroupIds = getGroupIdsByUserName(owners)
-        val groupIds = getGroupIdsByGroupName(groups)
 
-        val count = countDataSets(joinedGroups, query, userGroupIds, groupIds, attributes)
-        val records = if (count > 0) {
-          findDataSets(joinedGroups, query, userGroupIds, groupIds, attributes, limit_, offset_)
-        } else {
-          List.empty
+        (for {
+          userGroupIds <- getGroupIdsByUserName(owners)
+          groupIds <- getGroupIdsByGroupName(groups)
+        } yield {
+          (userGroupIds, groupIds)
+        }) match {
+          case Some(x) =>
+            val count = countDataSets(joinedGroups, query, x._1, x._2, attributes)
+            val records = if (count > 0) {
+              findDataSets(joinedGroups, query, x._1, x._2, attributes, limit_, offset_)
+            } else {
+              List.empty
+            }
+            Success(RangeSlice(RangeSliceSummary(count, limit_, offset_), records))
+          case None =>
+            Success(RangeSlice(RangeSliceSummary(0, limit_, offset_), List.empty))
         }
-
-        Success(RangeSlice(RangeSliceSummary(count, limit_, offset_), records))
       }
     } catch {
       case e: Throwable => Failure(e)
@@ -205,7 +212,7 @@ object DatasetService {
       val g = persistence.Group.g
       val m = persistence.Member.m
       val u = persistence.User.u
-      withSQL {
+      val groups = withSQL {
         select.apply(g.id)
           .from(persistence.Group as g)
           .innerJoin(persistence.Member as m).on(m.groupId, g.id)
@@ -221,15 +228,20 @@ object DatasetService {
           .and
           .isNull(u.deletedAt)
       }.map(rs => rs.string(1)).list().apply()
+      if (groups.nonEmpty) {
+        Some(groups)
+      } else {
+        None
+      }
     } else {
-      List.empty
+      Some(List.empty)
     }
   }
 
   private def getGroupIdsByGroupName(names: Seq[String])(implicit s: DBSession) = {
     if (names.nonEmpty) {
       val g = persistence.Group.g
-      withSQL {
+      val groups = withSQL {
         select.apply(g.id)
           .from(persistence.Group as g)
           .where
@@ -239,8 +251,13 @@ object DatasetService {
           .and
           .isNull(g.deletedAt)
       }.map(rs => rs.string(1)).list().apply()
+      if (groups.nonEmpty) {
+        Some(groups)
+      } else {
+        None
+      }
     } else {
-      List.empty
+      Some(List.empty)
     }
   }
 

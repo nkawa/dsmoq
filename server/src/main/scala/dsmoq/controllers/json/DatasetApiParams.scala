@@ -11,12 +11,12 @@ case class SearchDatasetsParams(
   offset: Option[Int] = None
 )
 
-case class ModifyDatasetFileMetadataParams(
+case class UpdateDatasetFileMetadataParams(
   name: Option[String] = None,
   description: Option[String] = None
 )
 
-case class ModifyDatasetMetaParams(
+case class UpdateDatasetMetaParams(
   name: Option[String] = None,
   description: Option[String] = None,
   license: Option[String] = None,
