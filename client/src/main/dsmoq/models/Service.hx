@@ -92,7 +92,8 @@ class Service extends Stream<ServiceEvent> {
                 primaryImage: cast Lambda.find(a.images, function (x) return x.id == a.primaryImage),
                 ownerships: cast a.ownerships,
                 defaultAccessLevel: cast a.defaultAccessLevel,
-                permission: cast a.permission
+                permission: cast a.permission,
+                accessCount: a.accessCount
             };
         });
     }

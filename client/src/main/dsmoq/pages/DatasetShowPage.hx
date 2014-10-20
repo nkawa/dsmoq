@@ -38,7 +38,8 @@ class DatasetShowPage {
                 canDownload: switch (res.permission) {
                     case DatasetPermission.Write, DatasetPermission.Read: true;
                     case _: false;
-                }
+                },
+                accessCount: res.accessCount
             }));
 
             html.find("#dataset-edit").on("click", function (_) {

@@ -141,7 +141,8 @@ object DatasetService {
             ownerType = OwnerType.User
           )),
           defaultAccessLevel = DefaultAccessLevel.Deny,
-          permission = ownership.accessLevel
+          permission = ownership.accessLevel,
+          accessCount = 0
         ))
       }
     } catch {
@@ -505,14 +506,10 @@ object DatasetService {
           attributes <- Some(getAttributes(id))
           images <- Some(getImages(id))
           primaryImage <- getPrimaryImageId(id)
+          count <- Some(getAccessCount(id))
         } yield {
-          println(dataset)
-          // 権限チェック
           // FIXME チェック時、user権限はUserAccessLevelクラス, groupの場合はGroupAccessLevelクラスの定数を使用する
           // (UserAndGroupAccessDeny 定数を削除する)
-          // 旧仕様ではuser/groupは同じ権限を付与していたが、
-          // 現仕様はuser/groupによって権限の扱いが異なる(groupには編集権限は付与しない)
-          // 実装時間の都合と現段階の実装でも問題がない(値が同じ)ため対応していない
           if (permission == UserAndGroupAccessDeny) {
             throw new NotAuthorizedException
           }
@@ -531,7 +528,8 @@ object DatasetService {
             primaryImage = primaryImage,
             ownerships = owners,
             defaultAccessLevel = guestAccessLevel,
-            permission = permission
+            permission = permission,
+            accessCount = count
           )
         })
         .map(x => Success(x)).getOrElse(Failure(new NotAuthorizedException()))
@@ -1721,6 +1719,11 @@ object DatasetService {
         .and
         .isNull(i.deletedAt)
     }.map(rs => rs.string(i.resultName.id)).single().apply
+  }
+
+  private def getAccessCount(datasetId: String)(implicit s: DBSession): Long = {
+    var dal = persistence.DatasetAccessLog.dal
+    persistence.DatasetAccessLog.countBy(sqls.eqUuid(dal.datasetId, datasetId))
   }
 
   private def existsImage(datasetId: String, imageId: String)(implicit s: DBSession) = {

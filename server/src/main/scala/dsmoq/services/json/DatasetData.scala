@@ -29,7 +29,8 @@ object DatasetData {
     primaryImage: String,
     ownerships: Seq[DatasetOwnership],
     defaultAccessLevel: Int,
-    permission: Int
+    permission: Int,
+    accessCount: Long
   )
 
   case class DatasetMetaData(

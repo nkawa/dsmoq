@@ -9,4 +9,5 @@ typedef Dataset = {
     var ownerships(default, null): Array<DatasetOwnership>;
     var defaultAccessLevel(default, null): DatasetGuestAccessLevel;
     var permission(default, null): DatasetPermission;
+    var accessCount(default, null): Int;
 }
