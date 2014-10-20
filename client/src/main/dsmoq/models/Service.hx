@@ -130,7 +130,7 @@ class Service extends Stream<ServiceEvent> {
     public function changeDatasetImage(datasetId: String, form: JqHtml): Promise<{images: Array<Image>, primaryImage: String}> {
         // TODO 既存イメージ削除
         return sendForm('/api/datasets/$datasetId/images', form).flatMap(function (res) {
-            return send(Put, '/api/datasets/$datasetId/images/primary', { id: res.images[0].id } ).map(function (_) {
+            return send(Put, '/api/datasets/$datasetId/images/primary', { imageId: res.images[0].id } ).map(function (_) {
                 return { images: cast res.images, primaryImage: cast res.images[0].id };
             });
         });

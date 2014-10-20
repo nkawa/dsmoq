@@ -16,8 +16,6 @@ import hxgnd.Unit;
 import js.bootstrap.BootstrapButton;
 import js.html.Element;
 import js.html.Event;
-import js.typeahead.Bloodhound;
-import js.typeahead.Typeahead;
 import dsmoq.views.AutoComplete;
 import hxgnd.Result;
 import hxgnd.Error;
@@ -52,7 +50,7 @@ class DatasetEditPage {
         }
 
         function removeAttributeTypeahead(root: JqHtml) {
-            Typeahead.destroy(root.find(".attribute-typeahead"));
+            AutoComplete.destroy(root.find(".attribute-typeahead"));
         }
 
         var rootBinding = JsViews.observable({ data: dsmoq.Async.Pending });
@@ -378,18 +376,16 @@ class DatasetEditPage {
 
             // Access Control
             root.find("#dataset-owner-add").on("click", function (_) {
-                var name = Typeahead.getVal(root.find("#dataset-owner-typeahead"));
-                Service.instance.getOwner(name).then(function (owner) {
-                    var ownerships = JsViews.observable(data.dataset.ownerships);
-                    ownerships.insert({
-                        id: owner.id,
-                        name: owner.name,
-                        fullname: owner.fullname,
-                        organization: owner.organization,
-                        image: owner.image,
-                        ownerType: owner.dataType,
-                        accessLevel: 1,
-                    });
+                var owner = AutoComplete.getCompletedItem(root.find("#dataset-owner-typeahead"));
+                var ownerships = JsViews.observable(data.dataset.ownerships);
+                ownerships.insert({
+                    id: owner.id,
+                    name: owner.name,
+                    fullname: owner.fullname,
+                    organization: owner.organization,
+                    image: owner.image,
+                    ownerType: owner.dataType,
+                    accessLevel: 1,
                 });
             });
             root.find("#dataset-ownership-submit").on("click", function (_) {

@@ -221,11 +221,11 @@ class ApiController extends ScalatraServlet
   put("/datasets/:datasetId/files/:fileId/metadata") {
     val datasetId = params("datasetId")
     val fileId = params("fileId")
-    val json = params.get("d").map(JsonMethods.parse(_).extract[ModifyDatasetMetadataParams])
-                               .getOrElse(ModifyDatasetMetadataParams())
+    val json = params.get("d").map(JsonMethods.parse(_).extract[ModifyDatasetFileMetadataParams])
+                               .getOrElse(ModifyDatasetFileMetadataParams())
     (for {
       user <- signedInUser
-      file <- DatasetService.modifyFileMetadata(datasetId, fileId, json.filename, json.description, user)
+      file <- DatasetService.updateFileMetadata(datasetId, fileId, json.name.getOrElse(""), json.description.getOrElse(""), user)
     } yield file) match {
       case Success(x) =>
         AjaxResponse("OK", x)

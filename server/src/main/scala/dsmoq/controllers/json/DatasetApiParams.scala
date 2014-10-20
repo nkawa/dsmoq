@@ -11,8 +11,8 @@ case class SearchDatasetsParams(
   offset: Option[Int] = None
 )
 
-case class ModifyDatasetMetadataParams(
-  filename: Option[String] = None,
+case class ModifyDatasetFileMetadataParams(
+  name: Option[String] = None,
   description: Option[String] = None
 )
 

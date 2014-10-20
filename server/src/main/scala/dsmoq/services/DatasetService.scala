@@ -680,12 +680,9 @@ object DatasetService {
    * @param user
    * @return
    */
-  def modifyFileMetadata(datasetId: String, fileId: String, filename: Option[String],
-                         description: Option[String], user: User) = {
+  def updateFileMetadata(datasetId: String, fileId: String, filename: String,
+                         description: String, user: User) = {
     try {
-      val filename_ = StringUtil.trimAllSpaces(filename.getOrElse(""))
-      val description_ = description.getOrElse("")
-
       // input validation
       val errors = mutable.LinkedHashMap.empty[String, String]
 
