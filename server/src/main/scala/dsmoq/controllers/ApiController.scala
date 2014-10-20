@@ -159,7 +159,10 @@ class ApiController extends ScalatraServlet
 
   get("/datasets/:datasetId") {
     val id = params("datasetId")
-    DatasetService.get(id, currentUser) match {
+    (for {
+      dataset <- DatasetService.get(id, currentUser)
+      _ <- SystemService.writeDatasetAccessLog(dataset.id, currentUser)
+    } yield dataset) match {
       case Success(x) =>
         AjaxResponse("OK", x)
       case Failure(e) =>

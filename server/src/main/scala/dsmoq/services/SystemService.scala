@@ -1,11 +1,28 @@
 package dsmoq.services
 
+import java.util.UUID
+
 import dsmoq.{AppConf, persistence}
 import dsmoq.persistence.{SuggestType, GroupType}
 import dsmoq.services.json.SuggestData
+import org.joda.time.DateTime
 import scalikejdbc._
+import scala.util.{Failure, Success, Try}
 
 object SystemService {
+  def writeDatasetAccessLog(datasetId: String, user: User): Try[Unit] = {
+    try {
+      DB localTx { implicit s =>
+        if (persistence.Dataset.find(datasetId).nonEmpty) {
+          persistence.DatasetAccessLog.create(UUID.randomUUID().toString, datasetId, user.id, DateTime.now)
+        }
+      }
+      Success(Unit)
+    } catch {
+      case e: Throwable => Failure(e)
+    }
+  }
+
   def getLicenses()  = {
     val licenses = DB readOnly { implicit s =>
       persistence.License.findOrderedAll()

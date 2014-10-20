@@ -10,7 +10,7 @@ libraryDependencies += "org.postgresql" % "postgresql" % "9.3-1100-jdbc41"
 
 addSbtPlugin("org.scalatra.sbt" % "scalatra-sbt" % "0.3.2")
 
-addSbtPlugin("org.scalikejdbc" %% "scalikejdbc-mapper-generator" % "1.7.4")
+addSbtPlugin("org.scalikejdbc" %% "scalikejdbc-mapper-generator" % "2.1.1")
 
 // addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.7.0-SNAPSHOT")
 

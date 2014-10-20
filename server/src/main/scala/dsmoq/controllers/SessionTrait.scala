@@ -1,5 +1,6 @@
 package dsmoq.controllers
 
+import dsmoq.AppConf
 import dsmoq.exceptions.NotAuthorizedException
 import dsmoq.services.User
 import org.scalatra.ScalatraServlet
@@ -41,7 +42,7 @@ trait SessionTrait extends ScalatraServlet {
   }
 
   def guestUser = {
-    User("", "", "", "", "", "http://xxxx", "", "", true, false)
+    User(AppConf.guestUserId, "", "", "", "", "http://xxxx", "", "", true, false)
   }
 
   def clearSession() {
