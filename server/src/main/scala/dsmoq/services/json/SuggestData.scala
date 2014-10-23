@@ -1,24 +1,35 @@
 package dsmoq.services.json
 
+import dsmoq.persistence.SuggestType
+
 object SuggestData {
   case class User(
-                          dataType: Int,
-                          id: String,
-                          name: String,
-                          fullname: String,
-                          organization: String,
-                          image: String
-                          )
-  case class Group(
-                           dataType: Int,
-                           id: String,
-                           name: String,
-                           image: String
-                           )
+    id: String,
+    name: String,
+    fullname: String,
+    organization: String,
+    image: String
+  )
 
-  case class GroupWithoutType(
-   id: String,
-   name: String,
-   image: String
+  case class UserWithType(
+    id: String,
+    name: String,
+    fullname: String,
+    organization: String,
+    image: String,
+    dataType: Int = SuggestType.User
+   )
+
+  case class Group(
+    id: String,
+    name: String,
+    image: String
+  )
+
+  case class GroupWithType(
+    id: String,
+    name: String,
+    image: String,
+    dataType: Int = SuggestType.Group
   )
 }

@@ -584,6 +584,18 @@ class ApiController extends ScalatraServlet
     AjaxResponse("OK", accounts)
   }
 
+  get("/suggests/users") {
+    val query = params.get("query")
+    val users = SystemService.getUsers(query)
+    AjaxResponse("OK", users)
+  }
+
+  get("/suggests/groups") {
+    val query = params.get("query")
+    val groups = SystemService.getGroups(query)
+    AjaxResponse("OK", groups)
+  }
+
   get("/suggests/users_and_groups") {
     val query = params.get("query")
     val result = SystemService.getUsersAndGroups(query)
@@ -594,12 +606,6 @@ class ApiController extends ScalatraServlet
     val query = params.get("query")
     val attributes = SystemService.getAttributes(query)
     AjaxResponse("OK", attributes)
-  }
-
-  get("/suggests/groups") {
-    val query = params.get("query")
-    val groups = SystemService.getGroups(query)
-    AjaxResponse("OK", groups)
   }
 }
 

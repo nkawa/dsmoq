@@ -52,6 +52,74 @@ object SystemService {
     }
   }
 
+  def getUsers(query: Option[String]) = {
+    DB readOnly { implicit s =>
+      val u = persistence.User.u
+      withSQL {
+        select.all[persistence.User](u)
+          .from(persistence.User as u)
+          .where
+          .isNull(u.deletedAt)
+          .map{sql =>
+            query match {
+              case Some(x) =>
+                sql.and.like(u.name, x + "%").or.like(u.fullname, x + "%")
+              case None =>
+                sql
+            }
+          }
+          .orderBy(sqls"name")
+          .limit(100)
+      }.map(persistence.User(u.resultName)(_)).list().apply.map {x =>
+          SuggestData.User(
+            id = x.id,
+            name = x.name,
+            fullname = x.fullname,
+            organization = x.organization,
+            image = AppConf.imageDownloadRoot + x.imageId
+          )
+      }
+    }
+  }
+
+  /**
+   * グループの一覧を取得します。
+   * @param param
+   * @return
+   */
+  def getGroups(param: Option[String]) = {
+    val query = param match {
+      case Some(x) => x + "%"
+      case None => ""
+    }
+
+    val g = persistence.Group.g
+    val gi = persistence.GroupImage.gi
+    DB readOnly { implicit s =>
+      withSQL {
+        select(g.result.*, gi.result.*)
+          .from(persistence.Group as g)
+          .innerJoin(persistence.GroupImage as gi)
+          .on(sqls.eq(g.id, gi.groupId).and.eq(gi.isPrimary, true).and.isNull(gi.deletedAt))
+          .where
+          .like(g.name, query)
+          .and
+          .eq(g.groupType, GroupType.Public)
+          .and
+          .isNull(g.deletedAt)
+          .orderBy(g.name, g.createdAt).desc
+          .limit(100)
+      }.map(rs => (persistence.Group(g.resultName)(rs), persistence.GroupImage(gi.resultName)(rs))).list().apply
+        .map{ x =>
+        SuggestData.Group(
+          id = x._1.id,
+          name = x._1.name,
+          image = AppConf.imageDownloadRoot + x._2.imageId
+        )
+      }
+    }
+  }
+
   def getUsersAndGroups(param: Option[String]) = {
     val query = param match {
       case Some(x) => x + "%"
@@ -94,8 +162,7 @@ object SystemService {
         rs.int("type"))).list().apply
         .map {x =>
         if(x._6 == SuggestType.User) {
-          SuggestData.User(
-            dataType = SuggestType.User,
+          SuggestData.UserWithType(
             id = x._1,
             name = x._2,
             fullname = x._4,
@@ -103,8 +170,7 @@ object SystemService {
             image = AppConf.imageDownloadRoot + x._3
           )
         } else if (x._6 == SuggestType.Group){
-          SuggestData.Group(
-            dataType = SuggestType.Group,
+          SuggestData.GroupWithType(
             id = x._1,
             name = x._2,
             image = AppConf.imageDownloadRoot + x._3
@@ -132,39 +198,6 @@ object SystemService {
           .limit(100)
       }.map(rs => rs.string(a.resultName.name)).list().apply
       attributes
-    }
-  }
-
-  def getGroups(param: Option[String]) = {
-    val query = param match {
-      case Some(x) => x + "%"
-      case None => ""
-    }
-
-    val g = persistence.Group.g
-    val gi = persistence.GroupImage.gi
-    DB readOnly { implicit s =>
-      withSQL {
-        select(g.result.*, gi.result.*)
-          .from(persistence.Group as g)
-          .innerJoin(persistence.GroupImage as gi)
-          .on(sqls.eq(g.id, gi.groupId).and.eq(gi.isPrimary, true).and.isNull(gi.deletedAt))
-          .where
-          .like(g.name, query)
-          .and
-          .eq(g.groupType, GroupType.Public)
-          .and
-          .isNull(g.deletedAt)
-          .orderBy(g.name, g.createdAt).desc
-          .limit(100)
-      }.map(rs => (persistence.Group(g.resultName)(rs), persistence.GroupImage(gi.resultName)(rs))).list().apply
-        .map{ x =>
-        SuggestData.GroupWithoutType(
-          id = x._1.id,
-          name = x._1.name,
-          image = AppConf.imageDownloadRoot + x._2.imageId
-        )
-      }
     }
   }
 }
