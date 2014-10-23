@@ -52,7 +52,7 @@ object SystemService {
     }
   }
 
-  def getUsers(query: Option[String]) = {
+  def getUsers(query: Option[String], limit: Option[Int], offset: Option[Int]) = {
     DB readOnly { implicit s =>
       val u = persistence.User.u
       withSQL {
@@ -76,6 +76,8 @@ object SystemService {
             name = x.name,
             fullname = x.fullname,
             organization = x.organization,
+            title = x.title,
+            description = x.description,
             image = AppConf.imageDownloadRoot + x.imageId
           )
       }

@@ -8,6 +8,8 @@ object SuggestData {
     name: String,
     fullname: String,
     organization: String,
+    title: String,
+    description: String,
     image: String
   )
 
@@ -17,6 +19,8 @@ object SuggestData {
     fullname: String,
     organization: String,
     image: String,
+    // TODO title: String,
+    // TODO description: String,
     dataType: Int = SuggestType.User
    )
 

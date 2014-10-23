@@ -585,8 +585,9 @@ class ApiController extends ScalatraServlet
   }
 
   get("/suggests/users") {
-    val query = params.get("query")
-    val users = SystemService.getUsers(query)
+    val json = params.get("d").map(x => JsonMethods.parse(x).extract[UserSuggestApiParams])
+                               .getOrElse(UserSuggestApiParams())
+    val users = SystemService.getUsers(json.query, json.limit, json.offset)
     AjaxResponse("OK", users)
   }
 
