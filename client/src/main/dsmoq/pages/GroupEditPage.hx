@@ -21,8 +21,17 @@ class GroupEditPage {
         var engine = createAccountEngine();
         var navigation = new PromiseBroker();
 
-        var rootBinding = JsViews.observable({data: Async.Pending});
-        View.getTemplate("group/edit").link(root, rootBinding.data());
+        var rootData = {
+            data: Async.Pending,
+            memberCandidate: {
+                index: 0,
+                total: 100,
+                pages: 5,
+                items: []
+            }
+        };
+        var rootBinding = JsViews.observable(rootData);
+        View.getTemplate("group/edit").link(root, rootData);
 
         Service.instance.getGroup(id).flatMap(function (x) {
             return switch (x.role) {
@@ -72,6 +81,7 @@ class GroupEditPage {
                 setMemberTypeahead();
             });
 
+            // basics tab ------------------------
             root.find("#group-basics-submit").on("click", function (_) {
                 BootstrapButton.setLoading(root.find("#group-basics-submit"));
                 root.find("#group-basics").find("input,textarea").attr("disabled", true);
@@ -91,6 +101,7 @@ class GroupEditPage {
                 });
             });
 
+            // icon tab -------------------------
             root.find("#group-icon-form").on("change", "input[type=file]", function (e) {
                 if (JQuery._(e.target).val() != "") {
                     root.find("#group-icon-submit").show();
@@ -114,6 +125,13 @@ class GroupEditPage {
                     root.find("#group-icon input").removeAttr("disabled");
                 });
                 root.find("#group-icon input").attr("disabled", true);
+            });
+
+            // members tab ----------------------
+            root.find("#add-member-dialog").on('show.bs.modal', function (_) {
+                Service.instance.findUsers( {limit: 6} ).then(function (users) {
+                    JsViews.observable(rootData.memberCandidate.items).refresh(users);
+                });
             });
 
             root.on("click", "#group-user-add", function (_) {
@@ -170,6 +188,7 @@ class GroupEditPage {
                 }
             });
 
+            // ----------------------------------
             root.find("#group-finish-editing").on("click", function (_) {
                 navigation.fulfill(Navigation.Navigate(Page.GroupShow(id)));
             });

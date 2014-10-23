@@ -13,6 +13,9 @@ h6 {
 input::-ms-clear {
   display: none;
 }
+.btn-default.unactive {
+  color: lightgray;
+}
 .page-heading {
   margin-top: 0px;
   margin-bottom: 16px;

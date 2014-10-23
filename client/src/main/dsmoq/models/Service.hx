@@ -1,5 +1,6 @@
 package dsmoq.models;
 
+import haxe.ds.Option;
 import haxe.Json;
 import js.Cookie;
 import js.Error;
@@ -232,6 +233,11 @@ class Service extends Stream<ServiceEvent> {
         return send(Delete, '/api/groups/$groupId');
     }
 
+
+    public function findUsers(?params: { ?query: String, ?limit: Int, ?offset: Int })
+            : Promise<Array<User>> {
+        return send(Get, "/api/suggests/users", params);
+    }
 
     inline function guest(): Profile {
         return {

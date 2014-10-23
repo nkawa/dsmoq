@@ -34,9 +34,9 @@ class View {
     public static function link(name: String, target: Html, ?binding: {}): Void {
         initialize();
 
-        JsViews.getTemplate(name)
-            .getOrThrow(new Error('undefined template: \'$name\''))
-            .link(target, binding);
+        var tpl = JsViews.getTemplate(name);
+        if (tpl == null) throw new Error('undefined template: \'$name\'');
+        tpl.link(target, binding);
     }
 
     //public static function render(name: String, ?data: {}): String {
@@ -49,7 +49,9 @@ class View {
 
     public static function getTemplate(name: String) {
         initialize();
-        return JsViews.getTemplate(name).getOrThrow(new Error('undefined template: \'$name\''));
+        var tpl = JsViews.getTemplate(name);
+        if (tpl == null) throw new Error('undefined template: \'$name\'');
+        return tpl;
     }
 
     public static function register(name: String, template: String): Void {

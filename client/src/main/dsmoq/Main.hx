@@ -7,6 +7,7 @@ import dsmoq.models.Service;
 import dsmoq.Page;
 import dsmoq.pages.*;
 import haxe.Resource;
+import hxgnd.ArrayTools;
 import hxgnd.Error;
 import hxgnd.js.Html;
 import hxgnd.js.JqHtml;
@@ -19,6 +20,7 @@ import hxgnd.Unit;
 import hxgnd.Option;
 
 using StringTools;
+using Lambda;
 using hxgnd.OptionTools;
 
 /**
@@ -49,6 +51,43 @@ class Main {
                     case Async.Completed(x):
                         tagDef.tagCtx.render(x, true);
                 };
+            }
+        });
+
+        JsViews.views.tags("range", cast {
+            baseTag: JsViews.getTag("for"),
+
+            render: function (val) {
+                var tagDef = JsViewsTools.tagDef();
+                var tagCtx = tagDef.tagCtx;
+
+                function toNum(x): Int {
+                    return (Std.is(x, Int)) ? x : 0;
+                }
+
+                var start = toNum(tagCtx.props["start"]);
+                var end = toNum(tagCtx.props["end"]);
+
+                trace(start);
+
+                var v = if (start != end) {
+                    if (tagCtx.args.empty()) {
+                        ArrayTools.array(start...end);
+                    } else if (Std.is(val, Array)) {
+                        cast(val, Array<Dynamic>).slice(start, end);
+                    } else {
+                        val;
+                    }
+                } else {
+                    val;
+                }
+
+                var render = untyped tagDef.baseTag.render;
+                return untyped __js__("render.apply(this, v ? [v] : arguments)");
+            },
+
+            onArrayChange: function(ev, eventArgs) {
+                JsViewsTools.tagDef().refresh();
             }
         });
 
