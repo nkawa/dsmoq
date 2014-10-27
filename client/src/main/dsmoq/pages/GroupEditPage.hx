@@ -5,6 +5,7 @@ import dsmoq.models.GroupMember;
 import dsmoq.models.GroupRole;
 import dsmoq.models.Profile;
 import dsmoq.models.Service;
+import dsmoq.models.User;
 import hxgnd.js.Html;
 import hxgnd.js.JQuery;
 import hxgnd.js.jsviews.JsViews;
@@ -13,10 +14,13 @@ import hxgnd.PromiseBroker;
 import hxgnd.Stream;
 import hxgnd.Unit;
 import js.bootstrap.BootstrapButton;
+import js.html.Event;
 import js.typeahead.Bloodhound;
 import js.typeahead.Typeahead;
 
 class GroupEditPage {
+    inline static var MemberCandidateSize = 5;
+
     public static function render(root: Html, onClose: Promise<Unit>, id: String): Promise<Navigation<Page>> {
         var engine = createAccountEngine();
         var navigation = new PromiseBroker();
@@ -24,10 +28,12 @@ class GroupEditPage {
         var rootData = {
             data: Async.Pending,
             memberCandidate: {
-                index: 0,
-                total: 100,
-                pages: 5,
-                items: []
+                query: "",
+                offset: 0,
+                hasPrev: false,
+                hasNext: false,
+                items: new Array<{selected: Bool, item: User}>(),
+                selectedIds: new Array<String>()
             }
         };
         var rootBinding = JsViews.observable(rootData);
@@ -128,65 +134,139 @@ class GroupEditPage {
             });
 
             // members tab ----------------------
-            root.find("#add-member-dialog").on('show.bs.modal', function (_) {
-                Service.instance.findUsers( {limit: 6} ).then(function (users) {
-                    JsViews.observable(rootData.memberCandidate.items).refresh(users);
+            function searchMemberCandidate(?query: String, offset = 0) {
+                var limit = MemberCandidateSize + 1;
+                Service.instance.findUsers({ query: query, offset: offset, limit: limit }).then(function (users) {
+                    var list = users.slice(0, MemberCandidateSize)
+                                    .map(function (x) return {
+                                        selected: rootData.memberCandidate.selectedIds.indexOf(x.id) >= 0,
+                                        item: x
+                                    });
+                    var hasPrev = offset > 0;
+                    var hasNext = users.length > MemberCandidateSize;
+                    rootBinding.setProperty("memberCandidate.offset", offset);
+                    rootBinding.setProperty("memberCandidate.hasPrev", hasPrev);
+                    rootBinding.setProperty("memberCandidate.hasNext", hasNext);
+                    JsViews.observable(rootData.memberCandidate.items).refresh(list);
                 });
+            }
+
+            function filterSelectedMember() {
+                return rootData.memberCandidate.items
+                            .filter(function (x) return x.selected)
+                            .map(function (x) return x.item);
+            }
+
+
+            root.find("#add-member-dialog").on('show.bs.modal', function (_) {
+                // TODO なぜか初回しかコールされていない
+                trace("show");
+                rootBinding.setProperty("memberCandidate.query", "");
+                JsViews.observable(rootData.memberCandidate.selectedIds).refresh([]);
+                searchMemberCandidate();
             });
 
-            root.on("click", "#group-user-add", function (_) {
-                switch (data.members) {
-                    case Async.Completed(members):
-                        var name = Typeahead.getVal(root.find("#group-user-typeahead"));
-                        engine.get(name, function (res) {
-                            if (res.length == 1) {
-                                var item: GroupMember = {
-                                    id: res[0].id,
-                                    name: res[0].name,
-                                    fullname: res[0].fullname,
-                                    organization: res[0].organization,
-                                    title: res[0].title,
-                                    image: res[0].image,
-                                    role: dsmoq.models.GroupRole.Member
-                                };
-                                JsViews.observable(members.items).insert(item);
-                            }
-                            Typeahead.setVal(root.find("#group-user-typeahead"), "");
-                        });
-                    default:
+            root.find("#member-search-form").on("submit", function (e: Event) {
+                e.preventDefault();
+                searchMemberCandidate(rootData.memberCandidate.query);
+            });
+
+            JsViews.observable(rootData.memberCandidate.items).observeAll(function (e, args) {
+                if (args.path == "selected") {
+                    var user: User = e.target.item;
+                    var ids = rootData.memberCandidate.selectedIds.copy();
+                    var b = JsViews.observable(rootData.memberCandidate.selectedIds);
+                    if (args.value) {
+                        if (ids.indexOf(user.id) < 0) {
+                            ids.push(user.id);
+                            b.refresh(ids);
+                        }
+                    } else {
+                        if (ids.remove(user.id)) {
+                            b.refresh(ids);
+                        }
+                    }
                 }
             });
-            root.on("change.dsmoq.pagination", "#member-pagination", function (_) {
-                switch (data.members) {
-                    case Async.Completed(list):
-                        Service.instance.getGroupMembers(id, {offset: 20 * untyped list.index}).then(function (x) {
-                            binding.setProperty("members", Async.Completed({
-                                index: Math.ceil(x.summary.offset / 20),
-                                total: x.summary.total,
-                                items: x.results,
-                                pages: Math.ceil(x.summary.total / 20) + 10
-                            }));
-                            setMemberTypeahead();
-                        });
-                    default:
-                }
+
+            root.find("#member-list-prev").on("click", function (_) {
+                var query = rootData.memberCandidate.query;
+                var offset = rootData.memberCandidate.offset - MemberCandidateSize;
+                searchMemberCandidate(query, offset);
             });
-            root.on("click", "#group-member-submit", function (_) {
-                switch (data.members) {
-                    case Async.Completed(list):
-                        BootstrapButton.setLoading(root.find("#group-member-submit"));
-                        root.find("#group-members").find("input,select,.btn").attr("disabled", true);
-                        Service.instance.updateGroupMemberRoles(id, cast list.items).then(function (_) {
-                            Notification.show("success", "save successful");
-                        }, function (err) {
-                            Notification.show("error", "error happened");
-                        }, function () {
-                            BootstrapButton.reset(root.find("#group-member-submit"));
-                            root.find("#group-members").find("input,select,.btn").removeAttr("disabled");
-                        });
-                    default:
-                }
+
+            root.find("#member-list-next").on("click", function (_) {
+                var query = rootData.memberCandidate.query;
+                var offset = rootData.memberCandidate.offset + MemberCandidateSize;
+                searchMemberCandidate(query, offset);
             });
+
+            root.find("#add-member-dialog-submit").on("click", function (e) {
+                // TODO mask
+                BootstrapButton.setLoading(e.currentTarget);
+
+                var members = rootData.memberCandidate.selectedIds
+                                .map(function (x) return { userId: x, role: dsmoq.models.GroupRole.Member });
+
+                Service.instance.addGroupMember(id, members);
+
+                trace("submit");
+            });
+
+
+            //root.on("click", "#group-user-add", function (_) {
+                //switch (data.members) {
+                    //case Async.Completed(members):
+                        //var name = Typeahead.getVal(root.find("#group-user-typeahead"));
+                        //engine.get(name, function (res) {
+                            //if (res.length == 1) {
+                                //var item: GroupMember = {
+                                    //id: res[0].id,
+                                    //name: res[0].name,
+                                    //fullname: res[0].fullname,
+                                    //organization: res[0].organization,
+                                    //title: res[0].title,
+                                    //image: res[0].image,
+                                    //role: dsmoq.models.GroupRole.Member
+                                //};
+                                //JsViews.observable(members.items).insert(item);
+                            //}
+                            //Typeahead.setVal(root.find("#group-user-typeahead"), "");
+                        //});
+                    //default:
+                //}
+            //});
+            //root.on("change.dsmoq.pagination", "#member-pagination", function (_) {
+                //switch (data.members) {
+                    //case Async.Completed(list):
+                        //Service.instance.getGroupMembers(id, {offset: 20 * untyped list.index}).then(function (x) {
+                            //binding.setProperty("members", Async.Completed({
+                                //index: Math.ceil(x.summary.offset / 20),
+                                //total: x.summary.total,
+                                //items: x.results,
+                                //pages: Math.ceil(x.summary.total / 20) + 10
+                            //}));
+                            //setMemberTypeahead();
+                        //});
+                    //default:
+                //}
+            //});
+            //root.on("click", "#group-member-submit", function (_) {
+                //switch (data.members) {
+                    //case Async.Completed(list):
+                        //BootstrapButton.setLoading(root.find("#group-member-submit"));
+                        //root.find("#group-members").find("input,select,.btn").attr("disabled", true);
+                        //Service.instance.updateGroupMemberRoles(id, cast list.items).then(function (_) {
+                            //Notification.show("success", "save successful");
+                        //}, function (err) {
+                            //Notification.show("error", "error happened");
+                        //}, function () {
+                            //BootstrapButton.reset(root.find("#group-member-submit"));
+                            //root.find("#group-members").find("input,select,.btn").removeAttr("disabled");
+                        //});
+                    //default:
+                //}
+            //});
 
             // ----------------------------------
             root.find("#group-finish-editing").on("click", function (_) {

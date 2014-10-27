@@ -1,6 +1,6 @@
 package dsmoq.services
 
 case class GroupMember(
-  id: String,
+  userId: String,
   role: Int
 )

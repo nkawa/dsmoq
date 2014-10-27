@@ -68,8 +68,6 @@ class Main {
                 var start = toNum(tagCtx.props["start"]);
                 var end = toNum(tagCtx.props["end"]);
 
-                trace(start);
-
                 var v = if (start != end) {
                     if (tagCtx.args.empty()) {
                         ArrayTools.array(start...end);
@@ -88,6 +86,60 @@ class Main {
 
             onArrayChange: function(ev, eventArgs) {
                 JsViewsTools.tagDef().refresh();
+            }
+        });
+
+        JsViews.views.tags("checkButton", {
+            dataBoundOnly: true,
+			flow: true,
+			autoBind: true,
+            render: function (_) {
+                var tagDef = JsViewsTools.tagDef();
+                var id: String = tagDef.tagCtx.props["id"];
+                var cls: String = tagDef.tagCtx.props["class"];
+                var type: String = LangTools.orElse(tagDef.tagCtx.props["type"], "submit");
+                return '<button id="${id}" type="${type}" class="${cls} btn btn-xs btn-default unactive"><span class="glyphicon glyphicon-ok"></span></button>';
+            },
+            onAfterLink: function(tag, link) {
+                var tagDef = JsViewsTools.tagDef();
+                var root = tagDef.contents("*:first");
+                tagDef.linkedElem = root; //linkedElemを設定しないとonUpdate()がコールされない
+
+                var value: Bool = LangTools.orElse(tagDef.tagCtx.args[0], false);
+                if (value) {
+                    root.addClass("active");
+                    root.addClass("btn-primary");
+                    root.removeClass("unactive");
+                    root.removeClass("btn-default");
+                } else {
+                    root.addClass("unactive");
+                    root.addClass("btn-default");
+                    root.removeClass("active");
+                    root.removeClass("btn-primary");
+                }
+
+                root.on("click", function (_) {
+                    tagDef.update(!LangTools.orElse(tagDef.tagCtx.args[0], false));
+                });
+            },
+            onUpdate: function(ev, eventArgs, tag) { // binding.onchange
+                var tagDef = JsViewsTools.tagDef();
+                var root = tagDef.contents("*:first");
+                var value: Bool = eventArgs.value;
+                if (value) {
+                    root.addClass("active");
+                    root.addClass("btn-primary");
+                    root.removeClass("unactive");
+                    root.removeClass("btn-default");
+                } else {
+                    root.addClass("unactive");
+                    root.addClass("btn-default");
+                    root.removeClass("active");
+                    root.removeClass("btn-primary");
+                }
+                tagDef.update(value);
+
+                return true;
             }
         });
 

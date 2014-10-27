@@ -423,13 +423,13 @@ object GroupService {
    * @param user
    * @return
    */
-  def setUserRole(groupId: String, roles: Seq[GroupMember], user: User) = {
+  def addMembers(groupId: String, roles: Seq[GroupMember], user: User) = {
     try {
       DB localTx { implicit s =>
         // input parameter check
         val errors = mutable.MutableList.empty[(String, String)]
         roles.foreach {x =>
-          if (x.id.isEmpty) {
+          if (x.userId.isEmpty) {
             errors += ("id" -> "ID is empty")
           } else if (!List(GroupMemberRole.Deny, GroupMemberRole.Member, GroupMemberRole.Manager).contains(x.role)) {
             errors += ("role" -> "role is empty")
@@ -450,13 +450,13 @@ object GroupService {
         val timestamp = DateTime.now()
 
         roles.foreach {x =>
-          val user = persistence.User.find(x.id).get
+          val user = persistence.User.find(x.userId).get
           val m = persistence.Member.syntax("m")
           withSQL {
             select(m.result.*)
               .from(persistence.Member as m)
               .where
-              .eq(m.userId, sqls.uuid(x.id))
+              .eq(m.userId, sqls.uuid(x.userId))
               .and
               .eq(m.groupId, sqls.uuid(groupId))
           }.map(persistence.Member(m.resultName)).single().apply match {
@@ -493,6 +493,15 @@ object GroupService {
       case e: Throwable => Failure(e)
     }
   }
+
+  def updateMemberRole(groupId: String, userId: String, role: Int, user: User) = {
+
+  }
+
+  def deleteMember(groupId: String, userId: String, user: User) = {
+
+  }
+
 
   /**
    * 指定したグループを削除します。

@@ -537,7 +537,7 @@ class ApiController extends ScalatraServlet
                                 .getOrElse(List.empty)
     (for {
       user <- signedInUser
-      _ <- GroupService.setUserRole(groupId, roles, user)
+      _ <- GroupService.addMembers(groupId, roles, user)
     } yield {}) match {
       case Success(x) =>
         AjaxResponse("OK")
@@ -549,6 +549,20 @@ class ApiController extends ScalatraServlet
           case _ => AjaxResponse("NG")
         }
     }
+  }
+
+  put("/groups/:groupId/members/:userId") {
+    val groupId = params("groupId")
+    val userId = params("userId")
+    // TODO ロールレベルを取得
+    AjaxResponse("OK")
+  }
+
+  delete("/groups/:groupId/members/:userId") {
+    val groupId = params("groupId")
+    val userId = params("userId")
+
+    AjaxResponse("OK")
   }
 
   delete("/groups/:groupId") {

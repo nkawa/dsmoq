@@ -116,33 +116,34 @@
   </div>
 {{/async}}
 
-<div id="add-member-dialog" class="modal fade" tabindex="-1" data-width="760" data-keyboard="false" style="display: none;">
+<!-- modal -->
+<div id="add-member-dialog" class="modal fade" tabindex="-1" data-width="600" data-keyboard="false" data-backdrop="static" style="display: none;">
   <div class="modal-header">
     <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
     <h4 class="modal-title">Add group member</h4>
   </div>
 
   <div class="modal-body">
-    <div class="container-fluid" style="margin-bottom: 10px;">
+    <form id="member-search-form" class="container-fluid" style="margin-bottom: 10px;">
       <div class="row">
         <div class="input-group" style="float:left; width: 300px;">
-          <input type="text" class="form-control" placeholder="filter">
+          <input type="text" class="form-control" placeholder="filter" data-link="memberCandidate.query">
           <span class="input-group-btn">
-            <button class="btn btn-primary" type="button" id="search-button"><span class="glyphicon glyphicon-search"></span></button>
+            <button class="btn btn-primary" type="submit"><span class="glyphicon glyphicon-search"></span></button>
           </span>
         </div>
       </div>
-    </div>
+    </form>
 
     {^{for memberCandidate.items}}
       <div class="media">
         <div class="pull-left">
-          <button type="button" class="btn btn-xs btn-default unactive"><span class="glyphicon glyphicon-ok"></span></button>
-          <img src="{{:image}}/48"/>
+          {^{checkButton selected/}}
+          <img src="{{:item.image}}/48"/>
         </div>
         <div class="media-body">
-          <h4 class="media-heading"><strong>{{>fullname}}</strong> <small>{{>name}} &raquo; {{>organization}} {{>title}}</small></h4>
-          <p>{{>description}}</p>
+          <h4 class="media-heading"><strong>{{>item.fullname}}</strong> <small>{{>item.name}} &raquo; {{>item.organization}} {{>item.title}}</small></h4>
+          <p>{{>item.description}}</p>
         </div>
       </div>
     {{/for}}
@@ -155,12 +156,15 @@
       </div>
     {{/range}}
 
-    {^{pagination memberCandidate.index memberCandidate.pages pagedelta=5 /}}
+    <div class="text-right">
+      <button id="member-list-prev" class="btn btn-default btn-sm" type="button" data-link="disabled{:!memberCandidate.hasPrev}">&larr; Prev</button>
+      <button id="member-list-next" class="btn btn-default btn-sm" type="button" data-link="disabled{:!memberCandidate.hasNext}">Next &rarr;</button>
+    </div>
   </div>
 
   <div class="modal-footer">
     <input type="checkbox"/>add as manager
-    <button type="button" class="btn btn-primary" data-loading-text="Saving..." id="new-dataset-dialog-submit" disabled>Apply</button>
+    <button type="button" class="btn btn-primary" data-loading-text="Saving..." id="add-member-dialog-submit" data-link="disabled{:memberCandidate.selectedIds.length <= 0}">Apply</button>
     <button type="button" data-dismiss="modal" class="btn btn-default">Cancel</button>
   </div>
 </div>

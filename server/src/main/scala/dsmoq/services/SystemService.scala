@@ -69,7 +69,8 @@ object SystemService {
             }
           }
           .orderBy(sqls"name")
-          .limit(100)
+          .offset(offset.getOrElse(0))
+          .limit(limit.getOrElse(100))
       }.map(persistence.User(u.resultName)(_)).list().apply.map {x =>
           SuggestData.User(
             id = x.id,
