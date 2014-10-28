@@ -26,7 +26,6 @@ case class ChangeGroupPrimaryImageParams(
   imageId: Option[String] = None
 )
 
-case class SetUserRoleParams(
-userIds: Option[Seq[String]],
-roles: Option[Seq[String]]
+case class SetGroupMemberRoleParams(
+  role: Option[Int] = None
 )

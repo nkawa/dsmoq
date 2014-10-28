@@ -1,5 +1,6 @@
 package dsmoq.controllers
 
+import dsmoq.persistence.GroupMemberRole
 import org.json4s._
 import org.json4s.jackson.JsonMethods
 import org.scalatra.ScalatraServlet
@@ -554,8 +555,27 @@ class ApiController extends ScalatraServlet
   put("/groups/:groupId/members/:userId") {
     val groupId = params("groupId")
     val userId = params("userId")
-    // TODO ロールレベルを取得
-    AjaxResponse("OK")
+    val json = params.get("d").map(JsonMethods.parse(_).extract[SetGroupMemberRoleParams])
+                               .getOrElse(SetGroupMemberRoleParams())
+    json.role match {
+      case Some(role) =>
+        (for {
+          user <- signedInUser
+          _ <- GroupService.updateMemberRole(groupId, userId, role, user)
+        } yield {}) match {
+          case Success(x) =>
+            AjaxResponse("OK")
+          case Failure(e) =>
+            e match {
+              case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+              case e: NotFoundException => AjaxResponse("NotFound")
+              case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+              case _ => AjaxResponse("NG")
+            }
+        }
+      case None =>
+        AjaxResponse("OK")
+    }
   }
 
   delete("/groups/:groupId/members/:userId") {

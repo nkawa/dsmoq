@@ -6,8 +6,10 @@ import dsmoq.models.GroupRole;
 import dsmoq.models.Profile;
 import dsmoq.models.Service;
 import dsmoq.models.User;
+import haxe.ds.Option;
 import hxgnd.js.Html;
 import hxgnd.js.JQuery;
+import hxgnd.js.JsTools;
 import hxgnd.js.jsviews.JsViews;
 import hxgnd.Promise;
 import hxgnd.PromiseBroker;
@@ -15,6 +17,9 @@ import hxgnd.Stream;
 import hxgnd.Unit;
 import js.bootstrap.BootstrapButton;
 import js.html.Event;
+import js.html.EventTarget;
+
+using hxgnd.OptionTools;
 
 class GroupEditPage {
     inline static var MemberCandidateSize = 5;
@@ -194,11 +199,32 @@ class GroupEditPage {
                 trace("submit");
             });
 
-            root.find("#group-members").on("click", "[data-remove]", function (e) {
-                var node = JQuery._(e.currentTarget);
-                var userId = node.data("remove");
-                Service.instance.removeGroupMember(id, userId);
+            function getMemberByElement(target: EventTarget): Option<dsmoq.models.GroupMember> {
+                var node = JQuery._(target);
+                var index = node.parents("tr[data-index]").data("index");
+                return switch (data.members) {
+                    case Async.Completed(members):
+                        OptionTools.toOption(members.items[index]);
+                    case _:
+                        Option.None;
+                }
+            }
+
+            root.find("#group-members").on("change", ".dsmoq-role-select", function (e) {
+                // bindingが更新タイミングの問題があるため、setImmediateを挟む
+                JsTools.setImmediate(function () {
+                    getMemberByElement(e.currentTarget).iter(function (member) {
+                        Service.instance.updateGroupMemberRole(id, member.id, member.role);
+                    });
+                });
             });
+
+            root.find("#group-members").on("click", ".dsmoq-remove-button", function (e) {
+                getMemberByElement(e.currentTarget).iter(function (member) {
+                    Service.instance.removeGroupMember(id, member.id);
+                });
+            });
+
 
 
             //root.on("click", "#group-user-add", function (_) {

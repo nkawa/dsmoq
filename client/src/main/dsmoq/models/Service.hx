@@ -229,6 +229,10 @@ class Service extends Stream<ServiceEvent> {
         return send(Post, '/api/groups/$groupId/members', members);
     }
 
+    public function updateGroupMemberRole(groupId: String, memberId: String, role: GroupRole): Promise<Unit> {
+        return send(Put, '/api/groups/$groupId/members/$memberId', { role: role });
+    }
+
     public function removeGroupMember(groupId: String, memberId: String): Promise<Unit> {
         return send(Delete, '/api/groups/$groupId/members/$memberId');
     }

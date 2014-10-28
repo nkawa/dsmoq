@@ -167,7 +167,7 @@ object GroupService {
       DB readOnly { implicit s =>
         val count = countMembers(groupId)
         val members = if (count > 0) {
-          getMembers(groupId, offset_, limit_).map{x =>
+          getMembers(groupId, user.id, offset_, limit_).map{x =>
             GroupData.MemberSummary(
               id = x._1.id,
               name = x._1.name,
@@ -500,9 +500,61 @@ object GroupService {
     }
   }
 
+  /**
+   * 指定したグループメンバーのロールレベルを変更します。
+   * @param groupId
+   * @param userId
+   * @param role
+   * @param user
+   */
   def updateMemberRole(groupId: String, userId: String, role: Int, user: User) = {
+    try {
+      if (role != GroupMemberRole.Deny && role != GroupMemberRole.Member && role != GroupMemberRole.Manager) {
+        throw new InputValidationException(Map("role" -> "invalid role"))
+      }
 
-  }
+      val g = persistence.Group.g
+      val u = persistence.User.u
+      val m = persistence.Member.m
+
+      DB localTx { implicit s =>
+        (for {
+          group <- withSQL {
+            select(g.resultAll).from(persistence.Group as g)
+              .where.eqUuid(g.id, groupId).and.isNull(g.deletedAt)
+          }.map(persistence.Group(g.resultName)).single.apply
+
+          user <- withSQL {
+            select(u.resultAll).from(persistence.User as u)
+              .where.eqUuid(u.id, userId).and.isNull(u.deletedAt)
+          }.map(persistence.User(u.resultName)).single.apply
+
+          member <- withSQL {
+            select(m.resultAll).from(persistence.Member as m)
+              .where.eqUuid(m.userId, userId).and.eqUuid(m.groupId, groupId)
+          }.map(persistence.Member(m.resultName)).single.apply
+        } yield {
+          persistence.Member(
+            id = member.id,
+            groupId = member.groupId,
+            userId = member.userId,
+            role = role,
+            status = member.status,
+            createdBy = member.createdBy,
+            createdAt = member.createdAt,
+            updatedBy = user.id,
+            updatedAt = DateTime.now(),
+            deletedBy = None,
+            deletedAt = None
+          ).save()
+        }) match {
+          case Some(_) => Success(Unit)
+          case None => Failure(new NotFoundException())
+        }
+      }
+    } catch {
+      case e: Throwable => Failure(e)
+    }  }
 
   /**
    * 指定したグループメンバーを削除します。
@@ -832,12 +884,13 @@ object GroupService {
     }.map(rs => rs.int(1)).single().apply().get
   }
 
-  private def getMembers(groupId: String, offset: Int, limit: Int)(implicit s: DBSession): Seq[(persistence.User, Int)] = {
+  private def getMembers(groupId: String, userId: String, offset: Int, limit: Int)(implicit s: DBSession): Seq[(persistence.User, Int)] = {
     val m = persistence.Member.m
     val u = persistence.User.u
     withSQL {
-      createMembersSql(select.apply(u.result.*, m.role), groupId)
-        .orderBy(m.role.desc, m.createdAt.desc)
+      createMembersSql(select
+        .apply(u.result.*, m.role, sqls.eqUuid(u.id, userId).and.eq(m.role, GroupMemberRole.Manager).append(sqls"own")), groupId)
+        .orderBy(sqls"own desc", m.role.desc, m.createdAt.desc)
         .offset(offset)
         .limit(limit)
     }.map(rs => (persistence.User(u.resultName)(rs), rs.int(persistence.Member.column.role))).list().apply()
