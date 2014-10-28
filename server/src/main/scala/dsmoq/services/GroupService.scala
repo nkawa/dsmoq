@@ -173,6 +173,7 @@ object GroupService {
               name = x._1.name,
               fullname = x._1.fullname,
               organization = x._1.organization,
+              description = x._1.description,
               title = x._1.title,
               image = AppConf.imageDownloadRoot + x._1.imageId,
               role = x._2
@@ -425,6 +426,9 @@ object GroupService {
    */
   def addMembers(groupId: String, roles: Seq[GroupMember], user: User) = {
     try {
+      val u = persistence.User.u
+      val m = persistence.Member.m
+
       DB localTx { implicit s =>
         // input parameter check
         val errors = mutable.MutableList.empty[(String, String)]
@@ -435,6 +439,9 @@ object GroupService {
             errors += ("role" -> "role is empty")
           }
         }
+
+        persistence.User.findAllBy(sqls.inUuid(u.id, roles.map(_.userId)))
+
         if (errors.nonEmpty) {
           throw new InputValidationException(errors)
         }
@@ -449,14 +456,13 @@ object GroupService {
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
 
-        roles.foreach {x =>
-          val user = persistence.User.find(x.userId).get
-          val m = persistence.Member.syntax("m")
+        roles.foreach {item =>
+          val user = persistence.User.find(item.userId).get
           withSQL {
             select(m.result.*)
               .from(persistence.Member as m)
               .where
-              .eq(m.userId, sqls.uuid(x.userId))
+              .eq(m.userId, sqls.uuid(item.userId))
               .and
               .eq(m.groupId, sqls.uuid(groupId))
           }.map(persistence.Member(m.resultName)).single().apply match {
@@ -465,7 +471,7 @@ object GroupService {
               val m = persistence.Member.column
               withSQL {
                 update(persistence.Member)
-                  .set(m.role -> x.role, m.status -> 1, m.updatedAt -> timestamp, m.updatedBy -> sqls.uuid(myself.id),
+                  .set(m.role -> item.role, m.status -> 1, m.updatedAt -> timestamp, m.updatedBy -> sqls.uuid(myself.id),
                     m.deletedAt -> null, m.deletedBy -> null)
                   .where
                   .eq(m.userId, sqls.uuid(x.userId))
@@ -478,7 +484,7 @@ object GroupService {
                 id = UUID.randomUUID.toString,
                 groupId = groupId,
                 userId = user.id,
-                role = x.role,
+                role = item.role,
                 status = 1,
                 createdBy = myself.id,
                 createdAt = timestamp,
@@ -498,8 +504,56 @@ object GroupService {
 
   }
 
-  def deleteMember(groupId: String, userId: String, user: User) = {
+  /**
+   * 指定したグループメンバーを削除します。
+   * @param groupId
+   * @param userId
+   * @param user
+   */
+  def removeMember(groupId: String, userId: String, user: User) = {
+    try {
+      val g = persistence.Group.g
+      val u = persistence.User.u
+      val m = persistence.Member.m
 
+      DB localTx { implicit s =>
+        (for {
+          group <- withSQL {
+            select(g.resultAll).from(persistence.Group as g)
+              .where.eqUuid(g.id, groupId).and.isNull(g.deletedAt)
+          }.map(persistence.Group(g.resultName)).single.apply
+
+          user <- withSQL {
+            select(u.resultAll).from(persistence.User as u)
+              .where.eqUuid(u.id, userId).and.isNull(u.deletedAt)
+          }.map(persistence.User(u.resultName)).single.apply
+
+          member <- withSQL {
+            select(m.resultAll).from(persistence.Member as m)
+              .where.eqUuid(m.userId, userId).and.eqUuid(m.groupId, groupId)
+          }.map(persistence.Member(m.resultName)).single.apply
+        } yield {
+          persistence.Member(
+            id = member.id,
+            groupId = member.groupId,
+            userId = member.userId,
+            role = GroupMemberRole.Deny,
+            status = member.status,
+            createdBy = member.createdBy,
+            createdAt = member.createdAt,
+            updatedBy = user.id,
+            updatedAt = DateTime.now(),
+            deletedBy = None,
+            deletedAt = None
+          ).save()
+        }) match {
+          case Some(_) => Success(Unit)
+          case None => Failure(new NotFoundException())
+        }
+      }
+    } catch {
+      case e: Throwable => Failure(e)
+    }
   }
 
 

@@ -561,8 +561,20 @@ class ApiController extends ScalatraServlet
   delete("/groups/:groupId/members/:userId") {
     val groupId = params("groupId")
     val userId = params("userId")
-
-    AjaxResponse("OK")
+    (for {
+      user <- signedInUser
+      _ <- GroupService.removeMember(groupId, userId, user)
+    } yield {}) match {
+      case Success(x) =>
+        AjaxResponse("OK")
+      case Failure(e) =>
+        e match {
+          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case e: NotFoundException => AjaxResponse("NotFound")
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+          case _ => AjaxResponse("NG")
+        }
+    }
   }
 
   delete("/groups/:groupId") {

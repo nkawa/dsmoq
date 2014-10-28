@@ -131,19 +131,19 @@ object Member extends SQLSyntaxSupport[Member] {
 
   def save(entity: Member)(implicit session: DBSession = autoSession): Member = {
     withSQL { 
-      update(Member as m).set(
-        m.id -> entity.id,
-        m.groupId -> entity.groupId,
-        m.userId -> entity.userId,
-        m.role -> entity.role,
-        m.status -> entity.status,
-        m.createdBy -> entity.createdBy,
-        m.createdAt -> entity.createdAt,
-        m.updatedBy -> entity.updatedBy,
-        m.updatedAt -> entity.updatedAt,
-        m.deletedBy -> entity.deletedBy,
-        m.deletedAt -> entity.deletedAt
-      ).where.eq(m.id, entity.id)
+      update(Member).set(
+        column.id -> sqls.uuid(entity.id),
+        column.groupId -> sqls.uuid(entity.groupId),
+        column.userId -> sqls.uuid(entity.userId),
+        column.role -> entity.role,
+        column.status -> entity.status,
+        column.createdBy -> sqls.uuid(entity.createdBy),
+        column.createdAt -> entity.createdAt,
+        column.updatedBy -> sqls.uuid(entity.updatedBy),
+        column.updatedAt -> entity.updatedAt,
+        column.deletedBy -> entity.deletedBy.map(sqls.uuid),
+        column.deletedAt -> entity.deletedAt
+      ).where.eqUuid(column.id, entity.id)
     }.update.apply()
     entity 
   }

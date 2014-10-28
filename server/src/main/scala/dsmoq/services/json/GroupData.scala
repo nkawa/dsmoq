@@ -25,14 +25,15 @@ object GroupData {
                     )
 
   case class MemberSummary(
-                            id: String,
-                            name: String,
-                            fullname: String,
-                            organization: String,
-                            title: String,
-                            image: String,
-                            role: Int
-                            )
+    id: String,
+    name: String,
+    fullname: String,
+    organization: String,
+    title: String,
+    description: String,
+    image: String,
+    role: Int
+  )
 
   case class AddMember(
                         id: String,

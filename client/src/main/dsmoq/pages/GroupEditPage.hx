@@ -15,14 +15,11 @@ import hxgnd.Stream;
 import hxgnd.Unit;
 import js.bootstrap.BootstrapButton;
 import js.html.Event;
-import js.typeahead.Bloodhound;
-import js.typeahead.Typeahead;
 
 class GroupEditPage {
     inline static var MemberCandidateSize = 5;
 
     public static function render(root: Html, onClose: Promise<Unit>, id: String): Promise<Navigation<Page>> {
-        var engine = createAccountEngine();
         var navigation = new PromiseBroker();
 
         var rootData = {
@@ -62,21 +59,6 @@ class GroupEditPage {
             var binding = JsViews.observable(data);
             rootBinding.setProperty("data", Async.Completed(data));
 
-            function setMemberTypeahead() {
-                Typeahead.initialize(root.find("#group-user-typeahead"), {}, {
-                    source: engine.ttAdapter(),
-                    displayKey: "name",
-                    templates: {
-                        suggestion: function (x: Profile) {
-                            return '<p><img src="${x.image}/16"> ${x.name} <span class="text-muted">${x.fullname}, ${x.organization}</span></p>';
-                        },
-                        empty: null,
-                        footer: null,
-                        header: null
-                    }
-                });
-            }
-
             Service.instance.getGroupMembers(id).then(function (x) {
                 binding.setProperty("members", Async.Completed({
                     index: Math.ceil(x.summary.offset / 20),
@@ -84,7 +66,6 @@ class GroupEditPage {
                     items: x.results,
                     pages: Math.ceil(x.summary.total / 20)
                 }));
-                setMemberTypeahead();
             });
 
             // basics tab ------------------------
@@ -213,6 +194,12 @@ class GroupEditPage {
                 trace("submit");
             });
 
+            root.find("#group-members").on("click", "[data-remove]", function (e) {
+                var node = JQuery._(e.currentTarget);
+                var userId = node.data("remove");
+                Service.instance.removeGroupMember(id, userId);
+            });
+
 
             //root.on("click", "#group-user-add", function (_) {
                 //switch (data.members) {
@@ -275,20 +262,5 @@ class GroupEditPage {
         });
 
         return navigation.promise;
-    }
-
-    static function createAccountEngine() {
-        var engine = new Bloodhound<Profile>({
-            datumTokenizer: Bloodhound.tokenizers.obj.whitespace("name"),
-            queryTokenizer: Bloodhound.tokenizers.whitespace,
-            prefetch: {
-                url: "/api/accounts",
-                filter: function (x) {
-                    return x.data;
-                }
-            }
-        });
-        engine.initialize();
-        return engine;
     }
 }

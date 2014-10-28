@@ -76,31 +76,38 @@
           <div style="margin-bottom: 10px">
             <a class="btn btn-default" data-toggle="modal" href="#add-member-dialog"><span class="glyphicon glyphicon-plus"></span></a>
           </div>
-          <table class="table table-bordered">
-            <thead>
-              <tr><td>Name</td><td>Role</td></tr>
-            </thead>
+          <table class="table table-striped">
             <tbody>
               {^{for items ~myself=#parent.data.myself}}
                 <tr>
-                  <td><img src="{{>image}}" class="icon">{{>fullname}} <span class="text-muted">{{>name}}, {{>organization}}</span></td>
                   <td>
-                    {{if ~myself.id == id}}
+                    <div class="media">
+                      <div class="pull-left">
+                        <img src="{{>image}}/48"/>
+                      </div>
+                      <div class="media-body">
+                        <h4 class="media-heading"><strong>{{>fullname}}</strong> <small>{{>name}} &raquo; {{>organization}} {{>title}}</small></h4>
+                        <p>{{>description}}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    {{if ~myself.id == id && role == 2}}
                       Manger
                     {{else}}
                       <select class="form-control" style="width:auto;" data-link="{:role:toInt}">
                         <option value="2">Manger</option>
                         <option value="1">Member</option>
-                        <option value="0">Remove</option>
                       </select>
+                    {{/if}}
+                  </td>
+                  <td>
+                    {{if ~myself.id != id}}
+                      <button class="btn btn-default" data-remove="{{>id}}"><span class="glyphicon glyphicon-trash"></span></button>
                     {{/if}}
                   </td>
                 </tr>
               {{/for}}
-              <tr>
-                <td><input type="text" class="form-control" placeholder="Enter new user" id="group-user-typeahead"></td>
-                <td><button type="button" class="btn btn-success btn-sm" id="group-user-add">add</button></td>
-              </tr>
             </tbody>
           </table>
           {^{pagination index pages id="member-pagination" pagedelta=5 /}}

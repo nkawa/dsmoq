@@ -10,7 +10,14 @@ object PostgresqlHelper {
     def lowerEq(column: SQLSyntax, value: String): ConditionSQLBuilder[A] = self.append(sqls.lowerEq(column, value))
   }
 
-  implicit class PgSQLSyntax(val self: sqls.type) extends AnyVal {
+  implicit class PgSQLSyntax(val self: SQLSyntax) extends  AnyVal {
+    def inUuid(column: SQLSyntax, values: Seq[String]):SQLSyntax = self.append(sqls.inUuid(column, values))
+    def notInUuid(column: SQLSyntax, values: Seq[String]): SQLSyntax = self.append(sqls.notInUuid(column, values))
+    def eqUuid(column: SQLSyntax, value: String): SQLSyntax = self.append(sqls.eqUuid(column, value))
+    def lowerEq(column: SQLSyntax, value: String):SQLSyntax = self.append(sqls.lowerEq(column, value))
+  }
+
+  implicit class PgSQLSyntaxType(val self: sqls.type) extends AnyVal {
     def coalesce(column: SQLSyntax, value: Any): SQLSyntax = sqls"COALESCE(${column}, ${value})"
 
     def countDistinct(column: SQLSyntax) = sqls.count(sqls.distinct(column))
