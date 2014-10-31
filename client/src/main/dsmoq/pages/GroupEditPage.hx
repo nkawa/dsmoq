@@ -180,7 +180,7 @@ class GroupEditPage {
     }
 
     static function showAddMemberDialog() {
-        var candidate = {
+        var data = {
             query: "",
             offset: 0,
             hasPrev: false,
@@ -189,16 +189,16 @@ class GroupEditPage {
             selectedIds: new Array<String>(),
             isManager: false
         }
-        var binding = JsViews.observable(candidate);
+        var binding = JsViews.observable(data);
         var tpl = JsViews.template(Resource.getString("template/group/add_member_dialog"));
 
-        return ViewTools.showModal(tpl, candidate, function (html, ctx) {
+        return ViewTools.showModal(tpl, data, function (html, ctx) {
             function searchMemberCandidate(?query: String, offset = 0) {
                 var limit = MemberCandidateSize + 1;
                 Service.instance.findUsers({ query: query, offset: offset, limit: limit }).then(function (users) {
                     var list = users.slice(0, MemberCandidateSize)
                                     .map(function (x) return {
-                                        selected: candidate.selectedIds.indexOf(x.id) >= 0,
+                                        selected: data.selectedIds.indexOf(x.id) >= 0,
                                         item: x
                                     });
                     var hasPrev = offset > 0;
@@ -206,21 +206,21 @@ class GroupEditPage {
                     binding.setProperty("offset", offset);
                     binding.setProperty("hasPrev", hasPrev);
                     binding.setProperty("hasNext", hasNext);
-                    JsViews.observable(candidate.items).refresh(list);
+                    JsViews.observable(data.items).refresh(list);
                 });
             }
 
             function filterSelectedMember() {
-                return candidate.items
+                return data.items
                             .filter(function (x) return x.selected)
                             .map(function (x) return x.item);
             }
 
-            JsViews.observable(candidate.items).observeAll(function (e, args) {
+            JsViews.observable(data.items).observeAll(function (e, args) {
                 if (args.path == "selected") {
                     var user: User = e.target.item;
-                    var ids = candidate.selectedIds.copy();
-                    var b = JsViews.observable(candidate.selectedIds);
+                    var ids = data.selectedIds.copy();
+                    var b = JsViews.observable(data.selectedIds);
                     if (args.value) {
                         if (ids.indexOf(user.id) < 0) {
                             ids.push(user.id);
@@ -235,29 +235,29 @@ class GroupEditPage {
             });
 
             binding.setProperty("query", "");
-            JsViews.observable(candidate.selectedIds).refresh([]);
+            JsViews.observable(data.selectedIds).refresh([]);
             searchMemberCandidate();
 
             html.find("#member-search-form").on("submit", function (e: Event) {
                 e.preventDefault();
-                searchMemberCandidate(candidate.query);
+                searchMemberCandidate(data.query);
             });
 
             html.find("#member-list-prev").on("click", function (_) {
-                var query = candidate.query;
-                var offset = candidate.offset - MemberCandidateSize;
+                var query = data.query;
+                var offset = data.offset - MemberCandidateSize;
                 searchMemberCandidate(query, offset);
             });
 
             html.find("#member-list-next").on("click", function (_) {
-                var query = candidate.query;
-                var offset = candidate.offset + MemberCandidateSize;
+                var query = data.query;
+                var offset = data.offset + MemberCandidateSize;
                 searchMemberCandidate(query, offset);
             });
 
             html.on("click", "#add-member-dialog-submit", function (e) {
-                var role = candidate.isManager ? GroupRole.Manager : GroupRole.Member;
-                var members = candidate.selectedIds
+                var role = data.isManager ? GroupRole.Manager : GroupRole.Member;
+                var members = data.selectedIds
                                 .map(function (x) return { userId: x, role:role });
                 ctx.fulfill(members);
             });
