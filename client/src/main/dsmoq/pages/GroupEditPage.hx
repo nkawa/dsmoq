@@ -28,9 +28,7 @@ class GroupEditPage {
     public static function render(root: Html, onClose: Promise<Unit>, id: String): Promise<Navigation<Page>> {
         var navigation = new PromiseBroker();
 
-        var rootData = {
-            data: Async.Pending,
-        };
+        var rootData = { data: Async.Pending };
         var rootBinding = JsViews.observable(rootData);
         View.getTemplate("group/edit").link(root, rootData);
 
@@ -123,9 +121,10 @@ class GroupEditPage {
                     Service.instance.addGroupMember(id, members).then(function (x) {
                         ViewTools.hideLoading("body");
                         loadGroupMember();
+                        Notification.show("success", "save successful");
                     }, function (err) {
                         ViewTools.hideLoading("body");
-                        // TODO popoverでエラーメッセージ
+                        Notification.show("error", "error happened");
                     });
                 });
             });
@@ -145,7 +144,11 @@ class GroupEditPage {
                 // bindingが更新タイミングの問題があるため、setImmediateを挟む
                 JsTools.setImmediate(function () {
                     getMemberByElement(e.currentTarget).iter(function (member) {
-                        Service.instance.updateGroupMemberRole(id, member.id, member.role);
+                        Service.instance.updateGroupMemberRole(id, member.id, member.role).then(function (_) {
+                            Notification.show("success", "save successful");
+                        }, function (e) {
+                            Notification.show("error", "error happened");
+                        });
                     });
                 });
             });
@@ -160,10 +163,10 @@ class GroupEditPage {
                                 .then(function (x) {
                                     loadGroupMember();
                                     ViewTools.hideLoading("body");
-                                    // TODO popoverでメッセージ表示
+                                    Notification.show("success", "save successful");
                                 }, function (err) {
                                     ViewTools.hideLoading("body");
-                                    // TODO popoverでエラーメッセージ
+                                    Notification.show("error", "error happened");
                                 });
                         }
                     });
