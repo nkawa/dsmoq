@@ -54,7 +54,8 @@ class ProfilePage {
 
             root.find("#basics-form-submit").on("click", function (_) {
                 BootstrapButton.setLoading(root.find("#basics-form-submit"));
-                Service.instance.updateProfile(root.find("#basics-form")).then(
+                Service.instance.updateProfile(data.basics.name, data.basics.fullname,
+                        data.basics.organization, data.basics.title, data.basics.description).then(
                     function (x) {
                         binding.setProperty("basics.name", x.name);
                         binding.setProperty("basics.fullname", x.fullname);

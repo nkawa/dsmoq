@@ -54,12 +54,27 @@ class Service extends Stream<ServiceEvent> {
                 .map(function (_) return Unit._);
     }
 
-    public function updateProfile(form: JqHtml): Promise<Profile> {
-        return sendForm("/api/profile", form).then(function (x: Profile) {
+    public function updateProfile(name: String, fullname: String,
+            organization: String, title: String, description: String): Promise<Profile> {
+        return send(Put, "/api/profile", {
+            name: name,
+            fullname: fullname,
+            organization: organization,
+            title: title,
+            description: description
+        }).then(function (x: Profile) {
             profile = x;
             update(ProfileUpdated);
         });
     }
+
+
+    //public function updateProfile(form: JqHtml): Promise<Profile> {
+        //return sendForm("/api/profile", form).then(function (x: Profile) {
+            //profile = x;
+            //update(ProfileUpdated);
+        //});
+    //}
 
     public function sendEmailChangeRequests(email: String): Promise<Unit> {
         return send(Post, "/api/profile/email_change_requests", { email: email });

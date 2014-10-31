@@ -187,7 +187,6 @@ object AccountService {
    * @param organization
    * @param title
    * @param description
-   * @param image
    * @return
    */
   def updateUserProfile(id: String,
@@ -195,8 +194,7 @@ object AccountService {
                         fullname: Option[String],
                         organization: Option[String],
                         title: Option[String],
-                        description: Option[String],
-                        image: Option[FileItem]): Try[User]  = {
+                        description: Option[String]): Try[User]  = {
     // TODO リファクタリング
     try {
       DB localTx { implicit s =>
@@ -225,24 +223,24 @@ object AccountService {
 
         persistence.User.find(id) match {
           case Some(x) =>
-            val img = image.map {x =>
-              val imageId = UUID.randomUUID().toString
-              val path = ImageSaveLogic.writeImageFile(imageId, x)
-              val bufferedImage = javax.imageio.ImageIO.read(x.getInputStream)
-
-              persistence.Image.create(
-                id = imageId,
-                name = x.getName,
-                width = bufferedImage.getWidth,
-                height = bufferedImage.getWidth,
-                filePath = path,
-                presetType = PresetType.Default,
-                createdBy = id,
-                createdAt = DateTime.now,
-                updatedBy = id,
-                updatedAt = DateTime.now
-              )
-            }
+//            val img = image.map {x =>
+//              val imageId = UUID.randomUUID().toString
+//              val path = ImageSaveLogic.writeImageFile(imageId, x)
+//              val bufferedImage = javax.imageio.ImageIO.read(x.getInputStream)
+//
+//              persistence.Image.create(
+//                id = imageId,
+//                name = x.getName,
+//                width = bufferedImage.getWidth,
+//                height = bufferedImage.getWidth,
+//                filePath = path,
+//                presetType = PresetType.Default,
+//                createdBy = id,
+//                createdAt = DateTime.now,
+//                updatedBy = id,
+//                updatedAt = DateTime.now
+//              )
+//            }
 
             val user = persistence.User(
               id = x.id,
@@ -251,7 +249,7 @@ object AccountService {
               organization = organization_,
               title = title_,
               description = description_,
-              imageId = img.map(_.id).getOrElse(x.imageId),
+              imageId = x.imageId,
               createdBy = x.createdBy,
               createdAt = x.createdAt,
               updatedBy = id,

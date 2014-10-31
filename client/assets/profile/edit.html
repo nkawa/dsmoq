@@ -1,14 +1,17 @@
-<h2>Profile</h2>
+<ol class="breadcrumb">
+  <li><a href="/">Top</a></li>
+  <li class="active">Edit Profile</li>
+</ol>
 
-<div class="panel panel-default">
-  <div class="panel-heading">
-    <div class="row">
-      <div class="col-sm-6">Basics</div>
-      <div class="col-sm-6"></div>
-    </div>
-  </div>
-
-  <div class="panel-body">
+<ul class="nav nav-tabs" role="tablist">
+  <li role="presentation" class="active"><a href="#basis-tab-content" role="tab" data-toggle="tab">Basics</a></li>
+  <li role="presentation"><a href="#icon-tab-content" role="tab" data-toggle="tab">Icon</a></li>
+  <li role="presentation"><a href="#email-tab-content" role="tab" data-toggle="tab">Mail Address</a></li>
+  <li role="presentation"><a href="#password-tab-content" role="tab" data-toggle="tab">Password</a></li>
+</ul>
+<div class="tab-content">
+  <!-- basics tab -->
+  <section role="tabpanel" class="tab-pane active" id="basis-tab-content">
     <form class="form-horizontal" role="form" id="basics-form">
       {^{if ~isEmpty(basics.errors.name)}}
         <div class="form-group">
@@ -89,7 +92,16 @@
           <div class="col-sm-2"></div><p class="col-sm-10 text-danger" data-link="basics.errors.description"></p>
         </div>
       {{/if}}
+    </form>
+    <div class="row">
+      <div class="col-sm-2"></div>
+      <div class="col-sm-10"><a class="btn btn-primary" data-loading="Saving..." id="basics-form-submit">Save</a></div>
+    </div>
+  </section>
 
+  <!-- icon tab -->
+  <section role="tabpanel" class="tab-pane" id="icon-tab-content">
+    <form class="form-horizontal" role="form" id="icon-form">
       <div class="form-group">
         <label class="col-sm-2 control-label">Icon</label>
         <div class="col-sm-10">
@@ -103,16 +115,10 @@
         </div>
       {{/if}}
     </form>
-    <div class="row">
-      <div class="col-sm-2"></div>
-      <div class="col-sm-10"><a class="btn btn-primary" data-loading="Saving..." id="basics-form-submit">Save</a></div>
-    </div>
-  </div>
-</div>
+  </section>
 
-<div class="panel panel-default">
-  <div class="panel-heading">Mail Address</div>
-  <div class="panel-body">
+  <!-- email tab -->
+  <section role="tabpanel" class="tab-pane" id="email-tab-content">
     <form class="form-horizontal" role="form">
       {^{if ~isEmpty(email.errors.email)}}
         <div class="form-group">
@@ -134,12 +140,10 @@
       <div class="col-sm-2"></div>
       <div class="col-sm-10"><a class="btn btn-primary" data-loading="Saving..." id="email-form-submit">Save</a></div>
     </div>
-  </div>
-</div>
+  </section>
 
-<div class="panel panel-danger">
-  <div class="panel-heading">Password</div>
-  <div class="panel-body">
+  <!-- password tab -->
+  <section role="tabpanel" class="tab-pane" id="password-tab-content">
     <form class="form-horizontal" role="form">
       {^{if ~isEmpty(password.errors.currentValue)}}
         <div class="form-group">
@@ -196,5 +200,5 @@
         </div>
       </div>
     </form>
-  </div>
+  </section>
 </div>

@@ -143,21 +143,21 @@ object User extends SQLSyntaxSupport[User] {
 
   def save(entity: User)(implicit session: DBSession = autoSession): User = {
     withSQL { 
-      update(User as u).set(
-        u.id -> entity.id,
-        u.name -> entity.name,
-        u.fullname -> entity.fullname,
-        u.organization -> entity.organization,
-        u.title -> entity.title,
-        u.description -> entity.description,
-        u.imageId -> entity.imageId,
-        u.createdBy -> entity.createdBy,
-        u.createdAt -> entity.createdAt,
-        u.updatedBy -> entity.updatedBy,
-        u.updatedAt -> entity.updatedAt,
-        u.deletedBy -> entity.deletedBy,
-        u.deletedAt -> entity.deletedAt
-      ).where.eq(u.id, entity.id)
+      update(User).set(
+        column.id -> sqls.uuid(entity.id),
+        column.name -> entity.name,
+        column.fullname -> entity.fullname,
+        column.organization -> entity.organization,
+        column.title -> entity.title,
+        column.description -> entity.description,
+        column.imageId -> sqls.uuid(entity.imageId),
+        column.createdBy -> sqls.uuid(entity.createdBy),
+        column.createdAt -> entity.createdAt,
+        column.updatedBy -> sqls.uuid(entity.updatedBy),
+        column.updatedAt -> entity.updatedAt,
+        column.deletedBy -> entity.deletedBy.map(sqls.uuid),
+        column.deletedAt -> entity.deletedAt
+      ).where.eqUuid(column.id, entity.id)
     }.update.apply()
     entity 
   }

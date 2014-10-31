@@ -7,8 +7,7 @@ case class UpdateProfileParams(
   fullname: Option[String] = None,
   organization: Option[String] = None,
   title: Option[String] = None,
-  description: Option[String] = None,
-  image: Option[FileItem] = None
+  description: Option[String] = None
 )
 
 case class UpdateMailAddressParams(

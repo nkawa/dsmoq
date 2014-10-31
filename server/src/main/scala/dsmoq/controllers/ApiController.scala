@@ -59,13 +59,13 @@ class ApiController extends ScalatraServlet
     AjaxResponse("OK", currentUser)
   }
 
-  post("/profile") {
+  put("/profile") {
     val json = params.get("d").map(JsonMethods.parse(_).extract[UpdateProfileParams])
                                .getOrElse(UpdateProfileParams())
     (for {
       user <- signedInUser
       userNew <- AccountService.updateUserProfile(user.id, json.name, json.fullname,json.organization,
-                                                  json.title, json.description, json.image)
+                                                  json.title, json.description)
     } yield {
       setSignedInUser(userNew)
       userNew
