@@ -121,11 +121,7 @@ object GroupService {
   def get(groupId: String, user: User): Try[GroupData.Group] = {
     try {
       DB readOnly { implicit s =>
-        val group = getGroup(groupId) match {
-          case Some(x) => x
-          case None => throw new NotFoundException
-        }
-
+        val group = getGroup(groupId)
         val images = getGroupImage(group.id)
         val primaryImage = getGroupPrimaryImageId(group.id)
         val groupRole = getGroupRole(user, group.id)
@@ -295,27 +291,22 @@ object GroupService {
   def updateGroup(groupId: String, name: String, description: String, user: User) = {
     try {
       DB localTx { implicit s =>
+        val group = getGroup(groupId)
         val name_ = StringUtil.trimAllSpaces(name)
 
         // input validation
         val errors = mutable.LinkedHashMap.empty[String, String]
 
+        if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
+
         if (name_.isEmpty) {
           errors.put("name", "name is empty")
-        } else if (existsSameNameGroup(name_)) {
+        } else if (group.name != name_ && existsSameNameGroup(name_)) {
           errors.put("name", "same name")
         }
 
         if (errors.nonEmpty) {
           throw new InputValidationException(errors)
-        }
-
-        getGroup(groupId) match {
-          case Some(x) =>
-            // 権限チェック
-            if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
-          case None =>
-            throw new NotFoundException
         }
 
         val myself = persistence.User.find(user.id).get
@@ -332,21 +323,20 @@ object GroupService {
             .isNull(g.deletedAt)
         }.update().apply
 
-        val group = persistence.Group.find(groupId)
         val images = getGroupImage(groupId)
         val primaryImage = getGroupPrimaryImageId(groupId)
 
         Success(GroupData.Group(
-          id = group.get.id,
-          name = group.get.name,
-          description = group.get.description,
+          id = group.id,
+          name = name_,
+          description = description,
           images = images.map(x => Image(
             id = x.id,
             url = AppConf.imageDownloadRoot + x.id
           )),
           primaryImage = primaryImage.getOrElse(""),
           isMember = true,
-          role = getGroupRole(user, group.get.id).getOrElse(0)
+          role = getGroupRole(user, group.id).getOrElse(0)
         ))
       }
     } catch {
@@ -364,12 +354,8 @@ object GroupService {
   def addImages(groupId: String, images: Seq[FileItem], user: User) = {
     try {
       DB localTx { implicit s =>
-        getGroup(groupId) match {
-          case Some(x) =>
-            if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
-          case None =>
-            throw new NotFoundException
-        }
+        val group = getGroup(groupId)
+        if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -444,12 +430,8 @@ object GroupService {
           throw new InputValidationException(errors)
         }
 
-        getGroup(groupId) match {
-          case Some(x) =>
-            if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
-          case None =>
-            throw new NotFoundException
-        }
+        val group = getGroup(groupId)
+        if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
 
         // 登録処理（既に登録されているユーザが送られてきた場合は無視する）
         val myself = persistence.User.find(user.id).get
@@ -619,12 +601,8 @@ object GroupService {
 
     try {
       val result = DB localTx { implicit s =>
-        getGroup(groupId) match {
-          case Some(x) =>
-            // 権限チェック
-            if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
-          case None => throw new NotFoundException
-        }
+        val group = getGroup(groupId)
+        if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -656,13 +634,9 @@ object GroupService {
   def changePrimaryImage(groupId: String, imageId: String, user: User): Try[Unit] = {
     try {
       DB localTx { implicit s =>
-        getGroup(groupId) match {
-          case Some(x) =>
-            if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
-            if (!existsGroupImage(groupId, imageId)) throw new NotFoundException
-          case None =>
-            throw new NotFoundException
-        }
+        val group = getGroup(groupId)
+        if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
+        if (!existsGroupImage(groupId, imageId)) throw new NotFoundException
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -707,13 +681,9 @@ object GroupService {
   def deleteImage(groupId: String, imageId: String, user: User) = {
     try {
       val primaryImage = DB localTx { implicit s =>
-        getGroup(groupId) match {
-          case Some(x) =>
-            if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
-            if (!existsGroupImage(groupId, imageId)) throw new NotFoundException
-          case None =>
-            throw new NotFoundException
-        }
+        val group = getGroup(groupId)
+        if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
+        if (!existsGroupImage(groupId, imageId)) throw new NotFoundException
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -786,9 +756,12 @@ object GroupService {
           .eq(g.groupType, persistence.GroupType.Public)
           .and
           .isNull(g.deletedAt)
-      }.map(persistence.Group(g.resultName)).single().apply
+      }.map(persistence.Group(g.resultName)).single().apply match {
+        case Some(x) => x
+        case None =>  throw new NotFoundException
+      }
     } else {
-      None
+      throw new NotFoundException
     }
   }
 
