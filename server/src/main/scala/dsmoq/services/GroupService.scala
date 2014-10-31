@@ -265,7 +265,7 @@ object GroupService {
         ))
       }
     } catch {
-      case e: Exception => Failure(e)
+      case e: Throwable => Failure(e)
     }
   }
 
@@ -325,7 +325,7 @@ object GroupService {
           val g = persistence.Group.column
           update(persistence.Group)
             .set(g.name -> name_, g.description -> description,
-            g.updatedBy -> sqls.uuid(myself.id), g.updatedAt -> timestamp)
+                 g.updatedBy -> sqls.uuid(myself.id), g.updatedAt -> timestamp)
             .where
             .eq(g.id, sqls.uuid(groupId))
             .and
@@ -440,8 +440,6 @@ object GroupService {
           }
         }
 
-        persistence.User.findAllBy(sqls.inUuid(u.id, roles.map(_.userId)))
-
         if (errors.nonEmpty) {
           throw new InputValidationException(errors)
         }
@@ -453,44 +451,45 @@ object GroupService {
             throw new NotFoundException
         }
 
+        // 登録処理（既に登録されているユーザが送られてきた場合は無視する）
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
-
-        roles.foreach {item =>
-          val user = persistence.User.find(item.userId).get
-          withSQL {
-            select(m.result.*)
-              .from(persistence.Member as m)
-              .where
-              .eq(m.userId, sqls.uuid(item.userId))
-              .and
-              .eq(m.groupId, sqls.uuid(groupId))
-          }.map(persistence.Member(m.resultName)).single().apply match {
-            case Some(x) =>
-              // create
-              val m = persistence.Member.column
-              withSQL {
-                update(persistence.Member)
-                  .set(m.role -> item.role, m.status -> 1, m.updatedAt -> timestamp, m.updatedBy -> sqls.uuid(myself.id),
-                    m.deletedAt -> null, m.deletedBy -> null)
-                  .where
-                  .eq(m.userId, sqls.uuid(x.userId))
-                  .and
-                  .eq(m.groupId, sqls.uuid(groupId))
-              }.update().apply
-            case None =>
-              // update
-              persistence.Member.create(
-                id = UUID.randomUUID.toString,
+        val userSet = persistence.User
+                        .findAllBy(sqls.inUuid(u.id, roles.map{_.userId}).and.isNull(u.deletedAt))
+                        .map{ _.id }.toSet
+        val memberMap = persistence.Member
+                          .findAllBy(sqls.inUuid(m.userId, roles.map{_.userId}))
+                          .map{ x => (x.userId, x) }.toMap
+        roles.filter{ x => userSet.contains(x.userId) }.foreach {item =>
+          if (!memberMap.contains(item.userId)) {
+            persistence.Member.create(
+              id = UUID.randomUUID.toString,
+              groupId = groupId,
+              userId = item.userId,
+              role = item.role,
+              status = 1,
+              createdBy = myself.id,
+              createdAt = timestamp,
+              updatedBy = myself.id,
+              updatedAt = timestamp
+            )
+          } else {
+            val member = memberMap(item.userId)
+            if (member.deletedAt.isDefined || member.role == GroupMemberRole.Deny) {
+              persistence.Member(
+                id = member.id,
                 groupId = groupId,
-                userId = user.id,
+                userId = item.userId,
                 role = item.role,
                 status = 1,
                 createdBy = myself.id,
                 createdAt = timestamp,
                 updatedBy = myself.id,
-                updatedAt = timestamp
-              )
+                updatedAt = timestamp,
+                deletedAt = None,
+                deletedBy = None
+              ).save()
+            }
           }
         }
         Success(Unit)

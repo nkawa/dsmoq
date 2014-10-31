@@ -6,6 +6,9 @@
 -cp lib/ConduitBox/src/main
 -D jsviews_enable_jqhx
 -resource assets/_share/pagination.html@share/pagination
+-resource assets/_share/loading.html@share/loading
+-resource assets/_share/message_dialog.html@share/message_dialog
+-resource assets/_share/confirm_dialog.html@share/confirm_dialog
 -resource assets/header.html@template/header
 -resource assets/dashboard/show.html@template/dashboard/show
 -resource assets/dataset/list.html@template/dataset/list
@@ -16,6 +19,7 @@
 -resource assets/group/list.html@template/group/list
 -resource assets/group/show.html@template/group/show
 -resource assets/group/edit.html@template/group/edit
+-resource assets/group/add_member_dialog.html@template/group/add_member_dialog
 -resource assets/profile/edit.html@template/profile/edit
 
 --next

@@ -1,0 +1,11 @@
+<div class="loading-mask-backdrop"></div>
+<div class="loading-mask">
+  <div class="loading-mask-body">
+    <img src="/resources/loading.gif" width="16" height="16"> 通信中...
+  </div>
+  {{if cancelable}}
+    <div class="loading-mask-footer">
+      <button type="button" class="btn btn-sm btn-primary loading-mask-cancel">キャンセル</button>
+    </div>
+  {{/if}}
+</div>
