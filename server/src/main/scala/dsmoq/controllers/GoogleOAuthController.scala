@@ -14,7 +14,7 @@ class GoogleOAuthController extends ScalatraServlet with SessionTrait {
     redirect(GoogleAccountService.getOAuthUrl(location))
   }
 
-  get ("/callback") {
+  get ("/oauth2callback") {
     val userRedirectUri = params.get("state") match {
       case Some(x) => x
       case None => "/"
