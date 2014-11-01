@@ -1,9 +1,9 @@
 package dsmoq.controllers
 
-import dsmoq.services.DatasetService
-
 import scala.util.{Failure, Success}
-import org.scalatra.{ScalatraServlet, NotFound}
+
+import dsmoq.services.DatasetService
+import org.scalatra.ScalatraServlet
 import org.scalatra.servlet.FileUploadSupport
 
 class FileController extends ScalatraServlet with SessionTrait with FileUploadSupport {

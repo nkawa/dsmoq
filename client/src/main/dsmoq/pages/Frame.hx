@@ -191,6 +191,6 @@ class Frame {
     }
 
     static function getAuthUrl() {
-        return "/oauth/signin_google?location=" + Engine.currentUrl.urlEncode();
+        return "/google_oauth/signin?location=" + Engine.currentUrl.urlEncode();
     }
 }

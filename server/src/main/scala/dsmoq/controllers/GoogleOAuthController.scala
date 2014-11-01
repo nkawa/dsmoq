@@ -1,17 +1,17 @@
 package dsmoq.controllers
 
 import org.scalatra.ScalatraServlet
-import dsmoq.services.OAuthService
+import dsmoq.services.GoogleAccountService
 import scala.util.{Failure, Success}
 
-class OAuthController extends ScalatraServlet with SessionTrait {
+class GoogleOAuthController extends ScalatraServlet with SessionTrait {
   get("/*") {
     throw new Exception("err")
   }
 
-  get("/signin_google") {
+  get("/signin") {
     val location = params("location")
-    redirect(OAuthService.getAuthenticationUrl(location))
+    redirect(GoogleAccountService.getOAuthUrl(location))
   }
 
   get ("/callback") {
@@ -21,25 +21,17 @@ class OAuthController extends ScalatraServlet with SessionTrait {
     }
 
     params.get("code") match {
-      case Some(x) =>
-        val authenticationCode = x
-
-        (for {
-          result <- OAuthService.loginWithGoogle(authenticationCode)
-        } yield {
-          result
-        }) match {
+      case Some(code) =>
+        GoogleAccountService.loginWithGoogle(code) match {
           case Success(y) =>
             clearSession()
             setSignedInUser(y)
             redirect(userRedirectUri)
           case Failure(e) =>
-            // 処理エラー時
             clearSession()
             redirect(userRedirectUri)
         }
       case None =>
-        // 連携拒否時処理
         clearSession()
         redirect(userRedirectUri)
     }
