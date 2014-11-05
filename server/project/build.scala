@@ -13,7 +13,7 @@ object DsmoqBuild extends Build {
   val ScalaVersion = "2.11.2"
   val ScalatraVersion = "2.3.0"
 
-  lazy val project = Project (
+  lazy val dsmoq = Project (
     "dsmoq-server",
     file("."),
     settings = Defaults.defaultSettings ++ ScalatraPlugin.scalatraSettings ++ Seq(
@@ -45,4 +45,16 @@ object DsmoqBuild extends Build {
       )
     )
   )
+  
+  lazy val sub = Project(
+    id = "sub",
+    base = file("sub"),
+    settings = Defaults.coreDefaultSettings ++ Seq(
+      organization := Organization,
+      name := "sub",
+      version := Version,
+      scalaVersion := ScalaVersion,
+      resolvers += Classpaths.typesafeReleases
+    )
+  ).dependsOn(dsmoq)
 }
