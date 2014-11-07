@@ -3,7 +3,7 @@ package dsmoq.persistence
 import scalikejdbc.specs2.mutable.AutoRollback
 import org.specs2.mutable._
 import org.joda.time._
-import scalikejdbc.SQLInterpolation._
+import scalikejdbc._
 
 class MemberSpec extends Specification {
   val m = Member.syntax("m")
