@@ -46,15 +46,16 @@ object DsmoqBuild extends Build {
     )
   )
   
-  lazy val sub = Project(
-    id = "sub",
-    base = file("sub"),
+  lazy val createUser = Project(
+    id = "createUser",
+    base = file("createUser"),
     settings = Defaults.coreDefaultSettings ++ Seq(
       organization := Organization,
-      name := "sub",
+      name := "createUser",
       version := Version,
       scalaVersion := ScalaVersion,
-      resolvers += Classpaths.typesafeReleases
+      resolvers += Classpaths.typesafeReleases,
+      libraryDependencies += "com.github.tototoshi" %% "scala-csv" % "1.1.0"
     )
   ).dependsOn(dsmoq)
 }
