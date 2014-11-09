@@ -72,6 +72,7 @@ class DatasetEditPage {
                 myself: Service.instance.profile,
                 licenses: Service.instance.licenses,
                 dataset: {
+                    id: x.id,
                     meta: x.meta,
                     files: x.files,
                     ownerships: x.ownerships,
