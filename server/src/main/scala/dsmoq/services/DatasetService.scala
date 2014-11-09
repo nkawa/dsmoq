@@ -337,18 +337,15 @@ object DatasetService {
                 .and
                 .withRoundBracket(
                   _.map { q =>
-                    if (ownerUsers.nonEmpty) {
-                      q.append(sqls.join(ownerUsers.map { sqls.eqUuid(o.groupId, _).and.eq(o.accessLevel, 3) }, sqls"or"))
-                    } else {
-                      q
-                    }
-                  }
-                  .map { q =>
-                    if (ownerGroups.nonEmpty) {
-                      q.append(sqls.join(ownerGroups.map { sqls.eqUuid(o.groupId, _).and.eq(o.accessLevel, 3) }, sqls"or"))
-                    } else {
-                      q
-                    }
+                    q.append(
+                      sqls.join(
+                        Seq(
+                          ownerUsers.map { sqls.eqUuid(o.groupId, _).and.eq(o.accessLevel, UserAccessLevel.Owner) },
+                          ownerGroups.map { sqls.eqUuid(o.groupId, _).and.eq(o.accessLevel, GroupAccessLevel.Provider) }
+                        ).flatten,
+                        sqls"or"
+                      )
+                    )
                   }
                 )
               .groupBy(o.datasetId).having(sqls.eq(sqls.count(o.datasetId), ownerUsers.length + ownerGroups.length))
