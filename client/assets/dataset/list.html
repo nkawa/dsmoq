@@ -20,13 +20,13 @@
       <div class="col-md-12">
         <ul class="list-group">
           {^{for condition.filters}}
-            {{if (type == "owner") ~index=#index}}
-              <li class="list-group-item list-group-item-success" data-index="{{>~index}}">
+            {{if (type == "owner")}}
+              <li class="list-group-item list-group-item-success">
                 <span class="glyphicon glyphicon-user"></span>{{>item.name}} {{if item.dataType==1}}({{>item.fullname}}){{/if}}
                 <button type="button" class="close"><span aria-hidden="true">&times;</span><span class="sr-only">Remove</span></button>
               </li>
-            {{else ~index=#index}}
-              <li class="list-group-item list-group-item-info" data-index="{{>~index}}">
+            {{else}}
+              <li class="list-group-item list-group-item-info">
                 <span class="glyphicon glyphicon-tag"></span> {{>item.name}} = {{>item.value}}
                 <button type="button" class="close"><span aria-hidden="true">&times;</span><span class="sr-only">Remove</span></button>
               </li>

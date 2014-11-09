@@ -164,8 +164,8 @@ class DatasetListPage {
             });
         });
 
-        JQuery._("#conditions").on("click", "[data-index] .close", function (e) {
-            var i = JQuery._(e.target).parents("[data-index]").data("index");
+        JQuery._("#conditions").on("click", ".list-group-item .close", function (e) {
+            var i = JQuery._("#conditions .list-group-item").index(JQuery._(e.target).parents(".list-group-item"));
             JsViews.observable(condition.filters).remove(i);
         });
 
