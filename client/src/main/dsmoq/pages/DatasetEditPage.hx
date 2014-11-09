@@ -42,11 +42,6 @@ class DatasetEditPage {
                     }
                 }
             });
-            //AttributeNameTypeahead.initialize(root.find(".attribute-typeahead"));
-            //function trigger(e: Event) { new JqHtml(e.target).trigger("change"); }
-            //root.find(".attribute-typeahead")
-                //.on("typeahead:autocompleted", trigger)
-                //.on("typeahead:selected", trigger);
         }
 
         function removeAttributeTypeahead(root: JqHtml) {

@@ -105,7 +105,8 @@ class AutoComplete {
                 suggestion.css({
                     left: '${position.left}px',
                     top: '${position.top + height + 5}px',
-                    minWidth: '${width}px'
+                    minWidth: '${width}px',
+                    maxHeight: "180px"
                 });
                 suggestion.on("mouseenter.autocomplete", ".autocomplete-suggestion-item", function (e: Event) {
                     JQuery._(e.currentTarget).addClass("autocomplete-suggestion-item-hover");
