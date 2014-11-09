@@ -73,6 +73,7 @@ class AutoComplete {
                     elem.__coumpleted = item;
                     target.val(resolve(item));
                     target.trigger("autocomplete:complated");
+                    target.trigger("change");
                 }
             }
 
@@ -80,6 +81,7 @@ class AutoComplete {
                 if (elem.__coumpleted != null) {
                     elem.__coumpleted = null;
                     target.trigger("autocomplete:uncomplated");
+                    target.trigger("change");
                 }
             }
 
@@ -164,7 +166,6 @@ class AutoComplete {
                 target.trigger("autocomplete:uncomplated");
 
                 request(value).then(function (record) {
-                    trace(record);
                     if (record.items.length == 1 && resolve(record.items[0]) == value) {
                         elem.__coumpleted = record.items[0];
                         target.trigger("autocomplete:complated");
