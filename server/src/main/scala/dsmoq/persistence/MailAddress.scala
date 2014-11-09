@@ -131,18 +131,18 @@ object MailAddress extends SQLSyntaxSupport[MailAddress] {
 
   def save(entity: MailAddress)(implicit session: DBSession = autoSession): MailAddress = {
     withSQL { 
-      update(MailAddress as ma).set(
-        ma.id -> entity.id,
-        ma.userId -> entity.userId,
-        ma.address -> entity.address,
-        ma.status -> entity.status,
-        ma.createdBy -> entity.createdBy,
-        ma.createdAt -> entity.createdAt,
-        ma.updatedBy -> entity.updatedBy,
-        ma.updatedAt -> entity.updatedAt,
-        ma.deletedBy -> entity.deletedBy,
-        ma.deletedAt -> entity.deletedAt
-      ).where.eq(ma.id, entity.id)
+      update(MailAddress).set(
+        column.id -> sqls.uuid(entity.id),
+        column.userId -> sqls.uuid(entity.userId),
+        column.address -> entity.address,
+        column.status -> entity.status,
+        column.createdBy -> sqls.uuid(entity.createdBy),
+        column.createdAt -> entity.createdAt,
+        column.updatedBy -> sqls.uuid(entity.updatedBy),
+        column.updatedAt -> entity.updatedAt,
+        column.deletedBy -> entity.deletedBy.map(sqls.uuid),
+        column.deletedAt -> entity.deletedAt
+      ).where.eqUuid(column.id, entity.id)
     }.update.apply()
     entity 
   }

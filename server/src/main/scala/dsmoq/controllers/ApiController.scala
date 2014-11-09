@@ -81,6 +81,36 @@ class ApiController extends ScalatraServlet
     }
   }
 
+  post("/profile/image") {
+    val icon = fileParams.get("icon")
+    (for {
+      user <- signedInUser
+      imageId <- AccountService.changeIcon(user.id, icon)
+    } yield {
+      setSignedInUser(User(
+        id = user.id,
+        name = user.name,
+        fullname = user.fullname,
+        organization = user.organization,
+        title = user.title,
+        image = dsmoq.AppConf.imageDownloadRoot + imageId,
+        mailAddress = user.mailAddress,
+        description = user.description,
+        isGuest = user.isGuest,
+        isDeleted = user.isDeleted
+      ))
+    }) match {
+      case Success(x) =>
+        AjaxResponse("OK", x)
+      case Failure(e) =>
+        e match {
+          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+          case _ => AjaxResponse("NG")
+        }
+    }
+  }
+
   post("/profile/email_change_requests") {
     val json = params.get("d").map(JsonMethods.parse(_).extract[UpdateMailAddressParams])
                                .getOrElse(UpdateMailAddressParams())
