@@ -35,6 +35,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     ).toMultipartConfigElement
   )
 
+  //NOTE baseUrlの解決に失敗するため、まったく同じロジックでScalatraSuiteとoverrideしている
   override def baseUrl: String =
     server.getConnectors collectFirst {
       case conn: Connector =>

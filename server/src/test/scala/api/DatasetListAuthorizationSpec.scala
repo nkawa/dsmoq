@@ -38,6 +38,7 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
     ).toMultipartConfigElement
   )
 
+  //NOTE baseUrlの解決に失敗するため、まったく同じロジックでScalatraSuiteとoverrideしている
   override def baseUrl: String =
     server.getConnectors collectFirst {
       case conn: Connector =>

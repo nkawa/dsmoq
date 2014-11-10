@@ -34,6 +34,7 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
   )
   addServlet(classOf[FileController], "/files/*")
 
+  //NOTE baseUrlの解決に失敗するため、まったく同じロジックでScalatraSuiteとoverrideしている
   override def baseUrl: String =
     server.getConnectors collectFirst {
       case conn: Connector =>
