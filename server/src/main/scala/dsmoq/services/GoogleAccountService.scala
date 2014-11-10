@@ -23,27 +23,45 @@ object GoogleAccountService {
       val googleAccount = getGoogleAccount(authenticationCode)
 
       DB localTx { implicit s =>
-        val timestamp = DateTime.now
+        val u = persistence.User.u
+        val gu = persistence.GoogleUser.gu
 
-        // ユーザーの存在チェック
-        val user = getUser(googleAccount) match {
-          case Some(x) => x
-          case None => createUser(googleAccount, timestamp)
+        val googleUser = withSQL {
+          select(u.result.*)
+            .from(persistence.User as u)
+            .innerJoin(persistence.GoogleUser as gu).on(u.id, gu.userId)
+            .where
+            .eq(gu.googleId, googleAccount.getId)
         }
+        .map(persistence.User(u.resultName)).single().apply
+        .map(x => services.User(x, googleAccount.getEmail))
 
-        // google_userの存在チェック
-        getGoogleUser(user) match {
+        val user = googleUser match {
           case Some(x) =>
-            if (x.googleId == null) {
-              updateGoogleUser(x, googleAccount, timestamp)
-            } else if (x.googleId != googleAccount.getId) {
-              throw new Exception
+            updateUser(x, googleAccount)
+            x
+          case None =>
+            // ユーザー登録バッチで追加されたユーザーかチェック
+            val importUser = withSQL {
+              select(u.result.*)
+                .from(persistence.User as u)
+                .innerJoin(persistence.GoogleUser as gu).on(u.id, gu.userId)
+                .where
+                .isNull(gu.googleId)
+                .and
+                .eq(u.name, googleAccount.getEmail)
             }
-          case None => createGoogleUser(user, googleAccount, timestamp)
-        }
+            .map(persistence.User(u.resultName)).single().apply
+            .map(x => services.User(x, googleAccount.getEmail))
 
-        Success(services.User(user, googleAccount.getEmail)
-        )
+            importUser match {
+              case Some(x) =>
+                updateGoogleUser(x, googleAccount)
+                x
+              case None => createUser(googleAccount)
+            }
+        }
+        Success(user)
       }
     } catch {
       case e: Throwable => Failure(e)
@@ -72,33 +90,9 @@ object GoogleAccountService {
     oauth2.userinfo().get().execute()
   }
 
-  private def getUser(googleAccount: Userinfoplus)(implicit s: DBSession) = {
-    val u = persistence.User.u
-    withSQL {
-      select(u.result.*)
-        .from(persistence.User as u)
-        .where
-        .eq(u.name, googleAccount.getEmail)
-        .and
-        .isNull(u.deletedAt)
-    }
-    .map(persistence.User(u.resultName)).single().apply
-  }
+  private def createUser(googleAccount: Userinfoplus)(implicit s: DBSession) = {
+    val timestamp = DateTime.now
 
-  private def getGoogleUser(user: persistence.User)(implicit s: DBSession) = {
-    val gu = persistence.GoogleUser.gu
-    withSQL {
-      select(gu.result.*)
-        .from(persistence.GoogleUser as gu)
-        .where
-        .eq(gu.userId, sqls.uuid(user.id))
-        .and
-        .isNull(gu.deletedAt)
-    }
-    .map(persistence.GoogleUser(gu.resultName)).single().apply
-  }
-
-  private def createUser(googleAccount: Userinfoplus, timestamp: DateTime)(implicit s: DBSession) = {
     val user = persistence.User.create(
       id = UUID.randomUUID.toString,
       name = googleAccount.getEmail,
@@ -147,10 +141,6 @@ object GoogleAccountService {
       updatedAt = timestamp
     )
 
-    user
-  }
-
-  private def createGoogleUser(user: persistence.User, googleAccount: Userinfoplus, timestamp: DateTime)(implicit s: DBSession) = {
     persistence.GoogleUser.create(
       id = UUID.randomUUID.toString,
       userId = user.id,
@@ -160,9 +150,38 @@ object GoogleAccountService {
       updatedBy = AppConf.systemUserId,
       updatedAt = timestamp
     )
+
+    services.User(user, googleAccount.getEmail)
   }
 
-  private def updateGoogleUser(googleUser: persistence.GoogleUser, googleAccount: Userinfoplus, timestamp: DateTime)(implicit s: DBSession) = {
+  private def updateUser(user: services.User, googleAccount: Userinfoplus)(implicit s: DBSession) = {
+    val timestamp = DateTime.now
+    withSQL {
+      val u = persistence.User.column
+      update(persistence.User)
+        .set(u.name -> googleAccount.getEmail, u.updatedAt -> timestamp, u.updatedBy -> sqls.uuid(AppConf.systemUserId))
+        .where
+        .eq(u.id, sqls.uuid(user.id))
+    }.update().apply
+  }
+
+  private def getGoogleUser(user: services.User)(implicit s: DBSession) = {
+    val gu = persistence.GoogleUser.gu
+    withSQL {
+      select(gu.result.*)
+        .from(persistence.GoogleUser as gu)
+        .where
+        .eq(gu.userId, sqls.uuid(user.id))
+        .and
+        .isNull(gu.deletedAt)
+    }
+    .map(persistence.GoogleUser(gu.resultName)).single().apply.get
+  }
+
+  private def updateGoogleUser(user: services.User, googleAccount: Userinfoplus)(implicit s: DBSession) = {
+    val googleUser = getGoogleUser(user)
+
+    val timestamp = DateTime.now
     withSQL {
       val gu = persistence.GoogleUser.column
       update(persistence.GoogleUser)
