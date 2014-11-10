@@ -36,26 +36,6 @@ object Main {
 
     try {
       DB localTx { implicit s =>
-        // メンバー情報全削除
-        val g = persistence.Group.g
-        val publicGroups = withSQL {
-          select(g.result.*)
-            .from(persistence.Group as g)
-            .where
-            .eq(g.groupType, 0)
-            .and
-            .isNull(g.deletedAt)
-        }.map(persistence.Group(g.resultName)).list().apply.map{_.id}
-
-        if (publicGroups.length > 0) {
-          val m = persistence.Member.m
-          withSQL {
-            delete.from(persistence.Member as m)
-              .where
-              .inUuid(m.groupId, publicGroups)
-          }.update().apply
-        }
-
         reader.foreach { seq =>
           // ユーザー情報6列 + グループ所属情報2*n = 偶数
           if (seq.length < 8 || seq.length % 2 != 0) {
@@ -187,17 +167,39 @@ object Main {
                     throw new Exception("\"" +ga._1 + "\"グループの権限設定が間違っています(0:Member, 1:Manager):" + seq)
                     0
                 }
-                persistence.Member.create(
-                  id = UUID.randomUUID.toString,
-                  groupId = x.id,
-                  userId = user.id,
-                  role = role,
-                  status = 1,
-                  createdBy = systemUserId,
-                  createdAt = timestamp,
-                  updatedBy = systemUserId,
-                  updatedAt = timestamp
-                )
+
+                val m = persistence.Member.m
+                val member = withSQL {
+                  select(m.result.*)
+                    .from(persistence.Member as m)
+                    .where
+                    .eq(m.groupId, sqls.uuid(x.id))
+                    .and
+                    .eq(m.userId, sqls.uuid(user.id))
+                }.map(persistence.Member(m.resultName)).single().apply
+
+                member match {
+                  case Some(y) =>
+                    withSQL {
+                      val m = persistence.Member.column
+                      update(persistence.Member)
+                        .set(m.role -> role, m.updatedAt -> timestamp, m.updatedBy -> sqls.uuid(systemUserId))
+                        .where
+                        .eq(m.id, sqls.uuid(y.id))
+                    }.update().apply
+                  case None =>
+                    persistence.Member.create(
+                      id = UUID.randomUUID.toString,
+                      groupId = x.id,
+                      userId = user.id,
+                      role = role,
+                      status = 1,
+                      createdBy = systemUserId,
+                      createdAt = timestamp,
+                      updatedBy = systemUserId,
+                      updatedAt = timestamp
+                    )
+                }
               case None =>
                 throw new Exception("\"" + ga._1 + "\"グループは存在しません:" + seq)
             }
