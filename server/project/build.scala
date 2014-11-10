@@ -16,7 +16,7 @@ object DsmoqBuild extends Build {
   lazy val dsmoq = Project (
     "dsmoq-server",
     file("."),
-    settings = Defaults.defaultSettings ++ ScalatraPlugin.scalatraSettings ++ Seq(
+    settings = Defaults.coreDefaultSettings ++ ScalatraPlugin.scalatraSettings ++ Seq(
       organization := Organization,
       name := Name,
       version := Version,
@@ -39,9 +39,9 @@ object DsmoqBuild extends Build {
         "org.scalikejdbc" %% "scalikejdbc-test" % "2.1.1" % "test",
         "org.scalatra" %% "scalatra-json" % ScalatraVersion,
         "org.json4s" %% "json4s-jackson" % "3.2.10",
-        "com.google.api-client" % "google-api-client" % "1.18.0-rc",
-        "com.google.http-client" % "google-http-client-jackson" % "1.18.0-rc",
-        "com.google.apis" % "google-api-services-oauth2" % "v2-rev66-1.18.0-rc"
+        "com.google.api-client" % "google-api-client" % "1.18.0-rc" excludeAll( ExclusionRule(organization = "org.apache.httpcomponents") ),
+        "com.google.http-client" % "google-http-client-jackson" % "1.18.0-rc" excludeAll( ExclusionRule(organization = "org.apache.httpcomponents") ),
+        "com.google.apis" % "google-api-services-oauth2" % "v2-rev66-1.18.0-rc" excludeAll( ExclusionRule(organization = "org.apache.httpcomponents") )
       )
     )
   )
