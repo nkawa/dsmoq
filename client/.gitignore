@@ -1,5 +1,6 @@
 www/application.js
 www/application.js.map
+www/style.css
 node_modules/
 test/*/*.js
 test/*/*.js.map
