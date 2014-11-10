@@ -84,7 +84,7 @@ object AccountService {
         if (email_.isEmpty) {
           throw new InputValidationException(Map("email" -> "email is empty"))
         } else if (existsSameEmail(id, email_)) {
-          throw new InputValidationException(Map("email" -> "email is alread exists"))
+          throw new InputValidationException(Map("email" -> "email is already exists"))
         }
 
         (for {
@@ -116,11 +116,13 @@ object AccountService {
   private def existsSameEmail(id: String, email: String)(implicit s: DBSession): Boolean = {
     val ma = persistence.MailAddress.ma
     withSQL {
-      select(sqls"1")
+      select.apply(sqls"1")
         .from(persistence.MailAddress as ma)
         .where
-          .eqUuid(ma.userId, id).and.eq(ma.address, email)
-    }.map(_ => Unit).single().apply.isEmpty
+          .eq(ma.address, email)
+          .and
+          .not.withRoundBracket {sql => sql.eqUuid(ma.userId, id).and.eq(ma.address, email) }
+    }.map(_ => Unit).single().apply.nonEmpty
   }
 
   /**
@@ -134,13 +136,13 @@ object AccountService {
     // TODO リファクタリング
     try {
       DB localTx { implicit s =>
-        // input validation
-        val errors = mutable.LinkedHashMap.empty[String, String]
-        val c = currentPassword.getOrElse("")
-        val oldPasswordHash = createPasswordHash(c)
-
         val u = persistence.User.u
         val p = persistence.Password.p
+
+        val oldPasswordHash = createPasswordHash(currentPassword.getOrElse(""))
+
+        // input validation
+        val errors = mutable.LinkedHashMap.empty[String, String]
         val pwd = withSQL {
           select(p.result.*)
             .from(persistence.Password as p)
@@ -149,6 +151,8 @@ object AccountService {
             .eq(u.id, sqls.uuid(id))
             .and
             .eq(p.hash, oldPasswordHash)
+            .and
+            .isNull(u.deletedAt)
             .and
             .isNull(p.deletedAt)
         }.map(persistence.Password(p.resultName)).single().apply
@@ -263,6 +267,68 @@ object AccountService {
             }
 
             Success(User.apply(user, address))
+          case None =>
+            throw new NotFoundException()
+        }
+      }
+    } catch {
+      case e: Throwable => Failure(e)
+    }
+  }
+
+  /**
+   * 指定したユーザのアイコンを更新します。
+   * @param id
+   * @param icon
+   */
+  def changeIcon(id: String, icon: Option[FileItem]) = {
+    try {
+      DB localTx { implicit s =>
+        // input validation
+        val errors = mutable.LinkedHashMap.empty[String, String]
+        if (icon.isEmpty) {
+          errors.put("icon", "icon is empty")
+        }
+        if (errors.nonEmpty) {
+          throw new InputValidationException(errors)
+        }
+
+        val icon_ = icon.get
+        persistence.User.find(id) match {
+          case Some(x) =>
+            val imageId = UUID.randomUUID().toString
+            val path = ImageSaveLogic.writeImageFile(imageId, icon_)
+            val bufferedImage = javax.imageio.ImageIO.read(icon_.getInputStream)
+
+            val image = persistence.Image.create(
+              id = imageId,
+              name = icon_.getName,
+              width = bufferedImage.getWidth,
+              height = bufferedImage.getWidth,
+              filePath = path,
+              presetType = PresetType.Default,
+              createdBy = id,
+              createdAt = DateTime.now,
+              updatedBy = id,
+              updatedAt = DateTime.now
+            )
+
+            val user = persistence.User(
+              id = x.id,
+              name = x.name,
+              fullname = x.fullname,
+              organization = x.organization,
+              title = x.title,
+              description = x.description,
+              imageId = image.id,
+              createdBy = x.createdBy,
+              createdAt = x.createdAt,
+              updatedBy = id,
+              updatedAt = DateTime.now
+            )
+            user.save
+
+            Success(image.id)
           case None =>
             throw new NotFoundException()
         }

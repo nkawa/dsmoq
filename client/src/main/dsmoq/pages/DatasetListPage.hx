@@ -89,76 +89,83 @@ class DatasetListPage {
             }
         });
 
-        AutoComplete.initialize("#filter-owner-input", {
-            url: function (query: String) {
-                return '/api/suggests/users_and_groups?query=${query}';
-            },
-            path: "name",
-            filter: function (data: Dynamic) {
-                return if (data.status == "OK" && Std.is(data.data, Array)) {
-                    Result.Success(data.data);
-                } else {
-                    Result.Failure(new Error("Network Error"));
+        JQuery._("#add-filter-button").on("shown.bs.popover", function (_) {
+            // init owner tab
+            JQuery._("#filter-owner-input").val("");
+            AutoComplete.initialize("#filter-owner-input", {
+                url: function (query: String) {
+                    return '/api/suggests/users_and_groups?query=${query}';
+                },
+                path: "name",
+                filter: function (data: Dynamic) {
+                    return if (data.status == "OK" && Std.is(data.data, Array)) {
+                        Result.Success(data.data);
+                    } else {
+                        Result.Failure(new Error("Network Error"));
+                    }
+                },
+                template: {
+                    suggestion: function (x) {
+                        return '<div>${x.name}</div>';
+                    }
                 }
-            },
-            template: {
-                suggestion: function (x) {
-                    return '<div>${x.name}</div>';
-                }
-            }
-        });
-        JQuery._("#filter-owner-input").on("autocomplete:complated", function (_) {
-            JQuery._("#filter-owner-apply").attr("disabled", false);
-        });
-        JQuery._("#filter-owner-input").on("autocomplete:uncomplated", function (_) {
-            JQuery._("#filter-owner-apply").attr("disabled", true);
-        });
-        JQuery._("#filter-owner-apply").on("click", function (_) {
-            var item = AutoComplete.getCompletedItem("#filter-owner-input");
-            JsViews.observable(binding.data().condition.filters).insert({
-                type: 'owner',
-                item: item
             });
-            AutoComplete.clear("#filter-owner-input");
-            BootstrapPopover.hide("#add-filter-button");
-        });
+            JQuery._("#filter-owner-input").on("autocomplete:complated", function (_) {
+                JQuery._("#filter-owner-apply").attr("disabled", false);
+            });
+            JQuery._("#filter-owner-input").on("autocomplete:uncomplated", function (_) {
+                JQuery._("#filter-owner-apply").attr("disabled", true);
+            });
+            JQuery._("#filter-owner-apply").on("click", function (_) {
+                var item = AutoComplete.getCompletedItem("#filter-owner-input");
+                JsViews.observable(binding.data().condition.filters).insert({
+                    type: 'owner',
+                    item: item
+                });
+                AutoComplete.clear("#filter-owner-input");
+                BootstrapPopover.hide("#add-filter-button");
+            });
 
-        AutoComplete.initialize("#filter-attribute-name-input", {
-            url: function (query: String) {
-                return '/api/suggests/attributes?query=${query}';
-            },
-            filter: function (data: Dynamic) {
-                return if (data.status == "OK" && Std.is(data.data, Array)) {
-                    Result.Success(data.data);
-                } else {
-                    Result.Failure(new Error("Network Error"));
-                }
-            },
-            template: {
-                suggestion: function (x) {
-                    return '<div>${x}</div>';
-                }
-            }
-        });
-        JQuery._("#filter-attribute-name-input").on("autocomplete:complated", function (_) {
-            JQuery._("#filter-attribute-apply").attr("disabled", false);
-        });
-        JQuery._("#filter-attribute-name-input").on("autocomplete:uncomplated", function (_) {
-            JQuery._("#filter-attribute-apply").attr("disabled", true);
-        });
-        JQuery._("#filter-attribute-apply").on("click", function (_) {
-            var name = AutoComplete.getCompletedItem("#filter-attribute-name-input");
-            JsViews.observable(binding.data().condition.filters).insert({
-                type: "attribute",
-                item: { name: name, value: JQuery._("#filter-attribute-value-input").val() }
-            });
-            AutoComplete.clear("#filter-attribute-name-input");
+            // init attribute tab
+            JQuery._("#filter-attribute-name-input").val("");
             JQuery._("#filter-attribute-value-input").val("");
-            BootstrapPopover.hide("#add-filter-button");
+            AutoComplete.initialize("#filter-attribute-name-input", {
+                url: function (query: String) {
+                    return '/api/suggests/attributes?query=${query}';
+                },
+                filter: function (data: Dynamic) {
+                    return if (data.status == "OK" && Std.is(data.data, Array)) {
+                        Result.Success(data.data);
+                    } else {
+                        Result.Failure(new Error("Network Error"));
+                    }
+                },
+                template: {
+                    suggestion: function (x) {
+                        return '<div>${x}</div>';
+                    }
+                }
+            });
+            JQuery._("#filter-attribute-name-input").on("autocomplete:complated", function (_) {
+                JQuery._("#filter-attribute-apply").attr("disabled", false);
+            });
+            JQuery._("#filter-attribute-name-input").on("autocomplete:uncomplated", function (_) {
+                JQuery._("#filter-attribute-apply").attr("disabled", true);
+            });
+            JQuery._("#filter-attribute-apply").on("click", function (_) {
+                var name = AutoComplete.getCompletedItem("#filter-attribute-name-input");
+                JsViews.observable(binding.data().condition.filters).insert({
+                    type: "attribute",
+                    item: { name: name, value: JQuery._("#filter-attribute-value-input").val() }
+                });
+                AutoComplete.clear("#filter-attribute-name-input");
+                JQuery._("#filter-attribute-value-input").val("");
+                BootstrapPopover.hide("#add-filter-button");
+            });
         });
 
-        JQuery._("#conditions").on("click", "[data-index] .close", function (e) {
-            var i = JQuery._(e.target).parents("[data-index]").data("index");
+        JQuery._("#conditions").on("click", ".list-group-item .close", function (e) {
+            var i = JQuery._("#conditions .list-group-item").index(JQuery._(e.target).parents(".list-group-item"));
             JsViews.observable(condition.filters).remove(i);
         });
 

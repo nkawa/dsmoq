@@ -1,6 +1,6 @@
 <ol class="breadcrumb">
-  <li><a href="/">Top</a></li>
-  <li class="active">Group List</li>
+  <li><a href="/" data-navigation>Top</a></li>
+  <li class="active">Groups</li>
 </ol>
 
 <div class="well well-sm dsmoq-filter" id="conditions">
@@ -18,13 +18,13 @@
 
 {^{async result ~condition=condition}}
   {^{if total > 0}}
-    <strong>Found {^{>total}} records</strong>
+    <p><strong>Found {^{>total}} records</strong></p>
     <ul>
       {^{for items}}
         <li class="dataset-item">
           <div class="row">
             <div class="pull-left">
-              <img data-link="src{>image+'/64'}">
+              <img data-link="src{>image+'/48'}">
             </div>
             <div class="result-list-body">
               <h3>{{a href="/groups/"+id}}{{>name}}{{/a}} <small>{{>members}} Members, {{>datasets}} Datasets</small></h3>

@@ -68,20 +68,19 @@ class Service extends Stream<ServiceEvent> {
         });
     }
 
-
-    //public function updateProfile(form: JqHtml): Promise<Profile> {
-        //return sendForm("/api/profile", form).then(function (x: Profile) {
-            //profile = x;
-            //update(ProfileUpdated);
-        //});
-    //}
+    public function updateImage(form: JqHtml): Promise<Profile> {
+        return sendForm("/api/profile/image", form).then(function (x: Profile) {
+            profile = x;
+            update(ProfileUpdated);
+        });
+    }
 
     public function sendEmailChangeRequests(email: String): Promise<Unit> {
         return send(Post, "/api/profile/email_change_requests", { email: email });
     }
 
     public function updatePassword(currentPassword: String, newPassword: String): Promise<Unit> {
-        return send(Put, "/api/profile/password", { current_password: currentPassword, new_password: newPassword });
+        return send(Put, "/api/profile/password", { currentPassword: currentPassword, newPassword: newPassword });
     }
 
     // ---

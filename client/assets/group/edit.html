@@ -1,14 +1,10 @@
 {^{async data}}
-  <div class="row">
-    <div class="col-sm-10">
-      <h2 class="page-heading">Edit Group</h2>
-    </div>
-    <div class="col-sm-2 text-right">
-      <div class="btn-group-vertical">
-        <button type="button" class="btn btn-info" id="group-finish-editing">Finish</button>
-      </div>
-    </div>
-  </div>
+  <ol class="breadcrumb">
+    <li><a href="/" data-navigation>Top</a></li>
+    <li><a href="/groups" data-navigation>Groups</a></li>
+    <li><a href="/groups/{{>group.id}}" data-navigation>{^{>group.name}}</a></li>
+    <li class="active">Edit</li>
+  </ol>
 
   <div class="tabbable">
     <ul class="nav nav-tabs">
@@ -57,7 +53,7 @@
       <div class="tab-pane" id="group-icon">
         <div class="form-group">
           <div>
-            <img data-link="src{>group.primaryImage.url}" alt="icon">
+            <img data-link="src{>group.primaryImage.url+'/128'}" alt="icon">
           </div>
         </div>
         <form role="form" id="group-icon-form">

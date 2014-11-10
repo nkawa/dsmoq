@@ -337,18 +337,15 @@ object DatasetService {
                 .and
                 .withRoundBracket(
                   _.map { q =>
-                    if (ownerUsers.nonEmpty) {
-                      q.append(sqls.join(ownerUsers.map { sqls.eqUuid(o.groupId, _).and.eq(o.accessLevel, 3) }, sqls"or"))
-                    } else {
-                      q
-                    }
-                  }
-                  .map { q =>
-                    if (ownerGroups.nonEmpty) {
-                      q.append(sqls.join(ownerGroups.map { sqls.eqUuid(o.groupId, _).and.eq(o.accessLevel, 3) }, sqls"or"))
-                    } else {
-                      q
-                    }
+                    q.append(
+                      sqls.join(
+                        Seq(
+                          ownerUsers.map { sqls.eqUuid(o.groupId, _).and.eq(o.accessLevel, UserAccessLevel.Owner) },
+                          ownerGroups.map { sqls.eqUuid(o.groupId, _).and.eq(o.accessLevel, GroupAccessLevel.Provider) }
+                        ).flatten,
+                        sqls"or"
+                      )
+                    )
                   }
                 )
               .groupBy(o.datasetId).having(sqls.eq(sqls.count(o.datasetId), ownerUsers.length + ownerGroups.length))
@@ -439,10 +436,8 @@ object DatasetService {
       val i = persistence.Image.i
 
       withSQL {
-        select(o.result.datasetId, g.result.id, g.result.groupType,
-              sqls"case ${g.column("group_type")} when 0 then ${g.column("name")} when 1 then ${u.column("name")} end as name",
-              u.result.fullname
-        )
+        select.apply(o.result.datasetId, g.result.id, g.result.groupType,
+              u.result.id, u.result.column("name"), u.result.fullname, g.result.column("name"))
           .from(persistence.Ownership as o)
             .innerJoin(persistence.Group as g).on(o.groupId, g.id)
             .leftJoin(persistence.Member as m).on(m.groupId, g.id)
@@ -461,22 +456,25 @@ object DatasetService {
             .append(sqls"end")
       }.map(rs => {
         val datasetId = rs.string(o.resultName.datasetId)
-        val groupId = rs.string(g.resultName.id)
-        val groupType = rs.int(g.resultName.groupType)
-        val groupName = rs.string("name")
-        val fullname = rs.stringOpt(u.resultName.fullname)
-
-        // TODO group_images.primeryを廃止したい（画像取得のロジックが煩雑化するため）
-        // 暫定的に image は取得しない
-        val ownership = DatasetData.DatasetOwnership(
-          id = "",
-          name = groupName,
-          fullname = fullname.getOrElse(""),
-          image = "",
-          accessLevel = 3,
-          ownerType = groupType
-        )
-        (datasetId, ownership)
+        if (rs.int(g.resultName.groupType) == GroupType.Personal) {
+          (datasetId, DatasetData.DatasetOwnership(
+            id = rs.string(u.resultName.id),
+            name = rs.string(u.resultName.name),
+            fullname = rs.string(u.resultName.fullname),
+            image = "",
+            accessLevel = UserAccessLevel.Owner,
+            ownerType = GroupType.Personal
+          ))
+        } else {
+          (datasetId, DatasetData.DatasetOwnership(
+            id = rs.string(g.resultName.id),
+            name = rs.string(g.resultName.name),
+            fullname = "",
+            image = "",
+            accessLevel = GroupAccessLevel.Provider,
+            ownerType = GroupType.Public
+          ))
+        }
       }).list().apply().groupBy(_._1).mapValues(_.map(_._2))
     } else {
       Map.empty

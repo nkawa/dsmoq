@@ -111,10 +111,6 @@ hr {
 .dataset-item {
   padding-bottom: 8px;
 }
-.dataset-item img {
-  width: 64px;
-  height: 64px;
-}
 .dataset-item .result-list-body {
   margin-left: 125px;
 }
@@ -161,6 +157,11 @@ hr {
 }
 .title-owners {
   font-size: 60%;
+}
+.dataset-list .media {
+  border: 1px solid #ddd;
+  padding: 8px;
+  border-radius: 3px;
 }
 .dataset-view-body {
   border-top: solid 1px rgba(0, 0, 0, 0.2);

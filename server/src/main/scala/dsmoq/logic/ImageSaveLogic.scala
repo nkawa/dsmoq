@@ -9,7 +9,7 @@ import java.awt.image.BufferedImage
 object ImageSaveLogic {
   val defaultFileName = "original"
   val uploadPath = "upload"
-  val imageSizes = Array(16, 32, 48, 128)
+  val imageSizes = Array(16, 32, 48, 64, 96, 128)
 
   def writeImageFile(imageId: String, file: FileItem): String = {
     // 拡張子判定(現状例外スロー)

@@ -39,6 +39,7 @@ trait SessionTrait extends ScalatraServlet {
 
   def setSignedInUser(x: User) = {
     session.setAttribute(SessionKey, x)
+    x
   }
 
   def guestUser = {
