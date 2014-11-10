@@ -19,16 +19,18 @@
 {^{async result ~condition=condition}}
   {^{if total > 0}}
     <p><strong>Found {^{>total}} records</strong></p>
-    <ul>
+    <ul class="media-list dataset-list">
       {^{for items}}
-        <li class="dataset-item">
-          <div class="row">
-            <div class="pull-left">
-              <img data-link="src{>image+'/48'}">
-            </div>
-            <div class="result-list-body">
-              <h3>{{a href="/groups/"+id}}{{>name}}{{/a}} <small>{{>members}} Members, {{>datasets}} Datasets</small></h3>
-              <p>{{>description}}</p>
+        <li class="media">
+          <div class="pull-left" style="width: 96px; text-align: center;">
+            <a class="media-left" href="#"><img src="{{>image+'/96'}}" alt="{{>name}}" /></a>
+          </div>
+          <div class="media-body">
+            <h4 class="media-heading"><a href="/groups/{{>id}}" data-navigation>{{>name}}</a></h4>
+            <p>{{if description}}{{>description}}{{else}}<span class="text-muted">(No description)</span>{{/if}}</p>
+            <div>
+			  <span class="label label-default">{{>members}} Members</span>
+			  <span class="label label-default">{{>datasets}} Datasets</span>&nbsp;
             </div>
           </div>
         </li>

@@ -4,30 +4,37 @@
   <div class="panel-heading">Recent Datasets</div>
   <div class="panel-body" id="recent-datasets">
     {^{async recentDatasets}}
-      {^{for #data}}
-        <ul>
-          <li class="dataset-item">
-            <div class="row">
-              <div class="pull-left">{{a href="/datasets/"+id}}<img src="{{>image+'/64'}}">{{/a}}</div>
-              <div class="result-list-body">
-                <h3>{{a href="/datasets/"+id}}{{>name}}{{/a}} <small>{{>files}} file, {{datasize dataSize/}}</small></h3>
-                <p>{{>description}}</p>
-                <p>
-                  {{for ownerships ~last=(ownerships.length-1)}}
-                    {{if ownerType == 1}}
-                      <img src="{{>image+'/16'}}" class="icon"><strong>{{>fullname}}</strong>
-                    {{else ownerType == 2}}
-                      <img src="{{>image+'/16'}}" class="icon"><strong>{{>name}}</strong>
-                    {{/if}}
-                  {{/for}}
-                </p>
-              </div>
-            </div>
-          </li>
-        </ul>
-      {{else}}
-        There are no datasets.
-      {{/for}}
+	  {^{if #data.length > 0}}
+		<ul class="media-list dataset-list">
+		  {^{for #data}}
+			<li class="media">
+			  <div class="pull-left" style="width: 96px; text-align: center;">
+				<a class="media-left" href="#"><img src="{{>image+'/96'}}" alt="{{>name}}" /></a>
+			  </div>
+			  <div class="media-body">
+				<h4 class="media-heading"><a href="/datasets/{{>id}}" data-navigation>{{>name}}</a></h4>
+				<p>{{if description}}{{>description}}{{else}}<span class="text-muted">(No description)</span>{{/if}}</p>
+				<div>
+				  {{for ownerships ~length=ownerships.length}}
+					<span class="label label-success">
+					  <span class="glyphicon glyphicon-user"></span>
+					  {{if ownerType == 1}} {{>fullname}} {{else}} {{>name}} {{/if}}
+					</span>&nbsp;
+				  {{/for}}
+				</div>
+				<div>
+				  <span class="label label-default">{{>files}} files ({{datasize dataSize /}})</span>&nbsp;
+				  {{for attributes}}
+					<span class="label label-info"><span class="glyphicon glyphicon-tag"></span> {{>name}}{{if value}} : {{>value}}{{/if}}</span>
+				  {{/for}}
+				</div>
+			  </div>
+			</li>
+		  {{/for}}
+		</ul>
+	  {{else}}
+		 <p>There are no datasets.</p>
+	  {{/if}}
     {{/async}}
   </div>
 </div>
@@ -37,30 +44,37 @@
     <div class="panel-heading">My Datasets</div>
     <div class="panel-body" id="my-datasets">
       {^{async myDatasets}}
-        {^{for #data}}
-          <ul>
-            <li class="dataset-item">
-              <div class="row">
-                <div class="pull-left">{{a href="/datasets/"+id}}<img src="{{>image+'/64'}}">{{/a}}</div>
-                <div class="result-list-body">
-                  <h3>{{a href="/datasets/"+id}}{{>name}}{{/a}} <small>{{>files}} file, {{datasize dataSize/}}</small></h3>
-                  <p>{{>description}}</p>
-                  <p>
-                    {{for ownerships ~last=(ownerships.length-1)}}
-                      {{if ownerType == 1}}
-                        <img src="{{>image+'/16'}}" class="icon"><strong>{{>fullname}}</strong>
-                      {{else ownerType == 2}}
-                        <img src="{{>image+'/16'}}" class="icon"><strong>{{>name}}</strong>
-                      {{/if}}
-                    {{/for}}
-                  </p>
-                </div>
-              </div>
-            </li>
-          </ul>
-        {{else}}
-          There are no datasets.
-        {{/for}}
+		  {^{if #data.length > 0}}
+			<ul class="media-list dataset-list">
+			  {^{for #data}}
+				<li class="media">
+				  <div class="pull-left" style="width: 96px; text-align: center;">
+					<a class="media-left" href="#"><img src="{{>image+'/96'}}" alt="{{>name}}" /></a>
+				  </div>
+				  <div class="media-body">
+					<h4 class="media-heading"><a href="/datasets/{{>id}}" data-navigation>{{>name}}</a></h4>
+					<p>{{if description}}{{>description}}{{else}}<span class="text-muted">(No description)</span>{{/if}}</p>
+					<div>
+					  {{for ownerships ~length=ownerships.length}}
+						<span class="label label-success">
+						  <span class="glyphicon glyphicon-user"></span>
+						  {{if ownerType == 1}} {{>fullname}} {{else}} {{>name}} {{/if}}
+						</span>&nbsp;
+					  {{/for}}
+					</div>
+					<div>
+					  <span class="label label-default">{{>files}} files ({{datasize dataSize /}})</span>&nbsp;
+					  {{for attributes}}
+						<span class="label label-info"><span class="glyphicon glyphicon-tag"></span> {{>name}}{{if value}} : {{>value}}{{/if}}</span>
+					  {{/for}}
+					</div>
+				  </div>
+				</li>
+			  {{/for}}
+			</ul>
+		  {{else}}
+			 <p>There are no datasets.</p>
+		  {{/if}}
       {{/async}}
     </div>
   </div>
@@ -72,19 +86,23 @@
     <div class="panel-body" id="my-groups">
       {^{async myGroups}}
         {^{if #data.length > 0}}
-          <ul>
-            {^{for #data}}
-              <li class="dataset-item">
-                <div class="row">
-                  <div class="pull-left"><img src="{{>image}}"></div>
-                  <div class="result-list-body">
-                    <h3>{{a href="/groups/"+id}}{{>name}}{{/a}} <small>{{>members}} members, {{>datasets}} datasets</small></h3>
-                    <p>{{>description}}</p>
-                  </div>
-                </div>
-              </li>
-            {{/for}}
-          </ul>
+			<ul class="media-list dataset-list">
+			  {^{for #data}}
+				<li class="media">
+				  <div class="pull-left" style="width: 96px; text-align: center;">
+					<a class="media-left" href="#"><img src="{{>image+'/96'}}" alt="{{>name}}" /></a>
+				  </div>
+				  <div class="media-body">
+					<h4 class="media-heading"><a href="/groups/{{>id}}" data-navigation>{{>name}}</a></h4>
+					<p>{{if description}}{{>description}}{{else}}<span class="text-muted">(No description)</span>{{/if}}</p>
+					<div>
+					  <span class="label label-default">{{>members}} Members</span>
+					  <span class="label label-default">{{>datasets}} Datasets</span>&nbsp;
+					</div>
+				  </div>
+				</li>
+			  {{/for}}
+			</ul>
         {{else}}
           There are no groups.
         {{/if}}
