@@ -8,6 +8,7 @@ import dsmoq.controllers.{FileController, ApiController, AjaxResponse}
 import dsmoq.persistence._
 import dsmoq.services.json.DatasetData.Dataset
 import dsmoq.services.json.GroupData.Group
+import org.eclipse.jetty.server.Connector
 import org.json4s.{DefaultFormats, Formats}
 import org.json4s.jackson.JsonMethods._
 import org.scalatest.{BeforeAndAfter, FreeSpec}
@@ -32,6 +33,15 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
     ).toMultipartConfigElement
   )
   addServlet(classOf[FileController], "/files/*")
+
+  override def baseUrl: String =
+    server.getConnectors collectFirst {
+      case conn: Connector =>
+        val host = Option(conn.getHost) getOrElse "localhost"
+        val port = conn.getLocalPort
+        require(port > 0, "The detected local port is < 1, that's not allowed")
+        "http://%s:%d".format(host, port)
+    } getOrElse sys.error("can't calculate base URL: no connector")
 
   override def beforeAll() {
     super.beforeAll()

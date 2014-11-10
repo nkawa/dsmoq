@@ -1,6 +1,7 @@
 package api
 
 import _root_.api.api.logic.SpecCommonLogic
+import org.eclipse.jetty.server.Connector
 import org.scalatest.{BeforeAndAfter, FreeSpec}
 import org.scalatra.test.scalatest.ScalatraSuite
 import org.json4s.{DefaultFormats, Formats}
@@ -51,6 +52,15 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   )
   addServlet(classOf[FileController], "/files/*")
   addServlet(classOf[ImageController], "/images/*")
+
+  override def baseUrl: String =
+    server.getConnectors collectFirst {
+      case conn: Connector =>
+        val host = Option(conn.getHost) getOrElse "localhost"
+        val port = conn.getLocalPort
+        require(port > 0, "The detected local port is < 1, that's not allowed")
+        "http://%s:%d".format(host, port)
+    } getOrElse sys.error("can't calculate base URL: no connector")
 
   override def beforeAll() {
     super.beforeAll()

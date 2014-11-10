@@ -10,6 +10,7 @@ import dsmoq.persistence._
 import dsmoq.services.json.DatasetData.{DatasetsSummary, Dataset}
 import dsmoq.services.json.GroupData.Group
 import dsmoq.services.json.RangeSlice
+import org.eclipse.jetty.server.Connector
 import org.json4s.jackson.JsonMethods._
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatest.{BeforeAndAfterEach, BeforeAndAfter, FreeSpec}
@@ -36,6 +37,15 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
       fileSizeThreshold = Some(1 * 1024 * 1024)
     ).toMultipartConfigElement
   )
+
+  override def baseUrl: String =
+    server.getConnectors collectFirst {
+      case conn: Connector =>
+        val host = Option(conn.getHost) getOrElse "localhost"
+        val port = conn.getLocalPort
+        require(port > 0, "The detected local port is < 1, that's not allowed")
+        "http://%s:%d".format(host, port)
+    } getOrElse sys.error("can't calculate base URL: no connector")
 
   override def beforeAll() {
     super.beforeAll()

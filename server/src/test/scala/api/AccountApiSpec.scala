@@ -16,6 +16,9 @@ import dsmoq.services.json.GroupData.Group
 import java.util.UUID
 import dsmoq.AppConf
 import dsmoq.services.json.DatasetData.Dataset
+import org.json4s._
+import org.json4s.JsonDSL._
+import org.eclipse.jetty.server.Connector
 
 class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
@@ -31,6 +34,15 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
       fileSizeThreshold = Some(1 * 1024 * 1024)
     ).toMultipartConfigElement
   )
+
+  override def baseUrl: String =
+    server.getConnectors collectFirst {
+      case conn: Connector =>
+        val host = Option(conn.getHost) getOrElse "localhost"
+        val port = conn.getLocalPort
+        require(port > 0, "The detected local port is < 1, that's not allowed")
+        "http://%s:%d".format(host, port)
+    } getOrElse sys.error("can't calculate base URL: no connector")
 
   override def beforeAll() {
     super.beforeAll()
@@ -59,7 +71,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           val result = parse(body).extract[AjaxResponse[User]]
           assert(result.data.isGuest)
         }
-      }
+    }
       "サインイン後はCOIユーザーか" in {
         session {
           signIn()
@@ -297,9 +309,10 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
       }
     }
   }
-  
+
   def signIn() {
-    val params = Map("id" -> "dummy1", "password" -> "password")
+//    val params = Map("id" -> "dummy1", "password" -> "password")
+    val params = Map("d" -> compact(render(("id" -> "dummy1") ~ ("password" -> "password"))))
     post("/api/signin", params) {
       checkStatus()
     }
