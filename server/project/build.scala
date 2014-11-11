@@ -46,12 +46,12 @@ object DsmoqBuild extends Build {
     )
   )
   
-  lazy val createUser = Project(
-    id = "createUser",
-    base = file("createUser"),
+  lazy val initGroupMember = Project(
+    id = "initGroupMember",
+    base = file("initGroupMember"),
     settings = Defaults.coreDefaultSettings ++ Seq(
       organization := Organization,
-      name := "createUser",
+      name := "initGroupMember",
       version := Version,
       scalaVersion := ScalaVersion,
       resolvers += Classpaths.typesafeReleases,

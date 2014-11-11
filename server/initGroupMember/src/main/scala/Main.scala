@@ -14,7 +14,7 @@ import scalikejdbc.config.DBs
 object Main {
   def main(args: Array[String]) {
     if (args.length < 1) {
-      println("usage: createUser/run filename")
+      println("usage: initGroupMember/run filename")
       return
     }
 
