@@ -349,11 +349,11 @@ class ApiController extends ScalatraServlet
 
   delete("/datasets/:datasetId/images/:imageId") {
     val datasetId = params("datasetId")
-    val json = params.get("d").map(JsonMethods.parse(_).extract[DeleteImageParams])
-                               .getOrElse(DeleteImageParams())
+    val imageId = params("imageId")
+
     (for {
       user <- signedInUser
-      primaryImage <- DatasetService.deleteImage(datasetId, json.imageId.getOrElse(""), user)
+      primaryImage <- DatasetService.deleteImage(datasetId, imageId, user)
     } yield primaryImage) match {
       case Success(x) =>
         AjaxResponse("OK", x)
