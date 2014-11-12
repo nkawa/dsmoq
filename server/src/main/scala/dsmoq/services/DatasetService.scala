@@ -643,7 +643,7 @@ object DatasetService {
         withSQL {
           val f = persistence.File.column
           update(persistence.File)
-            .set(f.fileSize -> file.size, f.updatedBy -> sqls.uuid(myself.id), f.updatedAt -> timestamp)
+            .set(f.name -> file_.getName, f.fileSize -> file_.getSize, f.updatedBy -> sqls.uuid(myself.id), f.updatedAt -> timestamp)
             .where
             .eq(f.id, sqls.uuid(fileId))
         }.update().apply
