@@ -440,7 +440,7 @@ object GroupService {
                         .findAllBy(sqls.inUuid(u.id, roles.map{_.userId}).and.isNull(u.deletedAt))
                         .map{ _.id }.toSet
         val memberMap = persistence.Member
-                          .findAllBy(sqls.inUuid(m.userId, roles.map{_.userId}))
+                          .findAllBy(sqls.inUuid(m.userId, roles.map{_.userId}).and.eq(m.groupId, sqls.uuid(groupId)))
                           .map{ x => (x.userId, x) }.toMap
         roles.filter{ x => userSet.contains(x.userId) }.foreach {item =>
           if (!memberMap.contains(item.userId)) {
