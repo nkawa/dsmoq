@@ -28,11 +28,7 @@ class ApiController extends ScalatraServlet
   // auth api
   // --------------------------------------------------------------------------
   post("/signin") {
-    val json = params.get("d").map(x => {
-      JsonMethods.parse(x).extract[SigninParams]
-    }).getOrElse {
-      SigninParams()
-    }
+    val json = getJsonValue[SigninParams].getOrElse(SigninParams())
 
     AccountService.findUserByIdAndPassword(json.id.getOrElse(""), json.password.getOrElse("")) match {
       case Success(x) =>
@@ -60,8 +56,7 @@ class ApiController extends ScalatraServlet
   }
 
   put("/profile") {
-    val json = params.get("d").map(JsonMethods.parse(_).extract[UpdateProfileParams])
-                               .getOrElse(UpdateProfileParams())
+    val json = getJsonValue[UpdateProfileParams].getOrElse(UpdateProfileParams())
     (for {
       user <- signedInUser
       userNew <- AccountService.updateUserProfile(user.id, json.name, json.fullname,json.organization,
@@ -94,8 +89,7 @@ class ApiController extends ScalatraServlet
   }
 
   post("/profile/email_change_requests") {
-    val json = params.get("d").map(JsonMethods.parse(_).extract[UpdateMailAddressParams])
-                               .getOrElse(UpdateMailAddressParams())
+    val json = getJsonValue[UpdateMailAddressParams].getOrElse(UpdateMailAddressParams())
     (for {
       user <- signedInUser
       userNew <- AccountService.changeUserEmail(user.id, json.email)
@@ -106,8 +100,7 @@ class ApiController extends ScalatraServlet
   }
 
   put("/profile/password") {
-    val json = params.get("d").map(JsonMethods.parse(_).extract[UpdatePasswordParams])
-                               .getOrElse(UpdatePasswordParams())
+    val json = getJsonValue[UpdatePasswordParams].getOrElse(UpdatePasswordParams())
     (for {
       user <- signedInUser
       _ <- AccountService.changeUserPassword(user.id, json.currentPassword, json.newPassword)
@@ -163,8 +156,7 @@ class ApiController extends ScalatraServlet
   put("/datasets/:datasetId/files/:fileId/metadata") {
     val datasetId = params("datasetId")
     val fileId = params("fileId")
-    val json = params.get("d").map(JsonMethods.parse(_).extract[UpdateDatasetFileMetadataParams])
-                               .getOrElse(UpdateDatasetFileMetadataParams())
+    val json = getJsonValue[UpdateDatasetFileMetadataParams].getOrElse(UpdateDatasetFileMetadataParams())
     (for {
       user <- signedInUser
       file <- DatasetService.updateFileMetadata(datasetId, fileId, json.name.getOrElse(""), json.description.getOrElse(""), user)
@@ -183,8 +175,7 @@ class ApiController extends ScalatraServlet
 
   put("/datasets/:datasetId/metadata") {
     val datasetId = params("datasetId")
-    val json = params.get("d").map(JsonMethods.parse(_).extract[UpdateDatasetMetaParams])
-                               .getOrElse(UpdateDatasetMetaParams())
+    val json = getJsonValue[UpdateDatasetMetaParams].getOrElse(UpdateDatasetMetaParams())
     (for {
       user <- signedInUser
       result <- DatasetService.modifyDatasetMeta(datasetId, json.name, json.description, json.license, json.attributes, user)
@@ -202,8 +193,7 @@ class ApiController extends ScalatraServlet
 
   put("/datasets/:datasetId/images/primary") {
     val datasetId = params("datasetId")
-    val json = params.get("d").map(JsonMethods.parse(_).extract[ChangePrimaryImageParams])
-                               .getOrElse(ChangePrimaryImageParams())
+    val json = getJsonValue[ChangePrimaryImageParams].getOrElse(ChangePrimaryImageParams())
     (for {
       user <- signedInUser
       result <- DatasetService.changePrimaryImage(datasetId, json.imageId.getOrElse(""), user)
@@ -222,8 +212,7 @@ class ApiController extends ScalatraServlet
 
   post("/datasets/:datasetId/acl") {
     val datasetId = params("datasetId")
-    val acl = params.get("d").map(JsonMethods.parse(_).extract[List[DataSetAccessControlItem]])
-                               .getOrElse(List.empty)
+    val acl = getJsonValue[List[DataSetAccessControlItem]].getOrElse(List.empty)
     (for {
       user <- signedInUser
       result <- DatasetService.setAccessControl(datasetId, acl, user)
@@ -232,8 +221,7 @@ class ApiController extends ScalatraServlet
 
   put("/datasets/:datasetId/guest_access") {
     val datasetId = params("datasetId")
-    val json = params.get("d").map(JsonMethods.parse(_).extract[UpdateDatasetGuestAccessParams])
-                               .getOrElse(UpdateDatasetGuestAccessParams())
+    val json = getJsonValue[UpdateDatasetGuestAccessParams].getOrElse(UpdateDatasetGuestAccessParams())
     (for {
       user <- signedInUser
       result <- DatasetService.setGuestAccessLevel(datasetId, json.accessLevel.getOrElse(0), user)
@@ -252,8 +240,7 @@ class ApiController extends ScalatraServlet
   // group api
   // --------------------------------------------------------------------------
   get("/groups") {
-    val json = params.get("d").map(JsonMethods.parse(_).extract[SearchGroupsParams])
-                               .getOrElse(SearchGroupsParams())
+    val json = getJsonValue[SearchGroupsParams].getOrElse(SearchGroupsParams())
     GroupService.search(json.query, json.user, json.limit, json.offset, currentUser) |> toAjaxResponse
   }
 
@@ -264,14 +251,12 @@ class ApiController extends ScalatraServlet
 
   get("/groups/:groupId/members") {
     val groupId = params("groupId")
-    val json = params.get("d").map(x => JsonMethods.parse(x).extract[GetGroupMembersParams])
-                               .getOrElse(GetGroupMembersParams())
+    val json = getJsonValue[GetGroupMembersParams].getOrElse(GetGroupMembersParams())
     GroupService.getGroupMembers(groupId, json.limit, json.offset, currentUser) |> toAjaxResponse
   }
 
   post("/groups") {
-    val json = params.get("d").map(x => JsonMethods.parse(x).extract[CreateGroupParams])
-                               .getOrElse(CreateGroupParams())
+    val json = getJsonValue[CreateGroupParams].getOrElse(CreateGroupParams())
     (for {
       user <- signedInUser
       group <- GroupService.createGroup(json.name.getOrElse(""), json.description.getOrElse(""), user)
@@ -280,8 +265,7 @@ class ApiController extends ScalatraServlet
 
   put("/groups/:groupId") {
     val groupId = params("groupId")
-    val json = params.get("d").map(x => JsonMethods.parse(x).extract[UpdateGroupParams])
-                               .getOrElse(UpdateGroupParams())
+    val json = getJsonValue[UpdateGroupParams].getOrElse(UpdateGroupParams())
     (for {
       user <- signedInUser
       group <- GroupService.updateGroup(groupId, json.name.getOrElse(""), json.description.getOrElse(""), user)
@@ -299,8 +283,7 @@ class ApiController extends ScalatraServlet
 
   put("/groups/:groupId/images/primary") {
     val groupId = params("groupId")
-    val json = params.get("d").map(x => JsonMethods.parse(x).extract[ChangeGroupPrimaryImageParams])
-                               .getOrElse(ChangeGroupPrimaryImageParams())
+    val json = getJsonValue[ChangeGroupPrimaryImageParams].getOrElse(ChangeGroupPrimaryImageParams())
     (for {
       user <- signedInUser
       _ <- GroupService.changePrimaryImage(groupId, json.imageId.getOrElse(""), user)
@@ -318,8 +301,7 @@ class ApiController extends ScalatraServlet
 
   post("/groups/:groupId/members") {
     val groupId = params("groupId")
-    val roles = params.get("d").map(JsonMethods.parse(_).extract[List[GroupMember]])
-                                .getOrElse(List.empty)
+    val roles = getJsonValue[List[GroupMember]].getOrElse(List.empty)
     (for {
       user <- signedInUser
       _ <- GroupService.addMembers(groupId, roles, user)
@@ -329,8 +311,7 @@ class ApiController extends ScalatraServlet
   put("/groups/:groupId/members/:userId") {
     val groupId = params("groupId")
     val userId = params("userId")
-    val json = params.get("d").map(JsonMethods.parse(_).extract[SetGroupMemberRoleParams])
-                               .getOrElse(SetGroupMemberRoleParams())
+    val json = getJsonValue[SetGroupMemberRoleParams].getOrElse(SetGroupMemberRoleParams())
     json.role match {
       case Some(role) =>
         (for {
@@ -376,8 +357,7 @@ class ApiController extends ScalatraServlet
   }
 
   get("/suggests/users") {
-    val json = params.get("d").map(x => JsonMethods.parse(x).extract[UserSuggestApiParams])
-                               .getOrElse(UserSuggestApiParams())
+    val json = getJsonValue[UserSuggestApiParams].getOrElse(UserSuggestApiParams())
     val users = SystemService.getUsers(json.query, json.limit, json.offset)
     AjaxResponse("OK", users)
   }
@@ -413,6 +393,8 @@ class ApiController extends ScalatraServlet
         AjaxResponse("NG")
     }
   }
+
+  def getJsonValue[T](implicit m: Manifest[T]) = params.get("d").map(x => JsonMethods.parse(x).extract[T])
 }
 
 case class AjaxResponse[A](status: String, data: A = {})
