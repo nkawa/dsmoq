@@ -4,9 +4,10 @@ import java.util.UUID
 
 import dsmoq.exceptions._
 import dsmoq.logic.{ImageSaveLogic, StringUtil}
-import dsmoq.persistence.{GroupAccessLevel, GroupMemberRole, GroupType, PresetType}
+import dsmoq.persistence._
+import dsmoq.services.json.Image
 import dsmoq.services.json.{Image, RangeSlice, RangeSliceSummary, _}
-import dsmoq.{AppConf, persistence}
+import dsmoq.{persistence, AppConf}
 import org.joda.time.DateTime
 import org.scalatra.servlet.FileItem
 import scalikejdbc._
@@ -312,16 +313,7 @@ object GroupService {
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
 
-        withSQL {
-          val g = persistence.Group.column
-          update(persistence.Group)
-            .set(g.name -> name_, g.description -> description,
-                 g.updatedBy -> sqls.uuid(myself.id), g.updatedAt -> timestamp)
-            .where
-            .eq(g.id, sqls.uuid(groupId))
-            .and
-            .isNull(g.deletedAt)
-        }.update().apply
+        updateGroupDetail(groupId, name_, description, myself, timestamp)
 
         val images = getGroupImage(groupId)
         val primaryImage = getGroupPrimaryImageId(groupId)
@@ -342,6 +334,19 @@ object GroupService {
     } catch {
       case e: Throwable => Failure(e)
     }
+  }
+
+  private def updateGroupDetail(groupId: String, name: String, description:String, myself: persistence.User, timestamp: DateTime)(implicit s: DBSession) = {
+    withSQL {
+      val g = persistence.Group.column
+      update(persistence.Group)
+        .set(g.name -> name, g.description -> description,
+          g.updatedBy -> sqls.uuid(myself.id), g.updatedAt -> timestamp)
+        .where
+        .eq(g.id, sqls.uuid(groupId))
+        .and
+        .isNull(g.deletedAt)
+    }.update().apply
   }
 
   /**
@@ -494,26 +499,13 @@ object GroupService {
         throw new InputValidationException(Map("role" -> "invalid role"))
       }
 
-      val g = persistence.Group.g
-      val u = persistence.User.u
       val m = persistence.Member.m
 
       DB localTx { implicit s =>
         (for {
-          group <- withSQL {
-            select(g.resultAll).from(persistence.Group as g)
-              .where.eqUuid(g.id, groupId).and.isNull(g.deletedAt)
-          }.map(persistence.Group(g.resultName)).single.apply
-
-          user <- withSQL {
-            select(u.resultAll).from(persistence.User as u)
-              .where.eqUuid(u.id, userId).and.isNull(u.deletedAt)
-          }.map(persistence.User(u.resultName)).single.apply
-
-          member <- withSQL {
-            select(m.resultAll).from(persistence.Member as m)
-              .where.eqUuid(m.userId, userId).and.eqUuid(m.groupId, groupId)
-          }.map(persistence.Member(m.resultName)).single.apply
+          group <- findGroupById(groupId)
+          user <- findUserById(userId)
+          member <- findMemberById(groupId, userId)
         } yield {
           persistence.Member(
             id = member.id,
@@ -537,6 +529,30 @@ object GroupService {
       case e: Throwable => Failure(e)
     }  }
 
+  def findMemberById(groupId: String, userId: String)(implicit s: DBSession): Option[Member] = {
+    val m = persistence.Member.m
+    withSQL {
+      select(m.resultAll).from(persistence.Member as m)
+        .where.eqUuid(m.userId, userId).and.eqUuid(m.groupId, groupId)
+    }.map(persistence.Member(m.resultName)).single.apply
+  }
+
+  private def findGroupById(groupId: String)(implicit s: DBSession): Option[Group] = {
+    val g = persistence.Group.g
+    withSQL {
+      select(g.resultAll).from(persistence.Group as g)
+        .where.eqUuid(g.id, groupId).and.isNull(g.deletedAt)
+    }.map(persistence.Group(g.resultName)).single.apply
+  }
+
+  private def findUserById(userId: String)(implicit s: DBSession): Option[persistence.User] = {
+    val u = persistence.User.u
+    withSQL {
+      select(u.resultAll).from(persistence.User as u)
+        .where.eqUuid(u.id, userId).and.isNull(u.deletedAt)
+    }.map(persistence.User(u.resultName)).single.apply
+  }
+
   /**
    * 指定したグループメンバーを削除します。
    * @param groupId
@@ -545,26 +561,11 @@ object GroupService {
    */
   def removeMember(groupId: String, userId: String, user: User) = {
     try {
-      val g = persistence.Group.g
-      val u = persistence.User.u
-      val m = persistence.Member.m
-
       DB localTx { implicit s =>
         (for {
-          group <- withSQL {
-            select(g.resultAll).from(persistence.Group as g)
-              .where.eqUuid(g.id, groupId).and.isNull(g.deletedAt)
-          }.map(persistence.Group(g.resultName)).single.apply
-
-          user <- withSQL {
-            select(u.resultAll).from(persistence.User as u)
-              .where.eqUuid(u.id, userId).and.isNull(u.deletedAt)
-          }.map(persistence.User(u.resultName)).single.apply
-
-          member <- withSQL {
-            select(m.resultAll).from(persistence.Member as m)
-              .where.eqUuid(m.userId, userId).and.eqUuid(m.groupId, groupId)
-          }.map(persistence.Member(m.resultName)).single.apply
+          group <- findGroupById(groupId)
+          user <- findUserById(userId)
+          member <- findMemberById(groupId, userId)
         } yield {
           persistence.Member(
             id = member.id,
@@ -601,27 +602,30 @@ object GroupService {
 
     try {
       val result = DB localTx { implicit s =>
-        val group = getGroup(groupId)
+        getGroup(groupId)
         if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
-
-        val myself = persistence.User.find(user.id).get
-        val timestamp = DateTime.now()
-
-        withSQL {
-          val g = persistence.Group.column
-          update(persistence.Group)
-            .set(g.deletedBy -> sqls.uuid(myself.id), g.deletedAt -> timestamp,
-              g.updatedBy -> sqls.uuid(myself.id), g.updatedAt -> timestamp)
-            .where
-            .eq(g.id, sqls.uuid(groupId))
-            .and
-            .isNull(g.deletedAt)
-        }.update().apply
+        deleteGroupById(groupId, user)
       }
       Success(result)
     } catch {
       case e: Exception => Failure(e)
     }
+  }
+
+  private def deleteGroupById(groupId: String, user: User)(implicit s: DBSession): Int = {
+    val myself = persistence.User.find(user.id).get
+    val timestamp = DateTime.now()
+
+    withSQL {
+      val g = persistence.Group.column
+      update(persistence.Group)
+        .set(g.deletedBy -> sqls.uuid(myself.id), g.deletedAt -> timestamp,
+          g.updatedBy -> sqls.uuid(myself.id), g.updatedAt -> timestamp)
+        .where
+        .eq(g.id, sqls.uuid(groupId))
+        .and
+        .isNull(g.deletedAt)
+    }.update().apply
   }
 
   /**
@@ -634,41 +638,49 @@ object GroupService {
   def changePrimaryImage(groupId: String, imageId: String, user: User): Try[Unit] = {
     try {
       DB localTx { implicit s =>
-        val group = getGroup(groupId)
+        getGroup(groupId)
         if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
         if (!existsGroupImage(groupId, imageId)) throw new NotFoundException
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
-        withSQL {
-          val gi = persistence.GroupImage.column
-          update(persistence.GroupImage)
-            .set(gi.isPrimary -> true, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
-            .where
-            .eq(gi.imageId, sqls.uuid(imageId))
-            .and
-            .eq(gi.groupId, sqls.uuid(groupId))
-            .and
-            .isNull(gi.deletedAt)
-        }.update().apply
-
-        withSQL {
-          val gi = persistence.GroupImage.column
-          update(persistence.GroupImage)
-            .set(gi.isPrimary -> false, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
-            .where
-            .ne(gi.imageId, sqls.uuid(imageId))
-            .and
-            .eq(gi.groupId, sqls.uuid(groupId))
-            .and
-            .isNull(gi.deletedAt)
-        }.update().apply
-
+        // 対象のイメージをPrimaryに
+        turnGroupImageToPrimary(groupId, imageId, myself, timestamp)
+        // 対象以外のイメージをPrimary以外に
+        turnOffPrimaryOtherGroupImage(groupId, imageId, myself, timestamp)
         Success(Unit)
       }
     } catch {
       case e: Throwable => Failure(e)
     }
+  }
+
+  private def turnOffPrimaryOtherGroupImage(groupId: String, imageId: String, myself: persistence.User, timestamp: DateTime)(implicit s: DBSession) {
+    withSQL {
+      val gi = persistence.GroupImage.column
+      update(persistence.GroupImage)
+        .set(gi.isPrimary -> false, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
+        .where
+        .ne(gi.imageId, sqls.uuid(imageId))
+        .and
+        .eq(gi.groupId, sqls.uuid(groupId))
+        .and
+        .isNull(gi.deletedAt)
+    }.update().apply
+  }
+
+  private def turnGroupImageToPrimary(groupId: String, imageId: String, myself: persistence.User, timestamp: DateTime)(implicit s: DBSession) {
+    withSQL {
+      val gi = persistence.GroupImage.column
+      update(persistence.GroupImage)
+        .set(gi.isPrimary -> true, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
+        .where
+        .eq(gi.imageId, sqls.uuid(imageId))
+        .and
+        .eq(gi.groupId, sqls.uuid(groupId))
+        .and
+        .isNull(gi.deletedAt)
+    }.update().apply
   }
 
   /**
@@ -687,50 +699,18 @@ object GroupService {
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
-        withSQL {
-          val gi = persistence.GroupImage.column
-          update(persistence.GroupImage)
-            .set(gi.deletedBy -> sqls.uuid(myself.id), gi.deletedAt -> timestamp, gi.isPrimary -> false,
-              gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
-            .where
-            .eq(gi.groupId, sqls.uuid(groupId))
-            .and
-            .eq(gi.imageId, sqls.uuid(imageId))
-            .and
-            .isNull(gi.deletedAt)
-        }.update().apply
+        deleteGroupImage(groupId, imageId, myself, timestamp)
 
         getPrimaryImageId(groupId) match {
           case Some(x) => x
           case None =>
             // primaryImageの差し替え
-            val gi = persistence.GroupImage.syntax("di")
-            val i = persistence.Image.syntax("i")
-
             // primaryImageとなるImageを取得
-            val primaryImage = withSQL {
-              select(gi.result.id, i.result.id)
-                .from(persistence.Image as i)
-                .innerJoin(persistence.GroupImage as gi).on(i.id, gi.imageId)
-                .where
-                .eq(gi.groupId, sqls.uuid(groupId))
-                .and
-                .isNull(gi.deletedAt)
-                .and
-                .isNull(i.deletedAt)
-                .orderBy(gi.createdAt).asc
-                .limit(1)
-            }.map(rs => (rs.string(gi.resultName.id), rs.string(i.resultName.id))).single().apply
+            val primaryImage = getNextPrimaryGroupImage(groupId)
 
             primaryImage match {
               case Some(x) =>
-                val gi = persistence.GroupImage.column
-                withSQL {
-                  update(persistence.GroupImage)
-                    .set(gi.isPrimary -> true, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
-                    .where
-                    .eq(gi.id, sqls.uuid(x._1))
-                }.update().apply
+                turnGroupImageToPrimaryById(x._1, myself, timestamp)
                 x._2
               case None => ""
             }
@@ -744,6 +724,50 @@ object GroupService {
       case e: Throwable => Failure(e)
     }
   }
+
+  private def turnGroupImageToPrimaryById(id: String, myself: persistence.User, timestamp: DateTime)(implicit s:DBSession) {
+    val gi = persistence.GroupImage.column
+    withSQL {
+      update(persistence.GroupImage)
+        .set(gi.isPrimary -> true, gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
+        .where
+        .eq(gi.id, sqls.uuid(id))
+    }.update().apply
+  }
+
+  private def getNextPrimaryGroupImage(groupId: String)(implicit s:DBSession): Option[(String, String)] = {
+    val gi = persistence.GroupImage.gi
+    val i = persistence.Image.i
+    withSQL {
+      select(gi.result.id, i.result.id)
+        .from(persistence.Image as i)
+        .innerJoin(persistence.GroupImage as gi).on(i.id, gi.imageId)
+        .where
+        .eq(gi.groupId, sqls.uuid(groupId))
+        .and
+        .isNull(gi.deletedAt)
+        .and
+        .isNull(i.deletedAt)
+        .orderBy(gi.createdAt).asc
+        .limit(1)
+    }.map(rs => (rs.string(gi.resultName.id), rs.string(i.resultName.id))).single().apply
+  }
+
+  private def deleteGroupImage(groupId: String, imageId: String, myself: persistence.User, timestamp: DateTime)(implicit s: DBSession) {
+    withSQL {
+      val gi = persistence.GroupImage.column
+      update(persistence.GroupImage)
+        .set(gi.deletedBy -> sqls.uuid(myself.id), gi.deletedAt -> timestamp, gi.isPrimary -> false,
+          gi.updatedBy -> sqls.uuid(myself.id), gi.updatedAt -> timestamp)
+        .where
+        .eq(gi.groupId, sqls.uuid(groupId))
+        .and
+        .eq(gi.imageId, sqls.uuid(imageId))
+        .and
+        .isNull(gi.deletedAt)
+    }.update().apply
+  }
+
   private def getGroup(groupId: String)(implicit s: DBSession) = {
     if (StringUtil.isUUID(groupId)) {
       val g = persistence.Group.syntax("g")
@@ -764,7 +788,6 @@ object GroupService {
       throw new NotFoundException
     }
   }
-
 
   private def countDatasets(groups : Seq[String])(implicit s: DBSession) = {
     val ds = persistence.Dataset.syntax("ds")
