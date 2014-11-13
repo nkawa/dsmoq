@@ -14,7 +14,7 @@ import dsmoq.exceptions.{InputValidationException, NotFoundException, NotAuthori
 class ApiController extends ScalatraServlet
     with JacksonJsonSupport with SessionTrait with FileUploadSupport {
   protected implicit val jsonFormats: Formats = DefaultFormats
-  implicit def objectToPipe[A](x: A) = Pipe(x)
+  private implicit def objectToPipe[A](x: A) = Pipe(x)
 
   before() {
     contentType = formats("json")
@@ -380,7 +380,7 @@ class ApiController extends ScalatraServlet
     AjaxResponse("OK", attributes)
   }
 
-  def toAjaxResponse[A](result: Try[A]) = result match {
+  private def toAjaxResponse[A](result: Try[A]) = result match {
     case Success(Unit) => AjaxResponse("OK")
     case Success(x) => AjaxResponse("OK", x)
     case Failure(e) =>
@@ -394,7 +394,7 @@ class ApiController extends ScalatraServlet
     }
   }
 
-  def getJsonValue[T](implicit m: Manifest[T]) = params.get("d").map(x => JsonMethods.parse(x).extract[T])
+  private def getJsonValue[T](implicit m: Manifest[T]) = params.get("d").map(x => JsonMethods.parse(x).extract[T])
 }
 
 case class AjaxResponse[A](status: String, data: A = {})
