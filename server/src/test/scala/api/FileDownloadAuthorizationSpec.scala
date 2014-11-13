@@ -15,14 +15,16 @@ import org.scalatest.{BeforeAndAfter, FreeSpec}
 import org.scalatra.servlet.MultipartConfig
 import org.scalatra.test.scalatest.ScalatraSuite
 import scalikejdbc.config.{DBsWithEnv, DBs}
+import org.json4s._
+import org.json4s.JsonDSL._
 
 class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
 
   private val dummyFile = new File("README.md")
   private val dummyUserId = "eb7a596d-e50c-483f-bbc7-50019eea64d7"  // dummy 4
-  private val dummyUserLoginParams = Map("id" -> "dummy4", "password" -> "password")
-  private val anotherUserLoginParams = Map("id" -> "dummy2", "password" -> "password")
+  private val dummyUserLoginParams = Map("d" -> compact(render(("id" -> "dummy4") ~ ("password" -> "password"))))
+  private val anotherUserLoginParams = Map("d" -> compact(render(("id" -> "dummy2") ~ ("password" -> "password"))))
 
   // multi-part file upload config
   val holder = addServlet(classOf[ApiController], "/api/*")
@@ -78,7 +80,7 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
             guestAccessLevels.map { guestAccessLevel =>
               // グループ作成/メンバー追加
               val groupId = createGroup()
-              val memberParams = List("id[]" -> dummyUserId, "role[]" -> GroupMemberRole.Member.toString)
+              val memberParams = Map("d" -> compact(render(List(("userId" -> dummyUserId) ~ ("role" -> GroupMemberRole.Member)))))
               post("/api/groups/" + groupId + "/members", memberParams) { checkStatus() }
 
               post("/api/datasets", Map.empty, files) {
@@ -87,14 +89,15 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
                 val fileUrl = parse(body).extract[AjaxResponse[Dataset]].data.files(0).url
 
                 // アクセスレベル設定(ユーザー/グループ)
-                val accessLevelParams = List(
-                  "id[]" -> dummyUserId, "type[]" -> OwnerType.User.toString, "accessLevel[]" -> userAccessLevel.toString,
-                  "id[]" -> groupId, "type[]" -> OwnerType.Group.toString, "accessLevel[]" -> groupAccessLevel.toString
+                val accessLevelParams = Map("d" -> compact(render(List(
+                    ("id" -> dummyUserId) ~ ("ownerType" -> JInt(OwnerType.User)) ~ ("accessLevel" -> JInt(userAccessLevel)),
+                    ("id" -> groupId) ~ ("ownerType" -> JInt(OwnerType.Group)) ~ ("accessLevel" -> JInt(groupAccessLevel))
+                  )))
                 )
                 post("/api/datasets/" + datasetId + "/acl", accessLevelParams) { checkStatus() }
 
                 // ゲストアクセスレベル設定
-                val guestAccessLevelParams = Map("accessLevel" -> guestAccessLevel.toString)
+                val guestAccessLevelParams = Map("d" -> compact(render(("accessLevel" -> guestAccessLevel))))
                 put("/api/datasets/" + datasetId + "/guest_access", guestAccessLevelParams) { checkStatus() }
 
                 (datasetId, fileUrl, userAccessLevel, groupAccessLevel, guestAccessLevel)
@@ -168,7 +171,7 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
   }
 
   private def signIn() {
-    val params = Map("id" -> "dummy1", "password" -> "password")
+    val params = Map("d" -> compact(render(("id" -> "dummy1") ~ ("password" -> "password"))))
     post("/api/signin", params) {
       checkStatus()
     }
@@ -189,7 +192,7 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
   }
   private def createGroup(): String = {
     val groupName = "groupName" + UUID.randomUUID.toString
-    val params = Map("name" -> groupName, "description" -> "groupDescription")
+    val params = Map("d" -> compact(render(("name" -> groupName) ~ ("description" -> "groupDescription"))))
     post("/api/groups", params) {
       checkStatus()
       parse(body).extract[AjaxResponse[Group]].data.id

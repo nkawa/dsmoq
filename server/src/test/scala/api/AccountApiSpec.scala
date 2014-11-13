@@ -98,14 +98,16 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
       "基本情報が更新できるか" in {
         session {
           signIn()
-          val params = Map(
-            "name" -> "dummy1",
-            "fullname" -> "フルネーム",
-            "organization" -> "テスト所属",
-            "title" -> "テストタイトル",
-            "description" -> "テスト詳細"
+          val params = Map("d" ->
+              compact(render(
+                ("name" -> "dummy1") ~
+                ("fullname" -> "フルネーム") ~
+                ("organization" -> "テスト所属") ~
+                ("title" -> "テストタイトル") ~
+                ("description" -> "テスト詳細")
+              ))
           )
-          post("/api/profile", params) { checkStatus() }
+          put("/api/profile", params) { checkStatus() }
           get("/api/profile") {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[User]]
@@ -118,7 +120,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         }
       }
 
-      "画像情報付きで基本情報が更新できるか" in {
+      "画像情報が更新できるか" in {
         session {
           signIn()
           val oldImageUrl = get("/api/profile") {
@@ -127,23 +129,11 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             result.data.image
           }
 
-          val params = Map(
-            "name" -> "dummy1",
-            "fullname" -> "fullname 2",
-            "organization" -> "organization 2",
-            "title" -> "title 2",
-            "description" -> "description 2"
-          )
-          val file = Map("image" -> dummyImage)
-          post("/api/profile", params, file) { checkStatus() }
+          val file = Map("icon" -> dummyImage)
+          post("/api/profile/image", Map(), file) { checkStatus() }
           get("/api/profile") {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[User]]
-            result.data.name should be("dummy1")
-            result.data.fullname should be("fullname 2")
-            result.data.organization should be("organization 2")
-            result.data.title should be("title 2")
-            result.data.description should be("description 2")
             result.data.image should not be(oldImageUrl)
           }
         }
@@ -152,7 +142,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
       "メールアドレスが更新できるか" in {
         session {
           signIn()
-          val params = Map("email" -> "hogehoge@test.com")
+          val params = Map("d" -> compact(render(("email" -> "hogehoge@test.com"))))
           post("/api/profile/email_change_requests", params) { checkStatus() }
           get("/api/profile") {
             checkStatus()
@@ -165,19 +155,23 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
       "パスワードが変更後、変更したパスワードでサインインできるか" in {
         session {
           signIn()
-          val params = Map(
-            "current_password" -> "password",
-            "new_password" -> "new_password"
+          val params = Map("d" ->
+            compact(render(
+              ("currentPassword" -> "password") ~
+              ("newPassword" -> "new_password")
+            ))
           )
           put("/api/profile/password", params) { checkStatus() }
           post("/api/signout") { checkStatus() }
-          val signinParams = Map("id" -> "dummy1", "password" -> "new_password")
+          val signinParams = Map("d" -> compact(render(("id" -> "dummy1") ~ ("password" -> "new_password"))))
           post("/api/signin", signinParams) { checkStatus() }
 
           //　戻す
-          val rollbackParams = Map(
-            "current_password" -> "new_password",
-            "new_password" -> "password"
+          val rollbackParams = Map("d" ->
+            compact(render(
+              ("currentPassword" -> "new_password") ~
+              ("newPassword" -> "password")
+            ))
           )
           put("/api/profile/password", rollbackParams) { checkStatus() }
           post("/api/signout") { checkStatus() }
@@ -189,8 +183,9 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         val params = Map("value" -> "hogehoge@hoge.jp")
         get("/api/system/is_valid_email", params) {
           checkStatus()
-          val result = parse(body).extract[AjaxResponse[MailValidationResult]]
-          assert(result.data.isValid)
+          //TODO 実装されたら書く
+//          val result = parse(body).extract[AjaxResponse[MailValidationResult]]
+//          assert(result.data.isValid)
         }
       }
 
@@ -244,7 +239,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         val groupName = "groupName" + UUID.randomUUID()
         session {
           signIn()
-          val params = Map("name" -> groupName, "description" -> "description")
+          val params = Map("d" -> compact(render(("name" -> groupName) ~ ("description" -> "description"))))
           post("/api/groups", params) {
             checkStatus()
             parse(body).extract[AjaxResponse[Group]].data.id
@@ -290,12 +285,13 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             parse(body).extract[AjaxResponse[Dataset]].data.id
           }
 
-          val params = List(
-            "name" -> "変更後データセット",
-            "description" -> "change description",
-            "license" -> AppConf.defaultLicenseId,
-            "attributes[][name]" -> attributeName,
-            "attributes[][value]" -> "attr_value"
+          val params = Map("d" ->
+            compact(render(
+              ("name" -> "変更後データセット") ~
+              ("description" -> "change description") ~
+              ("license" -> AppConf.defaultLicenseId) ~
+              ("attributes" -> List(("name" -> attributeName) ~ ("value"-> "attr_value")))
+            ))
           )
           put("/api/datasets/" + datasetId + "/metadata", params) { checkStatus() }
         }

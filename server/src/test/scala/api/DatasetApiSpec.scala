@@ -31,6 +31,8 @@ import com.sun.jndi.toolkit.url.Uri
 import org.apache.http.impl.client.DefaultHttpClient
 import java.util.UUID
 import dsmoq.persistence.{DefaultAccessLevel, OwnerType, UserAccessLevel, GroupAccessLevel}
+import org.json4s._
+import org.json4s.JsonDSL._
 
 class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
@@ -38,7 +40,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   private val dummyFile = new File("README.md")
   private val dummyImage = new File("../client/www/dummy/images/nagoya.jpg")
   private val dummyUserId = "eb7a596d-e50c-483f-bbc7-50019eea64d7"  // dummy 4
-  private val dummyUserLoginParams = Map("id" -> "dummy4", "password" -> "password")
+  private val dummyUserLoginParams = Map("d" -> compact(render(("id" -> "dummy4") ~ ("password" -> "password"))))
 
   private val host = "http://localhost:8080"
 
@@ -89,7 +91,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           signIn()
           val datasetId = createDataset()
 
-          val params = Map("limit" -> "10")
+          val params = Map("d" -> compact(render(("limit" -> JInt(10)))))
           get("/api/datasets", params) {
             status should be(200)
             val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
@@ -143,7 +145,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           get("/api/datasets/" + datasetId) {
             status should be(200)
             val result = parse(body).extract[AjaxResponse[Dataset]]
-            result.status should be("NotFound")
+            result.status should be("NG")
           }
         }
       }
@@ -152,10 +154,12 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val datasetId = createDataset()
-          val params = Map(
-            "name" -> "変更後データセット",
-            "description" -> "change description",
-            "license" -> AppConf.defaultLicenseId
+          val params = Map("d" ->
+            compact(render(
+              ("name" -> "変更後データセット") ~
+              ("description" -> "change description") ~
+              ("license" -> AppConf.defaultLicenseId)
+            ))
           )
           put("/api/datasets/" + datasetId + "/metadata", params) { checkStatus() }
           get("/api/datasets/" + datasetId) {
@@ -174,14 +178,16 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val datasetId = createDataset()
-            val params = List(
-              "name" -> "変更後データセット",
-              "description" -> "change description",
-              "license" -> AppConf.defaultLicenseId,
-              "attributes[][name]" -> "attr_name",
-              "attributes[][value]" -> "attr_value",
-              "attributes[][name]" -> "attr_another_name",
-              "attributes[][value]" -> "attr_another_value"
+            val params = List("d" ->
+              compact(render(
+                ("name" -> "変更後データセット") ~
+                ("description" -> "change description") ~
+                ("license" -> AppConf.defaultLicenseId) ~
+                ("attributes" -> List(
+                  ("name" -> "attr_name") ~ ("value" -> "attr_value"),
+                  ("name" -> "attr_another_name") ~ ("value" -> "attr_another_value")
+                ))
+              ))
             )
             put("/api/datasets/" + datasetId + "/metadata", params) { checkStatus() }
             get("/api/datasets/" + datasetId) {
@@ -290,7 +296,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           }
           post("/api/datasets/" + datasetId + "/files", Map.empty, files) { checkStatus() }
 
-          val params = Map("name" -> "testtest.txt", "description" -> "description")
+          val params = Map("d" -> compact(render(("name" -> "testtest.txt") ~ ("description" -> "description"))))
           put("/api/datasets/" + datasetId + "/files/" + fileId + "/metadata", params) { checkStatus() }
 
           get("/api/datasets/" + datasetId) {
@@ -397,7 +403,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           post("/api/datasets/" + datasetId + "/images", Map.empty, images) { checkStatus() }
 
           // change primary image
-          val params = Map("id" -> imageId)
+          val params = Map("d" -> compact(render(("imageId" -> imageId))))
           put("/api/datasets/" + datasetId + "/images/primary", params) { checkStatus() }
 
           get("/api/datasets/" + datasetId) {
@@ -453,10 +459,12 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           val datasetId = createDataset()
 
           // アクセスレベル設定(ユーザー)
-          val params = List(
-            "id[]" -> dummyUserId,
-            "type[]" -> OwnerType.User.toString,
-            "accessLevel[]" -> UserAccessLevel.FullPublic.toString
+          val params = Map("d" ->
+            compact(render(List(
+              ("id" -> dummyUserId) ~
+              ("ownerType" -> JInt(OwnerType.User)) ~
+              ("accessLevel" -> JInt(UserAccessLevel.FullPublic))
+            )))
           )
           post("/api/datasets/" + datasetId + "/acl", params) {
             checkStatus()
@@ -489,7 +497,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           // アクセスレベル設定対象のグループを作成
           post("/api/signin", dummyUserLoginParams) { checkStatus() }
           val groupName = "groupName" + UUID.randomUUID().toString
-          val createGroupParams = Map("name" -> groupName, "description" -> "group description")
+          val createGroupParams = Map("d" -> compact(render(("name" -> groupName) ~ ("description" -> "group description"))))
           val groupId = post("/api/groups", createGroupParams) {
             checkStatus()
             parse(body).extract[AjaxResponse[Group]].data.id
@@ -498,10 +506,12 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
           // アクセスレベル設定(グループ)
           signIn()
-          val params = List(
-            "id[]" -> groupId,
-            "type[]" -> OwnerType.Group.toString,
-            "accessLevel[]" -> GroupAccessLevel.FullPublic.toString
+          val params = Map("d" ->
+            compact(render(List(
+              ("id" -> groupId) ~
+              ("ownerType" -> JInt(OwnerType.Group)) ~
+              ("accessLevel" -> JInt(UserAccessLevel.FullPublic))
+            )))
           )
           post("/api/datasets/" + datasetId + "/acl", params) {
             checkStatus()
@@ -536,7 +546,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           // アクセスレベル設定対象のグループを作成
           post("/api/signin", dummyUserLoginParams) { checkStatus() }
           val groupName = "group name" + UUID.randomUUID().toString
-          val createGroupParams = Map("name" -> groupName, "description" -> "group description")
+          val createGroupParams = Map("d" -> compact(render(("name" -> groupName) ~ ("description" -> "group description"))))
           val groupId = post("/api/groups", createGroupParams) {
             checkStatus()
             parse(body).extract[AjaxResponse[Group]].data.id
@@ -545,10 +555,12 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
           // アクセスレベル設定
           signIn()
-          val params = Map(
-            "id[]" -> groupId,
-            "type[]" -> OwnerType.Group.toString,
-            "accessLevel[]" -> GroupAccessLevel.FullPublic.toString
+          val params = Map("d" ->
+            compact(render(List(
+              ("id" -> groupId) ~
+              ("ownerType" -> JInt(OwnerType.Group)) ~
+              ("accessLevel" -> JInt(GroupAccessLevel.FullPublic))
+            )))
           )
           post("/api/datasets/" + datasetId + "/acl", params) {
             println(body)
@@ -569,10 +581,12 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
           // アクセスレベル解除
           signIn()
-          val deleteParams = Map(
-            "id[]" -> groupId,
-            "type[]" -> OwnerType.Group.toString,
-            "accessLevel[]" -> GroupAccessLevel.Deny.toString
+          val deleteParams = Map("d" ->
+            compact(render(List(
+              ("id" -> groupId) ~
+              ("ownerType" -> JInt(OwnerType.Group)) ~
+              ("accessLevel" -> JInt(GroupAccessLevel.Deny))
+            )))
           )
           post("/api/datasets/" + datasetId + "/acl", deleteParams) {
             checkStatus()
@@ -596,7 +610,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           val datasetId = createDataset()
 
           // アクセスレベル設定
-          val params = Map("accessLevel" -> DefaultAccessLevel.FullPublic.toString)
+          val params = Map("d" -> compact(render(("accessLevel" -> JInt(DefaultAccessLevel.FullPublic)))))
           put("/api/datasets/" + datasetId + "/guest_access", params) { checkStatus() }
 
           // アクセスレベルを設定したdatasetはゲストから参照できるはず
@@ -621,7 +635,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           val datasetId = createDataset()
 
           // アクセスレベル設定
-          val params = Map("accessLevel" -> DefaultAccessLevel.FullPublic.toString)
+          val params = Map("d" -> compact(render(("accessLevel" -> JInt(DefaultAccessLevel.FullPublic)))))
           put("/api/datasets/" + datasetId + "/guest_access", params) { checkStatus() }
 
           // アクセスレベルを設定したdatasetはゲストから参照できるはず
@@ -634,7 +648,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
           // アクセスレベルを解除したdatasetはゲストから見えなくなるはず
           signIn()
-          val deleteParams = Map("accessLevel" -> DefaultAccessLevel.Deny.toString)
+          val deleteParams = Map("d" -> compact(render(("accessLevel" -> JInt(DefaultAccessLevel.Deny)))))
           put("/api/datasets/" + datasetId + "/guest_access", deleteParams) { checkStatus() }
           post("/api/signout") { checkStatus() }
           get("/api/datasets/" + datasetId) {
@@ -651,30 +665,32 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
           // グループ作成 それぞれに権限付与
           val providerGroupName = "group provider " + UUID.randomUUID().toString
-          val providerParams = Map("name" -> providerGroupName, "description" -> "Provider Group")
+          val providerParams = Map("d" -> compact(render(("name" -> providerGroupName) ~ ("description" -> "Provider Group"))))
           val providerGroupId = post("/api/groups", providerParams) {
             checkStatus()
             parse(body).extract[AjaxResponse[Group]].data.id
           }
 
           val readGroupName = "group read " + UUID.randomUUID().toString
-          val readParams = Map("name" -> readGroupName, "description" -> "Provider Read")
+          val readParams = Map("d" -> compact(render(("name" -> readGroupName) ~ ("description" -> "Provider Read"))))
           val fullPublicGroupId = post("/api/groups", readParams) {
             checkStatus()
             parse(body).extract[AjaxResponse[Group]].data.id
           }
 
           val readLimitedGroupName = "group read limited " + UUID.randomUUID().toString
-          val readLimitedParams = Map("name" -> readLimitedGroupName, "description" -> "Provider Read Limited")
+          val readLimitedParams = Map("d" -> compact(render(("name" -> readLimitedGroupName) ~ ("description" -> "Provider Read Limited"))))
           val limitedReadGroupId = post("/api/groups", readLimitedParams) {
             checkStatus()
             parse(body).extract[AjaxResponse[Group]].data.id
           }
 
-          val groupAccessLevels = List(
-            "id[]" -> providerGroupId, "type[]" -> OwnerType.Group.toString, "accessLevel[]" -> GroupAccessLevel.Provider.toString,
-            "id[]" -> fullPublicGroupId, "type[]" -> OwnerType.Group.toString, "accessLevel[]" -> GroupAccessLevel.FullPublic.toString,
-            "id[]" -> limitedReadGroupId, "type[]" -> OwnerType.Group.toString, "accessLevel[]" -> GroupAccessLevel.LimitedPublic.toString)
+          val groupAccessLevels = Map("d" -> compact(render(List(
+              ("id" -> providerGroupId) ~ ("ownerType" -> JInt(OwnerType.Group)) ~ ("accessLevel" -> JInt(GroupAccessLevel.Provider)),
+              ("id" -> fullPublicGroupId) ~ ("ownerType" -> JInt(OwnerType.Group)) ~ ("accessLevel" -> JInt(GroupAccessLevel.FullPublic)),
+              ("id" -> limitedReadGroupId) ~ ("ownerType" -> JInt(OwnerType.Group)) ~ ("accessLevel" -> JInt(GroupAccessLevel.LimitedPublic))
+            )))
+          )
           post("/api/datasets/" + datasetId + "/acl", groupAccessLevels) {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Seq[DatasetOwnership]]]
@@ -687,10 +703,12 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           val ownerUserId = "eb7a596d-e50c-483f-bbc7-50019eea64d7"
           val fullPublicUserId = "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04"
           val limitedReadUserId = "4aaefd45-2fe5-4ce0-b156-3141613f69a6"
-          val userAccessLevels = List(
-            "id[]" -> ownerUserId, "type[]" -> OwnerType.User.toString, "accessLevel[]" -> UserAccessLevel.Owner.toString,
-            "id[]" -> fullPublicUserId, "type[]" -> OwnerType.User.toString, "accessLevel[]" -> UserAccessLevel.FullPublic.toString,
-            "id[]" -> limitedReadUserId, "type[]" -> OwnerType.User.toString, "accessLevel[]" -> UserAccessLevel.LimitedRead.toString)
+          val userAccessLevels = Map("d" -> compact(render(List(
+              ("id" -> ownerUserId) ~ ("ownerType" -> JInt(OwnerType.User)) ~ ("accessLevel" -> JInt(UserAccessLevel.Owner)),
+              ("id" -> fullPublicUserId) ~ ("ownerType" -> JInt(OwnerType.User)) ~ ("accessLevel" -> JInt(UserAccessLevel.FullPublic)),
+              ("id" -> limitedReadUserId) ~ ("ownerType" -> JInt(OwnerType.User)) ~ ("accessLevel" -> JInt(UserAccessLevel.LimitedRead))
+            )))
+          )
           post("/api/datasets/" + datasetId + "/acl", userAccessLevels) {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Seq[DatasetOwnership]]]
@@ -725,7 +743,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   }
 
   private def signIn() {
-    val params = Map("id" -> "dummy1", "password" -> "password")
+    val params = Map("d" -> compact(render(("id" -> "dummy1") ~ ("password" -> "password"))))
     post("/api/signin", params) {
       checkStatus()
     }
