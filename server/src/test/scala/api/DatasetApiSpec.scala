@@ -145,7 +145,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           get("/api/datasets/" + datasetId) {
             status should be(200)
             val result = parse(body).extract[AjaxResponse[Dataset]]
-            result.status should be("NG")
+            result.status should be("NotFound")
           }
         }
       }

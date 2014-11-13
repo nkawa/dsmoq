@@ -1,13 +1,12 @@
 package dsmoq.controllers
 
-import dsmoq.persistence.GroupMemberRole
 import org.json4s._
 import org.json4s.jackson.JsonMethods
 import org.scalatra.ScalatraServlet
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatra.json.JacksonJsonSupport
 import dsmoq.services._
-import scala.util.{Success, Failure}
+import scala.util.{Try, Success, Failure}
 import org.scalatra.servlet.FileUploadSupport
 import dsmoq.controllers.json._
 import dsmoq.exceptions.{InputValidationException, NotFoundException, NotAuthorizedException}
@@ -15,6 +14,7 @@ import dsmoq.exceptions.{InputValidationException, NotFoundException, NotAuthori
 class ApiController extends ScalatraServlet
     with JacksonJsonSupport with SessionTrait with FileUploadSupport {
   protected implicit val jsonFormats: Formats = DefaultFormats
+  implicit def objectToPipe[A](x: A) = Pipe(x)
 
   before() {
     contentType = formats("json")
@@ -69,16 +69,7 @@ class ApiController extends ScalatraServlet
     } yield {
       setSignedInUser(userNew)
       userNew
-    }) match {
-      case Success(x) =>
-        AjaxResponse("OK", x)
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
+    }) |> toAjaxResponse
   }
 
   post("/profile/image") {
@@ -99,16 +90,7 @@ class ApiController extends ScalatraServlet
         isGuest = user.isGuest,
         isDeleted = user.isDeleted
       ))
-    }) match {
-      case Success(x) =>
-        AjaxResponse("OK", x)
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
+    }) |> toAjaxResponse
   }
 
   post("/profile/email_change_requests") {
@@ -120,16 +102,7 @@ class ApiController extends ScalatraServlet
     } yield {
       setSignedInUser(userNew)
       userNew
-    }) match {
-      case Success(x) =>
-        AjaxResponse("OK", x)
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
+    }) |> toAjaxResponse
   }
 
   put("/profile/password") {
@@ -138,16 +111,7 @@ class ApiController extends ScalatraServlet
     (for {
       user <- signedInUser
       _ <- AccountService.changeUserPassword(user.id, json.currentPassword, json.newPassword)
-    } yield {}) match {
-      case Success(_) =>
-        AjaxResponse("OK")
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
+    } yield {}) |> toAjaxResponse
   }
 
   // --------------------------------------------------------------------------
@@ -158,34 +122,14 @@ class ApiController extends ScalatraServlet
     (for {
       user <- signedInUser
       dataset <- DatasetService.create(files, user)
-    } yield dataset) match {
-      case Success(x) =>
-        AjaxResponse("OK", x)
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
+    } yield dataset) |> toAjaxResponse
   }
 
   get("/datasets") {
     val json = params.get("d").map(JsonMethods.parse(_).extract[SearchDatasetsParams])
                                .getOrElse(SearchDatasetsParams())
     DatasetService.search(json.query, json.owners, json.groups, json.attributes,
-                          json.limit, json.offset, currentUser) match {
-      case Success(x) =>
-        AjaxResponse("OK", x)
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case e =>
-            log(e.getMessage, e)
-            AjaxResponse("NG")
-        }
-    }
+                          json.limit, json.offset, currentUser) |> toAjaxResponse
   }
 
   get("/datasets/:datasetId") {
@@ -193,18 +137,7 @@ class ApiController extends ScalatraServlet
     (for {
       dataset <- DatasetService.get(id, currentUser)
       _ <- SystemService.writeDatasetAccessLog(dataset.id, currentUser)
-    } yield dataset) match {
-      case Success(x) =>
-        AjaxResponse("OK", x)
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case e =>
-            log(e.getMessage, e)
-            AjaxResponse("NG")
-        }
-    }
+    } yield dataset) |> toAjaxResponse
   }
 
   post("/datasets/:datasetId/files") {
@@ -213,18 +146,7 @@ class ApiController extends ScalatraServlet
     (for {
       user <- signedInUser
       datasets <- DatasetService.addFiles(id, files, user)
-    } yield datasets) match {
-      case Success(x) =>
-        AjaxResponse("OK", x)
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case e =>
-            log(e.getMessage, e)
-            AjaxResponse("NG")
-        }
-    }
+    } yield datasets) |> toAjaxResponse
   }
 
   post("/datasets/:datasetId/files/:fileId") {
@@ -235,17 +157,7 @@ class ApiController extends ScalatraServlet
     (for {
       user <- signedInUser
       file <- DatasetService.updateFile(datasetId, fileId, file, user)
-    } yield file) match {
-      case Success(x) =>
-        AjaxResponse("OK", x)
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: NotFoundException => AjaxResponse("NotFound")
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
+    } yield file) |> toAjaxResponse
   }
 
   put("/datasets/:datasetId/files/:fileId/metadata") {
@@ -256,17 +168,7 @@ class ApiController extends ScalatraServlet
     (for {
       user <- signedInUser
       file <- DatasetService.updateFileMetadata(datasetId, fileId, json.name.getOrElse(""), json.description.getOrElse(""), user)
-    } yield file) match {
-      case Success(x) =>
-        AjaxResponse("OK", x)
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: NotFoundException => AjaxResponse("NotFound")
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
+    } yield file) |> toAjaxResponse
   }
 
   delete("/datasets/:datasetId/files/:fileId") {
@@ -276,17 +178,7 @@ class ApiController extends ScalatraServlet
     (for {
       user <- signedInUser
       file <- DatasetService.deleteDatasetFile(datasetId, fileId, user)
-    } yield file) match {
-      case Success(x) =>
-        AjaxResponse("OK", x)
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: NotFoundException => AjaxResponse("NotFound")
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
+    } yield file) |> toAjaxResponse
   }
 
   put("/datasets/:datasetId/metadata") {
@@ -296,17 +188,7 @@ class ApiController extends ScalatraServlet
     (for {
       user <- signedInUser
       result <- DatasetService.modifyDatasetMeta(datasetId, json.name, json.description, json.license, json.attributes, user)
-    } yield {}) match {
-      case Success(_) => AjaxResponse("OK")
-      case Failure(e) =>
-        println(e)
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: NotFoundException => AjaxResponse("NotFound")
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
+    } yield {}) |> toAjaxResponse
   }
 
   post("/datasets/:datasetId/images") {
@@ -315,16 +197,7 @@ class ApiController extends ScalatraServlet
     (for {
       user <- signedInUser
       images <- DatasetService.addImages(datasetId, images, user)
-    } yield images) match {
-      case Success(x) =>
-        AjaxResponse("OK", x)
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
+    } yield images) |> toAjaxResponse
   }
 
   put("/datasets/:datasetId/images/primary") {
@@ -334,17 +207,7 @@ class ApiController extends ScalatraServlet
     (for {
       user <- signedInUser
       result <- DatasetService.changePrimaryImage(datasetId, json.imageId.getOrElse(""), user)
-    } yield result) match {
-      case Success(_) =>
-        AjaxResponse("OK")
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: NotFoundException => AjaxResponse("NotFound")
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
+    } yield result) |> toAjaxResponse
   }
 
   delete("/datasets/:datasetId/images/:imageId") {
@@ -354,16 +217,7 @@ class ApiController extends ScalatraServlet
     (for {
       user <- signedInUser
       primaryImage <- DatasetService.deleteImage(datasetId, imageId, user)
-    } yield primaryImage) match {
-      case Success(x) =>
-        AjaxResponse("OK", x)
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: NotFoundException => AjaxResponse("NotFound")
-          case _ => AjaxResponse("NG")
-        }
-    }
+    } yield primaryImage) |> toAjaxResponse
   }
 
   post("/datasets/:datasetId/acl") {
@@ -373,17 +227,7 @@ class ApiController extends ScalatraServlet
     (for {
       user <- signedInUser
       result <- DatasetService.setAccessControl(datasetId, acl, user)
-    } yield result) match {
-      case Success(x) =>
-        AjaxResponse("OK", x)
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: NotFoundException => AjaxResponse("NotFound")
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
+    } yield result) |> toAjaxResponse
   }
 
   put("/datasets/:datasetId/guest_access") {
@@ -393,17 +237,7 @@ class ApiController extends ScalatraServlet
     (for {
       user <- signedInUser
       result <- DatasetService.setGuestAccessLevel(datasetId, json.accessLevel.getOrElse(0), user)
-    } yield result) match {
-      case Success(_) =>
-        AjaxResponse("OK")
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: NotFoundException => AjaxResponse("NotFound")
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
+    } yield result) |> toAjaxResponse
   }
 
   delete("/datasets/:datasetId") {
@@ -411,16 +245,7 @@ class ApiController extends ScalatraServlet
     (for {
       user <- signedInUser
       result = DatasetService.deleteDataset(datasetId, user)
-    } yield {}) match {
-      case Success(x) =>
-        AjaxResponse("OK")
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: NotFoundException => AjaxResponse("NotFound")
-          case _ => AjaxResponse("NG")
-        }
-    }
+    } yield {}) |> toAjaxResponse
   }
 
   // --------------------------------------------------------------------------
@@ -429,43 +254,19 @@ class ApiController extends ScalatraServlet
   get("/groups") {
     val json = params.get("d").map(JsonMethods.parse(_).extract[SearchGroupsParams])
                                .getOrElse(SearchGroupsParams())
-    GroupService.search(json.query, json.user, json.limit, json.offset, currentUser) match {
-      case Success(x) =>
-        AjaxResponse("OK", x)
-      case Failure(e) =>
-        e match {
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
+    GroupService.search(json.query, json.user, json.limit, json.offset, currentUser) |> toAjaxResponse
   }
 
   get("/groups/:groupId") {
     val groupId = params("groupId")
-    GroupService.get(groupId, currentUser) match {
-      case Success(x) =>
-        AjaxResponse("OK", x)
-      case Failure(e) =>
-        e match {
-          case e: NotFoundException => AjaxResponse("NotFound")
-          case _ => AjaxResponse("NG")
-        }
-    }
+    GroupService.get(groupId, currentUser) |> toAjaxResponse
   }
 
   get("/groups/:groupId/members") {
     val groupId = params("groupId")
     val json = params.get("d").map(x => JsonMethods.parse(x).extract[GetGroupMembersParams])
                                .getOrElse(GetGroupMembersParams())
-    GroupService.getGroupMembers(groupId, json.limit, json.offset, currentUser) match {
-      case Success(x) =>
-        AjaxResponse("OK", x)
-      case Failure(e) =>
-        e match {
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
+    GroupService.getGroupMembers(groupId, json.limit, json.offset, currentUser) |> toAjaxResponse
   }
 
   post("/groups") {
@@ -474,15 +275,7 @@ class ApiController extends ScalatraServlet
     (for {
       user <- signedInUser
       group <- GroupService.createGroup(json.name.getOrElse(""), json.description.getOrElse(""), user)
-    } yield group) match {
-      case Success(x) =>
-        AjaxResponse("OK", x)
-      case Failure(e) =>
-        e match {
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
+    } yield group) |> toAjaxResponse
   }
 
   put("/groups/:groupId") {
@@ -492,17 +285,7 @@ class ApiController extends ScalatraServlet
     (for {
       user <- signedInUser
       group <- GroupService.updateGroup(groupId, json.name.getOrElse(""), json.description.getOrElse(""), user)
-    } yield group) match {
-      case Success(x) =>
-        AjaxResponse("OK", x)
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: NotFoundException => AjaxResponse("NotFound")
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
+    } yield group) |> toAjaxResponse
   }
 
   post("/groups/:groupId/images") {
@@ -511,17 +294,7 @@ class ApiController extends ScalatraServlet
     (for {
       user <- signedInUser
       files <- GroupService.addImages(groupId, images, user)
-    } yield files) match {
-      case Success(x) =>
-        AjaxResponse("OK", x)
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: NotFoundException => AjaxResponse("NotFound")
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
+    } yield files) |> toAjaxResponse
   }
 
   put("/groups/:groupId/images/primary") {
@@ -531,17 +304,7 @@ class ApiController extends ScalatraServlet
     (for {
       user <- signedInUser
       _ <- GroupService.changePrimaryImage(groupId, json.imageId.getOrElse(""), user)
-    } yield {}) match {
-      case Success(x) =>
-        AjaxResponse("OK")
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: NotFoundException => AjaxResponse("NotFound")
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
+    } yield {}) |> toAjaxResponse
   }
 
   delete("/groups/:groupId/images/:imageId") {
@@ -550,16 +313,7 @@ class ApiController extends ScalatraServlet
     (for {
       user <- signedInUser
       primaryImage <- GroupService.deleteImage(groupId, imageId, user)
-    } yield primaryImage) match {
-      case Success(x) =>
-        AjaxResponse("OK", x)
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: NotFoundException => AjaxResponse("NotFound")
-          case _ => AjaxResponse("NG")
-        }
-    }
+    } yield primaryImage) |> toAjaxResponse
   }
 
   post("/groups/:groupId/members") {
@@ -569,17 +323,7 @@ class ApiController extends ScalatraServlet
     (for {
       user <- signedInUser
       _ <- GroupService.addMembers(groupId, roles, user)
-    } yield {}) match {
-      case Success(x) =>
-        AjaxResponse("OK")
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: NotFoundException => AjaxResponse("NotFound")
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
+    } yield {}) |> toAjaxResponse
   }
 
   put("/groups/:groupId/members/:userId") {
@@ -592,17 +336,7 @@ class ApiController extends ScalatraServlet
         (for {
           user <- signedInUser
           _ <- GroupService.updateMemberRole(groupId, userId, role, user)
-        } yield {}) match {
-          case Success(x) =>
-            AjaxResponse("OK")
-          case Failure(e) =>
-            e match {
-              case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-              case e: NotFoundException => AjaxResponse("NotFound")
-              case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-              case _ => AjaxResponse("NG")
-            }
-        }
+        } yield {}) |> toAjaxResponse
       case None =>
         AjaxResponse("OK")
     }
@@ -614,17 +348,7 @@ class ApiController extends ScalatraServlet
     (for {
       user <- signedInUser
       _ <- GroupService.removeMember(groupId, userId, user)
-    } yield {}) match {
-      case Success(x) =>
-        AjaxResponse("OK")
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: NotFoundException => AjaxResponse("NotFound")
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case _ => AjaxResponse("NG")
-        }
-    }
+    } yield {}) |> toAjaxResponse
   }
 
   delete("/groups/:groupId") {
@@ -632,16 +356,7 @@ class ApiController extends ScalatraServlet
     (for {
       user <- signedInUser
       _ <- GroupService.deleteGroup(groupId, user)
-    } yield {}) match {
-      case Success(_) =>
-        AjaxResponse("OK")
-      case Failure(e) =>
-        e match {
-          case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-          case e: NotFoundException => AjaxResponse("NotFound")
-          case _ => AjaxResponse("NG")
-        }
-    }
+    } yield {}) |> toAjaxResponse
   }
 
   // --------------------------------------------------------------------------
@@ -684,6 +399,25 @@ class ApiController extends ScalatraServlet
     val attributes = SystemService.getAttributes(query)
     AjaxResponse("OK", attributes)
   }
+
+  def toAjaxResponse[A](result: Try[A]) = result match {
+    case Success(Unit) => AjaxResponse("OK")
+    case Success(x) => AjaxResponse("OK", x)
+    case Failure(e) =>
+     e match {
+      case e: NotAuthorizedException => AjaxResponse("Unauthorized")
+      case e: NotFoundException => AjaxResponse("NotFound")
+      case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+      case _ =>
+        log(e.getMessage, e)
+        AjaxResponse("NG")
+    }
+  }
 }
 
 case class AjaxResponse[A](status: String, data: A = {})
+
+case class Pipe[A](x: A)
+{
+  def |>[B](f: A => B) = f.apply(x)
+}
