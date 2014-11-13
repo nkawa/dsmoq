@@ -27,10 +27,6 @@ case class ChangePrimaryImageParams(
   imageId: Option[String] = None
 )
 
-case class DeleteImageParams(
-  imageId: Option[String] = None
-)
-
 case class UpdateDatasetGuestAccessParams(
   accessLevel: Option[Int] = None
 )
