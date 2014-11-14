@@ -39,9 +39,7 @@ object AccountService {
       }
 
       DB readOnly { implicit s =>
-        val user = findUser(id, password)
-
-        user match {
+        findUser(id, password) match {
           case Some(x) => Success(x)
           case None => throw new InputValidationException(Map("password" -> "wrong password"))
         }
@@ -240,25 +238,6 @@ object AccountService {
 
         persistence.User.find(id) match {
           case Some(x) =>
-//            val img = image.map {x =>
-//              val imageId = UUID.randomUUID().toString
-//              val path = ImageSaveLogic.writeImageFile(imageId, x)
-//              val bufferedImage = javax.imageio.ImageIO.read(x.getInputStream)
-//
-//              persistence.Image.create(
-//                id = imageId,
-//                name = x.getName,
-//                width = bufferedImage.getWidth,
-//                height = bufferedImage.getWidth,
-//                filePath = path,
-//                presetType = PresetType.Default,
-//                createdBy = id,
-//                createdAt = DateTime.now,
-//                updatedBy = id,
-//                updatedAt = DateTime.now
-//              )
-//            }
-
             val user = persistence.User(
               id = x.id,
               name = name_,
