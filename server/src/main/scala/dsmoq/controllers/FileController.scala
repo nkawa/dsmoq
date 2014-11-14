@@ -18,10 +18,7 @@ class FileController extends ScalatraServlet with SessionTrait with FileUploadSu
       fileInfo
     }
     result match {
-      case Success(x) =>
-        response.setHeader("Content-Disposition", "attachment; filename=" + x._2)
-        response.setHeader("Content-Type", "application/octet-stream;charset=binary")
-        x._1
+      case Success(x) => redirect(x._1)
       case Failure(e) => halt(status = 403, reason = "Forbidden", body="Forbidden")
     }
   }

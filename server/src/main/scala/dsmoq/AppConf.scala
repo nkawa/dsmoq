@@ -25,4 +25,9 @@ object AppConf {
   val callbackUrl = conf.getString("oauth.callback_url")
   val scopes = conf.getStringList("oauth.scopes")
   val applicationName = conf.getString("oauth.application_name")
+
+  val s3UploadAccessKey = conf.getString("s3.upload_access_key")
+  val s3UploadSecretKey = conf.getString("s3.upload_secret_key")
+  val s3DownloadAccessKey = conf.getString("s3.download_access_key")
+  val s3DownloadSecretKey = conf.getString("s3.download_secret_key")
 }

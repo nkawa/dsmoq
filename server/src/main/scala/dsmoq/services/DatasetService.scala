@@ -1,8 +1,12 @@
 package dsmoq.services
 
+import java.io.{FileInputStream, InputStream}
+
+import com.amazonaws.services.s3.model.{GeneratePresignedUrlRequest, ObjectMetadata}
+
 import scala.util.{Failure, Try, Success}
 import scalikejdbc._, SQLInterpolation._
-import java.util.UUID
+import java.util.{Calendar, UUID}
 import java.nio.file.Paths
 import dsmoq.{persistence, AppConf}
 import dsmoq.services.json._
@@ -18,6 +22,8 @@ import org.scalatra.servlet.FileItem
 import dsmoq.services.json.RangeSliceSummary
 import dsmoq.services.json.Image
 import scala.collection.mutable
+import com.amazonaws.auth.BasicAWSCredentials
+import com.amazonaws.services.s3.AmazonS3Client
 
 object DatasetService {
   // FIXME 暫定パラメータのため、将来的には削除する
@@ -150,13 +156,20 @@ object DatasetService {
   }
 
   private def writeFile(datasetId: String, fileId: String, historyId: String, file: FileItem) = {
-    val datasetDir = Paths.get(AppConf.fileDir, datasetId).toFile
-    if (!datasetDir.exists()) datasetDir.mkdir()
+    val cre = new BasicAWSCredentials(AppConf.s3UploadAccessKey, AppConf.s3UploadSecretKey)
+    val client = new AmazonS3Client(cre)
 
-    val fileDir = datasetDir.toPath.resolve(fileId).toFile
-    if (!fileDir.exists()) fileDir.mkdir()
+    if (! client.doesBucketExist(datasetId)) {
+      client.createBucket(datasetId)
+    }
 
-    file.write(fileDir.toPath.resolve(historyId).toFile)
+    val stream = file.getInputStream
+    // FIXME このcontentLengthの算出法は概算であり、正確ではない
+    val contentLength = stream.available
+    val putMetaData = new ObjectMetadata()
+    putMetaData.setContentLength(contentLength)
+    // TODO 分割アップロードが必要かどうか、検討する。このままの実装だと、ファイルサイズが大きい場合にヒープが枯渇する可能性がある。
+    client.putObject(datasetId, file.getName, stream, putMetaData)
   }
 
   /**
@@ -1411,11 +1424,18 @@ object DatasetService {
         }
       }
 
-      val filePath = Paths.get(AppConf.fileDir, fileInfo._2).toFile
-      if (!filePath.exists()) throw new RuntimeException("file not found")
+      val cre = new BasicAWSCredentials(AppConf.s3DownloadAccessKey, AppConf.s3DownloadSecretKey)
+      val client = new AmazonS3Client(cre)
+      // 有効期限(1分)
+      val cal = Calendar.getInstance()
+      cal.add(Calendar.MINUTE, 15)
+      val limit = cal.getTime()
 
-      val file = new java.io.File(filePath.toString)
-      Success((file, fileInfo._1.name))
+      // TODO 例外時の処理。URL生成できない＝ファイルがないだと思うが、そういうケースを想定する必要があるか？
+      // URLを生成
+      val url = client.generatePresignedUrl(new GeneratePresignedUrlRequest(datasetId, fileInfo._1.name).withExpiration(limit));
+
+      Success((url.toString, fileInfo._1.name))
     } catch {
       case e: Exception => Failure(e)
     }
