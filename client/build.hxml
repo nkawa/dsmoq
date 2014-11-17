@@ -24,4 +24,4 @@
 
 --next
 
--cmd less assets/style.less > www/style.css
+-cmd lessc assets/style.less > www/style.css
