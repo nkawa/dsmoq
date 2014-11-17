@@ -2,7 +2,7 @@ package dsmoq.services
 
 import java.io.{FileInputStream, InputStream}
 
-import com.amazonaws.services.s3.model.{GeneratePresignedUrlRequest, ObjectMetadata}
+import com.amazonaws.services.s3.model.{PutObjectRequest, GeneratePresignedUrlRequest, ObjectMetadata}
 
 import scala.util.{Failure, Try, Success}
 import scalikejdbc._, SQLInterpolation._
@@ -159,8 +159,8 @@ object DatasetService {
     val cre = new BasicAWSCredentials(AppConf.s3UploadAccessKey, AppConf.s3UploadSecretKey)
     val client = new AmazonS3Client(cre)
 
-    if (! client.doesBucketExist(datasetId)) {
-      client.createBucket(datasetId)
+    if (! client.doesBucketExist(AppConf.s3UploadRoot)) {
+      client.createBucket(AppConf.s3UploadRoot)
     }
 
     val stream = file.getInputStream
@@ -169,7 +169,7 @@ object DatasetService {
     val putMetaData = new ObjectMetadata()
     putMetaData.setContentLength(contentLength)
     // TODO 分割アップロードが必要かどうか、検討する。このままの実装だと、ファイルサイズが大きい場合にヒープが枯渇する可能性がある。
-    client.putObject(datasetId, file.getName, stream, putMetaData)
+    client.putObject(new PutObjectRequest(AppConf.s3UploadRoot, datasetId + "/" + file.getName, stream, putMetaData))
   }
 
   /**
@@ -1433,7 +1433,7 @@ object DatasetService {
 
       // TODO 例外時の処理。URL生成できない＝ファイルがないだと思うが、そういうケースを想定する必要があるか？
       // URLを生成
-      val url = client.generatePresignedUrl(new GeneratePresignedUrlRequest(datasetId, fileInfo._1.name).withExpiration(limit));
+      val url = client.generatePresignedUrl(new GeneratePresignedUrlRequest(AppConf.s3UploadRoot, datasetId + "/" + fileInfo._1.name).withExpiration(limit));
 
       Success((url.toString, fileInfo._1.name))
     } catch {

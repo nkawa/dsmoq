@@ -53,6 +53,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
   override def afterAll() {
     DBsWithEnv("test").close()
+    SpecCommonLogic.deleteAllFile()
     super.afterAll()
   }
 

@@ -2,10 +2,13 @@ package api.api.logic
 
 import java.io.File
 
+import com.amazonaws.auth.BasicAWSCredentials
+import com.amazonaws.services.s3.AmazonS3Client
 import org.joda.time.DateTime
 import scalikejdbc._, SQLInterpolation._
 import dsmoq._
 import dsmoq.persistence.PostgresqlHelper._
+import scala.collection.JavaConversions._
 
 object SpecCommonLogic {
   private val defaultUserIconId = "8a981652-ea4d-48cf-94db-0ceca7d81aef"
@@ -14,6 +17,8 @@ object SpecCommonLogic {
     "8b570468-9814-4d30-8c04-392b263b6404",
     "960a5601-2b60-2531-e6ad-54b91612ede5"
   )
+  private lazy val cre = new BasicAWSCredentials(AppConf.s3UploadAccessKey, AppConf.s3UploadSecretKey)
+  private lazy val client = new AmazonS3Client(cre)
 
   def insertDummyData() {
     val ts = DateTime.now
@@ -285,6 +290,18 @@ object SpecCommonLogic {
           x.delete()
         }
       }
+    }
+  }
+
+  def deleteAllFile(): Unit =
+  {
+    val l = client.listObjects(AppConf.s3UploadRoot)
+
+    l.getObjectSummaries.toList.foreach { obj =>
+      client.deleteObject(AppConf.s3UploadRoot, obj.getKey)
+    }
+    l.getCommonPrefixes.toList.foreach { obj =>
+      client.deleteObject(AppConf.s3UploadRoot, obj)
     }
   }
 

@@ -30,4 +30,5 @@ object AppConf {
   val s3UploadSecretKey = conf.getString("s3.upload_secret_key")
   val s3DownloadAccessKey = conf.getString("s3.download_access_key")
   val s3DownloadSecretKey = conf.getString("s3.download_secret_key")
+  val s3UploadRoot = conf.getString("s3.upload_bucket")
 }
