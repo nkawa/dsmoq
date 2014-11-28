@@ -14,7 +14,7 @@ import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.exceptions._
 import org.joda.time.DateTime
 import dsmoq.persistence._
-import dsmoq.logic.{StringUtil, ImageSaveLogic}
+import dsmoq.logic.{FileManager, StringUtil, ImageSaveLogic}
 import scala.util.Failure
 import scala.util.Success
 import dsmoq.services.json.RangeSlice
@@ -75,7 +75,7 @@ object DatasetService {
             updatedBy = myself.id,
             updatedAt = timestamp
           )
-          writeFile(datasetId, file.id, histroy.id, f)
+          FileManager.uploadToS3(datasetId, file.id, histroy.id, f)
           (file, histroy)
         })
         val dataset = persistence.Dataset.create(
@@ -153,23 +153,6 @@ object DatasetService {
     } catch {
       case e: Throwable => Failure(e)
     }
-  }
-
-  private def writeFile(datasetId: String, fileId: String, historyId: String, file: FileItem) = {
-    val cre = new BasicAWSCredentials(AppConf.s3UploadAccessKey, AppConf.s3UploadSecretKey)
-    val client = new AmazonS3Client(cre)
-
-    if (! client.doesBucketExist(AppConf.s3UploadRoot)) {
-      client.createBucket(AppConf.s3UploadRoot)
-    }
-
-    val stream = file.getInputStream
-    // FIXME このcontentLengthの算出法は概算であり、正確ではない
-    val contentLength = stream.available
-    val putMetaData = new ObjectMetadata()
-    putMetaData.setContentLength(contentLength)
-    // TODO 分割アップロードが必要かどうか、検討する。このままの実装だと、ファイルサイズが大きい場合にヒープが枯渇する可能性がある。
-    client.putObject(new PutObjectRequest(AppConf.s3UploadRoot, datasetId + "/" + file.getName, stream, putMetaData))
   }
 
   /**
@@ -593,7 +576,8 @@ object DatasetService {
             updatedBy = myself.id,
             updatedAt = timestamp
           )
-          writeFile(id, file.id, history.id, f)
+          FileManager.uploadToS3(id, file.id, history.id, f)
+
           (file, history)
         })
 
@@ -656,7 +640,8 @@ object DatasetService {
           updatedBy = myself.id,
           updatedAt = timestamp
         )
-        writeFile(datasetId, fileId, history.id, file_)
+
+        FileManager.uploadToS3(datasetId, fileId, history.id, file_)
 
         // datasetsのfiles_size, files_countの更新
         updateDatasetFileStatus(datasetId, myself.id, timestamp)
@@ -1424,18 +1409,8 @@ object DatasetService {
         }
       }
 
-      val cre = new BasicAWSCredentials(AppConf.s3DownloadAccessKey, AppConf.s3DownloadSecretKey)
-      val client = new AmazonS3Client(cre)
-      // 有効期限(1分)
-      val cal = Calendar.getInstance()
-      cal.add(Calendar.MINUTE, 15)
-      val limit = cal.getTime()
-
-      // TODO 例外時の処理。URL生成できない＝ファイルがないだと思うが、そういうケースを想定する必要があるか？
-      // URLを生成
-      val url = client.generatePresignedUrl(new GeneratePresignedUrlRequest(AppConf.s3UploadRoot, datasetId + "/" + fileInfo._1.name).withExpiration(limit));
-
-      Success((url.toString, fileInfo._1.name))
+      val url = FileManager.downloadFromS3(fileInfo._2)
+      Success((url, fileInfo._1.name))
     } catch {
       case e: Exception => Failure(e)
     }
