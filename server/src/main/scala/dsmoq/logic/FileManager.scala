@@ -23,7 +23,7 @@ object FileManager {
     file.write(fileDir.toPath.resolve(historyId).toFile)
   }
 
-  def uploadToS3(datasetId: String, fileId: String, historyId: String, file: FileItem) = {
+  def uploadToS3(datasetId: String, fileId: String, historyId: String, file: FileItem) {
     uploadToS3(datasetId + "/" + fileId + "/" +  historyId + "/" + file.getName, file.getInputStream)
   }
 
@@ -78,7 +78,7 @@ object FileManager {
       }
     }
   }
-  
+
   def moveFromS3ToLocal(filePath: String, withDelete: Boolean = false) {
     val cre = new BasicAWSCredentials(AppConf.s3DownloadAccessKey, AppConf.s3DownloadSecretKey)
     val client = new AmazonS3Client(cre)
