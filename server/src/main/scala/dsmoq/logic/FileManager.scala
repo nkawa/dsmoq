@@ -49,15 +49,36 @@ object FileManager {
   def moveFromLocalToS3(filePath: String, withDelete: Boolean = false) {
     val fullPath = Paths.get(AppConf.fileDir, filePath).toFile
     val file = new File(fullPath.toString)
-    val stream = new FileInputStream(file)
 
-    uploadToS3(fullPath.toString, stream)
+    loanStream(file)( x => uploadToS3(fullPath.toString, x) )
 
     if (withDelete) {
       file.delete()
     }
   }
 
+  private def loanStream(file: File)(f: InputStream => Unit)
+  {
+    var stream :InputStream = null
+    try
+    {
+      stream = new FileInputStream(file)
+      f(stream)
+    }
+    finally
+    {
+      try {
+        if (stream != null) {
+          stream.close()
+        }
+      }
+      catch
+      {
+        case _:IOException =>
+      }
+    }
+  }
+  
   def moveFromS3ToLocal(filePath: String, withDelete: Boolean = false) {
     val cre = new BasicAWSCredentials(AppConf.s3DownloadAccessKey, AppConf.s3DownloadSecretKey)
     val client = new AmazonS3Client(cre)
