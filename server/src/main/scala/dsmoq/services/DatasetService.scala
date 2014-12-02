@@ -440,7 +440,7 @@ object DatasetService {
               u.result.id, u.result.column("name"), u.result.fullname, g.result.column("name"))
           .from(persistence.Ownership as o)
             .innerJoin(persistence.Group as g).on(o.groupId, g.id)
-            .leftJoin(persistence.Member as m).on(m.groupId, g.id)
+            .leftJoin(persistence.Member as m).on(sqls.eq(m.groupId, g.id).and.eq(g.groupType, 1))
             .leftJoin(persistence.User as u).on(m.userId, u.id)
           .where
             .inUuid(o.datasetId, datasetIds)
