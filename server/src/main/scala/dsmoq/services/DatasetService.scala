@@ -1409,7 +1409,7 @@ object DatasetService {
         }
       }
 
-      val url = FileManager.downloadFromS3(fileInfo._2)
+      val url = FileManager.downloadFromS3(fileInfo._2.substring(1) + "/" + fileInfo._1.name)
       Success((url, fileInfo._1.name))
     } catch {
       case e: Exception => Failure(e)
