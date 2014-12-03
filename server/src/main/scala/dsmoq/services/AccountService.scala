@@ -39,26 +39,7 @@ object AccountService {
       }
 
       DB readOnly { implicit s =>
-        val u = persistence.User.u
-        val ma = persistence.MailAddress.ma
-        val p = persistence.Password.p
-
-        val user = withSQL {
-          select(u.result.*, ma.result.address)
-            .from(persistence.User as u)
-            .innerJoin(persistence.Password as p).on(u.id, p.userId)
-            .innerJoin(persistence.MailAddress as ma).on(u.id, ma.userId)
-            .where
-              .withRoundBracket { sql =>
-                sql.eq(u.name, id).or.eq(ma.address, id)
-              }
-              .and
-              .eq(p.hash, createPasswordHash(password))
-        }
-        .map(rs => (persistence.User(u.resultName)(rs), rs.string(ma.resultName.address))).single().apply
-        .map(x => User(x._1, x._2))
-
-        user match {
+        findUser(id, password) match {
           case Some(x) => Success(x)
           case None => throw new InputValidationException(Map("password" -> "wrong password"))
         }
@@ -66,6 +47,27 @@ object AccountService {
     } catch {
       case e: Throwable => Failure(e)
     }
+  }
+
+  private def findUser(id: String, password: String)(implicit s: DBSession): Option[User] = {
+    val u = persistence.User.u
+    val ma = persistence.MailAddress.ma
+    val p = persistence.Password.p
+
+    withSQL {
+      select(u.result.*, ma.result.address)
+        .from(persistence.User as u)
+        .innerJoin(persistence.Password as p).on(u.id, p.userId)
+        .innerJoin(persistence.MailAddress as ma).on(u.id, ma.userId)
+        .where
+        .withRoundBracket { sql =>
+        sql.eq(u.name, id).or.eq(ma.address, id)
+      }
+        .and
+        .eq(p.hash, createPasswordHash(password))
+    }
+    .map(rs => (persistence.User(u.resultName)(rs), rs.string(ma.resultName.address))).single().apply
+    .map(x => User(x._1, x._2))
   }
 
   /**
@@ -136,26 +138,9 @@ object AccountService {
     // TODO リファクタリング
     try {
       DB localTx { implicit s =>
-        val u = persistence.User.u
-        val p = persistence.Password.p
-
-        val oldPasswordHash = createPasswordHash(currentPassword.getOrElse(""))
-
         // input validation
         val errors = mutable.LinkedHashMap.empty[String, String]
-        val pwd = withSQL {
-          select(p.result.*)
-            .from(persistence.Password as p)
-            .innerJoin(persistence.User as u).on(u.id, p.userId)
-            .where
-            .eq(u.id, sqls.uuid(id))
-            .and
-            .eq(p.hash, oldPasswordHash)
-            .and
-            .isNull(u.deletedAt)
-            .and
-            .isNull(p.deletedAt)
-        }.map(persistence.Password(p.resultName)).single().apply
+        val pwd = getCurrentPassword(id, currentPassword)
         if (pwd.isEmpty) {
           errors.put("current_password", "wrong password")
         }
@@ -168,19 +153,45 @@ object AccountService {
           throw new InputValidationException(errors)
         }
 
-        val newPasswordHash = createPasswordHash(n)
-        withSQL {
-          val p = persistence.Password.column
-          update(persistence.Password)
-            .set(p.hash -> newPasswordHash, p.updatedAt -> DateTime.now, p.updatedBy -> sqls.uuid(id))
-            .where
-            .eq(p.id, sqls.uuid(pwd.get.id))
-        }.update().apply
+        updatePassword(id, n, pwd.get)
       }
       Success(Unit)
     } catch {
       case e: Throwable => Failure(e)
     }
+  }
+
+  private def getCurrentPassword(id: String, currentPassword: Option[String])(implicit s: DBSession): Option[persistence.Password] =
+  {
+    val oldPasswordHash = createPasswordHash(currentPassword.getOrElse(""))
+    val u = persistence.User.u
+    val p = persistence.Password.p
+
+    withSQL {
+      select(p.result.*)
+        .from(persistence.Password as p)
+        .innerJoin(persistence.User as u).on(u.id, p.userId)
+        .where
+        .eq(u.id, sqls.uuid(id))
+        .and
+        .eq(p.hash, oldPasswordHash)
+        .and
+        .isNull(u.deletedAt)
+        .and
+        .isNull(p.deletedAt)
+    }.map(persistence.Password(p.resultName)).single().apply
+  }
+
+  private def updatePassword(id: String, newPassword:String, currentPassword: persistence.Password)(implicit s: DBSession): Int =
+  {
+    val newPasswordHash = createPasswordHash(newPassword)
+    withSQL {
+      val p = persistence.Password.column
+      update(persistence.Password)
+        .set(p.hash -> newPasswordHash, p.updatedAt -> DateTime.now, p.updatedBy -> sqls.uuid(id))
+        .where
+        .eq(p.id, sqls.uuid(currentPassword.id))
+    }.update().apply
   }
 
   /**
@@ -227,25 +238,6 @@ object AccountService {
 
         persistence.User.find(id) match {
           case Some(x) =>
-//            val img = image.map {x =>
-//              val imageId = UUID.randomUUID().toString
-//              val path = ImageSaveLogic.writeImageFile(imageId, x)
-//              val bufferedImage = javax.imageio.ImageIO.read(x.getInputStream)
-//
-//              persistence.Image.create(
-//                id = imageId,
-//                name = x.getName,
-//                width = bufferedImage.getWidth,
-//                height = bufferedImage.getWidth,
-//                filePath = path,
-//                presetType = PresetType.Default,
-//                createdBy = id,
-//                createdAt = DateTime.now,
-//                updatedBy = id,
-//                updatedAt = DateTime.now
-//              )
-//            }
-
             val user = persistence.User(
               id = x.id,
               name = name_,

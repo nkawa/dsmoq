@@ -73,6 +73,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
   override def afterAll() {
     DBsWithEnv("test").close()
+    SpecCommonLogic.deleteAllFile()
     super.afterAll()
   }
 
@@ -145,7 +146,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           get("/api/datasets/" + datasetId) {
             status should be(200)
             val result = parse(body).extract[AjaxResponse[Dataset]]
-            result.status should be("NG")
+            result.status should be("NotFound")
           }
         }
       }
@@ -423,11 +424,10 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             parse(body).extract[AjaxResponse[Dataset]].data.files(0).url
           }
 
-          // ダウンロードチェック(バイトサイズのみチェック)
+          // ダウンロードチェック(リダイレクトされるか)
           val uri = new java.net.URI(url)
           get(uri.getPath) {
-            status should be(200)
-            bodyBytes.size should be(dummyFile.length())
+            status should be(302)
           }
         }
       }
