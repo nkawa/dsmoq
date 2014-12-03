@@ -88,7 +88,10 @@ object DatasetService {
           createdBy = myself.id,
           createdAt = timestamp,
           updatedBy = myself.id,
-          updatedAt = timestamp
+          updatedAt = timestamp,
+        // TODO 仮の値
+          localState = 0,
+          s3State = 0
         )
         val ownership = persistence.Ownership.create(
           id = UUID.randomUUID.toString,

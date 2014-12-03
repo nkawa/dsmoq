@@ -5,43 +5,47 @@ import org.specs2.mutable._
 import org.joda.time._
 import scalikejdbc._
 
-class DatasetSpec extends Specification {
-  val d = Dataset.syntax("d")
+class TaskSpec extends Specification {
 
-  "Dataset" should {
+  "Task" should {
+
+    val t = Task.syntax("t")
+
     "find by primary keys" in new AutoRollback {
-      val maybeFound = Dataset.find(null)
+      val maybeFound = Task.find(null)
       maybeFound.isDefined should beTrue
     }
     "find all records" in new AutoRollback {
-      val allResults = Dataset.findAll()
+      val allResults = Task.findAll()
       allResults.size should be_>(0)
     }
     "count all records" in new AutoRollback {
-      val count = Dataset.countAll()
+      val count = Task.countAll()
       count should be_>(0L)
     }
     "find by where clauses" in new AutoRollback {
-      val results = Dataset.findAllBy(sqls.eq(d.id, null))
+      val results = Task.findAllBy(sqls.eq(t.id, null))
       results.size should be_>(0)
     }
     "count by where clauses" in new AutoRollback {
-      val count = Dataset.countBy(sqls.eq(d.id, null))
+      val count = Task.countBy(sqls.eq(t.id, null))
       count should be_>(0L)
     }
     "create new record" in new AutoRollback {
-      val created = Dataset.create(id = null, name = "MyString", description = "MyString", licenseId = null, filesCount = 123, filesSize = 1L, createdBy = null, createdAt = DateTime.now, updatedBy = null, updatedAt = DateTime.now, localState = 0, s3State = 0)
+      val created = Task.create(id = null, taskType = 123, parameter = "MyString", status = 123, createdBy = null, createdAt = DateTime.now, updatedBy = null, updatedAt = DateTime.now)
       created should not beNull
     }
     "save a record" in new AutoRollback {
-      val entity = Dataset.findAll().head
-      val updated = Dataset.save(entity)
+      val entity = Task.findAll().head
+      // TODO modify something
+      val modified = entity
+      val updated = Task.save(modified)
       updated should not equalTo(entity)
     }
     "destroy a record" in new AutoRollback {
-      val entity = Dataset.findAll().head
-      Dataset.destroy(entity)
-      val shouldBeNone = Dataset.find(null)
+      val entity = Task.findAll().head
+      Task.destroy(entity)
+      val shouldBeNone = Task.find(null)
       shouldBeNone.isDefined should beFalse
     }
   }

@@ -1,23 +1,24 @@
 package dsmoq.persistence
 
 import scalikejdbc._
-import scalikejdbc.SQLInterpolation._
 import org.joda.time.{DateTime}
 import PostgresqlHelper._
 
 case class Dataset(
-  id: String, 
+  id: String,
   name: String, 
   description: String, 
-  licenseId: String, 
+  licenseId: String,
   filesCount: Int, 
   filesSize: Long, 
-  createdBy: String, 
+  createdBy: String,
   createdAt: DateTime, 
-  updatedBy: String, 
+  updatedBy: String,
   updatedAt: DateTime, 
-  deletedBy: Option[String] = None, 
-  deletedAt: Option[DateTime] = None) {
+  deletedBy: Option[String] = None,
+  deletedAt: Option[DateTime] = None, 
+  localState: Int, 
+  s3State: Int) {
 
   def save()(implicit session: DBSession = Dataset.autoSession): Dataset = Dataset.save(this)(session)
 
@@ -30,8 +31,9 @@ object Dataset extends SQLSyntaxSupport[Dataset] {
 
   override val tableName = "datasets"
 
-  override val columns = Seq("id", "name", "description", "license_id", "files_count", "files_size", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
+  override val columns = Seq("id", "name", "description", "license_id", "files_count", "files_size", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at", "local_state", "s3_state")
 
+  def apply(d: SyntaxProvider[Dataset])(rs: WrappedResultSet): Dataset = apply(d.resultName)(rs)
   def apply(d: ResultName[Dataset])(rs: WrappedResultSet): Dataset = new Dataset(
     id = rs.string(d.id),
     name = rs.string(d.name),
@@ -44,12 +46,14 @@ object Dataset extends SQLSyntaxSupport[Dataset] {
     updatedBy = rs.string(d.updatedBy),
     updatedAt = rs.timestamp(d.updatedAt).toJodaDateTime,
     deletedBy = rs.stringOpt(d.deletedBy),
-    deletedAt = rs.timestampOpt(d.deletedAt).map(_.toJodaDateTime)
+    deletedAt = rs.timestampOpt(d.deletedAt).map(_.toJodaDateTime),
+    localState = rs.int(d.localState),
+    s3State = rs.int(d.s3State)
   )
       
   val d = Dataset.syntax("d")
 
-  //val autoSession = AutoSession
+  //override val autoSession = AutoSession
 
   def find(id: String)(implicit session: DBSession = autoSession): Option[Dataset] = {
     withSQL {
@@ -89,7 +93,9 @@ object Dataset extends SQLSyntaxSupport[Dataset] {
     updatedBy: String,
     updatedAt: DateTime,
     deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None)(implicit session: DBSession = autoSession): Dataset = {
+    deletedAt: Option[DateTime] = None,
+    localState: Int,
+    s3State: Int)(implicit session: DBSession = autoSession): Dataset = {
     withSQL {
       insert.into(Dataset).columns(
         column.id,
@@ -103,7 +109,9 @@ object Dataset extends SQLSyntaxSupport[Dataset] {
         column.updatedBy,
         column.updatedAt,
         column.deletedBy,
-        column.deletedAt
+        column.deletedAt,
+        column.localState,
+        column.s3State
       ).values(
         sqls.uuid(id),
         name,
@@ -116,7 +124,9 @@ object Dataset extends SQLSyntaxSupport[Dataset] {
         sqls.uuid(updatedBy),
         updatedAt,
         deletedBy.map(sqls.uuid),
-        deletedAt
+        deletedAt,
+        localState,
+        s3State
       )
     }.update.apply()
 
@@ -132,27 +142,31 @@ object Dataset extends SQLSyntaxSupport[Dataset] {
       updatedBy = updatedBy,
       updatedAt = updatedAt,
       deletedBy = deletedBy,
-      deletedAt = deletedAt)
+      deletedAt = deletedAt,
+      localState = localState,
+      s3State = s3State)
   }
 
   def save(entity: Dataset)(implicit session: DBSession = autoSession): Dataset = {
-    withSQL { 
-      update(Dataset as d).set(
-        d.id -> entity.id,
-        d.name -> entity.name,
-        d.description -> entity.description,
-        d.licenseId -> entity.licenseId,
-        d.filesCount -> entity.filesCount,
-        d.filesSize -> entity.filesSize,
-        d.createdBy -> entity.createdBy,
-        d.createdAt -> entity.createdAt,
-        d.updatedBy -> entity.updatedBy,
-        d.updatedAt -> entity.updatedAt,
-        d.deletedBy -> entity.deletedBy,
-        d.deletedAt -> entity.deletedAt
-      ).where.eq(d.id, entity.id)
+    withSQL {
+      update(Dataset).set(
+        column.id -> entity.id,
+        column.name -> entity.name,
+        column.description -> entity.description,
+        column.licenseId -> entity.licenseId,
+        column.filesCount -> entity.filesCount,
+        column.filesSize -> entity.filesSize,
+        column.createdBy -> entity.createdBy,
+        column.createdAt -> entity.createdAt,
+        column.updatedBy -> entity.updatedBy,
+        column.updatedAt -> entity.updatedAt,
+        column.deletedBy -> entity.deletedBy,
+        column.deletedAt -> entity.deletedAt,
+        column.localState -> entity.localState,
+        column.s3State -> entity.s3State
+      ).where.eq(column.id, entity.id)
     }.update.apply()
-    entity 
+    entity
   }
         
   def destroy(entity: Dataset)(implicit session: DBSession = autoSession): Unit = {
