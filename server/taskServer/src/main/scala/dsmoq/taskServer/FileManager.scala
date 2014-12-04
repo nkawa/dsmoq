@@ -80,7 +80,6 @@ object FileManager {
       client.createBucket(AppConf.s3UploadRoot)
     }
 
-    // FIXME このcontentLengthの算出法は概算であり、正確ではない
     val contentLength = in.available
     val putMetaData = new ObjectMetadata()
     putMetaData.setContentLength(contentLength)

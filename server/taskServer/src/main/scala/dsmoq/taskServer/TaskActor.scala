@@ -3,7 +3,6 @@ package dsmoq.taskServer
 import java.io.File
 import java.nio.file.Paths
 import java.util.UUID
-
 import akka.actor.Actor
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.AmazonS3Client
@@ -30,7 +29,7 @@ class TaskActor extends Actor {
           DB localTx { implicit s =>
             createTaskLog(taskId, START_LOG, "")
 
-            val cre = new BasicAWSCredentials(AppConf.s3DownloadAccessKey, AppConf.s3DownloadSecretKey)
+            val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
             implicit val client = new AmazonS3Client(cre)
             val filePaths = getS3FilePaths(datasetId)
 
@@ -60,15 +59,7 @@ class TaskActor extends Actor {
         if (withDelete) {
           implicit val dispatcher = context.system.dispatcher
           context.system.scheduler.scheduleOnce(72 hours) {
-            val cre = new BasicAWSCredentials(AppConf.s3DownloadAccessKey, AppConf.s3DownloadSecretKey)
-            implicit val client = new AmazonS3Client(cre)
-            val filePaths = getS3FilePaths(datasetId)
-            for (filePath <- filePaths) {
-              client.deleteObject(AppConf.s3UploadRoot, filePath)
-            }
-            DB localTx { implicit s =>
-              changeLocalState(datasetId, SAVED_STATE)
-            }
+            deleteS3Files(datasetId, datasetId)
           }
         }
       }
@@ -79,7 +70,7 @@ class TaskActor extends Actor {
           DB localTx { implicit s =>
             createTaskLog(taskId, START_LOG, "")
 
-            val cre = new BasicAWSCredentials(AppConf.s3DownloadAccessKey, AppConf.s3DownloadSecretKey)
+            val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
             implicit val client = new AmazonS3Client(cre)
 
             val localFiles = flattenFilePath(Paths.get(AppConf.fileDir, datasetId).toFile).map(x => x.getCanonicalPath)
@@ -128,19 +119,23 @@ class TaskActor extends Actor {
         }
         implicit val dispatcher = context.system.dispatcher
         context.system.scheduler.scheduleOnce(72 hours) {
-          val cre = new BasicAWSCredentials(AppConf.s3DownloadAccessKey, AppConf.s3DownloadSecretKey)
-          implicit val client = new AmazonS3Client(cre)
-          val filePaths = getS3FilePaths(datasetId + "/" + fileId)
-          for (filePath <- filePaths) {
-            client.deleteObject(AppConf.s3UploadRoot, filePath)
-          }
-          DB localTx { implicit s =>
-            changeLocalState(datasetId, SAVED_STATE)
-          }
+          deleteS3Files(datasetId, datasetId + "/" + fileId)
         }
       }
     }
     case DoNothing => // do nothing
+  }
+
+  def deleteS3Files(datasetId: String, path: String): Unit = {
+    val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
+    implicit val client = new AmazonS3Client(cre)
+    val filePaths = getS3FilePaths(path)
+    for (filePath <- filePaths) {
+      client.deleteObject(AppConf.s3UploadRoot, filePath)
+    }
+    DB localTx { implicit s =>
+      changeLocalState(datasetId, SAVED_STATE)
+    }
   }
 
   def getS3FilePaths(datasetId: String)(implicit client: AmazonS3Client) = client.listObjects(AppConf.s3UploadRoot, datasetId).getObjectSummaries().map(_.getKey).filterNot(_.endsWith("/"))
@@ -152,7 +147,7 @@ class TaskActor extends Actor {
         select(sqls"count(1)")
           .from(TaskLog as tl)
           .where
-          .eq(tl.id, sqls.uuid(taskId))
+          .eq(tl.taskId, sqls.uuid(taskId))
       }.map(_.long(1)).single().apply().get > 0
     }
   }
@@ -163,7 +158,7 @@ class TaskActor extends Actor {
       taskId = taskId,
       logType = logType,
       message = message,
-      createdBy = "system",
+      createdBy = AppConf.systemUserId,
       createdAt = DateTime.now()
     )
   }
@@ -178,7 +173,7 @@ class TaskActor extends Actor {
           status = status,
           createdBy = t.createdBy,
           createdAt = t.createdAt,
-          updatedBy = "system",
+          updatedBy = AppConf.systemUserId,
           updatedAt = DateTime.now()
         ).save()
       }
@@ -198,7 +193,7 @@ class TaskActor extends Actor {
           filesSize = d.filesSize,
           createdBy = d.createdBy,
           createdAt = d.createdAt,
-          updatedBy = "system",
+          updatedBy = AppConf.systemUserId,
           updatedAt = DateTime.now,
           deletedAt = d.deletedAt,
           deletedBy = d.deletedBy,
@@ -222,7 +217,7 @@ class TaskActor extends Actor {
           filesSize = d.filesSize,
           createdBy = d.createdBy,
           createdAt = d.createdAt,
-          updatedBy = "system",
+          updatedBy = AppConf.systemUserId,
           updatedAt = DateTime.now,
           deletedAt = d.deletedAt,
           deletedBy = d.deletedBy,
