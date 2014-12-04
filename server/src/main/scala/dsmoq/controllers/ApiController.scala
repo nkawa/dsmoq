@@ -380,15 +380,6 @@ class ApiController extends ScalatraServlet
     AjaxResponse("OK", attributes)
   }
 
-  get("/tasks") {
-    val json = getJsonValue[TaskApiParams].getOrElse(TaskApiParams())
-    (for {
-      user <- signedInUser
-      tasks <- TaskService.getDatasetTasks(json.datasetId.get, json.limit, user)
-    } yield tasks) |> toAjaxResponse
-
-  }
-
   get("/tasks/:taskId") {
     val taskId = params("taskId")
     (for {
