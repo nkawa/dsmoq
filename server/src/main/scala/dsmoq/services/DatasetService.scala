@@ -2,8 +2,6 @@ package dsmoq.services
 
 import java.io.{FileInputStream, InputStream}
 
-import com.amazonaws.services.s3.model.{PutObjectRequest, GeneratePresignedUrlRequest, ObjectMetadata}
-
 import scala.util.{Failure, Try, Success}
 import scalikejdbc._, SQLInterpolation._
 import java.util.{Calendar, UUID}
@@ -22,8 +20,6 @@ import org.scalatra.servlet.FileItem
 import dsmoq.services.json.RangeSliceSummary
 import dsmoq.services.json.Image
 import scala.collection.mutable
-import com.amazonaws.auth.BasicAWSCredentials
-import com.amazonaws.services.s3.AmazonS3Client
 
 object DatasetService {
   // FIXME 暫定パラメータのため、将来的には削除する

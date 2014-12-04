@@ -1,4 +1,4 @@
-package dsmoq
+package dsmoq.taskServer
 
 import com.typesafe.config.ConfigFactory
 
