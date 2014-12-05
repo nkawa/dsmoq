@@ -179,7 +179,7 @@ class ApiController extends ScalatraServlet
     val json = getJsonValue[UpdateDatasetMetaParams].getOrElse(UpdateDatasetMetaParams())
     (for {
       user <- signedInUser
-      result <- DatasetService.modifyDatasetMeta(datasetId, json.name, json.description, json.license, json.attributes, user)
+      result <- DatasetService.modifyDatasetMeta(datasetId, json.name, json.description, json.license, json.attributes, json.saveLocal, json.saveS3, user)
     } yield {}) |> toAjaxResponse
   }
 

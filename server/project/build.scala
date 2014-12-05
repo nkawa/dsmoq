@@ -10,7 +10,7 @@ object DsmoqBuild extends Build {
   val Organization = "dsmoq"
   val Name = "dsmoq"
   val Version = "0.1.0-SNAPSHOT"
-  val ScalaVersion = "2.11.2"
+  val ScalaVersion = "2.11.4"
   val ScalatraVersion = "2.3.0"
 
   lazy val dsmoq = Project (

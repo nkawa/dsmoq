@@ -1,14 +1,12 @@
 package dsmoq.services
 
-import java.io.{FileInputStream, InputStream}
-
 import org.json4s._
 import org.json4s.JsonDSL._
 import org.json4s.jackson.JsonMethods._
 
 import scala.util.{Failure, Try, Success}
-import scalikejdbc._, SQLInterpolation._
-import java.util.{Calendar, UUID}
+import scalikejdbc._
+import java.util.UUID
 import dsmoq.{persistence, AppConf}
 import dsmoq.services.json._
 import dsmoq.persistence.PostgresqlHelper._
@@ -16,8 +14,6 @@ import dsmoq.exceptions._
 import org.joda.time.DateTime
 import dsmoq.persistence._
 import dsmoq.logic.{FileManager, StringUtil, ImageSaveLogic}
-import scala.util.Failure
-import scala.util.Success
 import dsmoq.services.json.RangeSlice
 import org.scalatra.servlet.FileItem
 import dsmoq.services.json.RangeSliceSummary
@@ -28,6 +24,9 @@ object DatasetService {
   // FIXME 暫定パラメータのため、将来的には削除する
   private val UserAndGroupAccessDeny = 0
   private val UserAndGroupAllowDownload = 2
+
+  private val MoveToS3 = 0
+  private val MoveToLocal = 1
 
   /**
    * データセットを新規作成します。
@@ -97,7 +96,7 @@ object DatasetService {
         )
 
         if (saveS3_) {
-          createTask(datasetId, myself.id, timestamp, saveLocal_)
+          createTask(datasetId, MoveToS3, myself.id, timestamp, saveLocal_)
         }
 
         val ownership = persistence.Ownership.create(
@@ -166,12 +165,12 @@ object DatasetService {
       case e: Throwable => Failure(e)
     }
   }
-  private def createTask(datasetId: String, userId: String, timestamp: DateTime, saveLocal: Boolean): Unit = {
+  private def createTask(datasetId: String, status: Int, userId: String, timestamp: DateTime, saveLocal: Boolean): Unit = {
     persistence.Task.create(
       id = UUID.randomUUID.toString,
       taskType = 0,
       parameter = compact(render(("taskType" -> JInt(0)) ~ ("datasetId" -> datasetId) ~ ("withDelete" -> JBool(!saveLocal)))),
-      status = 0,
+      status = status,
       createdBy = userId,
       createdAt = timestamp,
       updatedBy = userId,
@@ -608,7 +607,7 @@ object DatasetService {
         })
         val dataset = getDataset(id).get
         if (dataset.s3State == 1 || dataset.s3State == 2) {
-          createTask(id, myself.id, timestamp, dataset.localState == 1)
+          createTask(id, MoveToS3, myself.id, timestamp, dataset.localState == 1)
         }
         // datasetsのfiles_size, files_countの更新
         updateDatasetFileStatus(id, myself.id, timestamp)
@@ -672,7 +671,7 @@ object DatasetService {
         FileManager.uploadToLocal(datasetId, fileId, history.id, file_)
         val dataset = getDataset(datasetId).get
         if (dataset.s3State == 1 || dataset.s3State == 2) {
-          createTask(datasetId, myself.id, timestamp, dataset.localState == 1)
+          createTask(datasetId, MoveToS3, myself.id, timestamp, dataset.localState == 1)
         }
 
         // datasetsのfiles_size, files_countの更新
@@ -838,12 +837,14 @@ object DatasetService {
    * @return
    */
   def modifyDatasetMeta(id: String, name: Option[String], description: Option[String],
-                        license: Option[String], attributes: List[DataSetAttribute], user: User): Try[Unit] = {
+                        license: Option[String], attributes: List[DataSetAttribute], saveLocal: Option[Boolean], saveS3: Option[Boolean], user: User): Try[Unit] = {
     try {
       val name_ = StringUtil.trimAllSpaces(name.getOrElse(""))
       val description_ = description.getOrElse("")
       val license_ = license.getOrElse("")
       val attributes_ = attributes.map(x => x.name -> StringUtil.trimAllSpaces(x.value))
+      val saveLocal_ = saveLocal.getOrElse(true)
+      val saveS3_ = saveS3.getOrElse(false)
 
       DB localTx { implicit s =>
         // input parameter check
@@ -922,6 +923,18 @@ object DatasetService {
               deleteAnnotation(x._2)
             }
           }
+        }
+        val dataset = getDataset(id).get
+
+        // S3 to local
+        if (dataset.localState == 0 && (dataset.s3State == 1 || dataset.s3State == 2) && saveLocal_) {
+          createTask(id, MoveToLocal, myself.id, timestamp, ! saveS3_)
+        // local to S3
+        } else if (dataset.localState == 1 && dataset.s3State == 0 && saveS3_) {
+          createTask(id, MoveToS3, myself.id, timestamp, ! saveLocal_)
+        // local, S3のいずれか削除
+        } else if (dataset.localState == 1 && (dataset.s3State == 1 || dataset.s3State == 2) && saveLocal_ != saveS3_) {
+          createTask(id, if (saveS3_) { MoveToS3 } else { MoveToLocal } , myself.id, timestamp, true)
         }
       }
       Success(Unit)
