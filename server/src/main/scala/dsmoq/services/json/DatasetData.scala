@@ -30,7 +30,9 @@ object DatasetData {
     ownerships: Seq[DatasetOwnership],
     defaultAccessLevel: Int,
     permission: Int,
-    accessCount: Long
+    accessCount: Long,
+    localState: Int,
+    s3State: Int
   )
 
   case class DatasetMetaData(

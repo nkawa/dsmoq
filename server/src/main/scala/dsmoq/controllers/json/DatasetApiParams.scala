@@ -30,3 +30,8 @@ case class ChangePrimaryImageParams(
 case class UpdateDatasetGuestAccessParams(
   accessLevel: Option[Int] = None
 )
+
+case class CreateDatasetParams(
+  saveLocal: Option[Boolean] = None,
+  saveS3: Option[Boolean] = None
+)

@@ -112,9 +112,10 @@ class ApiController extends ScalatraServlet
   // --------------------------------------------------------------------------
   post("/datasets") {
     val files = fileMultiParams("file[]")
+    val json = getJsonValue[CreateDatasetParams].getOrElse(CreateDatasetParams())
     (for {
       user <- signedInUser
-      dataset <- DatasetService.create(files, user)
+      dataset <- DatasetService.create(files, json.saveLocal, json.saveS3, user)
     } yield dataset) |> toAjaxResponse
   }
 

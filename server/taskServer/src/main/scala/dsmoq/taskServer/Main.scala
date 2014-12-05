@@ -48,7 +48,7 @@ object Main {
     }
   }
 
-  case class TaskParameter(taskType: Int, datasetId: String, target: String, withDelete: Option[Boolean], fileId: Option[String])
+  case class TaskParameter(taskType: Int, datasetId: String, withDelete: Option[Boolean], fileId: Option[String])
 }
 
 

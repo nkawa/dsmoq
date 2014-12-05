@@ -2,10 +2,13 @@ package dsmoq.services
 
 import java.io.{FileInputStream, InputStream}
 
+import org.json4s._
+import org.json4s.JsonDSL._
+import org.json4s.jackson.JsonMethods._
+
 import scala.util.{Failure, Try, Success}
 import scalikejdbc._, SQLInterpolation._
 import java.util.{Calendar, UUID}
-import java.nio.file.Paths
 import dsmoq.{persistence, AppConf}
 import dsmoq.services.json._
 import dsmoq.persistence.PostgresqlHelper._
@@ -32,10 +35,12 @@ object DatasetService {
    * @param user
    * @return
    */
-  def create(files: Seq[FileItem], user: User): Try[DatasetData.Dataset] = {
+  def create(files: Seq[FileItem], saveLocal: Option[Boolean], saveS3: Option[Boolean], user: User): Try[DatasetData.Dataset] = {
     try {
       val files_ = files.filter(_.name.nonEmpty)
       if (files_.isEmpty) throw new InputValidationException(Map("files" -> "file is empty"))
+      val saveLocal_ = saveLocal.getOrElse(true)
+      val saveS3_ = saveS3.getOrElse(false)
 
       DB localTx { implicit s =>
         val myself = persistence.User.find(user.id).get
@@ -71,7 +76,9 @@ object DatasetService {
             updatedBy = myself.id,
             updatedAt = timestamp
           )
-          FileManager.uploadToS3(datasetId, file.id, histroy.id, f)
+
+          FileManager.uploadToLocal(datasetId, file.id, histroy.id, f)
+
           (file, histroy)
         })
         val dataset = persistence.Dataset.create(
@@ -85,10 +92,14 @@ object DatasetService {
           createdAt = timestamp,
           updatedBy = myself.id,
           updatedAt = timestamp,
-        // TODO 仮の値
-          localState = 0,
-          s3State = 0
+          localState = if (saveLocal_) { 1 } else { 0 },
+          s3State = if (saveS3_) { 2 } else { 0 }
         )
+
+        if (saveS3_) {
+          createTask(datasetId, myself.id, timestamp, saveLocal_)
+        }
+
         val ownership = persistence.Ownership.create(
           id = UUID.randomUUID.toString,
           datasetId = datasetId,
@@ -146,12 +157,26 @@ object DatasetService {
           )),
           defaultAccessLevel = DefaultAccessLevel.Deny,
           permission = ownership.accessLevel,
-          accessCount = 0
+          accessCount = 0,
+          localState = dataset.localState,
+          s3State = dataset.s3State
         ))
       }
     } catch {
       case e: Throwable => Failure(e)
     }
+  }
+  private def createTask(datasetId: String, userId: String, timestamp: DateTime, saveLocal: Boolean): Unit = {
+    persistence.Task.create(
+      id = UUID.randomUUID.toString,
+      taskType = 0,
+      parameter = compact(render(("taskType" -> JInt(0)) ~ ("datasetId" -> datasetId) ~ ("withDelete" -> JBool(!saveLocal)))),
+      status = 0,
+      createdBy = userId,
+      createdAt = timestamp,
+      updatedBy = userId,
+      updatedAt = timestamp
+    )
   }
 
   /**
@@ -521,7 +546,9 @@ object DatasetService {
             ownerships = owners,
             defaultAccessLevel = guestAccessLevel,
             permission = permission,
-            accessCount = count
+            accessCount = count,
+            localState = dataset.localState,
+            s3State = dataset.s3State
           )
         })
         .map(x => Success(x)).getOrElse(Failure(new NotAuthorizedException()))
@@ -575,11 +602,14 @@ object DatasetService {
             updatedBy = myself.id,
             updatedAt = timestamp
           )
-          FileManager.uploadToS3(id, file.id, history.id, f)
+          FileManager.uploadToLocal(id, file.id, history.id, f)
 
           (file, history)
         })
-
+        val dataset = getDataset(id).get
+        if (dataset.s3State == 1 || dataset.s3State == 2) {
+          createTask(id, myself.id, timestamp, dataset.localState == 1)
+        }
         // datasetsのfiles_size, files_countの更新
         updateDatasetFileStatus(id, myself.id, timestamp)
 
@@ -639,8 +669,11 @@ object DatasetService {
           updatedBy = myself.id,
           updatedAt = timestamp
         )
-
-        FileManager.uploadToS3(datasetId, fileId, history.id, file_)
+        FileManager.uploadToLocal(datasetId, fileId, history.id, file_)
+        val dataset = getDataset(datasetId).get
+        if (dataset.s3State == 1 || dataset.s3State == 2) {
+          createTask(datasetId, myself.id, timestamp, dataset.localState == 1)
+        }
 
         // datasetsのfiles_size, files_countの更新
         updateDatasetFileStatus(datasetId, myself.id, timestamp)
@@ -1395,21 +1428,25 @@ object DatasetService {
         }
 
         // datasetが削除されていないか
-        getDataset(datasetId) match {
-          case Some(_) => // do nothing
+        val dataset = getDataset(datasetId) match {
+          case Some(x) => x
           case None => throw new NotFoundException
         }
 
         val file = persistence.File.find(fileId)
         val filePath: Option[String] = getFileHistory(fileId)
         file match {
-          case Some(f) => (f, filePath.get)
+          case Some(f) => (f, filePath.get, dataset)
           case None => throw new RuntimeException("data not found.")
         }
       }
-
-      val url = FileManager.downloadFromS3(fileInfo._2.substring(1) + "/" + fileInfo._1.name)
-      Success((url, fileInfo._1.name))
+      if (fileInfo._3.localState == 1) {
+        val file = FileManager.downloadFromLocal(fileInfo._2.substring(1) + "/" + fileInfo._1.name)
+        Success((true, file, "", fileInfo._1.name))
+      } else {
+        val url = FileManager.downloadFromS3(fileInfo._2.substring(1) + "/" + fileInfo._1.name)
+        Success((false, new java.io.File("."), url, fileInfo._1.name))
+      }
     } catch {
       case e: Exception => Failure(e)
     }
