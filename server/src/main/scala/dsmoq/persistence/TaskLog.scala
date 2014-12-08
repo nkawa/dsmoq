@@ -102,11 +102,11 @@ object TaskLog extends SQLSyntaxSupport[TaskLog] {
   def save(entity: TaskLog)(implicit session: DBSession = autoSession): TaskLog = {
     withSQL {
       update(TaskLog).set(
-        column.id -> entity.id,
-        column.taskId -> entity.taskId,
+        column.id -> sqls.uuid(entity.id),
+        column.taskId -> sqls.uuid(entity.taskId),
         column.logType -> entity.logType,
         column.message -> entity.message,
-        column.createdBy -> entity.createdBy,
+        column.createdBy -> sqls.uuid(entity.createdBy),
         column.createdAt -> entity.createdAt
       ).where.eq(column.id, entity.id)
     }.update.apply()
@@ -114,7 +114,7 @@ object TaskLog extends SQLSyntaxSupport[TaskLog] {
   }
         
   def destroy(entity: TaskLog)(implicit session: DBSession = autoSession): Unit = {
-    withSQL { delete.from(TaskLog).where.eq(column.id, entity.id) }.update.apply()
+    withSQL { delete.from(TaskLog).where.eq(column.id, sqls.uuid(entity.id)) }.update.apply()
   }
         
 }

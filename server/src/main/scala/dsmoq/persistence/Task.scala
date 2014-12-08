@@ -114,21 +114,21 @@ object Task extends SQLSyntaxSupport[Task] {
   def save(entity: Task)(implicit session: DBSession = autoSession): Task = {
     withSQL {
       update(Task).set(
-        column.id -> entity.id,
+        column.id -> sqls.uuid(entity.id),
         column.taskType -> entity.taskType,
         column.parameter -> entity.parameter,
         column.status -> entity.status,
-        column.createdBy -> entity.createdBy,
+        column.createdBy -> sqls.uuid(entity.createdBy),
         column.createdAt -> entity.createdAt,
-        column.updatedBy -> entity.updatedBy,
+        column.updatedBy -> sqls.uuid(entity.updatedBy),
         column.updatedAt -> entity.updatedAt
-      ).where.eq(column.id, entity.id)
+      ).where.eq(column.id, sqls.uuid(entity.id))
     }.update.apply()
     entity
   }
         
   def destroy(entity: Task)(implicit session: DBSession = autoSession): Unit = {
-    withSQL { delete.from(Task).where.eq(column.id, entity.id) }.update.apply()
+    withSQL { delete.from(Task).where.eq(column.id, sqls.uuid(entity.id)) }.update.apply()
   }
         
 }

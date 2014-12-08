@@ -16,7 +16,9 @@ object DatasetData {
     files: Long,
     dataSize: Long,
     defaultAccessLevel: Int,
-    permission: Int
+    permission: Int,
+    localState: Int,
+    s3State: Int
   )
 
   case class Dataset(

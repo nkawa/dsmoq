@@ -150,27 +150,27 @@ object Dataset extends SQLSyntaxSupport[Dataset] {
   def save(entity: Dataset)(implicit session: DBSession = autoSession): Dataset = {
     withSQL {
       update(Dataset).set(
-        column.id -> entity.id,
+        column.id -> sqls.uuid(entity.id),
         column.name -> entity.name,
         column.description -> entity.description,
-        column.licenseId -> entity.licenseId,
+        column.licenseId -> sqls.uuid(entity.licenseId),
         column.filesCount -> entity.filesCount,
         column.filesSize -> entity.filesSize,
-        column.createdBy -> entity.createdBy,
+        column.createdBy -> sqls.uuid(entity.createdBy),
         column.createdAt -> entity.createdAt,
-        column.updatedBy -> entity.updatedBy,
+        column.updatedBy -> sqls.uuid(entity.updatedBy),
         column.updatedAt -> entity.updatedAt,
-        column.deletedBy -> entity.deletedBy,
+        column.deletedBy -> entity.deletedBy.map(sqls.uuid),
         column.deletedAt -> entity.deletedAt,
         column.localState -> entity.localState,
         column.s3State -> entity.s3State
-      ).where.eq(column.id, entity.id)
+      ).where.eq(column.id, sqls.uuid(entity.id))
     }.update.apply()
     entity
   }
         
   def destroy(entity: Dataset)(implicit session: DBSession = autoSession): Unit = {
-    withSQL { delete.from(Dataset).where.eq(column.id, entity.id) }.update.apply()
+    withSQL { delete.from(Dataset).where.eq(column.id, sqls.uuid(entity.id)) }.update.apply()
   }
         
 }

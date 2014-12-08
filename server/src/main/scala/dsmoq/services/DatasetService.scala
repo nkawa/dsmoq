@@ -165,7 +165,7 @@ object DatasetService {
       case e: Throwable => Failure(e)
     }
   }
-  private def createTask(datasetId: String, status: Int, userId: String, timestamp: DateTime, isSave: Boolean): Unit = {
+  private def createTask(datasetId: String, status: Int, userId: String, timestamp: DateTime, isSave: Boolean)(implicit s: DBSession): Unit = {
     persistence.Task.create(
       id = UUID.randomUUID.toString,
       taskType = 0,
@@ -325,7 +325,9 @@ object DatasetService {
         files = ds.filesCount,
         dataSize = ds.filesSize,
         defaultAccessLevel = accessLevel,
-        permission = permission
+        permission = permission,
+        localState = ds.localState,
+        s3State = ds.s3State
       )
     })
   }
@@ -849,18 +851,56 @@ object DatasetService {
         // S3 to local
         if (dataset.localState == 0 && (dataset.s3State == 1 || dataset.s3State == 2) && saveLocal_) {
           createTask(id, MoveToLocal, myself.id, timestamp, ! saveS3_)
+          updateDatasetStorage(
+            dataset,
+            myself.id,
+            timestamp,
+            2,
+            if (saveS3_) { 1 } else { 4 }
+          )
           // local to S3
         } else if (dataset.localState == 1 && dataset.s3State == 0 && saveS3_) {
           createTask(id, MoveToS3, myself.id, timestamp, ! saveLocal_)
+          updateDatasetStorage(
+            dataset,
+            myself.id,
+            timestamp,
+            if (saveLocal_) { 1 } else { 4 },
+            2
+          )
           // local, S3のいずれか削除
         } else if (dataset.localState == 1 && (dataset.s3State == 1 || dataset.s3State == 2) && saveLocal_ != saveS3_) {
           createTask(id, if (saveS3_) { MoveToS3 } else { MoveToLocal } , myself.id, timestamp, true)
+          updateDatasetStorage(
+            dataset,
+            myself.id,
+            timestamp,
+            if (saveLocal_) { 1 } else { 4 },
+            if (saveS3_) { 1 } else { 4 }
+          )
         }
       }
       Success(Unit)
     } catch {
       case e: Throwable => Failure(e)
     }
+  }
+
+  private def updateDatasetStorage(ds: Dataset, userId: String, timestamp: DateTime, localState: Int, s3State: Int)(implicit s: DBSession) = {
+    persistence.Dataset(
+      id = ds.id,
+      name = ds.name,
+      description = ds.description,
+      licenseId = ds.licenseId,
+      filesCount = ds.filesCount,
+      filesSize = ds.filesSize,
+      createdBy = ds.createdBy,
+      createdAt = ds.createdAt,
+      updatedBy = userId,
+      updatedAt = timestamp,
+      localState = localState,
+      s3State = s3State
+    ).save()
   }
 
   /**
