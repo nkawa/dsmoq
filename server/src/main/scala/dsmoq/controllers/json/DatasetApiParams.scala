@@ -33,7 +33,7 @@ case class UpdateDatasetGuestAccessParams(
   accessLevel: Option[Int] = None
 )
 
-case class CreateDatasetParams(
+case class DatasetStorageParams(
   saveLocal: Option[Boolean] = None,
   saveS3: Option[Boolean] = None
 )

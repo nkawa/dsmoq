@@ -13,14 +13,14 @@ object TaskService {
   def getStatus(taskId: String, user: User): Try[TaskStatus] = {
     DB readOnly { implicit s =>
       val t = persistence.Task.t
-      val status = withSQL {
-        select(t.result.status)
+      val task = withSQL {
+        select
         .from(persistence.Task as t)
         .where
         .eq(t.id, sqls.uuid(taskId))
-      }.map(rs => rs.int(t.resultName.status)).single().apply().getOrElse(0)
+      }.map(persistence.Task(t)).single().apply().get
 
-      Success(TaskStatus(status))
+      Success(TaskStatus(task.status, task.createdBy, task.createdAt))
     }
   }
 }

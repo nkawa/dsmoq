@@ -91,7 +91,7 @@ object DatasetService {
           createdAt = timestamp,
           updatedBy = myself.id,
           updatedAt = timestamp,
-          localState = if (saveLocal_) { 1 } else { 0 },
+          localState = 1,
           s3State = if (saveS3_) { 2 } else { 0 }
         )
 
@@ -165,11 +165,11 @@ object DatasetService {
       case e: Throwable => Failure(e)
     }
   }
-  private def createTask(datasetId: String, status: Int, userId: String, timestamp: DateTime, saveLocal: Boolean): Unit = {
+  private def createTask(datasetId: String, status: Int, userId: String, timestamp: DateTime, isSave: Boolean): Unit = {
     persistence.Task.create(
       id = UUID.randomUUID.toString,
       taskType = 0,
-      parameter = compact(render(("taskType" -> JInt(0)) ~ ("datasetId" -> datasetId) ~ ("withDelete" -> JBool(!saveLocal)))),
+      parameter = compact(render(("taskType" -> JInt(0)) ~ ("datasetId" -> datasetId) ~ ("withDelete" -> JBool(!isSave)))),
       status = status,
       createdBy = userId,
       createdAt = timestamp,
@@ -827,6 +827,43 @@ object DatasetService {
   }
 
   /**
+   * データセットの保存先を変更する
+   * @param id
+   * @param saveLocal
+   * @param saveS3
+   * @param user
+   * @return
+   */
+  def modifyDatasetStorage(id:String, saveLocal: Option[Boolean], saveS3: Option[Boolean], user: User): Try[Unit] = {
+    try {
+      val saveLocal_ = saveLocal.getOrElse(true)
+      val saveS3_ = saveS3.getOrElse(false)
+
+      DB localTx { implicit s =>
+        datasetAccessabilityCheck(id, user)
+
+        val myself = persistence.User.find(user.id).get
+        val timestamp = DateTime.now()
+        val dataset = getDataset(id).get
+
+        // S3 to local
+        if (dataset.localState == 0 && (dataset.s3State == 1 || dataset.s3State == 2) && saveLocal_) {
+          createTask(id, MoveToLocal, myself.id, timestamp, ! saveS3_)
+          // local to S3
+        } else if (dataset.localState == 1 && dataset.s3State == 0 && saveS3_) {
+          createTask(id, MoveToS3, myself.id, timestamp, ! saveLocal_)
+          // local, S3のいずれか削除
+        } else if (dataset.localState == 1 && (dataset.s3State == 1 || dataset.s3State == 2) && saveLocal_ != saveS3_) {
+          createTask(id, if (saveS3_) { MoveToS3 } else { MoveToLocal } , myself.id, timestamp, true)
+        }
+      }
+      Success(Unit)
+    } catch {
+      case e: Throwable => Failure(e)
+    }
+  }
+
+  /**
    * 指定したデータセットのメタデータを更新します。
    * @param id
    * @param name
@@ -837,14 +874,12 @@ object DatasetService {
    * @return
    */
   def modifyDatasetMeta(id: String, name: Option[String], description: Option[String],
-                        license: Option[String], attributes: List[DataSetAttribute], saveLocal: Option[Boolean], saveS3: Option[Boolean], user: User): Try[Unit] = {
+                        license: Option[String], attributes: List[DataSetAttribute], user: User): Try[Unit] = {
     try {
       val name_ = StringUtil.trimAllSpaces(name.getOrElse(""))
       val description_ = description.getOrElse("")
       val license_ = license.getOrElse("")
       val attributes_ = attributes.map(x => x.name -> StringUtil.trimAllSpaces(x.value))
-      val saveLocal_ = saveLocal.getOrElse(true)
-      val saveS3_ = saveS3.getOrElse(false)
 
       DB localTx { implicit s =>
         // input parameter check
@@ -923,18 +958,6 @@ object DatasetService {
               deleteAnnotation(x._2)
             }
           }
-        }
-        val dataset = getDataset(id).get
-
-        // S3 to local
-        if (dataset.localState == 0 && (dataset.s3State == 1 || dataset.s3State == 2) && saveLocal_) {
-          createTask(id, MoveToLocal, myself.id, timestamp, ! saveS3_)
-        // local to S3
-        } else if (dataset.localState == 1 && dataset.s3State == 0 && saveS3_) {
-          createTask(id, MoveToS3, myself.id, timestamp, ! saveLocal_)
-        // local, S3のいずれか削除
-        } else if (dataset.localState == 1 && (dataset.s3State == 1 || dataset.s3State == 2) && saveLocal_ != saveS3_) {
-          createTask(id, if (saveS3_) { MoveToS3 } else { MoveToLocal } , myself.id, timestamp, true)
         }
       }
       Success(Unit)

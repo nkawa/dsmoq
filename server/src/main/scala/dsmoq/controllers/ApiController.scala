@@ -112,7 +112,7 @@ class ApiController extends ScalatraServlet
   // --------------------------------------------------------------------------
   post("/datasets") {
     val files = fileMultiParams("file[]")
-    val json = getJsonValue[CreateDatasetParams].getOrElse(CreateDatasetParams())
+    val json = getJsonValue[DatasetStorageParams].getOrElse(DatasetStorageParams())
     (for {
       user <- signedInUser
       dataset <- DatasetService.create(files, json.saveLocal, json.saveS3, user)
@@ -179,7 +179,7 @@ class ApiController extends ScalatraServlet
     val json = getJsonValue[UpdateDatasetMetaParams].getOrElse(UpdateDatasetMetaParams())
     (for {
       user <- signedInUser
-      result <- DatasetService.modifyDatasetMeta(datasetId, json.name, json.description, json.license, json.attributes, json.saveLocal, json.saveS3, user)
+      result <- DatasetService.modifyDatasetMeta(datasetId, json.name, json.description, json.license, json.attributes, user)
     } yield {}) |> toAjaxResponse
   }
 
@@ -234,6 +234,15 @@ class ApiController extends ScalatraServlet
     (for {
       user <- signedInUser
       result = DatasetService.deleteDataset(datasetId, user)
+    } yield {}) |> toAjaxResponse
+  }
+
+  put("/datasets/:datasetId/storage") {
+    val datasetId = params("datasetId")
+    val json = getJsonValue[DatasetStorageParams].getOrElse(DatasetStorageParams())
+    (for {
+      user <- signedInUser
+      result <- DatasetService.modifyDatasetStorage(datasetId, json.saveLocal, json.saveS3, user)
     } yield {}) |> toAjaxResponse
   }
 
