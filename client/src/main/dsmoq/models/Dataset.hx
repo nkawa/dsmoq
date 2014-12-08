@@ -10,4 +10,6 @@ typedef Dataset = {
     var defaultAccessLevel(default, null): DatasetGuestAccessLevel;
     var permission(default, null): DatasetPermission;
     var accessCount(default, null): Int;
+	var localState(default, null): Int;
+	var s3State(default, null): Int;
 }

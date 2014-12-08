@@ -78,6 +78,8 @@ class DatasetEditPage {
                     ownerships: x.ownerships,
                     defaultAccessLevel: x.defaultAccessLevel,
                     primaryImage: x.primaryImage,
+					localState: x.localState,
+					s3State: x.s3State,
                     errors: {
                         meta: {
                             name: "",
@@ -421,6 +423,23 @@ class DatasetEditPage {
                     function () {
                         BootstrapButton.reset(root.find("#dataset-guest-access-submit"));
                         root.find("#dataset-guest-access-form input").removeAttr("disabled");
+                    }
+                );
+            });
+			
+			root.find("#dataset-storage-submit").on("click", function (_) {
+                BootstrapButton.setLoading(root.find("#dataset-storage-submit"));
+                root.find("#dataset-storage-form input").attr("disabled", true);
+                Service.instance.changeDatasetStorage(id, JQuery._("#saveLocalStorage").prop("checked"), JQuery._("#saveS3Storage").prop("checked")).then(
+                    function (_) {
+                        Notification.show("success", "save successful");
+                    },
+                    function (e) {
+                        Notification.show("error", "error happened");
+                    },
+                    function () {
+                        BootstrapButton.reset(root.find("#dataset-storage-submit"));
+                        root.find("#dataset-storage-form input").removeAttr("disabled");
                     }
                 );
             });

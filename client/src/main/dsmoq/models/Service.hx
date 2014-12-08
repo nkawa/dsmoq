@@ -108,7 +108,9 @@ class Service extends Stream<ServiceEvent> {
                 ownerships: cast a.ownerships,
                 defaultAccessLevel: cast a.defaultAccessLevel,
                 permission: cast a.permission,
-                accessCount: a.accessCount
+                accessCount: a.accessCount,
+				localState: a.localState,
+				s3State: a.s3State
             };
         });
     }
