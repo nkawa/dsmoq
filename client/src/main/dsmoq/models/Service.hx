@@ -84,8 +84,8 @@ class Service extends Stream<ServiceEvent> {
     }
 
     // ---
-    public function createDataset(form: JqHtml): Promise<{id: String}> {
-        return sendForm("/api/datasets", form);
+    public function createDataset(form: JqHtml, saveLocal: Bool, saveS3: Bool): Promise<{id: String}> {
+        return sendForm("/api/datasets", form, { saveLocal: saveLocal, saveS3: saveS3 });
     }
 
     public function findDatasets(?params: {?query: String,
@@ -178,6 +178,10 @@ class Service extends Stream<ServiceEvent> {
     public function deleteDeataset(datasetId: String): Promise<Unit> {
         return send(Delete, '/api/datasets/$datasetId');
     }
+	
+	public function changeDatasetStorage(datasetId: String, saveLocal: Bool, saveS3: Bool): Promise<Unit> {
+        return send(Put, '/api/datasets/$datasetId/storage', { saveLocal: saveLocal, saveS3: saveS3 });
+	}
 
     // ---
     public function createGroup(name: String): Promise<Group> {

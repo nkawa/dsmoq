@@ -123,11 +123,13 @@ class Frame {
 
         JQuery._("#new-dataset-dialog-submit").on("click", function (event: Event) {
             BootstrapButton.setLoading(JQuery._("#new-dataset-dialog-submit"));
-            Service.instance.createDataset(JQuery._("#new-dataset-dialog form")).then(function (data) {
+            Service.instance.createDataset(JQuery._("#new-dataset-dialog form"), JQuery._("#saveLocal").prop("checked"), JQuery._("#saveS3").prop("checked")).then(function (data) {
                 untyped JQuery._("#new-dataset-dialog").modal("hide");
                 JQuery._("#new-dataset-dialog form")
                     .find("input[type='file']").remove().end()
                     .append("<div class=\"form-group\"><input type=\"file\" name=\"file[]\"></div>");
+				JQuery._("#saveLocal").prop("checked", false);
+				JQuery._("#saveS3").prop("checked", false);
                 navigation.update(Navigation.Navigate(DatasetShow(data.id)));
                 Notification.show("success", "create successful");
             }, function (err) {

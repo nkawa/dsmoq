@@ -78,8 +78,14 @@
   </div>
   <div class="modal-body">
     <form role="form">
-      <div class="form-group"><input type="file" name="file[]"></div>
+		<div class="form-group">
+			<input type="file" name="file[]">
+		</div>
     </form>
+	<div class="form-group">
+		<input type="checkbox" id="saveLocal"><label for="saveLocal">ローカルに保存する</label>
+		<input type="checkbox" id="saveS3"><label for="saveS3">S3に保存する</label>
+	</div>
   </div>
   <div class="modal-footer">
     <button type="button" class="btn btn-primary" data-loading-text="Creating..." id="new-dataset-dialog-submit" disabled>Create</button>
