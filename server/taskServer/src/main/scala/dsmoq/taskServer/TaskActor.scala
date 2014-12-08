@@ -19,6 +19,7 @@ class TaskActor extends Actor {
   private val ERROR_LOG = 9
   private val FINISH_TASK = 1
   private val ERROR_TASK = 2
+  private val NOT_SAVED_STATE = 0
   private val SAVED_STATE = 1
   private val DELETING_STATE = 3
 
@@ -33,22 +34,15 @@ class TaskActor extends Actor {
             implicit val client = new AmazonS3Client(cre)
             val filePaths = getS3FilePaths(datasetId)
 
-            val missingFiles = flattenFilePath(Paths.get(AppConf.fileDir, datasetId).toFile).filterNot(x => filePaths.exists(y => x.getCanonicalPath.endsWith(y)))
-
-            for (missing <- missingFiles) {
-              missing.delete()
-            }
-
             for (filePath <- filePaths) {
               FileManager.moveFromS3ToLocal(filePath)
             }
             finishTask(taskId, FINISH_TASK)
             createTaskLog(taskId, END_LOG, "")
-            changeLocalState(datasetId, if (withDelete) {
-              DELETING_STATE
-            } else {
-              SAVED_STATE
-            })
+            changeLocalState(datasetId, SAVED_STATE)
+            if (withDelete) {
+              changeLocalState(datasetId, DELETING_STATE)
+            }
           }
         } catch {
           case e: Exception => DB localTx { implicit s =>
@@ -74,10 +68,6 @@ class TaskActor extends Actor {
             implicit val client = new AmazonS3Client(cre)
 
             val localFiles = flattenFilePath(Paths.get(AppConf.fileDir, datasetId).toFile).map(x => x.getCanonicalPath)
-            val missingFiles = getS3FilePaths(datasetId).filterNot(x => localFiles.exists(y => y.endsWith(x)))
-            for (missing <- missingFiles) {
-              client.deleteObject(AppConf.s3UploadRoot, missing)
-            }
 
             for (file <- localFiles) {
               val filePath = file.split("\\").reverse.take(4).reverse.mkString("/")
@@ -85,11 +75,10 @@ class TaskActor extends Actor {
             }
             finishTask(taskId, FINISH_TASK)
             createTaskLog(taskId, END_LOG, "")
-            changeS3State(datasetId, if (withDelete) {
-              DELETING_STATE
-            } else {
-              SAVED_STATE
-            })
+            changeS3State(datasetId, SAVED_STATE)
+            if (withDelete) {
+              changeLocalState(datasetId, DELETING_STATE)
+            }
           }
         } catch {
           case e: Exception => DB localTx { implicit s =>
@@ -103,7 +92,7 @@ class TaskActor extends Actor {
             val file = Paths.get(AppConf.fileDir, datasetId).toFile
             file.delete()
             DB localTx { implicit s =>
-              changeLocalState(datasetId, SAVED_STATE)
+              changeLocalState(datasetId, NOT_SAVED_STATE)
             }
           }
         }
@@ -134,7 +123,7 @@ class TaskActor extends Actor {
       client.deleteObject(AppConf.s3UploadRoot, filePath)
     }
     DB localTx { implicit s =>
-      changeLocalState(datasetId, SAVED_STATE)
+      changeS3State(datasetId, NOT_SAVED_STATE)
     }
   }
 
