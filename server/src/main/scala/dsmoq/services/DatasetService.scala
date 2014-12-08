@@ -91,7 +91,7 @@ object DatasetService {
           createdAt = timestamp,
           updatedBy = myself.id,
           updatedAt = timestamp,
-          localState = 1,
+          localState = if (saveLocal_) { 1 } else { 4 },
           s3State = if (saveS3_) { 2 } else { 0 }
         )
 
@@ -1476,7 +1476,7 @@ object DatasetService {
           case None => throw new RuntimeException("data not found.")
         }
       }
-      if (fileInfo._3.localState == 1) {
+      if (fileInfo._3.localState == 1 || (fileInfo._3.s3State == 2 && fileInfo._3.localState == 4)) {
         val file = FileManager.downloadFromLocal(fileInfo._2.substring(1) + "/" + fileInfo._1.name)
         Success((true, file, "", fileInfo._1.name))
       } else {

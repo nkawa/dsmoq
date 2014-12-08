@@ -41,7 +41,7 @@ class TaskActor extends Actor {
             createTaskLog(taskId, END_LOG, "")
             changeLocalState(datasetId, SAVED_STATE)
             if (withDelete) {
-              changeLocalState(datasetId, DELETING_STATE)
+              changeS3State(datasetId, DELETING_STATE)
             }
           }
         } catch {
