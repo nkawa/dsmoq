@@ -53,7 +53,6 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
 
   override def afterAll() {
     DBsWithEnv("test").close()
-    SpecCommonLogic.deleteAllFile()
     super.afterAll()
   }
 

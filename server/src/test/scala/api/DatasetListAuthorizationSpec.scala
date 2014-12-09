@@ -67,7 +67,6 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
 
   after {
     SpecCommonLogic.deleteAllCreateData()
-    SpecCommonLogic.deleteAllFile()
   }
 
   "Authorization Test" - {

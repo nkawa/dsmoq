@@ -293,18 +293,6 @@ object SpecCommonLogic {
     }
   }
 
-  def deleteAllFile(): Unit =
-  {
-    val l = client.listObjects(AppConf.s3UploadRoot)
-
-    l.getObjectSummaries.toList.foreach { obj =>
-      client.deleteObject(AppConf.s3UploadRoot, obj.getKey)
-    }
-    l.getCommonPrefixes.toList.foreach { obj =>
-      client.deleteObject(AppConf.s3UploadRoot, obj)
-    }
-  }
-
   private def deleteAllData(query: SQLBuilder[UpdateOperation])(implicit s: DBSession) {
     withSQL {
       query

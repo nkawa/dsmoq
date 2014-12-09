@@ -10,29 +10,21 @@ import scalikejdbc.config.{DBsWithEnv, DBs}
 import org.json4s.jackson.JsonMethods._
 import java.io.File
 import dsmoq.services.json.DatasetData._
+import dsmoq.services.json.TaskData._
 import dsmoq.AppConf
 import org.scalatra.servlet.MultipartConfig
 import dsmoq.services.json.DatasetData.DatasetDeleteImage
 import dsmoq.services.json.DatasetData.DatasetAddFiles
 import dsmoq.services.json.DatasetData.Dataset
-import scala.Some
 import dsmoq.controllers.AjaxResponse
 import dsmoq.services.json.DatasetData.DatasetAddImages
 import dsmoq.services.json.RangeSlice
 import dsmoq.services.json.GroupData.Group
-import org.apache.http.client.methods.{HttpGet, HttpPost}
-import org.apache.http.message.BasicNameValuePair
-import org.apache.http.{HttpStatus, NameValuePair}
-import org.apache.http.client.entity.UrlEncodedFormEntity
-import java.util
-import org.apache.http.protocol.HTTP
-import org.apache.http.util.EntityUtils
-import com.sun.jndi.toolkit.url.Uri
-import org.apache.http.impl.client.DefaultHttpClient
 import java.util.UUID
 import dsmoq.persistence.{DefaultAccessLevel, OwnerType, UserAccessLevel, GroupAccessLevel}
 import org.json4s._
 import org.json4s.JsonDSL._
+import scalikejdbc._
 
 class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
@@ -73,7 +65,6 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
   override def afterAll() {
     DBsWithEnv("test").close()
-    SpecCommonLogic.deleteAllFile()
     super.afterAll()
   }
 
@@ -427,7 +418,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           // ダウンロードチェック(リダイレクトされるか)
           val uri = new java.net.URI(url)
           get(uri.getPath) {
-            status should be(302)
+            status should be(200)
           }
         }
       }
@@ -739,6 +730,232 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           }
         }
       }
+
+      "S3にアップロードするデータセットのファイルがダウンロードできるか" in {
+        session {
+          signIn()
+          val files = Map("file[]" -> dummyFile)
+          val params = Map("saveLocal" -> "false", "saveS3" -> "true")
+          val url = post("/api/datasets", params, files) {
+            checkStatus()
+            val dataset = parse(body).extract[AjaxResponse[Dataset]]
+            dataset.data.s3State should be(2)
+            dataset.data.localState should be(3)
+            dataset.data.files(0).url
+          }
+
+          val uri = new java.net.URI(url)
+          get(uri.getPath) {
+            status should be(200)
+          }
+        }
+      }
+
+      "ローカルとS3にアップロードするデータセットのファイルがダウンロードできるか" in {
+        session {
+          signIn()
+          val files = Map("file[]" -> dummyFile)
+          val params = Map("saveLocal" -> "true", "saveS3" -> "true")
+          val url = post("/api/datasets", params, files) {
+            checkStatus()
+            val dataset = parse(body).extract[AjaxResponse[Dataset]]
+            dataset.data.s3State should be(2)
+            dataset.data.localState should be(1)
+            dataset.data.files(0).url
+          }
+
+          val uri = new java.net.URI(url)
+          get(uri.getPath) {
+            status should be(200)
+          }
+        }
+      }
+
+      "保存先を変更できるか（ローカルのみに保存がある場合）" in {
+        session {
+          signIn()
+          val files = Map("file[]" -> dummyFile)
+          val id = post("/api/datasets", Map.empty, files) {
+            checkStatus()
+            parse(body).extract[AjaxResponse[Dataset]].data.id
+          }
+
+          changeStorageState(id, 1, 0)
+          // ローカルのみに保存 => どちらにも保存しない(イレギュラー)
+          put("/api/datasets/" + id + "/storage", Map("d" -> compact(render(("saveLocal" -> JBool(false)) ~ ("saveS3" -> JBool(false)))))) { checkStatus() }
+
+          get("/api/datasets/" + id) {
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.data.localState should be(1)
+            result.data.s3State should be(0)
+          }
+
+          changeStorageState(id, 1, 0)
+          // ローカルのみに保存 => s3のみに保存
+          put("/api/datasets/" + id + "/storage", Map("d" -> compact(render(("saveLocal" -> JBool(false)) ~ ("saveS3" -> JBool(true)))))) { checkStatus() }
+
+          get("/api/datasets/" + id) {
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.data.localState should be(3)
+            result.data.s3State should be(2)
+          }
+
+          changeStorageState(id, 1, 0)
+          // ローカルのみに保存 => ローカルのみに保存
+          put("/api/datasets/" + id + "/storage", Map("d" -> compact(render(("saveLocal" -> JBool(true)) ~ ("saveS3" -> JBool(false)))))) { checkStatus() }
+
+          get("/api/datasets/" + id) {
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.data.localState should be(1)
+            result.data.s3State should be(0)
+          }
+
+          changeStorageState(id, 1, 0)
+          // ローカルのみに保存 => ローカル、s3に保存
+          put("/api/datasets/" + id + "/storage", Map("d" -> compact(render(("saveLocal" -> JBool(true)) ~ ("saveS3" -> JBool(true)))))) { checkStatus() }
+
+          get("/api/datasets/" + id) {
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.data.localState should be(1)
+            result.data.s3State should be(2)
+          }
+        }
+      }
+
+      "保存先を変更できるか（S3のみに保存がある場合）" in {
+        session {
+          signIn()
+          val files = Map("file[]" -> dummyFile)
+          val id = post("/api/datasets", Map.empty, files) {
+            checkStatus()
+            parse(body).extract[AjaxResponse[Dataset]].data.id
+          }
+
+          changeStorageState(id, 0, 1)
+          // s3のみに保存 => どちらにも保存しない(イレギュラー)
+          put("/api/datasets/" + id + "/storage", Map("d" -> compact(render(("saveLocal" -> JBool(false)) ~ ("saveS3" -> JBool(false)))))) { checkStatus() }
+
+          get("/api/datasets/" + id) {
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.data.localState should be(0)
+            result.data.s3State should be(1)
+          }
+
+          changeStorageState(id, 0, 1)
+          // s3のみに保存 => s3のみに保存
+          put("/api/datasets/" + id + "/storage", Map("d" -> compact(render(("saveLocal" -> JBool(false)) ~ ("saveS3" -> JBool(true)))))) { checkStatus() }
+
+          get("/api/datasets/" + id) {
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.data.localState should be(0)
+            result.data.s3State should be(1)
+          }
+
+          changeStorageState(id, 0, 1)
+          // s3のみに保存 => ローカルのみに保存
+          put("/api/datasets/" + id + "/storage", Map("d" -> compact(render(("saveLocal" -> JBool(true)) ~ ("saveS3" -> JBool(false)))))) { checkStatus() }
+
+          get("/api/datasets/" + id) {
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.data.localState should be(2)
+            result.data.s3State should be(3)
+          }
+
+          changeStorageState(id, 0, 1)
+          // s3のみに保存 => ローカル、s3に保存
+          put("/api/datasets/" + id + "/storage", Map("d" -> compact(render(("saveLocal" -> JBool(true)) ~ ("saveS3" -> JBool(true)))))) { checkStatus() }
+
+          get("/api/datasets/" + id) {
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.data.localState should be(2)
+            result.data.s3State should be(1)
+          }
+        }
+      }
+
+      "保存先を変更できるか（ローカル・S3両方に保存がある場合）" in {
+        session {
+          signIn()
+          val files = Map("file[]" -> dummyFile)
+          val id = post("/api/datasets", Map.empty, files) {
+            checkStatus()
+            parse(body).extract[AjaxResponse[Dataset]].data.id
+          }
+
+          changeStorageState(id, 1, 1)
+          // ローカル・S3両方に保存 => どちらにも保存しない(イレギュラー)
+          put("/api/datasets/" + id + "/storage", Map("d" -> compact(render(("saveLocal" -> JBool(false)) ~ ("saveS3" -> JBool(false)))))) { checkStatus() }
+
+          get("/api/datasets/" + id) {
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.data.localState should be(1)
+            result.data.s3State should be(1)
+          }
+
+          changeStorageState(id, 1, 1)
+          // ローカル・S3両方に保存 => s3のみに保存
+          put("/api/datasets/" + id + "/storage", Map("d" -> compact(render(("saveLocal" -> JBool(false)) ~ ("saveS3" -> JBool(true)))))) { checkStatus() }
+
+          get("/api/datasets/" + id) {
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.data.localState should be(3)
+            result.data.s3State should be(1)
+          }
+
+          changeStorageState(id, 1, 1)
+          // ローカル・S3両方に保存 => ローカルのみに保存
+          put("/api/datasets/" + id + "/storage", Map("d" -> compact(render(("saveLocal" -> JBool(true)) ~ ("saveS3" -> JBool(false)))))) { checkStatus() }
+
+          get("/api/datasets/" + id) {
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.data.localState should be(1)
+            result.data.s3State should be(3)
+          }
+
+          changeStorageState(id, 1, 1)
+          // ローカル・S3両方に保存 => ローカル、s3に保存
+          put("/api/datasets/" + id + "/storage", Map("d" -> compact(render(("saveLocal" -> JBool(true)) ~ ("saveS3" -> JBool(true)))))) { checkStatus() }
+
+          get("/api/datasets/" + id) {
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.data.localState should be(1)
+            result.data.s3State should be(1)
+          }
+        }
+      }
+
+      "データセットのタスクのステータスを取得できるか" in {
+        session {
+          signIn()
+          val files = Map("file[]" -> dummyFile)
+          val datasetId = post("/api/datasets", Map.empty, files) {
+            checkStatus()
+            parse(body).extract[AjaxResponse[Dataset]].data.id
+          }
+          val param = Map("d" -> compact(render(("saveLocal" -> JBool(true)) ~ ("saveS3" -> JBool(true)))))
+          val taskId = put("/api/datasets/" + datasetId + "/storage", param) {
+            checkStatus()
+            parse(body).extract[AjaxResponse[DatasetTask]].data.taskId
+          }
+
+          taskId shouldNot be("0")
+
+          get("/api/tasks/" + taskId) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[TaskStatus]]
+            result.data.status should be(0)
+          }
+        }
+      }
+    }
+  }
+
+  private def changeStorageState(id: String, local: Int, s3: Int): Unit = {
+    DB localTx { implicit s =>
+      dsmoq.persistence.Dataset.find(id).get.copy(
+        localState = local,
+        s3State = s3
+      ).save()
     }
   }
 

@@ -54,7 +54,6 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
 
   override def afterAll() {
     DBsWithEnv("test").close()
-    SpecCommonLogic.deleteAllFile()
     super.afterAll()
   }
 
@@ -117,7 +116,7 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
           val uri = new java.net.URI(params._2)
           if (params._3 >= UserAccessLevel.FullPublic || params._4 >= GroupAccessLevel.FullPublic || params._5 >= DefaultAccessLevel.FullPublic) {
             get(uri.getPath) {
-              status should be(302)
+              status should be(200)
             }
           } else {
             get(uri.getPath) {
@@ -136,7 +135,7 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
           val uri = new java.net.URI(params._2)
           if (params._5 >= DefaultAccessLevel.FullPublic) {
             get(uri.getPath) {
-              status should be(302)
+              status should be(200)
             }
           } else {
             get(uri.getPath) {
@@ -155,7 +154,7 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
           val uri = new java.net.URI(params._2)
           if (params._5 >= DefaultAccessLevel.FullPublic) {
             get(uri.getPath) {
-              status should be(302)
+              status should be(200)
             }
           } else {
             get(uri.getPath) {
