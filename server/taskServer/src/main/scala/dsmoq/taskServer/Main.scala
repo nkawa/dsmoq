@@ -18,7 +18,7 @@ object Main {
     import system.dispatcher
     val taskActor = system.actorOf(Props[TaskActor], "TaskActor")
 
-    system.scheduler.schedule(0 milliseconds, 5 minutes) {
+    system.scheduler.schedule(0 milliseconds, Duration(AppConf.sampling_cycle, AppConf.sampling_unit)) {
       val tasks = getNewTasks().map(x => (x.id, JsonMethods.parse(x.parameter).extract[TaskParameter]))
       val commands = tasks.map(x => datasetToCommand(x._1, x._2))
       for (command <- commands) {

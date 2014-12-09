@@ -57,7 +57,7 @@ class TaskActor extends Actor with ActorLogging {
         }
         if (withDelete) {
           implicit val dispatcher = context.system.dispatcher
-          context.system.scheduler.scheduleOnce(72 hours) {
+          context.system.scheduler.scheduleOnce(Duration(AppConf.delete_cycle, AppConf.delete_unit)) {
             deleteS3Files(datasetId, datasetId)
           }
         }
@@ -98,9 +98,9 @@ class TaskActor extends Actor with ActorLogging {
         }
         if (withDelete) {
           implicit val dispatcher = context.system.dispatcher
-          context.system.scheduler.scheduleOnce(72 hours) {
+          context.system.scheduler.scheduleOnce(Duration(AppConf.delete_cycle, AppConf.delete_unit)) {
             val file = Paths.get(AppConf.fileDir, datasetId).toFile
-            file.delete()
+            deleteLocalFiles(file)
             DB localTx { implicit s =>
               changeLocalState(datasetId, NOT_SAVED_STATE)
             }
@@ -119,7 +119,7 @@ class TaskActor extends Actor with ActorLogging {
           changeS3State(datasetId, DELETING_STATE)
         }
         implicit val dispatcher = context.system.dispatcher
-        context.system.scheduler.scheduleOnce(72 hours) {
+        context.system.scheduler.scheduleOnce(Duration(AppConf.delete_cycle, AppConf.delete_unit)) {
           deleteS3Files(datasetId, datasetId + "/" + fileId)
         }
       }
@@ -136,6 +136,14 @@ class TaskActor extends Actor with ActorLogging {
     }
     DB localTx { implicit s =>
       changeS3State(datasetId, NOT_SAVED_STATE)
+    }
+  }
+
+  def deleteLocalFiles(file: File): Unit = file match {
+    case f if f.isFile => f.delete()
+    case f if f.isDirectory => {
+      f.listFiles().foreach(deleteLocalFiles(_))
+      f.delete()
     }
   }
 

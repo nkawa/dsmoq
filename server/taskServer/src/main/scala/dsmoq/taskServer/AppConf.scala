@@ -7,6 +7,10 @@ object AppConf {
   private val dsmoq = conf.getConfig("dsmoq")
 
   val fileDir = dsmoq.getString("file_dir")
+  val sampling_cycle = dsmoq.getLong("sampling_cycle")
+  val delete_cycle = dsmoq.getLong("delete_cycle")
+  val sampling_unit = dsmoq.getString("sampling_unit")
+  val delete_unit = dsmoq.getString("delete_unit")
 
   val systemUserId = "dccc110c-c34f-40ed-be2c-7e34a9f1b8f0"
 
