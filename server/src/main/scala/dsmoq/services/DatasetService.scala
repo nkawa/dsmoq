@@ -875,8 +875,8 @@ object DatasetService {
             dataset,
             myself.id,
             timestamp,
-            if (saveLocal_) { 1 } else { 4 },
-            if (saveS3_) { 1 } else { 4 }
+            if (saveLocal_) { 1 } else { 3 },
+            if (saveS3_) { 1 } else { 3 }
           )
         }
       }
