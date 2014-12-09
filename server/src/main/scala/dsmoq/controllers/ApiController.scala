@@ -244,7 +244,7 @@ class ApiController extends ScalatraServlet
     (for {
       user <- signedInUser
       result <- DatasetService.modifyDatasetStorage(datasetId, json.saveLocal, json.saveS3, user)
-    } yield {}) |> toAjaxResponse
+    } yield result) |> toAjaxResponse
   }
 
   // --------------------------------------------------------------------------
@@ -393,10 +393,7 @@ class ApiController extends ScalatraServlet
 
   get("/tasks/:taskId") {
     val taskId = params("taskId")
-    (for {
-      user <- signedInUser
-      status <- TaskService.getStatus(taskId, user)
-    } yield status) |> toAjaxResponse
+    TaskService.getStatus(taskId) |> toAjaxResponse
   }
 
   private def toAjaxResponse[A](result: Try[A]) = result match {

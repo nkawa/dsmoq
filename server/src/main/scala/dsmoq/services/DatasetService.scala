@@ -1,5 +1,6 @@
 package dsmoq.services
 
+import dsmoq.services.json.DatasetData.DatasetTask
 import org.json4s._
 import org.json4s.JsonDSL._
 import org.json4s.jackson.JsonMethods._
@@ -165,9 +166,10 @@ object DatasetService {
       case e: Throwable => Failure(e)
     }
   }
-  private def createTask(datasetId: String, taskType: Int, userId: String, timestamp: DateTime, isSave: Boolean)(implicit s: DBSession): Unit = {
+  private def createTask(datasetId: String, taskType: Int, userId: String, timestamp: DateTime, isSave: Boolean)(implicit s: DBSession): String = {
+    val id = UUID.randomUUID.toString
     persistence.Task.create(
-      id = UUID.randomUUID.toString,
+      id = id,
       taskType = 0,
       parameter = compact(render(("taskType" -> JInt(taskType)) ~ ("datasetId" -> datasetId) ~ ("withDelete" -> JBool(!isSave)))),
       status = 0,
@@ -176,6 +178,7 @@ object DatasetService {
       updatedBy = userId,
       updatedAt = timestamp
     )
+    id
   }
 
   /**
@@ -836,7 +839,7 @@ object DatasetService {
    * @param user
    * @return
    */
-  def modifyDatasetStorage(id:String, saveLocal: Option[Boolean], saveS3: Option[Boolean], user: User): Try[Unit] = {
+  def modifyDatasetStorage(id:String, saveLocal: Option[Boolean], saveS3: Option[Boolean], user: User): Try[DatasetTask] = {
     try {
       val saveLocal_ = saveLocal.getOrElse(true)
       val saveS3_ = saveS3.getOrElse(false)
@@ -849,8 +852,7 @@ object DatasetService {
         val dataset = getDataset(id).get
 
         // S3 to local
-        if ((dataset.localState == 0 || dataset.localState == 3) && (dataset.s3State == 1 || dataset.s3State == 2) && saveLocal_) {
-          createTask(id, MoveToLocal, myself.id, timestamp, saveS3_)
+        val taskId = if (dataset.localState == 0 && (dataset.s3State == 1 || dataset.s3State == 2) && saveLocal_) {
           updateDatasetStorage(
             dataset,
             myself.id,
@@ -858,9 +860,9 @@ object DatasetService {
             2,
             if (saveS3_) { 1 } else { 3 }
           )
+          createTask(id, MoveToLocal, myself.id, timestamp, saveS3_)
           // local to S3
-        } else if ((dataset.localState == 1 || dataset.localState == 2) && (dataset.s3State == 0 || dataset.s3State == 3) && saveS3_) {
-          createTask(id, MoveToS3, myself.id, timestamp, saveLocal_)
+        } else if ((dataset.localState == 1 || dataset.localState == 2) && dataset.s3State == 0 && saveS3_) {
           updateDatasetStorage(
             dataset,
             myself.id,
@@ -868,9 +870,9 @@ object DatasetService {
             if (saveLocal_) { 1 } else { 3 },
             2
           )
+          createTask(id, MoveToS3, myself.id, timestamp, saveLocal_)
           // local, S3のいずれか削除
         } else if ((dataset.localState == 1 || dataset.localState == 2) && (dataset.s3State == 1 || dataset.s3State == 2) && saveLocal_ != saveS3_) {
-          createTask(id, if (saveS3_) { MoveToS3 } else { MoveToLocal } , myself.id, timestamp, false)
           updateDatasetStorage(
             dataset,
             myself.id,
@@ -878,9 +880,13 @@ object DatasetService {
             if (saveLocal_) { 1 } else { 3 },
             if (saveS3_) { 1 } else { 3 }
           )
+          createTask(id, if (saveS3_) { MoveToS3 } else { MoveToLocal } , myself.id, timestamp, false)
+        } else {
+          // no taskId
+          "0"
         }
+        Success(DatasetTask(taskId))
       }
-      Success(Unit)
     } catch {
       case e: Throwable => Failure(e)
     }

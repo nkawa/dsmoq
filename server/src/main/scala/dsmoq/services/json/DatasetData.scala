@@ -84,4 +84,8 @@ object DatasetData {
     accessLevel: Int,
     ownerType: Int
   )
+
+  case class DatasetTask (
+    taskId: String
+  )
 }

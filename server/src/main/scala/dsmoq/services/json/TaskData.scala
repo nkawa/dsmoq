@@ -6,6 +6,6 @@ object TaskData {
   case class TaskStatus(
     status: Int,
     createBy: String,
-    createAt: DateTime
+    createAt: String
   )
 }
