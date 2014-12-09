@@ -58,7 +58,13 @@ class TaskActor extends Actor with ActorLogging {
         if (withDelete) {
           implicit val dispatcher = context.system.dispatcher
           context.system.scheduler.scheduleOnce(Duration(AppConf.delete_cycle, AppConf.delete_unit)) {
+            try
+            {
             deleteS3Files(datasetId, datasetId)
+            log.info("MoveToLocal datasetId=%s Delete End".format(datasetId))
+            } catch {
+              case e: Exception => log.error(e, "MoveToLocal Delete Failed.")
+            }
           }
         }
         log.info("MoveToLocal End")
@@ -99,10 +105,15 @@ class TaskActor extends Actor with ActorLogging {
         if (withDelete) {
           implicit val dispatcher = context.system.dispatcher
           context.system.scheduler.scheduleOnce(Duration(AppConf.delete_cycle, AppConf.delete_unit)) {
-            val file = Paths.get(AppConf.fileDir, datasetId).toFile
-            deleteLocalFiles(file)
-            DB localTx { implicit s =>
-              changeLocalState(datasetId, NOT_SAVED_STATE)
+            try {
+              val file = Paths.get(AppConf.fileDir, datasetId).toFile
+              deleteLocalFiles(file)
+              DB localTx { implicit s =>
+                changeLocalState(datasetId, NOT_SAVED_STATE)
+              }
+              log.info("MoveToS3 datasetId=%s Delete End".format(datasetId))
+            } catch {
+              case e: Exception => log.error(e, "MoveToS3 Delete Failed.")
             }
           }
         }
@@ -120,7 +131,12 @@ class TaskActor extends Actor with ActorLogging {
         }
         implicit val dispatcher = context.system.dispatcher
         context.system.scheduler.scheduleOnce(Duration(AppConf.delete_cycle, AppConf.delete_unit)) {
-          deleteS3Files(datasetId, datasetId + "/" + fileId)
+          try
+          {
+            deleteS3Files(datasetId, datasetId + "/" + fileId)
+          } catch {
+            case e: Exception => log.error(e, "Delete Failed.")
+          }
         }
       }
     }
