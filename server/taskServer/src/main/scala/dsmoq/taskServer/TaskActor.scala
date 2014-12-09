@@ -83,7 +83,9 @@ class TaskActor extends Actor with ActorLogging {
           val localFiles = flattenFilePath(Paths.get(AppConf.fileDir, datasetId).toFile).map(x => x.getCanonicalPath)
 
           for (file <- localFiles) {
-            val filePath = file.split(System.getProperty("file.separator") * 2).reverse.take(4).reverse.mkString("/")
+            val separator = if (System.getProperty("file.separator") == "\\") { System.getProperty("file.separator") * 2 } else { System.getProperty("file.separator") }
+
+            val filePath = file.split(separator).reverse.take(4).reverse.mkString("/")
             log.info("UploadToS3 " + filePath)
             FileManager.moveFromLocalToS3(filePath, client)
           }
