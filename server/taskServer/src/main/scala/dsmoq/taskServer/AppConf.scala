@@ -1,11 +1,10 @@
 package dsmoq.taskServer
 
 import com.typesafe.config.ConfigFactory
-import org.scalatra.EnvironmentKey
 
 object AppConf {
   private val conf = ConfigFactory.load
-  private val dsmoq = conf.getConfig("dsmoq").getConfig(System.getProperty(EnvironmentKey))
+  private val dsmoq = conf.getConfig("dsmoq")
 
   val fileDir = dsmoq.getString("file_dir")
 

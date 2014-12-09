@@ -241,13 +241,20 @@
 		<form role="form" id="dataset-storage-form">
 			<div class="form-group">
 				<div>
-					<input type="checkbox" id="saveLocalStorage" data-link="checked{:dataset.localState===1}"><label for="saveLocalStorage">ローカルに保存する</label>
+					<input type="checkbox" id="saveLocalStorage" data-link="checked{:dataset.localState===1||dataset.localState===2}">
+					{{if dataset.localState === 2}}
+						<label for="saveLocalStorage">ローカルに保存する（同期中）</label>
+					{{else dataset.localState === 3}}
+						<label for="saveLocalStorage">ローカルに保存する（削除中）</label>
+					{{else}}
+						<label for="saveLocalStorage">ローカルに保存する</label>
+					{{/if}}
 				</div>
 				<div>
 					<input type="checkbox" id="saveS3Storage" data-link="checked{:dataset.s3State===1||dataset.s3State===2}">
 					{{if dataset.s3State === 2}}
 						<label for="saveS3Storage">S3に保存する（同期中）</label>
-					{{else dataset.s3State === 4}}
+					{{else dataset.s3State === 3}}
 						<label for="saveS3Storage">S3に保存する（削除中）</label>
 					{{else}}
 						<label for="saveS3Storage">S3に保存する</label>

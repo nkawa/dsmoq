@@ -91,7 +91,7 @@ object DatasetService {
           createdAt = timestamp,
           updatedBy = myself.id,
           updatedAt = timestamp,
-          localState = if (saveLocal_) { 1 } else { 4 },
+          localState = if (saveLocal_) { 1 } else { 3 },
           s3State = if (saveS3_) { 2 } else { 0 }
         )
 
@@ -165,12 +165,12 @@ object DatasetService {
       case e: Throwable => Failure(e)
     }
   }
-  private def createTask(datasetId: String, status: Int, userId: String, timestamp: DateTime, isSave: Boolean)(implicit s: DBSession): Unit = {
+  private def createTask(datasetId: String, taskType: Int, userId: String, timestamp: DateTime, isSave: Boolean)(implicit s: DBSession): Unit = {
     persistence.Task.create(
       id = UUID.randomUUID.toString,
       taskType = 0,
-      parameter = compact(render(("taskType" -> JInt(0)) ~ ("datasetId" -> datasetId) ~ ("withDelete" -> JBool(!isSave)))),
-      status = status,
+      parameter = compact(render(("taskType" -> JInt(taskType)) ~ ("datasetId" -> datasetId) ~ ("withDelete" -> JBool(!isSave)))),
+      status = 0,
       createdBy = userId,
       createdAt = timestamp,
       updatedBy = userId,
@@ -849,23 +849,23 @@ object DatasetService {
         val dataset = getDataset(id).get
 
         // S3 to local
-        if (dataset.localState == 0 && (dataset.s3State == 1 || dataset.s3State == 2) && saveLocal_) {
+        if ((dataset.localState == 0 || dataset.localState == 3) && (dataset.s3State == 1 || dataset.s3State == 2) && saveLocal_) {
           createTask(id, MoveToLocal, myself.id, timestamp, ! saveS3_)
           updateDatasetStorage(
             dataset,
             myself.id,
             timestamp,
             2,
-            if (saveS3_) { 1 } else { 4 }
+            if (saveS3_) { 1 } else { 3 }
           )
           // local to S3
-        } else if (dataset.localState == 1 && dataset.s3State == 0 && saveS3_) {
+        } else if (dataset.localState == 1 && (dataset.s3State == 0 || dataset.s3State == 3) && saveS3_) {
           createTask(id, MoveToS3, myself.id, timestamp, ! saveLocal_)
           updateDatasetStorage(
             dataset,
             myself.id,
             timestamp,
-            if (saveLocal_) { 1 } else { 4 },
+            if (saveLocal_) { 1 } else { 3 },
             2
           )
           // local, S3のいずれか削除

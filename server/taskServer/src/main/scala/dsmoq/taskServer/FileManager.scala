@@ -10,11 +10,11 @@ import scala.collection.JavaConversions._
 object FileManager {
   private val PART_SIZE = 5 * 1024L * 1024L
 
-  def moveFromLocalToS3(filePath: String)(implicit client: AmazonS3Client) {
+  def moveFromLocalToS3(filePath: String, client: AmazonS3Client) {
     val fullPath = Paths.get(AppConf.fileDir, filePath).toFile
     val file = new File(fullPath.toString)
 
-    loanStream(file)( x => uploadToS3(fullPath.toString, x) )
+    loanStream(file)( x => uploadToS3(filePath, x, client) )
   }
 
   private def loanStream(file: File)(f: InputStream => Unit)
@@ -71,7 +71,7 @@ object FileManager {
     }
   }
 
-  private def uploadToS3(filePath: String, in: InputStream)(implicit client: AmazonS3Client) {
+  private def uploadToS3(filePath: String, in: InputStream, client: AmazonS3Client) {
     if (client.listObjects(AppConf.s3UploadRoot).getObjectSummaries.map(_.getKey).contains(filePath)) {
       return
     }

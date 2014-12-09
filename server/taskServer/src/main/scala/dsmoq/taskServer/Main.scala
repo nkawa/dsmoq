@@ -7,11 +7,13 @@ import scalikejdbc._
 import dsmoq.persistence.Task
 import akka.actor.{ActorSystem, Props}
 import scala.concurrent.duration._
+import scalikejdbc.config._
 
 object Main {
   private implicit val jsonFormats: Formats = DefaultFormats
 
   def main(args: Array[String]) {
+    DBs.setupAll()
     val system = ActorSystem()
     import system.dispatcher
     val taskActor = system.actorOf(Props[TaskActor], "TaskActor")
@@ -33,7 +35,7 @@ object Main {
           .from(Task as t)
           .where
             .eq(t.status, 0)
-          .orderBy(t.id)
+          .orderBy(t.createdAt)
           .limit(50)
       }.map(Task(t)).list().apply()
     }

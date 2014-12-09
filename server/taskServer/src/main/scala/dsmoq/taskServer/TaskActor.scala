@@ -4,6 +4,7 @@ import java.io.File
 import java.nio.file.Paths
 import java.util.UUID
 import akka.actor.Actor
+import akka.actor.ActorLogging
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.AmazonS3Client
 import dsmoq.persistence.{Dataset, Task, TaskLog}
@@ -13,7 +14,7 @@ import scalikejdbc._
 import scala.concurrent.duration._
 import scala.collection.JavaConversions._
 
-class TaskActor extends Actor {
+class TaskActor extends Actor with ActorLogging {
   private val START_LOG = 1
   private val END_LOG = 2
   private val ERROR_LOG = 9
@@ -25,18 +26,21 @@ class TaskActor extends Actor {
 
   def receive = {
     case MoveToLocal(taskId, datasetId, withDelete) => {
+      log.info("MoveToLocal Start")
       if (!isStarted(taskId)) {
         try {
           DB localTx { implicit s =>
             createTaskLog(taskId, START_LOG, "")
+          }
+          val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
+          implicit val client = new AmazonS3Client(cre)
+          val filePaths = getS3FilePaths(datasetId)
 
-            val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
-            implicit val client = new AmazonS3Client(cre)
-            val filePaths = getS3FilePaths(datasetId)
-
-            for (filePath <- filePaths) {
-              FileManager.moveFromS3ToLocal(filePath)
-            }
+          for (filePath <- filePaths) {
+            log.info("UploadToLocal " + filePath)
+            FileManager.moveFromS3ToLocal(filePath)
+          }
+          DB localTx { implicit s =>
             finishTask(taskId, FINISH_TASK)
             createTaskLog(taskId, END_LOG, "")
             changeLocalState(datasetId, SAVED_STATE)
@@ -48,6 +52,7 @@ class TaskActor extends Actor {
           case e: Exception => DB localTx { implicit s =>
             finishTask(taskId, ERROR_TASK)
             createTaskLog(taskId, ERROR_LOG, e.getMessage)
+            log.error(e, "MoveToLocal Failed.")
           }
         }
         if (withDelete) {
@@ -56,23 +61,27 @@ class TaskActor extends Actor {
             deleteS3Files(datasetId, datasetId)
           }
         }
+        log.info("MoveToLocal End")
       }
     }
     case MoveToS3(taskId, datasetId, withDelete) => {
+      log.info("MoveToS3 Start")
       if (!isStarted(taskId)) {
         try {
           DB localTx { implicit s =>
             createTaskLog(taskId, START_LOG, "")
+          }
+          val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
+          val client = new AmazonS3Client(cre)
 
-            val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
-            implicit val client = new AmazonS3Client(cre)
+          val localFiles = flattenFilePath(Paths.get(AppConf.fileDir, datasetId).toFile).map(x => x.getCanonicalPath)
 
-            val localFiles = flattenFilePath(Paths.get(AppConf.fileDir, datasetId).toFile).map(x => x.getCanonicalPath)
-
-            for (file <- localFiles) {
-              val filePath = file.split("\\").reverse.take(4).reverse.mkString("/")
-              FileManager.moveFromLocalToS3(filePath)
-            }
+          for (file <- localFiles) {
+            val filePath = file.split(System.getProperty("file.separator") * 2).reverse.take(4).reverse.mkString("/")
+            log.info("UploadToS3 " + filePath)
+            FileManager.moveFromLocalToS3(filePath, client)
+          }
+          DB localTx { implicit s =>
             finishTask(taskId, FINISH_TASK)
             createTaskLog(taskId, END_LOG, "")
             changeS3State(datasetId, SAVED_STATE)
@@ -84,6 +93,7 @@ class TaskActor extends Actor {
           case e: Exception => DB localTx { implicit s =>
             finishTask(taskId, ERROR_TASK)
             createTaskLog(taskId, ERROR_LOG, e.getMessage)
+            log.error(e, "MoveToS3 Failed.")
           }
         }
         if (withDelete) {
@@ -96,9 +106,11 @@ class TaskActor extends Actor {
             }
           }
         }
+        log.info("MoveToS3 End")
       }
     }
     case Delete(taskId, datasetId, fileId) => {
+      log.info("Delete Start")
       if (!isStarted(taskId)) {
         DB localTx { implicit s =>
           createTaskLog(taskId, START_LOG, "")
