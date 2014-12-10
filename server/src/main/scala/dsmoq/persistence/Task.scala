@@ -8,7 +8,8 @@ case class Task(
   id: String,
   taskType: Int, 
   parameter: String, 
-  status: Int, 
+  status: Int,
+  executeAt: DateTime,
   createdBy: String,
   createdAt: DateTime, 
   updatedBy: String,
@@ -25,7 +26,7 @@ object Task extends SQLSyntaxSupport[Task] {
 
   override val tableName = "tasks"
 
-  override val columns = Seq("id", "task_type", "parameter", "status", "created_by", "created_at", "updated_by", "updated_at")
+  override val columns = Seq("id", "task_type", "parameter", "status", "execute_at", "created_by", "created_at", "updated_by", "updated_at")
 
   def apply(t: SyntaxProvider[Task])(rs: WrappedResultSet): Task = apply(t.resultName)(rs)
   def apply(t: ResultName[Task])(rs: WrappedResultSet): Task = new Task(
@@ -33,6 +34,7 @@ object Task extends SQLSyntaxSupport[Task] {
     taskType = rs.int(t.taskType),
     parameter = rs.string(t.parameter),
     status = rs.int(t.status),
+    executeAt = rs.timestamp(t.executeAt).toJodaDateTime,
     createdBy = rs.string(t.createdBy),
     createdAt = rs.timestamp(t.createdAt).toJodaDateTime,
     updatedBy = rs.string(t.updatedBy),
@@ -74,6 +76,7 @@ object Task extends SQLSyntaxSupport[Task] {
     taskType: Int,
     parameter: String,
     status: Int,
+    executeAt: DateTime,
     createdBy: String,
     createdAt: DateTime,
     updatedBy: String,
@@ -84,6 +87,7 @@ object Task extends SQLSyntaxSupport[Task] {
         column.taskType,
         column.parameter,
         column.status,
+        column.executeAt,
         column.createdBy,
         column.createdAt,
         column.updatedBy,
@@ -93,6 +97,7 @@ object Task extends SQLSyntaxSupport[Task] {
         taskType,
         parameter,
         status,
+        executeAt,
         sqls.uuid(createdBy),
         createdAt,
         sqls.uuid(updatedBy),
@@ -105,6 +110,7 @@ object Task extends SQLSyntaxSupport[Task] {
       taskType = taskType,
       parameter = parameter,
       status = status,
+      executeAt = executeAt,
       createdBy = createdBy,
       createdAt = createdAt,
       updatedBy = updatedBy,
@@ -118,6 +124,7 @@ object Task extends SQLSyntaxSupport[Task] {
         column.taskType -> entity.taskType,
         column.parameter -> entity.parameter,
         column.status -> entity.status,
+        column.executeAt -> entity.executeAt,
         column.createdBy -> sqls.uuid(entity.createdBy),
         column.createdAt -> entity.createdAt,
         column.updatedBy -> sqls.uuid(entity.updatedBy),

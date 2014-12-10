@@ -172,6 +172,7 @@ object DatasetService {
       id = id,
       taskType = 0,
       parameter = compact(render(("taskType" -> JInt(taskType)) ~ ("datasetId" -> datasetId) ~ ("withDelete" -> JBool(!isSave)))),
+      executeAt = timestamp,
       status = 0,
       createdBy = userId,
       createdAt = timestamp,
