@@ -262,6 +262,8 @@ object SpecCommonLogic {
       deleteAllData(deleteFrom(persistence.Ownership))
       deleteAllData(deleteFrom(persistence.Password))
       deleteAllData(deleteFrom(persistence.User))
+      deleteAllData(deleteFrom(persistence.Task))
+      deleteAllData(deleteFrom(persistence.TaskLog))
 
       // imagesテーブルのみpreset(システムデータ)以外を削除
       withSQL {
