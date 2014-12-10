@@ -31,7 +31,7 @@ object FileManager {
   }
 
   def downloadFromS3(filePath: String): String = {
-    val cre = new BasicAWSCredentials(AppConf.s3DownloadAccessKey, AppConf.s3DownloadSecretKey)
+    val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
     val client = new AmazonS3Client(cre)
     // 有効期限(1分)
     val cal = Calendar.getInstance()
