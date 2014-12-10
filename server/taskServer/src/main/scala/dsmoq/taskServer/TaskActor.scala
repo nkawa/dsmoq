@@ -35,6 +35,9 @@ class TaskActor extends Actor with ActorLogging {
           val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
           implicit val client = new AmazonS3Client(cre)
           val filePaths = getS3FilePaths(datasetId)
+          if (filePaths.isEmpty) {
+            throw new IllegalStateException("コピー元のS3バケットにファイルが存在していません")
+          }
 
           for (filePath <- filePaths) {
             log.info("UploadToLocal " + filePath)
@@ -81,6 +84,9 @@ class TaskActor extends Actor with ActorLogging {
           val client = new AmazonS3Client(cre)
 
           val localFiles = flattenFilePath(Paths.get(AppConf.fileDir, datasetId).toFile).map(x => x.getCanonicalPath)
+          if (localFiles.isEmpty) {
+            throw new IllegalStateException("コピー元のフォルダにファイルが存在していません")
+          }
 
           for (file <- localFiles) {
             val separator = if (System.getProperty("file.separator") == "\\") { System.getProperty("file.separator") * 2 } else { System.getProperty("file.separator") }
@@ -228,7 +234,7 @@ class TaskActor extends Actor with ActorLogging {
           s3State = s3State
         ).save()
       }
-      case None =>
+      case None => throw new IllegalArgumentException("datasetId=%sに対応するDatasetが存在しません".format(datasetId))
     }
   }
 
@@ -252,7 +258,7 @@ class TaskActor extends Actor with ActorLogging {
           s3State = d.s3State
         ).save()
       }
-      case None =>
+      case None => throw new IllegalArgumentException("datasetId=%sに対応するDatasetが存在しません".format(datasetId))
     }
   }
 
