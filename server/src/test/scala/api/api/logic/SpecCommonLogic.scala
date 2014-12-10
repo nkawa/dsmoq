@@ -17,7 +17,7 @@ object SpecCommonLogic {
     "8b570468-9814-4d30-8c04-392b263b6404",
     "960a5601-2b60-2531-e6ad-54b91612ede5"
   )
-  private lazy val cre = new BasicAWSCredentials(AppConf.s3UploadAccessKey, AppConf.s3UploadSecretKey)
+  private lazy val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
   private lazy val client = new AmazonS3Client(cre)
 
   def insertDummyData() {
@@ -292,6 +292,7 @@ object SpecCommonLogic {
           x.delete()
         }
       }
+      deleteAllFile()
     }
   }
 
@@ -309,5 +310,19 @@ object SpecCommonLogic {
       }
     }
     file.delete()
+  }
+
+  private def deleteAllFile(): Unit =
+  {
+    val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
+    val client = new AmazonS3Client(cre)
+    val l = client.listObjects(AppConf.s3UploadRoot)
+
+    l.getObjectSummaries.toList.foreach { obj =>
+      client.deleteObject(AppConf.s3UploadRoot, obj.getKey)
+    }
+    l.getCommonPrefixes.toList.foreach { obj =>
+      client.deleteObject(AppConf.s3UploadRoot, obj)
+    }
   }
 }

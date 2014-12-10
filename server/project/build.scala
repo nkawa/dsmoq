@@ -70,7 +70,9 @@ object DsmoqBuild extends Build {
       scalaVersion := ScalaVersion,
       resolvers += Classpaths.typesafeReleases,
       libraryDependencies ++= Seq(
-        "com.typesafe.akka" % "akka-http-core-experimental_2.11" % "0.11"
+        "org.scalatest" % "scalatest_2.11" % "2.2.1" % "test",
+        "com.typesafe.akka" % "akka-http-core-experimental_2.11" % "0.11",
+        "com.typesafe.akka" % "akka-testkit_2.11" % "2.3.7"
       )
     )
   ).dependsOn(dsmoq)

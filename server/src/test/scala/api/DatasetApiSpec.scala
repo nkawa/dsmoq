@@ -1,6 +1,10 @@
 package api
 
+import java.nio.file.Paths
+
 import _root_.api.api.logic.SpecCommonLogic
+import com.amazonaws.auth.BasicAWSCredentials
+import com.amazonaws.services.s3.AmazonS3Client
 import org.eclipse.jetty.server.Connector
 import org.scalatest.{BeforeAndAfter, FreeSpec}
 import org.scalatra.test.scalatest.ScalatraSuite
@@ -731,7 +735,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         }
       }
 
-      "S3にアップロードするデータセットのファイルがダウンロードできるか" in {
+      "S3にアップロードするデータセット(同期中)のファイルがダウンロードできるか" in {
         session {
           signIn()
           val files = Map("file[]" -> dummyFile)
@@ -747,6 +751,38 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           val uri = new java.net.URI(url)
           get(uri.getPath) {
             status should be(200)
+          }
+        }
+      }
+
+      "S3にアップロードするデータセット(同期後)のファイルがダウンロードできるか" in {
+        session {
+          signIn()
+          val files = Map("file[]" -> dummyFile)
+          val params = Map("saveLocal" -> "false", "saveS3" -> "true")
+          val data = post("/api/datasets", params, files) {
+            checkStatus()
+            val dataset = parse(body).extract[AjaxResponse[Dataset]]
+            dataset.data.s3State should be(2)
+            dataset.data.localState should be(3)
+            dataset.data
+          }
+
+          val localFiles = flattenFilePath(Paths.get(AppConf.fileDir, data.id).toFile)
+          val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
+          val client = new AmazonS3Client(cre)
+          for  (file <- localFiles) {
+            val separator = if (System.getProperty("file.separator") == "\\") { System.getProperty("file.separator") * 2 } else { System.getProperty("file.separator") }
+            val filePath = file.getCanonicalPath.split(separator).reverse.take(4).reverse.mkString("/")
+            client.putObject(AppConf.s3UploadRoot, filePath, file)
+          }
+          changeStorageState(data.id, 0, 1)
+
+          val uri = new java.net.URI(data.files(0).url
+          )
+          get(uri.getPath) {
+            // リダイレクト
+            status should be(302)
           }
         }
       }
@@ -957,6 +993,17 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         s3State = s3
       ).save()
     }
+  }
+  private def flattenFilePath(file: File): List[File] = file match {
+    case f:File if f.isDirectory => {
+      def flatten(files: List[File]): List[File] = files match {
+        case x :: xs if x.isDirectory => flatten(x.listFiles.toList) ::: flatten(xs)
+        case x :: xs if x.isFile => x :: flatten(xs)
+        case Nil => List()
+      }
+      flatten(f.listFiles.toList)
+    }
+    case f: File if f.isFile => List(f)
   }
 
   private def signIn() {
