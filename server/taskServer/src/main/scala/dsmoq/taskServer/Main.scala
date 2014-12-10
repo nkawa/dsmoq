@@ -11,8 +11,9 @@ import scalikejdbc.config._
 
 object Main {
   private implicit val jsonFormats: Formats = DefaultFormats
-
+  val EnvironmentKey = "taskServer.environment"
   def main(args: Array[String]) {
+    System.setProperty(EnvironmentKey, "development")
     DBs.setupAll()
     val system = ActorSystem()
     import system.dispatcher
