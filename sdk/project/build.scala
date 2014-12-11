@@ -5,18 +5,22 @@ object DsmoqSdkBuild extends Build {
   val Organization = "dsmoq"
   val Name = "dsmoq"
   val Version = "0.1.0-SNAPSHOT"
-  val ScalaVersion = "2.11.4"
 
-  lazy val project = Project (
+  lazy val project = Project(
     "dsmoq-sdk",
     file("."),
-    settings = Defaults.coreDefaultSettings ++ Seq(
+    settings = Defaults.defaultSettings ++ Seq(
       organization := Organization,
       name := "dsmoq-sdk",
       version := Version,
-      scalaVersion := ScalaVersion,
       resolvers += Classpaths.typesafeReleases,
-      libraryDependencies ++= Seq()
+      crossPaths := false,
+      autoScalaLibrary := false,
+      libraryDependencies ++= Seq(
+        "org.projectlombok" % "lombok-maven" % "1.14.8.0",
+        "org.apache.httpcomponents" % "httpclient" % "4.3.6",
+        "com.fasterxml.jackson.core" % "jackson-databind" % "2.4.4"
+      )
     )
   )
 }
