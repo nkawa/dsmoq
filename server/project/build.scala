@@ -5,8 +5,19 @@ import org.scalatra.sbt.PluginKeys._
 import org.scalatra.sbt.DistPlugin.Dist
 import com.earldouglas.xsbtwebplugin.PluginKeys._
 import com.earldouglas.xsbtwebplugin.WebPlugin.container
+import sbtassembly.Plugin.AssemblyKeys._
+import sbtassembly.Plugin.MergeStrategy
 
 object DsmoqBuild extends Build {
+  lazy val assemblyAdditionalSettings = Seq(
+    mergeStrategy in assembly ~= { (old) => {
+      case "application.conf" => MergeStrategy.concat
+      case "mime.types" => MergeStrategy.discard
+      case x => old(x)
+    }
+    }
+  )
+
   val Organization = "dsmoq"
   val Name = "dsmoq"
   val Version = "0.1.0-SNAPSHOT"

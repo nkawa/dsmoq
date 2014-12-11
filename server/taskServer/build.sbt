@@ -10,8 +10,8 @@ assemblyAdditionalSettings
 
 scalaVersion := "2.11.4"
 
-mainClass in assembly := Some("dsmoq.JettyLauncher")
+mainClass in assembly := Some("dsmoq.taskServer.Main")
 
 test in assembly := {}
 
-jarName := "dsmoq.jar"
+jarName := "taskServer.jar"
