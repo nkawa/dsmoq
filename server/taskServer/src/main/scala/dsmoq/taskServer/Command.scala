@@ -9,3 +9,7 @@ case class MoveToLocal(override val taskId: String, override val datasetId: Stri
 case class DoNothing() extends Command("", "", false)
 
 case class Delete(override val taskId: String, override val datasetId: String, val fileId: String) extends Command(taskId, datasetId, true)
+
+case class DeleteS3(override val taskId: String, override val datasetId: String) extends Command(taskId, datasetId, true)
+
+case class DeleteLocal(override val taskId: String, override val datasetId: String) extends Command(taskId, datasetId, true)

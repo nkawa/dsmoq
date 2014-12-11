@@ -196,13 +196,14 @@ class TaskServerSpec extends TestKit(ActorSystem()) with FreeSpecLike with Befor
     }
   }
 
-  private def createTask(status: Int, datasetId: String, taskType: Int, isSave: Boolean, fileId: String = ""): Task = {
+  private def createTask(status: Int, datasetId: String, taskType: Int, isSave: Boolean, fileId: String = "", executeAt: DateTime = DateTime.now): Task = {
     DB localTx { implicit s =>
       Task.create(
         id = UUID.randomUUID.toString,
         taskType = 0,
-        parameter = compact(render(("taskType" -> JInt(taskType)) ~ ("datasetId" -> datasetId) ~ ("withDelete" -> JBool(!isSave)) ~ ("fileId" -> fileId))),
+        parameter = compact(render(("commandType" -> JInt(taskType)) ~ ("datasetId" -> datasetId) ~ ("withDelete" -> JBool(!isSave)) ~ ("fileId" -> fileId))),
         status = status,
+        executeAt = executeAt,
         createdBy = AppConf.systemUserId,
         createdAt = DateTime.now(),
         updatedBy = AppConf.systemUserId,

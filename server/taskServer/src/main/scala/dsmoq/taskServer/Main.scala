@@ -1,5 +1,6 @@
 package dsmoq.taskServer
 
+import org.joda.time.DateTime
 import org.json4s._
 import org.json4s.jackson.JsonMethods
 import org.json4s.{DefaultFormats, Formats}
@@ -36,6 +37,8 @@ object Main {
           .from(Task as t)
           .where
             .eq(t.status, 0)
+            .and
+            .le(t.executeAt, DateTime.now)
           .orderBy(t.createdAt)
           .limit(50)
       }.map(Task(t)).list().apply()
@@ -43,15 +46,17 @@ object Main {
   }
 
   def datasetToCommand(taskId:String, param: TaskParameter): Command = {
-    param.taskType match {
+    param.commandType match {
       case 0 => MoveToS3(taskId, param.datasetId, param.withDelete.getOrElse(false))
       case 1 => MoveToLocal(taskId, param.datasetId, param.withDelete.getOrElse (false) )
       case 2 => Delete(taskId, param.datasetId, param.fileId.get)
+      case 3 => DeleteS3(taskId, param.datasetId)
+      case 4 => DeleteLocal(taskId, param.datasetId)
       case _ => DoNothing()
     }
   }
 
-  case class TaskParameter(taskType: Int, datasetId: String, withDelete: Option[Boolean], fileId: Option[String])
+  case class TaskParameter(commandType: Int, datasetId: String, withDelete: Option[Boolean], fileId: Option[String])
 }
 
 

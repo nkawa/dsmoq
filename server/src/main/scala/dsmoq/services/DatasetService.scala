@@ -166,12 +166,12 @@ object DatasetService {
       case e: Throwable => Failure(e)
     }
   }
-  private def createTask(datasetId: String, taskType: Int, userId: String, timestamp: DateTime, isSave: Boolean)(implicit s: DBSession): String = {
+  private def createTask(datasetId: String, commandType: Int, userId: String, timestamp: DateTime, isSave: Boolean)(implicit s: DBSession): String = {
     val id = UUID.randomUUID.toString
     persistence.Task.create(
       id = id,
       taskType = 0,
-      parameter = compact(render(("taskType" -> JInt(taskType)) ~ ("datasetId" -> datasetId) ~ ("withDelete" -> JBool(!isSave)))),
+      parameter = compact(render(("commandType" -> JInt(commandType)) ~ ("datasetId" -> datasetId) ~ ("withDelete" -> JBool(!isSave)))),
       executeAt = timestamp,
       status = 0,
       createdBy = userId,
