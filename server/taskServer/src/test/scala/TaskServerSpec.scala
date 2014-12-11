@@ -75,6 +75,10 @@ class TaskServerSpec extends TestKit(ActorSystem()) with FreeSpecLike with Befor
         createTask(0, UUID.randomUUID().toString, 2, false, "dummyId")
         createTask(0, UUID.randomUUID().toString, 3, true)
         createTask(0, UUID.randomUUID().toString, 3, false)
+        createTask(0, UUID.randomUUID().toString, 4, true)
+        createTask(0, UUID.randomUUID().toString, 4, false)
+        createTask(0, UUID.randomUUID().toString, 10, true)
+        createTask(0, UUID.randomUUID().toString, 10, false)
 
         val tasks = Main.getNewTasks()
         val commands = tasks.map(x => Main.datasetToCommand(x.id, JsonMethods.parse(x.parameter).extract[TaskParameter]))
@@ -83,6 +87,8 @@ class TaskServerSpec extends TestKit(ActorSystem()) with FreeSpecLike with Befor
         commands.collect{ case MoveToS3(taskId, datasetId, withDelete) if withDelete == false => true }.length should be(1)
         commands.collect{ case MoveToS3(taskId, datasetId, withDelete) if withDelete == true => true }.length should be(1)
         commands.collect{ case Delete(taskId, datasetId, fileId) => true }.length should be(2)
+        commands.collect{ case DeleteS3(taskId, datasetId) => true }.length should be(2)
+        commands.collect{ case DeleteLocal(taskId, datasetId) => true }.length should be(2)
         commands.collect{ case DoNothing() => true }.length should be(2)
       }
     }
@@ -101,6 +107,12 @@ class TaskServerSpec extends TestKit(ActorSystem()) with FreeSpecLike with Befor
         val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
         val client = new AmazonS3Client(cre)
         client.listObjects(AppConf.s3UploadRoot).getObjectSummaries().map(x => x.getKey).exists(_.endsWith("sample.txt")) should be(true)
+
+        DB readOnly { implicit s =>
+          val dataset = Dataset.find(datasetId).get
+          dataset.localState should be(1)
+          dataset.s3State should be(1)
+        }
       }
 
       "S3へコピーできるか(ローカルは削除)" in {
@@ -117,7 +129,17 @@ class TaskServerSpec extends TestKit(ActorSystem()) with FreeSpecLike with Befor
         val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
         val client = new AmazonS3Client(cre)
         client.listObjects(AppConf.s3UploadRoot).getObjectSummaries().map(x => x.getKey).exists(_.endsWith("sample.txt")) should be(true)
-        file.exists() should be(false)
+        DB readOnly { implicit s =>
+          val t = Task.t
+          val tasks = Task.findAllBy(sqls.eq(t.status, 0))
+          tasks.size should be(1)
+          val param = JsonMethods.parse(tasks.head.parameter).extract[TaskParameter]
+          param.commandType should be(4)
+
+          val dataset = Dataset.find(datasetId).get
+          dataset.localState should be(3)
+          dataset.s3State should be(1)
+        }
       }
 
       "ローカルへコピーできるか" in {
@@ -132,6 +154,12 @@ class TaskServerSpec extends TestKit(ActorSystem()) with FreeSpecLike with Befor
         taskActor ! command
 
         Paths.get(AppConf.fileDir, datasetId, "dummyFileId", "dummyHistoryId", dummyFile.getName).toFile.exists() should be(true)
+
+        DB readOnly { implicit s =>
+          val dataset = Dataset.find(datasetId).get
+          dataset.localState should be(1)
+          dataset.s3State should be(1)
+        }
       }
 
       "ローカルへコピーできるか(S3は削除)" in {
@@ -146,6 +174,17 @@ class TaskServerSpec extends TestKit(ActorSystem()) with FreeSpecLike with Befor
         taskActor ! command
 
         Paths.get(AppConf.fileDir, datasetId, "dummyFileId", "dummyHistoryId", dummyFile.getName).toFile.exists() should be(true)
+        DB readOnly { implicit s =>
+          val t = Task.t
+          val tasks = Task.findAllBy(sqls.eq(t.status, 0))
+          tasks.size should be(1)
+          val param = JsonMethods.parse(tasks.head.parameter).extract[TaskParameter]
+          param.commandType should be(3)
+
+          val dataset = Dataset.find(datasetId).get
+          dataset.localState should be(1)
+          dataset.s3State should be(3)
+        }
       }
 
       "ファイル一つだけ削除できるか" in {
@@ -160,7 +199,48 @@ class TaskServerSpec extends TestKit(ActorSystem()) with FreeSpecLike with Befor
         val taskActor = TestActorRef[TaskActor]
         taskActor ! command
 
+        client.listObjects(AppConf.s3UploadRoot).getObjectSummaries().map(x => x.getKey).exists(_.endsWith("file1.md")) should be(false)
         client.listObjects(AppConf.s3UploadRoot).getObjectSummaries().map(x => x.getKey).exists(_.endsWith("file2.md")) should be(true)
+      }
+
+      "ローカルフォルダを削除できるか" in {
+        val datasetId = createDataset(3, 1)
+        val task = createTask(0, datasetId, 4, false)
+        val dir = Paths.get(AppConf.fileDir, datasetId, "dummyFileId", "dummyHistoryId").toFile
+        dir.mkdirs()
+        val file = dir.toPath.resolve("sample.txt").toFile
+        file.createNewFile()
+        val command = Main.datasetToCommand(task.id, JsonMethods.parse(task.parameter).extract[TaskParameter])
+        val taskActor = TestActorRef[TaskActor]
+        taskActor ! command
+
+        file.exists() should be(false)
+
+        DB readOnly { implicit s =>
+          val dataset = Dataset.find(datasetId).get
+          dataset.localState should be(0)
+          dataset.s3State should be(1)
+        }
+      }
+
+      "S3フォルダを削除できるか" in {
+        val datasetId = createDataset(1, 3)
+        val task = createTask(0, datasetId, 3, true)
+        val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
+        val client = new AmazonS3Client(cre)
+        client.putObject(AppConf.s3UploadRoot, datasetId + "/dummyFileId/dummyHistoryId/" + dummyFile.getName, dummyFile)
+
+        val command = Main.datasetToCommand(task.id, JsonMethods.parse(task.parameter).extract[TaskParameter])
+        val taskActor = TestActorRef[TaskActor]
+        taskActor ! command
+
+        client.listObjects(AppConf.s3UploadRoot).getObjectSummaries().map(x => x.getKey).exists(_.endsWith(dummyFile.getName)) should be(false)
+
+        DB readOnly { implicit s =>
+          val dataset = Dataset.find(datasetId).get
+          dataset.localState should be(1)
+          dataset.s3State should be(0)
+        }
       }
 
       "S3へコピーするが、コピー元フォルダが存在しない" in {
@@ -175,6 +255,10 @@ class TaskServerSpec extends TestKit(ActorSystem()) with FreeSpecLike with Befor
             select.from(TaskLog as tl).where.eq(tl.logType, 9)
           }.map(TaskLog(tl)).single.apply()
           errorLog shouldNot be(None)
+
+          val dataset = Dataset.find(datasetId).get
+          dataset.localState should be(1)
+          dataset.s3State should be(0)
         }
       }
 
@@ -191,6 +275,10 @@ class TaskServerSpec extends TestKit(ActorSystem()) with FreeSpecLike with Befor
             select.from(TaskLog as tl).where.eq(tl.logType, 9)
           }.map(TaskLog(tl)).single.apply()
           errorLog shouldNot be(None)
+
+          val dataset = Dataset.find(datasetId).get
+          dataset.localState should be(0)
+          dataset.s3State should be(1)
         }
       }
     }
