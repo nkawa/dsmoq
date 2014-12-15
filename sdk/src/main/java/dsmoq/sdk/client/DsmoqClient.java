@@ -1,10 +1,8 @@
 package dsmoq.sdk.client;
 
 import dsmoq.sdk.http.*;
-import dsmoq.sdk.request.UpdateFileMetaParam;
+import dsmoq.sdk.request.*;
 import dsmoq.sdk.request.json.ChangeStorageJson;
-import dsmoq.sdk.request.GetDatasetsParam;
-import dsmoq.sdk.request.SigninParam;
 import dsmoq.sdk.response.*;
 import dsmoq.sdk.util.JsonUtil;
 import org.apache.http.HttpResponse;
@@ -145,6 +143,54 @@ public class DsmoqClient implements AutoCloseable {
         } catch(IOException e) {
             System.out.println(e.getMessage());
             return null;
+        }
+    }
+
+    public void deleteFile(String datasetId, String fileId) {
+        try (AutoHttpDelete request = new AutoHttpDelete((_baseUrl + String.format("/api/datasets/%s/files/%s", datasetId, fileId)))) {
+            HttpClient client = getClient();
+            client.execute(request);
+        } catch(IOException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    public void updateDatasetMetaInfo(String datasetId, UpdateDatasetMetaParam param) {
+        try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/datasets/%s/metadata", datasetId))) {
+            HttpClient client = getClient();
+            List<NameValuePair> params = new ArrayList<>();
+            params.add(new BasicNameValuePair("d", param.toJsonString()));
+            request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
+            client.execute(request);
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    public DatasetAddImages addImagesToDataset(String datasetId, File... files) {
+        try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/images", datasetId)))) {
+            HttpClient client = getClient();
+            MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+            Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("images", file));
+            request.setEntity(builder.build());
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            return JsonUtil.toDatasetAddImages(json);
+        } catch(IOException e) {
+            System.out.println(e.getMessage());
+            return null;
+        }
+    }
+
+    public void setPrimaryImageToDataset(String datasetId, SetPrimaryImageParam param) {
+        try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/datasets/%s/images/primary", datasetId))) {
+            HttpClient client = getClient();
+            List<NameValuePair> params = new ArrayList<>();
+            params.add(new BasicNameValuePair("d", param.toJsonString()));
+            request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
+            client.execute(request);
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
         }
     }
 

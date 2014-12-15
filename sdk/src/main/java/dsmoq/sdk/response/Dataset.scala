@@ -87,18 +87,25 @@ case class DatasetAttribute(
   def getValue = value
 }
 
-  case class DatasetAddFiles(
-                              files: Array[DatasetFile]
-                              )
+case class DatasetAddFiles(
+  private val files: Seq[DatasetFile]
+) {
+  def getFiles = files.asJava
+}
 
-  case class DatasetAddImages(
-                               images: Array[Image],
-                               primaryImage: String
-                               )
+case class DatasetAddImages(
+  private val images: Seq[Image],
+  private val primaryImage: String
+) {
+  def getImages = images.asJava
+  def getPrimaryImage = primaryImage
+}
 
-  case class DatasetDeleteImage(
-                                 primaryImage: String
-                                 )
+case class DatasetDeleteImage(
+  private val primaryImage: String
+) {
+  def getPrimaryImage = primaryImage
+}
 
 case class DatasetFile(
   private val id: String,

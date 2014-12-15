@@ -23,6 +23,10 @@ object JsonUtil {
     val response = toObject[Response[DatasetFile]](obj)
     response.data
   }
+  def toDatasetAddImages(obj: String): DatasetAddImages = {
+    val response = toObject[Response[DatasetAddImages]](obj)
+    response.data
+  }
   def toDatasetTask(obj: String): DatasetTask = {
     val response = toObject[Response[DatasetTask]](obj)
     response.data
