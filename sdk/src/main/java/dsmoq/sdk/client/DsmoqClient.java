@@ -194,6 +194,45 @@ public class DsmoqClient implements AutoCloseable {
         }
     }
 
+    public DatasetDeleteImage deleteImageToDataset(String datasetId, String imageId) {
+        try (AutoHttpDelete request = new AutoHttpDelete(_baseUrl + String.format("/api/datasets/%s/images/%s", datasetId, imageId))) {
+            HttpClient client = getClient();
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            return JsonUtil.toDatasetDeleteImage(json);
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
+            return null;
+        }
+    }
+
+    public DatasetOwnerships changeAccessLevel(String datasetId, List<SetAccessLevelParam> params) {
+        try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/acl", datasetId)))) {
+            HttpClient client = getClient();
+            List<NameValuePair> p = new ArrayList<>();
+            p.add(new BasicNameValuePair("d", SetAccessLevelParam.toJsonString(params)));
+            request.setEntity(new UrlEncodedFormEntity(p, StandardCharsets.UTF_8));
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            return JsonUtil.toDatasetOwnerships(json);
+        } catch(IOException e) {
+            System.out.println(e.getMessage());
+            return null;
+        }
+    }
+
+    public void changeGuestAccessLevel(String datasetId, SetGuestAccessLevelParam param) {
+        try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/datasets/%s/guest_access", datasetId))) {
+            HttpClient client = getClient();
+            List<NameValuePair> params = new ArrayList<>();
+            params.add(new BasicNameValuePair("d", param.toJsonString()));
+            request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
+            client.execute(request);
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
     public DatasetTask changeDatasetStorage(String datasetId, ChangeStorageJson param) {
         try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/datasets/%s/storage", datasetId))) {
             HttpClient client = getClient();

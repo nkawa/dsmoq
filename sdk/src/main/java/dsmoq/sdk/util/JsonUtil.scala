@@ -6,7 +6,7 @@ import org.json4s.jackson.JsonMethods
 import org.json4s.{DefaultFormats, Formats}
 
 object JsonUtil {
-  protected implicit val jsonFormats: Formats = DefaultFormats
+  private implicit val jsonFormats: Formats = DefaultFormats
   def toDatasets(obj: String): RangeSlice[DatasetsSummary] = {
     val response = toObject[Response[RangeSlice[DatasetsSummary]]](obj)
     response.data
@@ -25,6 +25,14 @@ object JsonUtil {
   }
   def toDatasetAddImages(obj: String): DatasetAddImages = {
     val response = toObject[Response[DatasetAddImages]](obj)
+    response.data
+  }
+  def toDatasetDeleteImage(obj: String): DatasetDeleteImage = {
+    val response = toObject[Response[DatasetDeleteImage]](obj)
+    response.data
+  }
+  def toDatasetOwnerships(obj: String): DatasetOwnerships = {
+    val response = toObject[Response[DatasetOwnerships]](obj)
     response.data
   }
   def toDatasetTask(obj: String): DatasetTask = {

@@ -150,3 +150,9 @@ case class DatasetTask (
 ) {
   def getTaskId = taskId
 }
+
+case class DatasetOwnerships (
+  private val ownerships: Seq[DatasetOwnership]
+) {
+  def getOwnerships = ownerships.asJava
+}
