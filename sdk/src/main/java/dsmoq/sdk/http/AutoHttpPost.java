@@ -1,4 +1,4 @@
-package dsmoq.http;
+package dsmoq.sdk.http;
 
 import org.apache.http.client.methods.HttpPost;
 import java.net.URI;
