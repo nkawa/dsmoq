@@ -37,33 +37,55 @@ case class DatasetsSummary(
   def getS3State = s3State
 }
 
-  case class Dataset(
-                      id: String,
-                      filesSize: Long,
-                      filesCount: Int,
-                      files: Array[DatasetFile],
-                      meta: DatasetMetaData,
-                      images: Array[Image],
-                      primaryImage: String,
-                      ownerships: Array[DatasetOwnership],
-                      defaultAccessLevel: Int,
-                      permission: Int,
-                      accessCount: Long,
-                      localState: Int,
-                      s3State: Int
-                      )
+case class Dataset(
+  private val id: String,
+  private val filesSize: Long,
+  private val filesCount: Int,
+  private val files: Seq[DatasetFile],
+  private val meta: DatasetMetaData,
+  private val images: Seq[Image],
+  private val primaryImage: String,
+  private val ownerships: Seq[DatasetOwnership],
+  private val defaultAccessLevel: Int,
+  private val permission: Int,
+  private val accessCount: Long,
+  private val localState: Int,
+  private val s3State: Int
+) {
+  def getId = id
+  def getFilesSize = filesSize
+  def getFilesCount = filesCount
+  def getFiles = files.asJava
+  def getMeta = meta
+  def getImages = images.asJava
+  def getPrimaryImage = primaryImage
+  def getOwnerShips = ownerships.asJava
+  def getDefaultAccessLevel = defaultAccessLevel
+  def getPermission = permission
+  def getAccessCount = accessCount
+  def getLocalState = localState
+  def getS3State = s3State
+}
 
-  case class DatasetMetaData(
-                              name: String,
-                              description: String,
-                              license : String,
-                              attributes: Array[DatasetAttribute]
-                              )
+case class DatasetMetaData(
+  private val name: String,
+  private val description: String,
+  private val license : String,
+  private val attributes: Seq[DatasetAttribute]
+) {
+  def getName = name
+  def getDescription = description
+  def getLicense = license
+  def getAttributes = attributes.asJava
+}
 
-  case class DatasetAttribute(
-                               name: String,
-                               value: String
-                               )
+case class DatasetAttribute(
+  private val name: String,
+  private val value: String
+) {
+  def getName = name
+  def getValue = value
+}
 
   case class DatasetAddFiles(
                               files: Array[DatasetFile]
@@ -78,26 +100,43 @@ case class DatasetsSummary(
                                  primaryImage: String
                                  )
 
-  case class DatasetFile(
-                          id: String,
-                          name: String,
-                          description: String,
-                          url: String,
-                          size: Long,
-                          createdBy: User,
-                          createdAt: String,
-                          updatedBy: User,
-                          updatedAt: String
-                          )
+case class DatasetFile(
+  private val id: String,
+  private val name: String,
+  private val description: String,
+  private val url: String,
+  private val size: Long,
+  private val createdBy: User,
+  private val createdAt: String,
+  private val updatedBy: User,
+  private val updatedAt: String
+) {
+  def getId = id
+  def getName = name
+  def getDescroption = description
+  def getUrl = url
+  def getSize = size
+  def getCreatedBy = createdBy
+  def getCreatedAt = createdAt
+  def getUpdatedBy = updatedBy
+  def getUpdatedAt = updatedAt
+}
 
-  case class DatasetOwnership (
-                                id: String,
-                                name: String,
-                                fullname: String,
-                                image: String,
-                                accessLevel: Int,
-                                ownerType: Int
-                                )
+case class DatasetOwnership (
+  private val id: String,
+  private val name: String,
+  private val fullname: String,
+  private val image: String,
+  private val accessLevel: Int,
+  private val ownerType: Int
+) {
+  def getId = id
+  def getName = name
+  def getFullName = fullname
+  def getImage = image
+  def getAccessLevel = accessLevel
+  def getOwnerType = ownerType
+}
 
 case class DatasetTask (
   private val taskId: String

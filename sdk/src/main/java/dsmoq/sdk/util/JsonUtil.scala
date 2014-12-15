@@ -1,16 +1,26 @@
 package dsmoq.sdk.util
 
-import dsmoq.sdk.response.{DatasetTask, DatasetsSummary, Response, RangeSlice}
-import dsmoq.sdk.response.DatasetTask
-import dsmoq.sdk.response.Response
+import dsmoq.sdk.response._
 import org.json4s._
 import org.json4s.jackson.JsonMethods
 import org.json4s.{DefaultFormats, Formats}
 
 object JsonUtil {
   protected implicit val jsonFormats: Formats = DefaultFormats
-  def toDataset(obj: String): RangeSlice[DatasetsSummary] = {
+  def toDatasets(obj: String): RangeSlice[DatasetsSummary] = {
     val response = toObject[Response[RangeSlice[DatasetsSummary]]](obj)
+    response.data
+  }
+  def toDataset(obj: String): Dataset = {
+    val response = toObject[Response[Dataset]](obj)
+    response.data
+  }
+  def toDatasetAddFiles(obj: String): DatasetAddFiles = {
+    val response = toObject[Response[DatasetAddFiles]](obj)
+    response.data
+  }
+  def toDataseetFile(obj: String): DatasetFile = {
+    val response = toObject[Response[DatasetFile]](obj)
     response.data
   }
   def toDatasetTask(obj: String): DatasetTask = {

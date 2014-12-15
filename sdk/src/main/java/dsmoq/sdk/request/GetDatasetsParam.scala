@@ -6,7 +6,7 @@ import dsmoq.sdk.request.ConvertOptional._
 import scala.beans.BeanProperty
 import scala.collection.JavaConverters._
 
-case class GetDatasetParam(
+case class GetDatasetsParam(
   @BeanProperty var query: Optional[String],
   @BeanProperty var owners: java.util.List[String],
   @BeanProperty var groups: java.util.List[String],
@@ -15,8 +15,8 @@ case class GetDatasetParam(
   @BeanProperty var offset: Optional[Integer]
 ) {
 
-  private def param: json.GetDatasetJson = {
-    json.GetDatasetJson(
+  private def param: json.GetDatasetsJson = {
+    json.GetDatasetsJson(
       query.toOption,
       owners.asScala.toList,
       groups.asScala.toList,

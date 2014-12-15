@@ -1,12 +1,11 @@
 package dsmoq.sdk.client;
 
 import dsmoq.sdk.http.*;
+import dsmoq.sdk.request.UpdateFileMetaParam;
 import dsmoq.sdk.request.json.ChangeStorageJson;
-import dsmoq.sdk.request.GetDatasetParam;
+import dsmoq.sdk.request.GetDatasetsParam;
 import dsmoq.sdk.request.SigninParam;
-import dsmoq.sdk.response.DatasetTask;
-import dsmoq.sdk.response.DatasetsSummary;
-import dsmoq.sdk.response.RangeSlice;
+import dsmoq.sdk.response.*;
 import dsmoq.sdk.util.JsonUtil;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
@@ -16,8 +15,12 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 
+import org.apache.http.entity.mime.MultipartEntityBuilder;
+
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.nio.charset.StandardCharsets;
 import java.net.URLEncoder;
@@ -76,12 +79,69 @@ public class DsmoqClient implements AutoCloseable {
         }
     }
 
-    public RangeSlice<DatasetsSummary> getDataset(GetDatasetParam param) {
+    public RangeSlice<DatasetsSummary> getDatasets(GetDatasetsParam param) {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + "/api/datasets?d=" + URLEncoder.encode(param.toJsonString(), "UTF-8"))){
             HttpClient client = getClient();
             HttpResponse response = client.execute(request);
             String json = EntityUtils.toString(response.getEntity());
+            return JsonUtil.toDatasets(json);
+        } catch(IOException e) {
+            System.out.println(e.getMessage());
+            return null;
+        }
+    }
+
+    public Dataset getDataset(String datasetId) {
+        try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/datasets/%s", datasetId))){
+            HttpClient client = getClient();
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
             return JsonUtil.toDataset(json);
+        } catch(IOException e) {
+            System.out.println(e.getMessage());
+            return null;
+        }
+    }
+
+    public DatasetAddFiles addFiles(String datasetId, File... files) {
+        try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/files", datasetId)))) {
+            HttpClient client = getClient();
+            MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+            Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("files", file));
+            request.setEntity(builder.build());
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            return JsonUtil.toDatasetAddFiles(json);
+        } catch(IOException e) {
+            System.out.println(e.getMessage());
+            return null;
+        }
+    }
+
+    public DatasetFile updateFile(String datasetId, String fileId, File file) {
+        try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/files/%s", datasetId, fileId)))) {
+            HttpClient client = getClient();
+            MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+            builder.addBinaryBody("file", file);
+            request.setEntity(builder.build());
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            return JsonUtil.toDataseetFile(json);
+        } catch(IOException e) {
+            System.out.println(e.getMessage());
+            return null;
+        }
+    }
+
+    public DatasetFile updateFileMetaInfo(String datasetId, String fileId, UpdateFileMetaParam param) {
+        try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/files/%s/metadata", datasetId, fileId)))) {
+            HttpClient client = getClient();
+            List<NameValuePair> params = new ArrayList<>();
+            params.add(new BasicNameValuePair("d", param.toJsonString()));
+            request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            return JsonUtil.toDataseetFile(json);
         } catch(IOException e) {
             System.out.println(e.getMessage());
             return null;

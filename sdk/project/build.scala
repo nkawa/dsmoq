@@ -18,6 +18,7 @@ object DsmoqSdkBuild extends Build {
       scalaVersion := ScalaVersion,
       libraryDependencies ++= Seq(
         "org.apache.httpcomponents" % "httpclient" % "4.3.6",
+        "org.apache.httpcomponents" % "httpmime" % "4.3.6",
         "org.json4s" %% "json4s-jackson" % "3.2.10",
         "com.fasterxml.jackson.core" % "jackson-databind" % "2.4.4"
       )
