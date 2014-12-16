@@ -4,6 +4,7 @@ import dsmoq.sdk.response._
 import org.json4s._
 import org.json4s.jackson.JsonMethods
 import org.json4s.{DefaultFormats, Formats}
+import scala.collection.JavaConverters._
 
 object JsonUtil {
   private implicit val jsonFormats: Formats = DefaultFormats
@@ -58,6 +59,20 @@ object JsonUtil {
   def toGroupDeleteImage(obj: String): GroupDeleteImage = {
     statusCheck(obj)
     toObject[Response[GroupDeleteImage]](obj).getData
+  }
+  def toLicenses(obj: String): java.util.List[License] = {
+    statusCheck(obj)
+    val licenses = toObject[Response[List[License]]](obj).getData
+    licenses.asJava
+  }
+  def toUser(obj: String): User = {
+    statusCheck(obj)
+    toObject[Response[User]](obj).getData
+  }
+  def toUsers(obj: String): java.util.List[User] = {
+    statusCheck(obj)
+    val users = toObject[Response[List[User]]](obj).getData
+    users.asJava
   }
   private def toResponse(obj: String): Response[NoData] = {
     toObject[Response[NoData]](obj)
