@@ -11,12 +11,14 @@ import org.apache.http.NameValuePair;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.LaxRedirectStrategy;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 
 import org.apache.http.entity.mime.MultipartEntityBuilder;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,7 +27,8 @@ import java.nio.charset.StandardCharsets;
 import java.net.URLEncoder;
 
 /**
- *
+ * dsmoq APIを叩くためのクライアントクラス
+ * 個々のAPIとの対比はJavaDocとAPIのドキュメントを比較してみてください。
  */
 public class DsmoqClient implements AutoCloseable {
     private String _userName;
@@ -35,11 +38,12 @@ public class DsmoqClient implements AutoCloseable {
     private HttpClient client;
 
     /**
-     *
-     * @param baseUrl
-     * @param userName
-     * @param password
-     * @return
+     * クライアントオブジェクトを生成し、同時にサインインを行う。
+     * (/api/signin相当)
+     * @param baseUrl 基準となるURL
+     * @param userName ユーザーアカウント
+     * @param password パスワード
+     * @return 作成したクライアント
      */
     public static DsmoqClient signin(String baseUrl, String userName, String password) {
         DsmoqClient client = new DsmoqClient(baseUrl, userName, password);
@@ -48,10 +52,10 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param baseUrl
-     * @param userName
-     * @param password
+     * クライアントオブジェクトを生成する。
+     * @param baseUrl 基準となるURL
+     * @param userName ユーザーアカウント
+     * @param password パスワード
      */
     public DsmoqClient(String baseUrl, String userName, String password) {
         this._baseUrl = baseUrl;
@@ -59,6 +63,9 @@ public class DsmoqClient implements AutoCloseable {
         this._password = password;
     }
 
+    /**
+     * サインインを行う。(POST /api/signin相当)
+     */
     public void signin() {
         if (isSignin) {
             return;
@@ -78,6 +85,9 @@ public class DsmoqClient implements AutoCloseable {
         isSignin = true;
     }
 
+    /**
+     * サインアウトを行う。(POST /api/signout相当)
+     */
     public void signout() {
         if (!isSignin) {
             return;
@@ -93,9 +103,9 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param param
-     * @return
+     * Datasetを検索する。(GET /api/datasets相当)
+     * @param param Dataset検索に使用するパラメタ
+     * @return 検索結果
      */
     public RangeSlice<DatasetsSummary> getDatasets(GetDatasetsParam param) {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + "/api/datasets?d=" + URLEncoder.encode(param.toJsonString(), "UTF-8"))){
@@ -109,9 +119,9 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param datasetId
-     * @return
+     * Datasetを取得する。(GET /api/datasets/${dataset_id}相当)
+     * @param datasetId DatasetID
+     * @return 取得結果
      */
     public Dataset getDataset(String datasetId) {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/datasets/%s", datasetId))){
@@ -125,9 +135,9 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param files
-     * @return
+     * Datasetを作成する。(POST /api/datasets相当)
+     * @param files Datasetに設定するファイル(複数可)
+     * @return 作成したDataset
      */
     public Dataset createDataset(File... files) {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/datasets"))) {
@@ -144,10 +154,10 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param datasetId
-     * @param files
-     * @return
+     * Datasetにファイルを追加する。(POST /api/datasets/${dataset_id}/files相当)
+     * @param datasetId DatasetID
+     * @param files Datasetに追加するファイル(複数可)
+     * @return 追加したファイルの情報
      */
     public DatasetAddFiles addFiles(String datasetId, File... files) {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/files", datasetId)))) {
@@ -164,11 +174,11 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param datasetId
-     * @param fileId
-     * @param file
-     * @return
+     * ファイルを更新する。(POST /api/datasets/${dataset_id}/files/${file_id}相当)
+     * @param datasetId DatasetID
+     * @param fileId ファイルID
+     * @param file 更新対象のファイル
+     * @return 更新されたファイル情報
      */
     public DatasetFile updateFile(String datasetId, String fileId, File file) {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/files/%s", datasetId, fileId)))) {
@@ -185,11 +195,11 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param datasetId
-     * @param fileId
-     * @param param
-     * @return
+     * ファイル情報を更新する。(POST /api/datasets/${dataset_id}/files/${file_id}/metadata相当)
+     * @param datasetId DatasetID
+     * @param fileId ファイルID
+     * @param param ファイル更新情報
+     * @return 更新したファイル情報
      */
     public DatasetFile updateFileMetaInfo(String datasetId, String fileId, UpdateFileMetaParam param) {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/files/%s/metadata", datasetId, fileId)))) {
@@ -584,6 +594,10 @@ public class DsmoqClient implements AutoCloseable {
         }
     }
 
+    /**
+     *
+     * @return
+     */
     public List<License> getLicenses() {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + "/api/licenses")){
             HttpClient client = getClient();
@@ -595,6 +609,10 @@ public class DsmoqClient implements AutoCloseable {
         }
     }
 
+    /**
+     *
+     * @return
+     */
     public User getProfile() {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + "/api/profile")){
             HttpClient client = getClient();
@@ -606,6 +624,11 @@ public class DsmoqClient implements AutoCloseable {
         }
     }
 
+    /**
+     *
+     * @param param
+     * @return
+     */
     public User updateProfile(UpdateProfileParam param) {
         try (AutoHttpPut request = new AutoHttpPut((_baseUrl + "/api/profile"))) {
             HttpClient client = getClient();
@@ -620,6 +643,11 @@ public class DsmoqClient implements AutoCloseable {
         }
     }
 
+    /**
+     *
+     * @param file
+     * @return
+     */
     public User updateProfileIcon(File file) {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/profile/image"))) {
             HttpClient client = getClient();
@@ -634,6 +662,11 @@ public class DsmoqClient implements AutoCloseable {
         }
     }
 
+    /**
+     *
+     * @param param
+     * @return
+     */
     public User updateEmail(UpdateEmailParam param) {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/profile/email_change_requests"))) {
             HttpClient client = getClient();
@@ -648,6 +681,10 @@ public class DsmoqClient implements AutoCloseable {
         }
     }
 
+    /**
+     *
+     * @param param
+     */
     public void changePassword(ChangePasswordParam param) {
         try (AutoHttpPut request = new AutoHttpPut((_baseUrl + "/api/profile/password"))) {
             HttpClient client = getClient();
@@ -662,12 +699,40 @@ public class DsmoqClient implements AutoCloseable {
         }
     }
 
+    /**
+     *
+     * @return
+     */
     public List<User> getAccounts() {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + "/api/accounts")){
             HttpClient client = getClient();
             HttpResponse response = client.execute(request);
             String json = EntityUtils.toString(response.getEntity());
             return JsonUtil.toUsers(json);
+        } catch(IOException e) {
+            throw new ApiFailedException(e.getMessage(), e);
+        }
+    }
+
+    /**
+     *
+     * @param datasetId
+     * @param fileId
+     * @return
+     */
+    public File getFile(String datasetId, String fileId) {
+        try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/files/%s/%s", datasetId, fileId))){
+            HttpClient client = getClient();
+            HttpResponse response = client.execute(request);
+
+            Dataset dataset = getDataset(datasetId);
+            DatasetFile targetFile = dataset.getFiles().stream().filter(x -> x.getId().equals(fileId)).findFirst().get();
+
+            File file = new File(targetFile.getName());
+            try (FileOutputStream fos = new FileOutputStream(file)) {
+                response.getEntity().writeTo(fos);
+            }
+            return file;
         } catch(IOException e) {
             throw new ApiFailedException(e.getMessage(), e);
         }
@@ -687,7 +752,7 @@ public class DsmoqClient implements AutoCloseable {
      */
     private HttpClient getClient() {
         if (client == null) {
-            client = HttpClientBuilder.create().build();
+            client = HttpClientBuilder.create().setRedirectStrategy(new LaxRedirectStrategy()).build();
         }
         return client;
     }
