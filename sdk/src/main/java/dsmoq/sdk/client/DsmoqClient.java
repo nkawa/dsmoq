@@ -104,6 +104,20 @@ public class DsmoqClient implements AutoCloseable {
         }
     }
 
+    public Dataset createDataset(File... files) {
+        try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/datasets"))) {
+            HttpClient client = getClient();
+            MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+            Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("files", file));
+            request.setEntity(builder.build());
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            return JsonUtil.toDataset(json);
+        } catch(IOException e) {
+            throw new ApiFailedException(e.getMessage(), e);
+        }
+    }
+
     public DatasetAddFiles addFiles(String datasetId, File... files) {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/files", datasetId)))) {
             HttpClient client = getClient();
@@ -291,6 +305,123 @@ public class DsmoqClient implements AutoCloseable {
             HttpResponse response = client.execute(request);
             String json = EntityUtils.toString(response.getEntity());
             return JsonUtil.toMembers(json);
+        } catch(IOException e) {
+            throw new ApiFailedException(e.getMessage(), e);
+        }
+    }
+
+    public Group createGroup(CreateGroupParam param) {
+        try (AutoHttpPost request = new AutoHttpPost(_baseUrl + "/api/groups")) {
+            HttpClient client = getClient();
+            List<NameValuePair> params = new ArrayList<>();
+            params.add(new BasicNameValuePair("d", param.toJsonString()));
+            request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            return JsonUtil.toGroup(json);
+        } catch (IOException e) {
+            throw new ApiFailedException(e.getMessage(), e);
+        }
+    }
+
+    public Group updateGroup(String groupId, UpdateGroupParam param) {
+        try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/groups/%s", groupId))) {
+            HttpClient client = getClient();
+            List<NameValuePair> params = new ArrayList<>();
+            params.add(new BasicNameValuePair("d", param.toJsonString()));
+            request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            return JsonUtil.toGroup(json);
+        } catch (IOException e) {
+            throw new ApiFailedException(e.getMessage(), e);
+        }
+    }
+
+    public GroupAddImages addImagesToGroup(String groupId, File... files) {
+        try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/groups/%s/images", groupId)))) {
+            HttpClient client = getClient();
+            MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+            Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("images", file));
+            request.setEntity(builder.build());
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            return JsonUtil.toGroupAddImages(json);
+        } catch(IOException e) {
+            throw new ApiFailedException(e.getMessage(), e);
+        }
+    }
+
+    public void setPrimaryImageToGroup(String groupId, SetPrimaryImageParam param) {
+        try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/groups/%s/images/primary", groupId))) {
+            HttpClient client = getClient();
+            List<NameValuePair> params = new ArrayList<>();
+            params.add(new BasicNameValuePair("d", param.toJsonString()));
+            request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            JsonUtil.statusCheck(json);
+        } catch (IOException e) {
+            throw new ApiFailedException(e.getMessage(), e);
+        }
+    }
+
+    public GroupDeleteImage deleteImageToGroup(String groupId, String imageId) {
+        try (AutoHttpDelete request = new AutoHttpDelete(_baseUrl + String.format("/api/groups/%s/images/%s", groupId, imageId))) {
+            HttpClient client = getClient();
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            return JsonUtil.toGroupDeleteImage(json);
+        } catch (IOException e) {
+            throw new ApiFailedException(e.getMessage(), e);
+        }
+    }
+
+    public void addMember(String groupId, AddMemberParam param) {
+        try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/groups/%s/members", groupId)))) {
+            HttpClient client = getClient();
+            List<NameValuePair> params = new ArrayList<>();
+            params.add(new BasicNameValuePair("d", param.toJsonString()));
+            request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            JsonUtil.statusCheck(json);
+        } catch(IOException e) {
+            throw new ApiFailedException(e.getMessage(), e);
+        }
+    }
+
+    public void setMemberRole(String groupId, String userId, SetMemberRoleParam param) {
+        try (AutoHttpPut request = new AutoHttpPut((_baseUrl + String.format("/api/groups/%s/members/%s", groupId, userId)))) {
+            HttpClient client = getClient();
+            List<NameValuePair> params = new ArrayList<>();
+            params.add(new BasicNameValuePair("d", param.toJsonString()));
+            request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            JsonUtil.statusCheck(json);
+        } catch(IOException e) {
+            throw new ApiFailedException(e.getMessage(), e);
+        }
+    }
+
+    public void deleteMember(String groupId, String userId) {
+        try (AutoHttpDelete request = new AutoHttpDelete((_baseUrl + String.format("/api/groups/%s/members/%s", groupId, userId)))) {
+            HttpClient client = getClient();
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            JsonUtil.statusCheck(json);
+        } catch(IOException e) {
+            throw new ApiFailedException(e.getMessage(), e);
+        }
+    }
+
+    public void deleteGroup(String groupId) {
+        try (AutoHttpDelete request = new AutoHttpDelete((_baseUrl + String.format("/api/groups/%s", groupId)))) {
+            HttpClient client = getClient();
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            JsonUtil.statusCheck(json);
         } catch(IOException e) {
             throw new ApiFailedException(e.getMessage(), e);
         }

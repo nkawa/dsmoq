@@ -51,6 +51,14 @@ object JsonUtil {
     statusCheck(obj)
     toObject[Response[RangeSlice[MemberSummary]]](obj).getData
   }
+  def toGroupAddImages(obj: String): GroupAddImages = {
+    statusCheck(obj)
+    toObject[Response[GroupAddImages]](obj).getData
+  }
+  def toGroupDeleteImage(obj: String): GroupDeleteImage = {
+    statusCheck(obj)
+    toObject[Response[GroupDeleteImage]](obj).getData
+  }
   private def toResponse(obj: String): Response[NoData] = {
     toObject[Response[NoData]](obj)
   }
