@@ -5,8 +5,8 @@ case class GetDatasetsJson(
   owners: List[String] = List.empty,
   groups: List[String] = List.empty,
   attributes: List[Attribute] = List.empty,
-  limit: Option[Int] = None,
-  offset: Option[Int] = None
+  limit: Option[Int] = Some(20),
+  offset: Option[Int] = Some(0)
 ) extends Jsonable
 
 case class Attribute(id: String, value: String)
