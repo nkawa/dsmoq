@@ -4,6 +4,7 @@ import dsmoq.sdk.http.*;
 import dsmoq.sdk.request.*;
 import dsmoq.sdk.request.json.ChangeStorageJson;
 import dsmoq.sdk.response.*;
+import dsmoq.sdk.util.ApiFailedException;
 import dsmoq.sdk.util.JsonUtil;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
@@ -58,9 +59,11 @@ public class DsmoqClient implements AutoCloseable {
             List<NameValuePair> params = new ArrayList<>();
             params.add(new BasicNameValuePair("d", signin.toJsonString()));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
-            client.execute(request);
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            JsonUtil.statusCheck(json);
         } catch(IOException e) {
-            System.out.println("error");
+            throw new ApiFailedException(e.getMessage(), e);
         }
         isSignin = true;
     }
@@ -71,9 +74,11 @@ public class DsmoqClient implements AutoCloseable {
         }
         try (AutoHttpPost request = new AutoHttpPost(_baseUrl + "/api/signout")){
             HttpClient client = getClient();
-            client.execute(request);
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            JsonUtil.statusCheck(json);
         } catch(IOException e) {
-
+            throw new ApiFailedException(e.getMessage(), e);
         }
     }
 
@@ -84,8 +89,7 @@ public class DsmoqClient implements AutoCloseable {
             String json = EntityUtils.toString(response.getEntity());
             return JsonUtil.toDatasets(json);
         } catch(IOException e) {
-            System.out.println(e.getMessage());
-            return null;
+            throw new ApiFailedException(e.getMessage(), e);
         }
     }
 
@@ -96,8 +100,7 @@ public class DsmoqClient implements AutoCloseable {
             String json = EntityUtils.toString(response.getEntity());
             return JsonUtil.toDataset(json);
         } catch(IOException e) {
-            System.out.println(e.getMessage());
-            return null;
+            throw new ApiFailedException(e.getMessage(), e);
         }
     }
 
@@ -111,8 +114,7 @@ public class DsmoqClient implements AutoCloseable {
             String json = EntityUtils.toString(response.getEntity());
             return JsonUtil.toDatasetAddFiles(json);
         } catch(IOException e) {
-            System.out.println(e.getMessage());
-            return null;
+            throw new ApiFailedException(e.getMessage(), e);
         }
     }
 
@@ -126,8 +128,7 @@ public class DsmoqClient implements AutoCloseable {
             String json = EntityUtils.toString(response.getEntity());
             return JsonUtil.toDataseetFile(json);
         } catch(IOException e) {
-            System.out.println(e.getMessage());
-            return null;
+            throw new ApiFailedException(e.getMessage(), e);
         }
     }
 
@@ -141,17 +142,18 @@ public class DsmoqClient implements AutoCloseable {
             String json = EntityUtils.toString(response.getEntity());
             return JsonUtil.toDataseetFile(json);
         } catch(IOException e) {
-            System.out.println(e.getMessage());
-            return null;
+            throw new ApiFailedException(e.getMessage(), e);
         }
     }
 
     public void deleteFile(String datasetId, String fileId) {
         try (AutoHttpDelete request = new AutoHttpDelete((_baseUrl + String.format("/api/datasets/%s/files/%s", datasetId, fileId)))) {
             HttpClient client = getClient();
-            client.execute(request);
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            JsonUtil.statusCheck(json);
         } catch(IOException e) {
-            System.out.println(e.getMessage());
+            throw new ApiFailedException(e.getMessage(), e);
         }
     }
 
@@ -161,9 +163,11 @@ public class DsmoqClient implements AutoCloseable {
             List<NameValuePair> params = new ArrayList<>();
             params.add(new BasicNameValuePair("d", param.toJsonString()));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
-            client.execute(request);
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            JsonUtil.statusCheck(json);
         } catch (IOException e) {
-            System.out.println(e.getMessage());
+            throw new ApiFailedException(e.getMessage(), e);
         }
     }
 
@@ -177,8 +181,7 @@ public class DsmoqClient implements AutoCloseable {
             String json = EntityUtils.toString(response.getEntity());
             return JsonUtil.toDatasetAddImages(json);
         } catch(IOException e) {
-            System.out.println(e.getMessage());
-            return null;
+            throw new ApiFailedException(e.getMessage(), e);
         }
     }
 
@@ -188,9 +191,11 @@ public class DsmoqClient implements AutoCloseable {
             List<NameValuePair> params = new ArrayList<>();
             params.add(new BasicNameValuePair("d", param.toJsonString()));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
-            client.execute(request);
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            JsonUtil.statusCheck(json);
         } catch (IOException e) {
-            System.out.println(e.getMessage());
+            throw new ApiFailedException(e.getMessage(), e);
         }
     }
 
@@ -201,8 +206,7 @@ public class DsmoqClient implements AutoCloseable {
             String json = EntityUtils.toString(response.getEntity());
             return JsonUtil.toDatasetDeleteImage(json);
         } catch (IOException e) {
-            System.out.println(e.getMessage());
-            return null;
+            throw new ApiFailedException(e.getMessage(), e);
         }
     }
 
@@ -216,8 +220,7 @@ public class DsmoqClient implements AutoCloseable {
             String json = EntityUtils.toString(response.getEntity());
             return JsonUtil.toDatasetOwnerships(json);
         } catch(IOException e) {
-            System.out.println(e.getMessage());
-            return null;
+            throw new ApiFailedException(e.getMessage(), e);
         }
     }
 
@@ -227,9 +230,22 @@ public class DsmoqClient implements AutoCloseable {
             List<NameValuePair> params = new ArrayList<>();
             params.add(new BasicNameValuePair("d", param.toJsonString()));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
-            client.execute(request);
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            JsonUtil.statusCheck(json);
         } catch (IOException e) {
-            System.out.println(e.getMessage());
+            throw new ApiFailedException(e.getMessage(), e);
+        }
+    }
+
+    public void deleteDataset(String datasetId) {
+        try (AutoHttpDelete request = new AutoHttpDelete(_baseUrl + String.format("/api/datasets/%s", datasetId))) {
+            HttpClient client = getClient();
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            JsonUtil.statusCheck(json);
+        } catch (IOException e) {
+            throw new ApiFailedException(e.getMessage(), e);
         }
     }
 
@@ -243,8 +259,40 @@ public class DsmoqClient implements AutoCloseable {
             String json = EntityUtils.toString(response.getEntity());
             return JsonUtil.toDatasetTask(json);
         } catch (IOException e) {
-            System.out.println(e.getMessage());
-            return null;
+            throw new ApiFailedException(e.getMessage(), e);
+        }
+    }
+
+    public RangeSlice<GroupsSummary> getGroups(GetGroupsParam param) {
+        try (AutoHttpGet request = new AutoHttpGet(_baseUrl + "/api/groups?d=" + URLEncoder.encode(param.toJsonString(), "UTF-8"))){
+            HttpClient client = getClient();
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            return JsonUtil.toGroups(json);
+        } catch(IOException e) {
+            throw new ApiFailedException(e.getMessage(), e);
+        }
+    }
+
+    public Group getGroup(String groupId) {
+        try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/groups/%s", groupId))){
+            HttpClient client = getClient();
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            return JsonUtil.toGroup(json);
+        } catch(IOException e) {
+            throw new ApiFailedException(e.getMessage(), e);
+        }
+    }
+
+    public RangeSlice<MemberSummary> getMembers(String groupId, GetMembersParam param) {
+        try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/groups/%s/members?d=%s", groupId, URLEncoder.encode(param.toJsonString(), "UTF-8")))){
+            HttpClient client = getClient();
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            return JsonUtil.toMembers(json);
+        } catch(IOException e) {
+            throw new ApiFailedException(e.getMessage(), e);
         }
     }
 
