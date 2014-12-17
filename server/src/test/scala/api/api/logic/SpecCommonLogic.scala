@@ -293,6 +293,61 @@ object SpecCommonLogic {
         }
       }
       deleteAllFile()
+
+      val ts = DateTime.now
+      persistence.User.create(
+        id = "023bfa40-e897-4dad-96db-9fd3cf001e80",
+        name = "dummy",
+        fullname = "テストダミーユーザー",
+        organization = "organization",
+        title = "title",
+        description = "description",
+        imageId = defaultUserIconId,
+        createdBy = AppConf.systemUserId,
+        createdAt = ts,
+        updatedBy = AppConf.systemUserId,
+        updatedAt = ts
+      )
+      persistence.Password.create(
+        id = "3401fdbb-428c-4cd5-961b-4ab9f171f18c",
+        userId = "023bfa40-e897-4dad-96db-9fd3cf001e80",
+        hash = "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
+        createdBy = AppConf.systemUserId,
+        createdAt = ts,
+        updatedBy = AppConf.systemUserId,
+        updatedAt = ts
+      )
+      persistence.MailAddress.create(
+        id = "17c91656-d5ba-404d-a2c8-7a2d94edcd25",
+        userId = "023bfa40-e897-4dad-96db-9fd3cf001e80",
+        address = "dummy@example.jp",
+        status = 1,
+        createdBy = AppConf.systemUserId,
+        createdAt = ts,
+        updatedBy = AppConf.systemUserId,
+        updatedAt = ts
+      )
+      persistence.Group.create(
+        id = "4d3c781e-6591-4f1f-a30c-ec1d2a991645",
+        name = "dummy1",
+        description = "",
+        groupType = 1,
+        createdBy = AppConf.systemUserId,
+        createdAt = ts,
+        updatedBy = AppConf.systemUserId,
+        updatedAt = ts
+      )
+      persistence.Member.create(
+        id = "fb2e43d2-d415-49ee-affe-c9f542cb6d95",
+        groupId = "4d3c781e-6591-4f1f-a30c-ec1d2a991645",
+        userId = "023bfa40-e897-4dad-96db-9fd3cf001e80",
+        role = 2,
+        status = 1,
+        createdBy = AppConf.systemUserId,
+        createdAt = ts,
+        updatedBy = AppConf.systemUserId,
+        updatedAt = ts
+      )
     }
   }
 
