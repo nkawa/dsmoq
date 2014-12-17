@@ -78,9 +78,22 @@ object JsonUtil {
     toObject[Response[NoData]](obj)
   }
   def statusCheck(obj: String): Unit = {
-    val response = toResponse(obj)
-    if (response.getStatus != "OK") throw new ApiFailedException(response.getStatus)
+      toResponse(obj).getStatus match {
+      case "Unauthorized" => throw new NotAuthorizedException()
+      case "NotFound" => throw new NotFoundException()
+      case "BadRequest" => {
+        val response = toObject[Response[List[InputValidationErrorJson]]](obj)
+        val errors = response.getData.map(x => new InputValidationError(x.name, x.message)).asJava
+        throw new InputValidationException(errors)
+      }
+      case "NG" => throw new ApiFailedException()
+      case _ => // do nothing
+    }
   }
   private case class NoData()
+  private case class InputValidationErrorJson(
+    name: String,
+    message: String
+  )
   private def toObject[A](obj: String)(implicit m: Manifest[A]): A = JsonMethods.parse(obj).extract[A]
 }

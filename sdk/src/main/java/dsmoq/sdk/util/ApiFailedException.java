@@ -1,9 +1,11 @@
 package dsmoq.sdk.util;
 
 public class ApiFailedException extends RuntimeException {
+
     public ApiFailedException() {
         super();
     }
+
     public ApiFailedException(String message) {
         super(message);
     }
