@@ -7,5 +7,6 @@ import scala.beans.BeanProperty
 
 case class GetMembersParam(@BeanProperty var limit: Optional[Integer], @BeanProperty var offset: Optional[Integer]) {
   private def param = json.GetMembersJson(limit.toOption.map(x => x.intValue()), offset.toOption.map(x => x.intValue()))
+  def this() = this(Optional.empty(), Optional.empty())
   def toJsonString = param.toJsonString()
 }

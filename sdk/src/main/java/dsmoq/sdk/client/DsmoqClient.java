@@ -14,12 +14,14 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.LaxRedirectStrategy;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
+import org.apache.http.impl.client.CloseableHttpClient;
 
 import org.apache.http.entity.mime.MultipartEntityBuilder;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -35,7 +37,7 @@ public class DsmoqClient implements AutoCloseable {
     private String _password;
     private String _baseUrl;
     private boolean isSignin;
-    private HttpClient client;
+    private CloseableHttpClient client;
 
     /**
      * クライアントオブジェクトを生成し、同時にサインインを行う。
@@ -718,9 +720,10 @@ public class DsmoqClient implements AutoCloseable {
      *
      * @param datasetId
      * @param fileId
+     * @param downloadDirectory
      * @return
      */
-    public File getFile(String datasetId, String fileId) {
+    public File getFile(String datasetId, String fileId, String downloadDirectory) {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/files/%s/%s", datasetId, fileId))){
             HttpClient client = getClient();
             HttpResponse response = client.execute(request);
@@ -728,7 +731,7 @@ public class DsmoqClient implements AutoCloseable {
             Dataset dataset = getDataset(datasetId);
             DatasetFile targetFile = dataset.getFiles().stream().filter(x -> x.getId().equals(fileId)).findFirst().get();
 
-            File file = new File(targetFile.getName());
+            File file = Paths.get(downloadDirectory, targetFile.getName()).toFile();
             try (FileOutputStream fos = new FileOutputStream(file)) {
                 response.getEntity().writeTo(fos);
             }
@@ -743,7 +746,19 @@ public class DsmoqClient implements AutoCloseable {
      */
     @Override
     public void close() {
-        signout();
+        try {
+            signout();
+        } catch (Exception e) {
+            // do nothing
+        }
+        try {
+            if (client != null) {
+                client.close();
+            }
+        } catch (Exception e) {
+            // do nothing
+        }
+        client = null;
     }
 
     /**

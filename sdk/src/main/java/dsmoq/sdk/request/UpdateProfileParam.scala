@@ -10,5 +10,6 @@ case class UpdateProfileParam(
   @BeanProperty var description: String
 ) {
   private def param = json.UpdateProfileJson(name, fullname, organization, title, description)
+  def this() = this("", "", "", "", "")
   def toJsonString = param.toJsonString()
 }

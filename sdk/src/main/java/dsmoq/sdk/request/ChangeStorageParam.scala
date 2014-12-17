@@ -6,5 +6,6 @@ case class ChangeStorageParam(@BeanProperty var saveLocal: Boolean, @BeanPropert
   private def param = {
     json.ChangeStorageJson(saveLocal, saveS3)
   }
+  def this() = this(false, false)
   def toJsonString = param.toJsonString()
 }
