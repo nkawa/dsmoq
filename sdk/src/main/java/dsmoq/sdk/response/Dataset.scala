@@ -120,7 +120,7 @@ case class DatasetFile(
 ) {
   def getId = id
   def getName = name
-  def getDescroption = description
+  def getDescription = description
   def getUrl = url
   def getSize = size
   def getCreatedBy = createdBy

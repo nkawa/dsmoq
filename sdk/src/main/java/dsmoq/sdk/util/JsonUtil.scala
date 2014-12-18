@@ -20,7 +20,7 @@ object JsonUtil {
     statusCheck(obj)
     toObject[Response[DatasetAddFiles]](obj).getData
   }
-  def toDataseetFile(obj: String): DatasetFile = {
+  def toDatasetFile(obj: String): DatasetFile = {
     statusCheck(obj)
     toObject[Response[DatasetFile]](obj).getData
   }

@@ -145,7 +145,7 @@ public class DsmoqClient implements AutoCloseable {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/datasets"))) {
             HttpClient client = getClient();
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
-            Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("files", file));
+            Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("file[]", file));
             request.setEntity(builder.build());
             HttpResponse response = client.execute(request);
             String json = EntityUtils.toString(response.getEntity());
@@ -190,7 +190,7 @@ public class DsmoqClient implements AutoCloseable {
             request.setEntity(builder.build());
             HttpResponse response = client.execute(request);
             String json = EntityUtils.toString(response.getEntity());
-            return JsonUtil.toDataseetFile(json);
+            return JsonUtil.toDatasetFile(json);
         } catch(IOException e) {
             throw new ApiFailedException(e.getMessage(), e);
         }
@@ -204,14 +204,14 @@ public class DsmoqClient implements AutoCloseable {
      * @return 更新したファイル情報
      */
     public DatasetFile updateFileMetaInfo(String datasetId, String fileId, UpdateFileMetaParam param) {
-        try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/files/%s/metadata", datasetId, fileId)))) {
+        try (AutoHttpPut request = new AutoHttpPut((_baseUrl + String.format("/api/datasets/%s/files/%s/metadata", datasetId, fileId)))) {
             HttpClient client = getClient();
             List<NameValuePair> params = new ArrayList<>();
             params.add(new BasicNameValuePair("d", param.toJsonString()));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
             HttpResponse response = client.execute(request);
             String json = EntityUtils.toString(response.getEntity());
-            return JsonUtil.toDataseetFile(json);
+            return JsonUtil.toDatasetFile(json);
         } catch(IOException e) {
             throw new ApiFailedException(e.getMessage(), e);
         }
@@ -368,7 +368,7 @@ public class DsmoqClient implements AutoCloseable {
      * @param param
      * @return
      */
-    public DatasetTask changeDatasetStorage(String datasetId, ChangeStorageJson param) {
+    public DatasetTask changeDatasetStorage(String datasetId, ChangeStorageParam param) {
         try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/datasets/%s/storage", datasetId))) {
             HttpClient client = getClient();
             List<NameValuePair> params = new ArrayList<>();
@@ -531,11 +531,11 @@ public class DsmoqClient implements AutoCloseable {
      * @param groupId
      * @param param
      */
-    public void addMember(String groupId, AddMemberParam param) {
+    public void addMember(String groupId, List<AddMemberParam> param) {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/groups/%s/members", groupId)))) {
             HttpClient client = getClient();
             List<NameValuePair> params = new ArrayList<>();
-            params.add(new BasicNameValuePair("d", param.toJsonString()));
+            params.add(new BasicNameValuePair("d", AddMemberParam.toJsonString(param)));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
             HttpResponse response = client.execute(request);
             String json = EntityUtils.toString(response.getEntity());
