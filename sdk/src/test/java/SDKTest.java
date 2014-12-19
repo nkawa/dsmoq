@@ -229,7 +229,7 @@ public class SDKTest {
             String datasetId = summaries.stream().findFirst().get().getId();
             Dataset dataset = client.getDataset(datasetId);
             String fileId = dataset.getFiles().stream().findFirst().get().getId();
-            File file = client.getFile(datasetId, fileId, ".");
+            File file = client.downloadFile(datasetId, fileId, ".");
             assertThat(file.getName(), is("README.md"));
             assertThat(file.exists(), is(true));
             file.delete();
@@ -424,6 +424,17 @@ public class SDKTest {
         try (DsmoqClient client = DsmoqClient.signin("http://localhost:8080", "dummy", "password")) {
             List<User> users = client.getAccounts();
             assertThat(users.size(), is(2));
+        }
+    }
+
+    @Test
+    public void タスクのステータスを取得できるか() {
+        try (DsmoqClient client = DsmoqClient.signin("http://localhost:8080", "dummy", "password")) {
+            Dataset dataset = client.createDataset(new File("../../README.md"));
+            String datasetId = dataset.getId();
+            DatasetTask task = client.changeDatasetStorage(datasetId, new ChangeStorageParam(false, true));
+            TaskStatus status = client.getTaskStatus(task.getTaskId());
+            assertThat(status.getStatus(), is(0));
         }
     }
 }

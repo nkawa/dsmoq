@@ -723,7 +723,7 @@ public class DsmoqClient implements AutoCloseable {
      * @param downloadDirectory
      * @return
      */
-    public File getFile(String datasetId, String fileId, String downloadDirectory) {
+    public File downloadFile(String datasetId, String fileId, String downloadDirectory) {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/files/%s/%s", datasetId, fileId))){
             HttpClient client = getClient();
             HttpResponse response = client.execute(request);
@@ -736,6 +736,22 @@ public class DsmoqClient implements AutoCloseable {
                 response.getEntity().writeTo(fos);
             }
             return file;
+        } catch(IOException e) {
+            throw new ApiFailedException(e.getMessage(), e);
+        }
+    }
+
+    /**
+     *
+     * @param taskId
+     * @return
+     */
+    public TaskStatus getTaskStatus(String taskId) {
+        try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/tasks/%s", taskId))){
+            HttpClient client = getClient();
+            HttpResponse response = client.execute(request);
+            String json = EntityUtils.toString(response.getEntity());
+            return JsonUtil.toTaskStatus(json);
         } catch(IOException e) {
             throw new ApiFailedException(e.getMessage(), e);
         }

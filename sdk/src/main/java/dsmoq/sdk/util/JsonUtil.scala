@@ -74,6 +74,10 @@ object JsonUtil {
     val users = toObject[Response[List[User]]](obj).getData
     users.asJava
   }
+  def toTaskStatus(obj: String): TaskStatus = {
+    statusCheck(obj)
+    toObject[Response[TaskStatus]](obj).getData
+  }
   private def toResponse(obj: String): Response[NoData] = {
     toObject[Response[NoData]](obj)
   }
