@@ -9,8 +9,8 @@ assemblyAdditionalSettings
 
 scalaVersion := "2.11.4"
 
-mainClass in assembly := Some("dsmoq.taskServer.Main")
+mainClass in assembly := Some("dsmoq.adminTool.Main")
 
 test in assembly := {}
 
-jarName := "taskServer.jar"
+jarName := "adminTool.jar"
