@@ -1,5 +1,7 @@
 package dsmoq.services
 
+import javax.crypto.{Mac, KeyGenerator}
+
 import scala.util.{Try, Failure, Success}
 import scalikejdbc._, SQLInterpolation._
 import java.security.MessageDigest
@@ -8,7 +10,7 @@ import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.services.json._
 import dsmoq.exceptions._
 import org.joda.time.DateTime
-import java.util.UUID
+import java.util.{Base64, UUID}
 import org.scalatra.servlet.FileItem
 import dsmoq.logic.{StringUtil, ImageSaveLogic}
 import dsmoq.persistence.{SuggestType, GroupType, PresetType}
@@ -328,6 +330,62 @@ object AccountService {
     } catch {
       case e: Throwable => Failure(e)
     }
+  }
+
+  def getUserByKeys(apiKey: String, signature: String): Option[User] = {
+    try
+    {
+      DB readOnly { implicit s =>
+        val u = persistence.User.u
+        val ak = persistence.ApiKey.ak
+        val ma = persistence.MailAddress.ma
+        val targetUser = withSQL {
+          select(u.result.*, ak.result.apiKey, ak.result.secretKey, ma.result.address)
+            .from(persistence.User as u)
+            .innerJoin(persistence.ApiKey as ak).on(u.id, ak.userId)
+            .innerJoin(persistence.MailAddress as ma).on(u.id, ma.userId)
+            .where
+              .eq(ak.apiKey, apiKey)
+              .and
+              .isNull(u.deletedAt)
+              .and
+              .isNull(u.deletedBy)
+              .and
+              .isNull(ak.deletedAt)
+              .and
+              .isNull(ak.deletedBy)
+        }.map(rs => (persistence.User(u.resultName)(rs), rs.string(ak.resultName.apiKey), rs.string(ak.resultName.secretKey), rs.string(ma.resultName.address))).single().apply
+
+        targetUser match {
+          case Some(user) if getSignature(user._2, user._3) == signature => {
+            Some(User(
+              id = user._1.id,
+              name = user._1.name,
+              fullname = user._1.fullname,
+              organization = user._1.organization,
+              title = user._1.title,
+              image = user._1.imageId,
+              mailAddress = user._4,
+              description = user._1.description,
+              isGuest = false,
+              isDeleted = false
+            ))
+          }
+          case None => None
+        }
+      }
+    } catch {
+      case e: Throwable => None
+    }
+  }
+
+  private def getSignature(apiKey: String, secretKey: String): String = {
+    val kg = KeyGenerator.getInstance("HmacSHA1")
+    val sk = kg.generateKey()
+    val mac = Mac.getInstance("HmacSHA1")
+    mac.init(sk)
+    val result = mac.doFinal((apiKey + "&" + secretKey).getBytes())
+    Base64.getEncoder.encodeToString(result)
   }
 
   private def existsSameName(id: String, name: String)(implicit s: DBSession): Boolean = {

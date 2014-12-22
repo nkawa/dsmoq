@@ -52,17 +52,19 @@ class ApiController extends ScalatraServlet
   // profile api
   // --------------------------------------------------------------------------
   get("/profile") {
-    AjaxResponse("OK", currentUser)
+    AjaxResponse("OK", userFromHeader.getOrElse(currentUser))
   }
 
   put("/profile") {
     val json = getJsonValue[UpdateProfileParams].getOrElse(UpdateProfileParams())
     (for {
-      user <- signedInUser
+      user <- getUser
       userNew <- AccountService.updateUserProfile(user.id, json.name, json.fullname,json.organization,
                                                   json.title, json.description)
     } yield {
-      setSignedInUser(userNew)
+      if (userFromHeader.isEmpty) {
+        setSignedInUser(userNew)
+      }
       userNew
     }) |> toAjaxResponse
   }
@@ -70,10 +72,10 @@ class ApiController extends ScalatraServlet
   post("/profile/image") {
     val icon = fileParams.get("icon")
     (for {
-      user <- signedInUser
+      user <- getUser
       imageId <- AccountService.changeIcon(user.id, icon)
     } yield {
-      setSignedInUser(User(
+      val newUser = User(
         id = user.id,
         name = user.name,
         fullname = user.fullname,
@@ -84,17 +86,23 @@ class ApiController extends ScalatraServlet
         description = user.description,
         isGuest = user.isGuest,
         isDeleted = user.isDeleted
-      ))
+      )
+      if (userFromHeader.isEmpty) {
+        setSignedInUser(newUser)
+      }
+      newUser
     }) |> toAjaxResponse
   }
 
   post("/profile/email_change_requests") {
     val json = getJsonValue[UpdateMailAddressParams].getOrElse(UpdateMailAddressParams())
     (for {
-      user <- signedInUser
+      user <- getUser
       userNew <- AccountService.changeUserEmail(user.id, json.email)
     } yield {
-      setSignedInUser(userNew)
+      if (userFromHeader.isEmpty) {
+        setSignedInUser(userNew)
+      }
       userNew
     }) |> toAjaxResponse
   }
@@ -102,7 +110,7 @@ class ApiController extends ScalatraServlet
   put("/profile/password") {
     val json = getJsonValue[UpdatePasswordParams].getOrElse(UpdatePasswordParams())
     (for {
-      user <- signedInUser
+      user <- getUser
       _ <- AccountService.changeUserPassword(user.id, json.currentPassword, json.newPassword)
     } yield {}) |> toAjaxResponse
   }
@@ -115,7 +123,7 @@ class ApiController extends ScalatraServlet
     val saveLocal = params.get("saveLocal") map { x => x == "true" }
     val saveS3 = params.get("saveS3") map { x => x == "true" }
     (for {
-      user <- signedInUser
+      user <- getUser
       dataset <- DatasetService.create(files, saveLocal, saveS3, user)
     } yield dataset) |> toAjaxResponse
   }
@@ -124,14 +132,14 @@ class ApiController extends ScalatraServlet
     val json = params.get("d").map(JsonMethods.parse(_).extract[SearchDatasetsParams])
                                .getOrElse(SearchDatasetsParams())
     DatasetService.search(json.query, json.owners, json.groups, json.attributes,
-                          json.limit, json.offset, currentUser) |> toAjaxResponse
+                          json.limit, json.offset, userFromHeader.getOrElse(currentUser)) |> toAjaxResponse
   }
 
   get("/datasets/:datasetId") {
     val id = params("datasetId")
     (for {
-      dataset <- DatasetService.get(id, currentUser)
-      _ <- SystemService.writeDatasetAccessLog(dataset.id, currentUser)
+      dataset <- DatasetService.get(id, userFromHeader.getOrElse(currentUser))
+      _ <- SystemService.writeDatasetAccessLog(dataset.id, userFromHeader.getOrElse(currentUser))
     } yield dataset) |> toAjaxResponse
   }
 
@@ -139,7 +147,7 @@ class ApiController extends ScalatraServlet
     val id = params("datasetId")
     val files = fileMultiParams("files")
     (for {
-      user <- signedInUser
+      user <- getUser
       datasets <- DatasetService.addFiles(id, files, user)
     } yield datasets) |> toAjaxResponse
   }
@@ -150,7 +158,7 @@ class ApiController extends ScalatraServlet
     val file = fileParams.get("file")
 
     (for {
-      user <- signedInUser
+      user <- getUser
       file <- DatasetService.updateFile(datasetId, fileId, file, user)
     } yield file) |> toAjaxResponse
   }
@@ -160,7 +168,7 @@ class ApiController extends ScalatraServlet
     val fileId = params("fileId")
     val json = getJsonValue[UpdateDatasetFileMetadataParams].getOrElse(UpdateDatasetFileMetadataParams())
     (for {
-      user <- signedInUser
+      user <- getUser
       file <- DatasetService.updateFileMetadata(datasetId, fileId, json.name.getOrElse(""), json.description.getOrElse(""), user)
     } yield file) |> toAjaxResponse
   }
@@ -170,7 +178,7 @@ class ApiController extends ScalatraServlet
     val fileId = params("fileId")
 
     (for {
-      user <- signedInUser
+      user <- getUser
       file <- DatasetService.deleteDatasetFile(datasetId, fileId, user)
     } yield file) |> toAjaxResponse
   }
@@ -179,7 +187,7 @@ class ApiController extends ScalatraServlet
     val datasetId = params("datasetId")
     val json = getJsonValue[UpdateDatasetMetaParams].getOrElse(UpdateDatasetMetaParams())
     (for {
-      user <- signedInUser
+      user <- getUser
       result <- DatasetService.modifyDatasetMeta(datasetId, json.name, json.description, json.license, json.attributes, user)
     } yield {}) |> toAjaxResponse
   }
@@ -188,7 +196,7 @@ class ApiController extends ScalatraServlet
     val datasetId = params("datasetId")
     val images = fileMultiParams.get("images").getOrElse(Seq.empty)
     (for {
-      user <- signedInUser
+      user <- getUser
       images <- DatasetService.addImages(datasetId, images, user)
     } yield images) |> toAjaxResponse
   }
@@ -197,7 +205,7 @@ class ApiController extends ScalatraServlet
     val datasetId = params("datasetId")
     val json = getJsonValue[ChangePrimaryImageParams].getOrElse(ChangePrimaryImageParams())
     (for {
-      user <- signedInUser
+      user <- getUser
       result <- DatasetService.changePrimaryImage(datasetId, json.imageId.getOrElse(""), user)
     } yield result) |> toAjaxResponse
   }
@@ -207,7 +215,7 @@ class ApiController extends ScalatraServlet
     val imageId = params("imageId")
 
     (for {
-      user <- signedInUser
+      user <- getUser
       primaryImage <- DatasetService.deleteImage(datasetId, imageId, user)
     } yield primaryImage) |> toAjaxResponse
   }
@@ -216,7 +224,7 @@ class ApiController extends ScalatraServlet
     val datasetId = params("datasetId")
     val acl = getJsonValue[List[DataSetAccessControlItem]].getOrElse(List.empty)
     (for {
-      user <- signedInUser
+      user <- getUser
       result <- DatasetService.setAccessControl(datasetId, acl, user)
     } yield result) |> toAjaxResponse
   }
@@ -225,7 +233,7 @@ class ApiController extends ScalatraServlet
     val datasetId = params("datasetId")
     val json = getJsonValue[UpdateDatasetGuestAccessParams].getOrElse(UpdateDatasetGuestAccessParams())
     (for {
-      user <- signedInUser
+      user <- getUser
       result <- DatasetService.setGuestAccessLevel(datasetId, json.accessLevel.getOrElse(0), user)
     } yield result) |> toAjaxResponse
   }
@@ -233,7 +241,7 @@ class ApiController extends ScalatraServlet
   delete("/datasets/:datasetId") {
     val datasetId = params("datasetId")
     (for {
-      user <- signedInUser
+      user <- getUser
       result = DatasetService.deleteDataset(datasetId, user)
     } yield {}) |> toAjaxResponse
   }
@@ -242,7 +250,7 @@ class ApiController extends ScalatraServlet
     val datasetId = params("datasetId")
     val json = getJsonValue[DatasetStorageParams].getOrElse(DatasetStorageParams())
     (for {
-      user <- signedInUser
+      user <- getUser
       result <- DatasetService.modifyDatasetStorage(datasetId, json.saveLocal, json.saveS3, user)
     } yield result) |> toAjaxResponse
   }
@@ -252,24 +260,24 @@ class ApiController extends ScalatraServlet
   // --------------------------------------------------------------------------
   get("/groups") {
     val json = getJsonValue[SearchGroupsParams].getOrElse(SearchGroupsParams())
-    GroupService.search(json.query, json.user, json.limit, json.offset, currentUser) |> toAjaxResponse
+    GroupService.search(json.query, json.user, json.limit, json.offset, userFromHeader.getOrElse(currentUser)) |> toAjaxResponse
   }
 
   get("/groups/:groupId") {
     val groupId = params("groupId")
-    GroupService.get(groupId, currentUser) |> toAjaxResponse
+    GroupService.get(groupId, userFromHeader.getOrElse(currentUser)) |> toAjaxResponse
   }
 
   get("/groups/:groupId/members") {
     val groupId = params("groupId")
     val json = getJsonValue[GetGroupMembersParams].getOrElse(GetGroupMembersParams())
-    GroupService.getGroupMembers(groupId, json.limit, json.offset, currentUser) |> toAjaxResponse
+    GroupService.getGroupMembers(groupId, json.limit, json.offset, userFromHeader.getOrElse(currentUser)) |> toAjaxResponse
   }
 
   post("/groups") {
     val json = getJsonValue[CreateGroupParams].getOrElse(CreateGroupParams())
     (for {
-      user <- signedInUser
+      user <- getUser
       group <- GroupService.createGroup(json.name.getOrElse(""), json.description.getOrElse(""), user)
     } yield group) |> toAjaxResponse
   }
@@ -278,7 +286,7 @@ class ApiController extends ScalatraServlet
     val groupId = params("groupId")
     val json = getJsonValue[UpdateGroupParams].getOrElse(UpdateGroupParams())
     (for {
-      user <- signedInUser
+      user <- getUser
       group <- GroupService.updateGroup(groupId, json.name.getOrElse(""), json.description.getOrElse(""), user)
     } yield group) |> toAjaxResponse
   }
@@ -287,7 +295,7 @@ class ApiController extends ScalatraServlet
     val groupId = params("groupId")
     val images = fileMultiParams.get("images").getOrElse(Seq.empty)
     (for {
-      user <- signedInUser
+      user <- getUser
       files <- GroupService.addImages(groupId, images, user)
     } yield files) |> toAjaxResponse
   }
@@ -296,7 +304,7 @@ class ApiController extends ScalatraServlet
     val groupId = params("groupId")
     val json = getJsonValue[ChangeGroupPrimaryImageParams].getOrElse(ChangeGroupPrimaryImageParams())
     (for {
-      user <- signedInUser
+      user <- getUser
       _ <- GroupService.changePrimaryImage(groupId, json.imageId.getOrElse(""), user)
     } yield {}) |> toAjaxResponse
   }
@@ -305,7 +313,7 @@ class ApiController extends ScalatraServlet
     val groupId = params("groupId")
     val imageId = params("imageId")
     (for {
-      user <- signedInUser
+      user <- getUser
       primaryImage <- GroupService.deleteImage(groupId, imageId, user)
     } yield primaryImage) |> toAjaxResponse
   }
@@ -314,7 +322,7 @@ class ApiController extends ScalatraServlet
     val groupId = params("groupId")
     val roles = getJsonValue[List[GroupMember]].getOrElse(List.empty)
     (for {
-      user <- signedInUser
+      user <- getUser
       _ <- GroupService.addMembers(groupId, roles, user)
     } yield {}) |> toAjaxResponse
   }
@@ -326,7 +334,7 @@ class ApiController extends ScalatraServlet
     json.role match {
       case Some(role) =>
         (for {
-          user <- signedInUser
+          user <- getUser
           _ <- GroupService.updateMemberRole(groupId, userId, role, user)
         } yield {}) |> toAjaxResponse
       case None =>
@@ -338,7 +346,7 @@ class ApiController extends ScalatraServlet
     val groupId = params("groupId")
     val userId = params("userId")
     (for {
-      user <- signedInUser
+      user <- getUser
       _ <- GroupService.removeMember(groupId, userId, user)
     } yield {}) |> toAjaxResponse
   }
@@ -346,7 +354,7 @@ class ApiController extends ScalatraServlet
   delete("/groups/:groupId") {
     val groupId = params("groupId")
     (for {
-      user <- signedInUser
+      user <- getUser
       _ <- GroupService.deleteGroup(groupId, user)
     } yield {}) |> toAjaxResponse
   }
@@ -394,6 +402,24 @@ class ApiController extends ScalatraServlet
   get("/tasks/:taskId") {
     val taskId = params("taskId")
     TaskService.getStatus(taskId) |> toAjaxResponse
+  }
+
+  private def getUser: Try[User] = {
+    userFromHeader match {
+      case Some(user) => Success(user)
+      case None => signedInUser
+    }
+  }
+
+  private def userFromHeader :Option[User] = {
+    val header = request.getHeader("Authorization")
+    if (header == null) return None
+    val headers = header.split(',').map(x => x.trim.split('=')).map(x => (x(0), x(1))).toMap
+    if (headers.size != 2) return None
+    val apiKey = headers("api_key")
+    val signature = headers("signature")
+    if (apiKey.isEmpty || signature.isEmpty) return None
+    AccountService.getUserByKeys(apiKey, signature)
   }
 
   private def toAjaxResponse[A](result: Try[A]) = result match {
