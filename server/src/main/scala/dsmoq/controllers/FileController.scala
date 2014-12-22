@@ -2,18 +2,18 @@ package dsmoq.controllers
 
 import scala.util.{Failure, Success}
 
-import dsmoq.services.DatasetService
+import dsmoq.services.{User, DatasetService}
 import org.scalatra.ScalatraServlet
 import org.scalatra.servlet.FileUploadSupport
 
-class FileController extends ScalatraServlet with SessionTrait with FileUploadSupport {
+class FileController extends ScalatraServlet with SessionTrait with FileUploadSupport with UserTrait {
 
   get("/:datasetId/:id") {
     val datasetId = params("datasetId")
     val id = params("id")
 
     val result = for {
-      fileInfo <- DatasetService.getDownloadFile(datasetId, id, currentUser)
+      fileInfo <- DatasetService.getDownloadFile(datasetId, id, userFromHeader.getOrElse(currentUser))
     } yield {
       fileInfo
     }
@@ -29,4 +29,6 @@ class FileController extends ScalatraServlet with SessionTrait with FileUploadSu
       case Failure(e) => halt(status = 403, reason = "Forbidden", body="Forbidden")
     }
   }
+
+  private def userFromHeader :Option[User] = userFromHeader(request.getHeader("Authorization"))
 }

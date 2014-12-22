@@ -12,7 +12,7 @@ import dsmoq.controllers.json._
 import dsmoq.exceptions.{InputValidationException, NotFoundException, NotAuthorizedException}
 
 class ApiController extends ScalatraServlet
-    with JacksonJsonSupport with SessionTrait with FileUploadSupport {
+    with JacksonJsonSupport with SessionTrait with FileUploadSupport with UserTrait {
   protected implicit val jsonFormats: Formats = DefaultFormats
   private implicit def objectToPipe[A](x: A) = Pipe(x)
 
@@ -411,16 +411,7 @@ class ApiController extends ScalatraServlet
     }
   }
 
-  private def userFromHeader :Option[User] = {
-    val header = request.getHeader("Authorization")
-    if (header == null) return None
-    val headers = header.split(',').map(x => x.trim.split('=')).map(x => (x(0), x(1))).toMap
-    if (headers.size != 2) return None
-    val apiKey = headers("api_key")
-    val signature = headers("signature")
-    if (apiKey.isEmpty || signature.isEmpty) return None
-    AccountService.getUserByKeys(apiKey, signature)
-  }
+  private def userFromHeader :Option[User] = userFromHeader(request.getHeader("Authorization"))
 
   private def toAjaxResponse[A](result: Try[A]) = result match {
     case Success(Unit) => AjaxResponse("OK")
