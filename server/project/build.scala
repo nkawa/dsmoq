@@ -87,4 +87,19 @@ object DsmoqBuild extends Build {
       )
     )
   ).dependsOn(dsmoq)
+
+  lazy val adminTool = Project(
+    id = "adminTool",
+    base = file("adminTool"),
+    settings = Defaults.coreDefaultSettings ++ Seq(
+      organization := Organization,
+      name := "adminTool",
+      version := Version,
+      scalaVersion := ScalaVersion,
+      resolvers += Classpaths.typesafeReleases,
+      libraryDependencies ++= Seq(
+        "org.slf4j" % "slf4j-nop" % "1.7.7"
+      )
+    )
+  ).dependsOn(dsmoq)
 }

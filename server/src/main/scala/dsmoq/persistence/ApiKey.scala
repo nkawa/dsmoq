@@ -132,16 +132,16 @@ object ApiKey extends SQLSyntaxSupport[ApiKey] {
   def save(entity: ApiKey)(implicit session: DBSession = autoSession): ApiKey = {
     withSQL {
       update(ApiKey).set(
-        column.id -> entity.id,
-        column.userId -> entity.userId,
+        column.id -> sqls.uuid(entity.id),
+        column.userId -> sqls.uuid(entity.userId),
         column.apiKey -> entity.apiKey,
         column.secretKey -> entity.secretKey,
         column.permission -> entity.permission,
-        column.createdBy -> entity.createdBy,
+        column.createdBy -> sqls.uuid(entity.createdBy),
         column.createdAt -> entity.createdAt,
-        column.updatedBy -> entity.updatedBy,
+        column.updatedBy -> sqls.uuid(entity.updatedBy),
         column.updatedAt -> entity.updatedAt,
-        column.deletedBy -> entity.deletedBy,
+        column.deletedBy -> entity.deletedBy.map(sqls.uuid),
         column.deletedAt -> entity.deletedAt
       ).where.eq(column.id, entity.id)
     }.update.apply()
