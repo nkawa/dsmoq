@@ -2,7 +2,6 @@ package dsmoq.sdk.client;
 
 import dsmoq.sdk.http.*;
 import dsmoq.sdk.request.*;
-import dsmoq.sdk.request.json.ChangeStorageJson;
 import dsmoq.sdk.response.*;
 import dsmoq.sdk.util.ApiFailedException;
 import dsmoq.sdk.util.JsonUtil;
@@ -59,16 +58,22 @@ public class DsmoqClient implements AutoCloseable {
         return client;
     }
 
+    /**
+     * APIキー、シークレットキーを使用するクライアントオブジェクトを生成する。
+     * @param baseUrl 基準となるURL
+     * @param apiKey APIキー
+     * @param secretKey シークレットキー
+     * @return 作成したクライアント
+     */
     public static DsmoqClient create(String baseUrl, String apiKey, String secretKey) {
-        DsmoqClient client = new DsmoqClient(baseUrl, apiKey, secretKey, "", "");
-        return client;
+        return new DsmoqClient(baseUrl, apiKey, secretKey, "", "");
     }
 
     /**
      * クライアントオブジェクトを生成する。
      * @param baseUrl 基準となるURL
-     * @param apiKey
-     * @param secretKey
+     * @param apiKey APIキー
+     * @param secretKey シークレットキー
      * @param userName ユーザーアカウント
      * @param password パスワード
      */
@@ -239,9 +244,9 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param datasetId
-     * @param fileId
+     * データセットからファイルを削除する。（DELETE /api/datasets/${dataset_id}/files/${file_id}相当）
+     * @param datasetId DatasetID
+     * @param fileId ファイルID
      */
     public void deleteFile(String datasetId, String fileId) {
         try (AutoHttpDelete request = new AutoHttpDelete((_baseUrl + String.format("/api/datasets/%s/files/%s", datasetId, fileId)))) {
@@ -256,9 +261,9 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param datasetId
-     * @param param
+     * データセットの情報を更新する。(PUT /api/datasets.${dataset_id}/metadata相当)
+     * @param datasetId DatasetID
+     * @param param データセット更新情報
      */
     public void updateDatasetMetaInfo(String datasetId, UpdateDatasetMetaParam param) {
         try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/datasets/%s/metadata", datasetId))) {
@@ -276,10 +281,10 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param datasetId
-     * @param files
-     * @return
+     * データセットに画像を追加する。（POST /api/datasets/${dataset_id}/image相当）
+     * @param datasetId DatasetID
+     * @param files 追加する画像ファイル
+     * @return 追加した画像情報
      */
     public DatasetAddImages addImagesToDataset(String datasetId, File... files) {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/images", datasetId)))) {
@@ -297,9 +302,9 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param datasetId
-     * @param param
+     * データセットに一覧で表示するメイン画像を設定する。（PUT /api/datasets/${dataset_id}/image/primary相当）
+     * @param datasetId DatasetID
+     * @param param メイン画像指定情報
      */
     public void setPrimaryImageToDataset(String datasetId, SetPrimaryImageParam param) {
         try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/datasets/%s/images/primary", datasetId))) {
@@ -317,10 +322,10 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param datasetId
-     * @param imageId
-     * @return
+     * データセットから画像を削除する。（DELETE /api/datasets/${dataset_id}/image/${image_id}相当）
+     * @param datasetId DatasetID
+     * @param imageId 画像ID
+     * @return 画像削除後のデータセットのメイン画像情報
      */
     public DatasetDeleteImage deleteImageToDataset(String datasetId, String imageId) {
         try (AutoHttpDelete request = new AutoHttpDelete(_baseUrl + String.format("/api/datasets/%s/images/%s", datasetId, imageId))) {
@@ -335,10 +340,10 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param datasetId
-     * @param params
-     * @return
+     * データセットのアクセス権を変更する。（POST /api/datasets/${dataset_id}/acl相当）
+     * @param datasetId DatasetID
+     * @param params アクセス権制御情報
+     * @return 変更後のアクセス権情報
      */
     public DatasetOwnerships changeAccessLevel(String datasetId, List<SetAccessLevelParam> params) {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/acl", datasetId)))) {
@@ -356,9 +361,9 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param datasetId
-     * @param param
+     * データセットのゲストアカウントでのアクセス権を設定する。（PUT /api/datasets/${dataset_id}/guest_access相当）
+     * @param datasetId DatasetID
+     * @param param ゲストアカウントでのアクセス権設定情報
      */
     public void changeGuestAccessLevel(String datasetId, SetGuestAccessLevelParam param) {
         try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/datasets/%s/guest_access", datasetId))) {
@@ -376,8 +381,8 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param datasetId
+     * データセットを削除する。(DELETE /api/datasets/${dataset_id}相当)
+     * @param datasetId DatasetID
      */
     public void deleteDataset(String datasetId) {
         try (AutoHttpDelete request = new AutoHttpDelete(_baseUrl + String.format("/api/datasets/%s", datasetId))) {
@@ -392,10 +397,10 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param datasetId
-     * @param param
-     * @return
+     * データセットの保存先を変更する。(PUT /api/datasets/${dataset_id}/storage相当)
+     * @param datasetId DatasetID
+     * @param param 保存先変更情報
+     * @return 変更タスクの情報
      */
     public DatasetTask changeDatasetStorage(String datasetId, ChangeStorageParam param) {
         try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/datasets/%s/storage", datasetId))) {
@@ -413,9 +418,9 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param param
-     * @return
+     * グループ一覧を取得する。（GET /api/groups相当）
+     * @param param グループ一覧取得情報
+     * @return グループ一覧情報
      */
     public RangeSlice<GroupsSummary> getGroups(GetGroupsParam param) {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + "/api/groups?d=" + URLEncoder.encode(param.toJsonString(), "UTF-8"))){
@@ -430,9 +435,9 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param groupId
-     * @return
+     * グループ詳細を取得する。（GET /api/groups/${group_id}相当）
+     * @param groupId グループID
+     * @return グループ詳細情報
      */
     public Group getGroup(String groupId) {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/groups/%s", groupId))){
@@ -447,10 +452,10 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param groupId
-     * @param param
-     * @return
+     * グループのメンバー一覧を取得する。（GET /api/groups/${group_id}/members相当）
+     * @param groupId グループID
+     * @param param グループメンバー一覧取得情報
+     * @return グループメンバー一覧情報
      */
     public RangeSlice<MemberSummary> getMembers(String groupId, GetMembersParam param) {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/groups/%s/members?d=%s", groupId, URLEncoder.encode(param.toJsonString(), "UTF-8")))){
@@ -465,9 +470,9 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param param
-     * @return
+     * グループを作成する。（POST /api/groups相当）
+     * @param param グループ作成情報
+     * @return 作成したグループ詳細情報
      */
     public Group createGroup(CreateGroupParam param) {
         try (AutoHttpPost request = new AutoHttpPost(_baseUrl + "/api/groups")) {
@@ -485,10 +490,10 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param groupId
-     * @param param
-     * @return
+     * グループ詳細情報を更新する。（PUT /api/groups/${group_id}相当）
+     * @param groupId グループID
+     * @param param グループ詳細更新情報
+     * @return グループ詳細情報
      */
     public Group updateGroup(String groupId, UpdateGroupParam param) {
         try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/groups/%s", groupId))) {
@@ -506,10 +511,10 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param groupId
-     * @param files
-     * @return
+     * グループに画像を追加する。（POST /api/groups/${group_id}/images相当）
+     * @param groupId グループID
+     * @param files 画像ファイル
+     * @return 追加した画像ファイル情報
      */
     public GroupAddImages addImagesToGroup(String groupId, File... files) {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/groups/%s/images", groupId)))) {
@@ -527,9 +532,9 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param groupId
-     * @param param
+     * グループに一覧で表示するメイン画像を設定する。（PUT /api/groups/${group_id}/images/primary相当）
+     * @param groupId グループID
+     * @param param メイン画像指定情報
      */
     public void setPrimaryImageToGroup(String groupId, SetPrimaryImageParam param) {
         try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/groups/%s/images/primary", groupId))) {
@@ -547,10 +552,10 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param groupId
-     * @param imageId
-     * @return
+     * グループから画像を削除する。（DELETE /api/groups/${group_id}/images/${image_id}相当）
+     * @param groupId グループID
+     * @param imageId 画像ID
+     * @return 画像削除後のグループのメイン画像情報
      */
     public GroupDeleteImage deleteImageToGroup(String groupId, String imageId) {
         try (AutoHttpDelete request = new AutoHttpDelete(_baseUrl + String.format("/api/groups/%s/images/%s", groupId, imageId))) {
@@ -565,9 +570,9 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param groupId
-     * @param param
+     * グループにメンバーを追加する。（POST /api/groups/${group_id}/members相当）
+     * @param groupId グループID
+     * @param param メンバー追加情報
      */
     public void addMember(String groupId, List<AddMemberParam> param) {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/groups/%s/members", groupId)))) {
@@ -585,10 +590,10 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param groupId
-     * @param userId
-     * @param param
+     * メンバーのロールを設定する。（PUT /api/groups/${group_id}/members/${user_id}相当）
+     * @param groupId グループID
+     * @param userId ユーザーID
+     * @param param ロール設定情報
      */
     public void setMemberRole(String groupId, String userId, SetMemberRoleParam param) {
         try (AutoHttpPut request = new AutoHttpPut((_baseUrl + String.format("/api/groups/%s/members/%s", groupId, userId)))) {
@@ -606,9 +611,9 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param groupId
-     * @param userId
+     * メンバーを削除する。（DELETE /api/groups/${group_id}/members/${user_id}相当）
+     * @param groupId グループID
+     * @param userId ユーザーID
      */
     public void deleteMember(String groupId, String userId) {
         try (AutoHttpDelete request = new AutoHttpDelete((_baseUrl + String.format("/api/groups/%s/members/%s", groupId, userId)))) {
@@ -623,8 +628,8 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param groupId
+     * グループを削除する。（DELETE /api/groups/${group_id}相当）
+     * @param groupId グループID
      */
     public void deleteGroup(String groupId) {
         try (AutoHttpDelete request = new AutoHttpDelete((_baseUrl + String.format("/api/groups/%s", groupId)))) {
@@ -639,8 +644,8 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @return
+     * ライセンス一覧を取得する。（GET /api/licenses相当）
+     * @return ライセンス一覧情報
      */
     public List<License> getLicenses() {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + "/api/licenses")){
@@ -655,8 +660,8 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @return
+     * ログインユーザのプロファイルを取得する。（GET /api/profile相当）
+     * @return プロファイル
      */
     public User getProfile() {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + "/api/profile")){
@@ -671,9 +676,9 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param param
-     * @return
+     * ログインユーザのプロファイルを更新する。（PUT /api/profile相当）
+     * @param param プロファイル更新情報
+     * @return プロファイル
      */
     public User updateProfile(UpdateProfileParam param) {
         try (AutoHttpPut request = new AutoHttpPut((_baseUrl + "/api/profile"))) {
@@ -691,9 +696,9 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param file
-     * @return
+     * ログインユーザの画像を更新する。（POST /api/profile/image相当）
+     * @param file 画像ファイル
+     * @return プロファイル
      */
     public User updateProfileIcon(File file) {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/profile/image"))) {
@@ -711,9 +716,9 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param param
-     * @return
+     * ログインユーザのE-Mailを変更する。（POST /api/profile/email_change_request相当）
+     * @param param E-Mail変更情報
+     * @return プロファイル
      */
     public User updateEmail(UpdateEmailParam param) {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/profile/email_change_requests"))) {
@@ -731,8 +736,8 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param param
+     * ログインユーザのパスワードを変更する。（PUT /api/profile/password相当）
+     * @param param パスワード変更情報
      */
     public void changePassword(ChangePasswordParam param) {
         try (AutoHttpPut request = new AutoHttpPut((_baseUrl + "/api/profile/password"))) {
@@ -750,8 +755,8 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @return
+     * ユーザー一覧を取得する。（GET /api/accounts相当）
+     * @return ユーザー一覧
      */
     public List<User> getAccounts() {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + "/api/accounts")){
@@ -766,11 +771,11 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param datasetId
-     * @param fileId
-     * @param downloadDirectory
-     * @return
+     * データセットからファイルをダウンロードする。（GET /files/${dataset_id}/${file_id}相当）
+     * @param datasetId DatasetID
+     * @param fileId ファイルID
+     * @param downloadDirectory ダウンロード先のディレクトリ
+     * @return ダウンロードしたファイル情報
      */
     public File downloadFile(String datasetId, String fileId, String downloadDirectory) {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/files/%s/%s", datasetId, fileId))){
@@ -792,9 +797,9 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @param taskId
-     * @return
+     * タスクの現在のステータスを取得する。（GET /api/tasks/${task_id}相当）
+     * @param taskId タスクID
+     * @return タスクのステータス情報
      */
     public TaskStatus getTaskStatus(String taskId) {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/tasks/%s", taskId))){
@@ -809,7 +814,7 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
+     * クライアントを終了する。
      */
     @Override
     public void close() {
@@ -828,12 +833,22 @@ public class DsmoqClient implements AutoCloseable {
         client = null;
     }
 
+    /**
+     * Authorizationヘッダを追加する。
+     * @param request リクエストオブジェクト
+     */
     private void addAuthorizationHeader(HttpRequestBase request) {
         if (! _apiKey.isEmpty() && ! _secretKey.isEmpty()) {
             request.addHeader("Authorization", String.format("api_key=%s, signature=%s",  _apiKey, getSignature(_apiKey, _secretKey)));
         }
     }
 
+    /**
+     * 認証文字列を作成する。
+     * @param apiKey APIキー
+     * @param secretKey シークレットキー
+     * @return 作成した認証文字列
+     */
     private String getSignature(String apiKey, String secretKey) {
         try {
             SecretKeySpec sk = new SecretKeySpec(secretKey.getBytes(), "HmacSHA1");
@@ -847,8 +862,8 @@ public class DsmoqClient implements AutoCloseable {
     }
 
     /**
-     *
-     * @return
+     * HTTPクライアントを取得する。
+     * @return HTTPクライアント
      */
     private HttpClient getClient() {
         if (client == null) {
