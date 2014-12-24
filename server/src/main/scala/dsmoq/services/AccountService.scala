@@ -1,23 +1,22 @@
 package dsmoq.services
 
-import javax.crypto.{Mac, KeyGenerator}
-
-import scala.util.{Try, Failure, Success}
-import scalikejdbc._, SQLInterpolation._
+import java.net.URLEncoder
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
+import scala.util.Try
+import scalikejdbc._
 import java.security.MessageDigest
-import dsmoq.{AppConf, persistence}
+import dsmoq.persistence
 import dsmoq.persistence.PostgresqlHelper._
-import dsmoq.services.json._
 import dsmoq.exceptions._
 import org.joda.time.DateTime
 import java.util.{Base64, UUID}
 import org.scalatra.servlet.FileItem
 import dsmoq.logic.{StringUtil, ImageSaveLogic}
-import dsmoq.persistence.{SuggestType, GroupType, PresetType}
+import dsmoq.persistence.PresetType
 import scala.util.Failure
 import scala.util.Success
 import scala.collection.mutable
-import dsmoq.services.json.MailValidationResult
 
 object AccountService {
   /**
@@ -380,12 +379,11 @@ object AccountService {
   }
 
   private def getSignature(apiKey: String, secretKey: String): String = {
-    val kg = KeyGenerator.getInstance("HmacSHA1")
-    val sk = kg.generateKey()
+    val sk = new SecretKeySpec(secretKey.getBytes(), "HmacSHA1");
     val mac = Mac.getInstance("HmacSHA1")
     mac.init(sk)
     val result = mac.doFinal((apiKey + "&" + secretKey).getBytes())
-    Base64.getEncoder.encodeToString(result)
+    URLEncoder.encode(Base64.getEncoder.encodeToString(result), "UTF-8")
   }
 
   private def existsSameName(id: String, name: String)(implicit s: DBSession): Boolean = {

@@ -10,6 +10,7 @@ import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.LaxRedirectStrategy;
 import org.apache.http.message.BasicNameValuePair;
@@ -18,12 +19,15 @@ import org.apache.http.impl.client.CloseableHttpClient;
 
 import org.apache.http.entity.mime.MultipartEntityBuilder;
 
+import javax.crypto.*;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import java.nio.charset.StandardCharsets;
 import java.net.URLEncoder;
@@ -36,6 +40,8 @@ public class DsmoqClient implements AutoCloseable {
     private String _userName;
     private String _password;
     private String _baseUrl;
+    private String _apiKey;
+    private String _secretKey;
     private boolean isSignin;
     private CloseableHttpClient client;
 
@@ -48,18 +54,27 @@ public class DsmoqClient implements AutoCloseable {
      * @return 作成したクライアント
      */
     public static DsmoqClient signin(String baseUrl, String userName, String password) {
-        DsmoqClient client = new DsmoqClient(baseUrl, userName, password);
+        DsmoqClient client = new DsmoqClient(baseUrl, "", "", userName, password);
         client.signin();
+        return client;
+    }
+
+    public static DsmoqClient create(String baseUrl, String apiKey, String secretKey) {
+        DsmoqClient client = new DsmoqClient(baseUrl, apiKey, secretKey, "", "");
         return client;
     }
 
     /**
      * クライアントオブジェクトを生成する。
      * @param baseUrl 基準となるURL
+     * @param apiKey
+     * @param secretKey
      * @param userName ユーザーアカウント
      * @param password パスワード
      */
-    public DsmoqClient(String baseUrl, String userName, String password) {
+    public DsmoqClient(String baseUrl, String apiKey, String secretKey, String userName, String password) {
+        this._apiKey = apiKey;
+        this._secretKey = secretKey;
         this._baseUrl = baseUrl;
         this._userName = userName;
         this._password = password;
@@ -112,6 +127,7 @@ public class DsmoqClient implements AutoCloseable {
     public RangeSlice<DatasetsSummary> getDatasets(GetDatasetsParam param) {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + "/api/datasets?d=" + URLEncoder.encode(param.toJsonString(), "UTF-8"))){
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             HttpResponse response = client.execute(request);
             String json = EntityUtils.toString(response.getEntity());
             return JsonUtil.toDatasets(json);
@@ -128,6 +144,7 @@ public class DsmoqClient implements AutoCloseable {
     public Dataset getDataset(String datasetId) {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/datasets/%s", datasetId))){
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             HttpResponse response = client.execute(request);
             String json = EntityUtils.toString(response.getEntity());
             return JsonUtil.toDataset(json);
@@ -144,6 +161,7 @@ public class DsmoqClient implements AutoCloseable {
     public Dataset createDataset(File... files) {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/datasets"))) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("file[]", file));
             request.setEntity(builder.build());
@@ -164,6 +182,7 @@ public class DsmoqClient implements AutoCloseable {
     public DatasetAddFiles addFiles(String datasetId, File... files) {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/files", datasetId)))) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("files", file));
             request.setEntity(builder.build());
@@ -185,6 +204,7 @@ public class DsmoqClient implements AutoCloseable {
     public DatasetFile updateFile(String datasetId, String fileId, File file) {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/files/%s", datasetId, fileId)))) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             builder.addBinaryBody("file", file);
             request.setEntity(builder.build());
@@ -206,6 +226,7 @@ public class DsmoqClient implements AutoCloseable {
     public DatasetFile updateFileMetaInfo(String datasetId, String fileId, UpdateFileMetaParam param) {
         try (AutoHttpPut request = new AutoHttpPut((_baseUrl + String.format("/api/datasets/%s/files/%s/metadata", datasetId, fileId)))) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             List<NameValuePair> params = new ArrayList<>();
             params.add(new BasicNameValuePair("d", param.toJsonString()));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
@@ -225,6 +246,7 @@ public class DsmoqClient implements AutoCloseable {
     public void deleteFile(String datasetId, String fileId) {
         try (AutoHttpDelete request = new AutoHttpDelete((_baseUrl + String.format("/api/datasets/%s/files/%s", datasetId, fileId)))) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             HttpResponse response = client.execute(request);
             String json = EntityUtils.toString(response.getEntity());
             JsonUtil.statusCheck(json);
@@ -241,6 +263,7 @@ public class DsmoqClient implements AutoCloseable {
     public void updateDatasetMetaInfo(String datasetId, UpdateDatasetMetaParam param) {
         try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/datasets/%s/metadata", datasetId))) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             List<NameValuePair> params = new ArrayList<>();
             params.add(new BasicNameValuePair("d", param.toJsonString()));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
@@ -261,6 +284,7 @@ public class DsmoqClient implements AutoCloseable {
     public DatasetAddImages addImagesToDataset(String datasetId, File... files) {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/images", datasetId)))) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("images", file));
             request.setEntity(builder.build());
@@ -280,6 +304,7 @@ public class DsmoqClient implements AutoCloseable {
     public void setPrimaryImageToDataset(String datasetId, SetPrimaryImageParam param) {
         try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/datasets/%s/images/primary", datasetId))) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             List<NameValuePair> params = new ArrayList<>();
             params.add(new BasicNameValuePair("d", param.toJsonString()));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
@@ -300,6 +325,7 @@ public class DsmoqClient implements AutoCloseable {
     public DatasetDeleteImage deleteImageToDataset(String datasetId, String imageId) {
         try (AutoHttpDelete request = new AutoHttpDelete(_baseUrl + String.format("/api/datasets/%s/images/%s", datasetId, imageId))) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             HttpResponse response = client.execute(request);
             String json = EntityUtils.toString(response.getEntity());
             return JsonUtil.toDatasetDeleteImage(json);
@@ -317,6 +343,7 @@ public class DsmoqClient implements AutoCloseable {
     public DatasetOwnerships changeAccessLevel(String datasetId, List<SetAccessLevelParam> params) {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/acl", datasetId)))) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             List<NameValuePair> p = new ArrayList<>();
             p.add(new BasicNameValuePair("d", SetAccessLevelParam.toJsonString(params)));
             request.setEntity(new UrlEncodedFormEntity(p, StandardCharsets.UTF_8));
@@ -336,6 +363,7 @@ public class DsmoqClient implements AutoCloseable {
     public void changeGuestAccessLevel(String datasetId, SetGuestAccessLevelParam param) {
         try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/datasets/%s/guest_access", datasetId))) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             List<NameValuePair> params = new ArrayList<>();
             params.add(new BasicNameValuePair("d", param.toJsonString()));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
@@ -354,6 +382,7 @@ public class DsmoqClient implements AutoCloseable {
     public void deleteDataset(String datasetId) {
         try (AutoHttpDelete request = new AutoHttpDelete(_baseUrl + String.format("/api/datasets/%s", datasetId))) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             HttpResponse response = client.execute(request);
             String json = EntityUtils.toString(response.getEntity());
             JsonUtil.statusCheck(json);
@@ -371,6 +400,7 @@ public class DsmoqClient implements AutoCloseable {
     public DatasetTask changeDatasetStorage(String datasetId, ChangeStorageParam param) {
         try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/datasets/%s/storage", datasetId))) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             List<NameValuePair> params = new ArrayList<>();
             params.add(new BasicNameValuePair("d", param.toJsonString()));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
@@ -390,6 +420,7 @@ public class DsmoqClient implements AutoCloseable {
     public RangeSlice<GroupsSummary> getGroups(GetGroupsParam param) {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + "/api/groups?d=" + URLEncoder.encode(param.toJsonString(), "UTF-8"))){
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             HttpResponse response = client.execute(request);
             String json = EntityUtils.toString(response.getEntity());
             return JsonUtil.toGroups(json);
@@ -406,6 +437,7 @@ public class DsmoqClient implements AutoCloseable {
     public Group getGroup(String groupId) {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/groups/%s", groupId))){
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             HttpResponse response = client.execute(request);
             String json = EntityUtils.toString(response.getEntity());
             return JsonUtil.toGroup(json);
@@ -423,6 +455,7 @@ public class DsmoqClient implements AutoCloseable {
     public RangeSlice<MemberSummary> getMembers(String groupId, GetMembersParam param) {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/groups/%s/members?d=%s", groupId, URLEncoder.encode(param.toJsonString(), "UTF-8")))){
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             HttpResponse response = client.execute(request);
             String json = EntityUtils.toString(response.getEntity());
             return JsonUtil.toMembers(json);
@@ -439,6 +472,7 @@ public class DsmoqClient implements AutoCloseable {
     public Group createGroup(CreateGroupParam param) {
         try (AutoHttpPost request = new AutoHttpPost(_baseUrl + "/api/groups")) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             List<NameValuePair> params = new ArrayList<>();
             params.add(new BasicNameValuePair("d", param.toJsonString()));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
@@ -459,6 +493,7 @@ public class DsmoqClient implements AutoCloseable {
     public Group updateGroup(String groupId, UpdateGroupParam param) {
         try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/groups/%s", groupId))) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             List<NameValuePair> params = new ArrayList<>();
             params.add(new BasicNameValuePair("d", param.toJsonString()));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
@@ -479,6 +514,7 @@ public class DsmoqClient implements AutoCloseable {
     public GroupAddImages addImagesToGroup(String groupId, File... files) {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/groups/%s/images", groupId)))) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("images", file));
             request.setEntity(builder.build());
@@ -498,6 +534,7 @@ public class DsmoqClient implements AutoCloseable {
     public void setPrimaryImageToGroup(String groupId, SetPrimaryImageParam param) {
         try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/groups/%s/images/primary", groupId))) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             List<NameValuePair> params = new ArrayList<>();
             params.add(new BasicNameValuePair("d", param.toJsonString()));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
@@ -518,6 +555,7 @@ public class DsmoqClient implements AutoCloseable {
     public GroupDeleteImage deleteImageToGroup(String groupId, String imageId) {
         try (AutoHttpDelete request = new AutoHttpDelete(_baseUrl + String.format("/api/groups/%s/images/%s", groupId, imageId))) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             HttpResponse response = client.execute(request);
             String json = EntityUtils.toString(response.getEntity());
             return JsonUtil.toGroupDeleteImage(json);
@@ -534,6 +572,7 @@ public class DsmoqClient implements AutoCloseable {
     public void addMember(String groupId, List<AddMemberParam> param) {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/groups/%s/members", groupId)))) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             List<NameValuePair> params = new ArrayList<>();
             params.add(new BasicNameValuePair("d", AddMemberParam.toJsonString(param)));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
@@ -554,6 +593,7 @@ public class DsmoqClient implements AutoCloseable {
     public void setMemberRole(String groupId, String userId, SetMemberRoleParam param) {
         try (AutoHttpPut request = new AutoHttpPut((_baseUrl + String.format("/api/groups/%s/members/%s", groupId, userId)))) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             List<NameValuePair> params = new ArrayList<>();
             params.add(new BasicNameValuePair("d", param.toJsonString()));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
@@ -573,6 +613,7 @@ public class DsmoqClient implements AutoCloseable {
     public void deleteMember(String groupId, String userId) {
         try (AutoHttpDelete request = new AutoHttpDelete((_baseUrl + String.format("/api/groups/%s/members/%s", groupId, userId)))) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             HttpResponse response = client.execute(request);
             String json = EntityUtils.toString(response.getEntity());
             JsonUtil.statusCheck(json);
@@ -588,6 +629,7 @@ public class DsmoqClient implements AutoCloseable {
     public void deleteGroup(String groupId) {
         try (AutoHttpDelete request = new AutoHttpDelete((_baseUrl + String.format("/api/groups/%s", groupId)))) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             HttpResponse response = client.execute(request);
             String json = EntityUtils.toString(response.getEntity());
             JsonUtil.statusCheck(json);
@@ -603,6 +645,7 @@ public class DsmoqClient implements AutoCloseable {
     public List<License> getLicenses() {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + "/api/licenses")){
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             HttpResponse response = client.execute(request);
             String json = EntityUtils.toString(response.getEntity());
             return JsonUtil.toLicenses(json);
@@ -618,6 +661,7 @@ public class DsmoqClient implements AutoCloseable {
     public User getProfile() {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + "/api/profile")){
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             HttpResponse response = client.execute(request);
             String json = EntityUtils.toString(response.getEntity());
             return JsonUtil.toUser(json);
@@ -634,6 +678,7 @@ public class DsmoqClient implements AutoCloseable {
     public User updateProfile(UpdateProfileParam param) {
         try (AutoHttpPut request = new AutoHttpPut((_baseUrl + "/api/profile"))) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             List<NameValuePair> params = new ArrayList<>();
             params.add(new BasicNameValuePair("d", param.toJsonString()));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
@@ -653,6 +698,7 @@ public class DsmoqClient implements AutoCloseable {
     public User updateProfileIcon(File file) {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/profile/image"))) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             builder.addBinaryBody("icon", file);
             request.setEntity(builder.build());
@@ -672,6 +718,7 @@ public class DsmoqClient implements AutoCloseable {
     public User updateEmail(UpdateEmailParam param) {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/profile/email_change_requests"))) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             List<NameValuePair> params = new ArrayList<>();
             params.add(new BasicNameValuePair("d", param.toJsonString()));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
@@ -690,6 +737,7 @@ public class DsmoqClient implements AutoCloseable {
     public void changePassword(ChangePasswordParam param) {
         try (AutoHttpPut request = new AutoHttpPut((_baseUrl + "/api/profile/password"))) {
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             List<NameValuePair> params = new ArrayList<>();
             params.add(new BasicNameValuePair("d", param.toJsonString()));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
@@ -708,6 +756,7 @@ public class DsmoqClient implements AutoCloseable {
     public List<User> getAccounts() {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + "/api/accounts")){
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             HttpResponse response = client.execute(request);
             String json = EntityUtils.toString(response.getEntity());
             return JsonUtil.toUsers(json);
@@ -726,6 +775,7 @@ public class DsmoqClient implements AutoCloseable {
     public File downloadFile(String datasetId, String fileId, String downloadDirectory) {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/files/%s/%s", datasetId, fileId))){
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             HttpResponse response = client.execute(request);
 
             Dataset dataset = getDataset(datasetId);
@@ -749,6 +799,7 @@ public class DsmoqClient implements AutoCloseable {
     public TaskStatus getTaskStatus(String taskId) {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/tasks/%s", taskId))){
             HttpClient client = getClient();
+            addAuthorizationHeader(request);
             HttpResponse response = client.execute(request);
             String json = EntityUtils.toString(response.getEntity());
             return JsonUtil.toTaskStatus(json);
@@ -775,6 +826,24 @@ public class DsmoqClient implements AutoCloseable {
             // do nothing
         }
         client = null;
+    }
+
+    private void addAuthorizationHeader(HttpRequestBase request) {
+        if (! _apiKey.isEmpty() && ! _secretKey.isEmpty()) {
+            request.addHeader("Authorization", String.format("api_key=%s, signature=%s",  _apiKey, getSignature(_apiKey, _secretKey)));
+        }
+    }
+
+    private String getSignature(String apiKey, String secretKey) {
+        try {
+            SecretKeySpec sk = new SecretKeySpec(secretKey.getBytes(), "HmacSHA1");
+            Mac mac = Mac.getInstance("HmacSHA1");
+            mac.init(sk);
+            byte[] result = mac.doFinal((apiKey + "&" + secretKey).getBytes());
+            return URLEncoder.encode(Base64.getEncoder().encodeToString(result), "UTF-8");
+        } catch (Exception e) {
+            throw new ApiFailedException(e.getMessage(), e);
+        }
     }
 
     /**

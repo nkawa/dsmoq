@@ -37,6 +37,17 @@ object SpecCommonLogic {
         updatedBy = AppConf.systemUserId,
         updatedAt = ts
       )
+      persistence.ApiKey.create(
+        id = "0cebc943-a0b9-4aa5-927d-65fa374bf0ec",
+        userId = "023bfa40-e897-4dad-96db-9fd3cf001e79",
+        apiKey = "5dac067a4c91de87ee04db3e3c34034e84eb4a599165bcc9741bb9a91e8212cb",
+        secretKey = "dc9765e63b2b469a7bfb611fad8a10f2394d2b98b7a7105078356ec2a74164ea",
+        permission = 3,
+        createdBy = AppConf.systemUserId,
+        createdAt = ts,
+        updatedBy = AppConf.systemUserId,
+        updatedAt = ts
+      )
       persistence.Password.create(
         id = "3401fdbb-428c-4cd5-961b-4ab9f171f18b",
         userId = "023bfa40-e897-4dad-96db-9fd3cf001e79",
@@ -264,6 +275,7 @@ object SpecCommonLogic {
       deleteAllData(deleteFrom(persistence.User))
       deleteAllData(deleteFrom(persistence.Task))
       deleteAllData(deleteFrom(persistence.TaskLog))
+      deleteAllData(deleteFrom(persistence.ApiKey))
 
       // imagesテーブルのみpreset(システムデータ)以外を削除
       withSQL {
@@ -343,6 +355,17 @@ object SpecCommonLogic {
         userId = "023bfa40-e897-4dad-96db-9fd3cf001e80",
         role = 2,
         status = 1,
+        createdBy = AppConf.systemUserId,
+        createdAt = ts,
+        updatedBy = AppConf.systemUserId,
+        updatedAt = ts
+      )
+      persistence.ApiKey.create(
+        id = "0cebc943-a0b9-4aa5-927d-65fa374bf0eb",
+        userId = "023bfa40-e897-4dad-96db-9fd3cf001e80",
+        apiKey = "5dac067a4c91de87ee04db3e3c34034e84eb4a599165bcc9741bb9a91e8212ca",
+        secretKey = "dc9765e63b2b469a7bfb611fad8a10f2394d2b98b7a7105078356ec2a74164ea",
+        permission = 3,
         createdBy = AppConf.systemUserId,
         createdAt = ts,
         updatedBy = AppConf.systemUserId,
