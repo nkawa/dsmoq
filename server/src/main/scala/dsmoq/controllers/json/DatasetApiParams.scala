@@ -20,9 +20,7 @@ case class UpdateDatasetMetaParams(
   name: Option[String] = None,
   description: Option[String] = None,
   license: Option[String] = None,
-  attributes: List[DataSetAttribute] = List.empty,
-  saveLocal: Option[Boolean] = None,
-  saveS3: Option[Boolean] = None
+  attributes: List[DataSetAttribute] = List.empty
 )
 
 case class ChangePrimaryImageParams(
