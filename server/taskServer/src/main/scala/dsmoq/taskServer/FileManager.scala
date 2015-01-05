@@ -77,7 +77,7 @@ object FileManager {
     }
 
     if (! client.doesBucketExist(AppConf.s3UploadRoot)) {
-      client.createBucket(AppConf.s3UploadRoot)
+      throw new BucketNotFoundException("対象のBucket(%s)が作成されていません。".format(AppConf.s3UploadRoot))
     }
 
     val contentLength = in.available
