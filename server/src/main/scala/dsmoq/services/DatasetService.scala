@@ -1,6 +1,6 @@
 package dsmoq.services
 
-import java.io.{InputStreamReader, FileReader}
+import java.io.{FileOutputStream, FileInputStream, InputStreamReader, FileReader}
 
 import dsmoq.services.json.DatasetData.{CopiedDataset, DatasetTask}
 import org.json4s._
@@ -2060,9 +2060,11 @@ object DatasetService {
       }
       if (file_.getSize <= 0) throw new InputValidationException(Map("file" -> "file is empty"))
 
-      val csv = readCsv(file_)
+      val csv = use(new InputStreamReader(file_.getInputStream)) { in =>
+        CSVReader.open(in).all()
+      }
       val nameMap = csv.map(x => (x(0), x(1))).toMap
-      
+
       DB localTx { s =>
         val a = persistence.Annotation.a
         val da = persistence.DatasetAnnotation.da
@@ -2116,17 +2118,42 @@ object DatasetService {
     }
   }
 
-  private def readCsv(file: FileItem): List[List[String]] = {
-    val isreader = new InputStreamReader(file.getInputStream)
+  private def use[T1 <: Closable, T2](resource: T1)(f: T1 => T2): T2 = {
     try {
-      val reader = CSVReader.open(isreader)
-      reader.all()
+      f(resource)
     } finally {
       try {
-        isreader.close()
+        resource.close()
       } catch {
         case e: Exception =>
       }
+    }
+  }
+
+  def exportAttribute(datasetId: String, user: User): Try[java.io.File] = {
+    try
+    {
+      DB readOnly { s =>
+        val a = persistence.Annotation.a
+        val da = persistence.DatasetAnnotation.da
+        val attributes = withSQL {
+          select(a.name, da.data)
+            .from(Annotation as a)
+            .join(DatasetAnnotation as da).on(a.id, da.annotationId)
+            .where
+              .eq(da.datasetId, sqls.uuid(datasetId))
+        }.map(rs => List(rs.string(a.resultName.name), rs.string(da.resultName.data)).mkString(",")).list().apply
+
+        val file = new java.io.File("export.csv")
+
+        use(new FileOutputStream(file)) { out =>
+          attributes.foreach { x => out.write(x.getBytes) }
+        }
+
+        Success(file)
+      }
+    } catch {
+      case e: Throwable => Failure(e)
     }
   }
 }

@@ -261,8 +261,25 @@ class ApiController extends ScalatraServlet
 
     (for {
       user <- signedInUser
-      file <- DatasetService.importAttribute(datasetId, file, user)
-    } yield file) |> toAjaxResponse
+      _ <- DatasetService.importAttribute(datasetId, file, user)
+    } yield {}) |> toAjaxResponse
+  }
+
+  get("/datasets/:datasetId/attribute/export") {
+    val datasetId = params("datasetId")
+    val result = for {
+      user <- signedInUser
+      file <- DatasetService.exportAttribute(datasetId, user)
+    } yield {
+      file
+    }
+    result match {
+      case Success(x) =>
+          response.setHeader("Content-Disposition", "attachment; filename=" + x.getName)
+          response.setHeader("Content-Type", "application/octet-stream;charset=binary")
+          x
+      case Failure(e) => halt(status = 403, reason = "Forbidden", body="Forbidden")
+    }
   }
 
   // --------------------------------------------------------------------------
@@ -430,7 +447,7 @@ class ApiController extends ScalatraServlet
 
   private def getFiles(key: String) = {
     try {
-      fileMultiParams("file[]")
+      fileMultiParams(key)
     } catch {
       case e :NoSuchElementException => Seq[FileItem]()
     }
