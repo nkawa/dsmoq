@@ -112,12 +112,6 @@ class Frame {
                 .filter(function (x) return JQuery._(x).val() == "")
                 .iter(function (x) JQuery._(x).parent().remove());
 
-            if (form.find("input[type='file']").length == 0) {
-                JQuery._("#new-dataset-dialog-submit").attr("disabled", true);
-            } else {
-                JQuery._("#new-dataset-dialog-submit").removeAttr("disabled");
-            }
-
             form.append("<div class=\"form-group\"><input type=\"file\" name=\"file[]\"></div>");
         });
 
