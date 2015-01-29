@@ -7,7 +7,7 @@ import org.json4s.{DefaultFormats, Formats}
 import org.scalatra.json.JacksonJsonSupport
 import dsmoq.services._
 import scala.util.{Try, Success, Failure}
-import org.scalatra.servlet.FileUploadSupport
+import org.scalatra.servlet.{FileItem, FileUploadSupport}
 import dsmoq.controllers.json._
 import dsmoq.exceptions.{InputValidationException, NotFoundException, NotAuthorizedException}
 
@@ -111,7 +111,7 @@ class ApiController extends ScalatraServlet
   // dataset api
   // --------------------------------------------------------------------------
   post("/datasets") {
-    val files = fileMultiParams("file[]")
+    val files = getFiles("file[]")
     val saveLocal = params.get("saveLocal") map { x => x == "true" }
     val saveS3 = params.get("saveS3") map { x => x == "true" }
     (for {
@@ -407,6 +407,14 @@ class ApiController extends ScalatraServlet
       case _ =>
         log(e.getMessage, e)
         AjaxResponse("NG")
+    }
+  }
+
+  private def getFiles(key: String) = {
+    try {
+      fileMultiParams("file[]")
+    } catch {
+      case e :NoSuchElementException => Seq[FileItem]()
     }
   }
 

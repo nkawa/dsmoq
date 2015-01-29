@@ -80,9 +80,10 @@ object DatasetService {
 
           (file, histroy)
         })
+
         val dataset = persistence.Dataset.create(
           id = datasetId,
-          name = f.head._1.name,
+          name = if (f.isEmpty) { "Dataset Name" } else { f.head._1.name },
           description = "",
           licenseId = AppConf.defaultLicenseId,
           filesCount = f.length,
