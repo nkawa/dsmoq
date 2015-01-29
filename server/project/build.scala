@@ -53,7 +53,8 @@ object DsmoqBuild extends Build {
         "com.google.api-client" % "google-api-client" % "1.18.0-rc" excludeAll( ExclusionRule(organization = "org.apache.httpcomponents") ),
         "com.google.http-client" % "google-http-client-jackson" % "1.18.0-rc" excludeAll( ExclusionRule(organization = "org.apache.httpcomponents") ),
         "com.google.apis" % "google-api-services-oauth2" % "v2-rev66-1.18.0-rc" excludeAll( ExclusionRule(organization = "org.apache.httpcomponents") ),
-        "com.amazonaws" % "aws-java-sdk" % "1.9.4"
+        "com.amazonaws" % "aws-java-sdk" % "1.9.4",
+        "com.github.tototoshi" %% "scala-csv" % "1.1.2"
       )
     )
   )

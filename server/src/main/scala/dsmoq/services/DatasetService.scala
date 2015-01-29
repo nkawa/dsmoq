@@ -1,6 +1,8 @@
 package dsmoq.services
 
-import dsmoq.services.json.DatasetData.DatasetTask
+import java.io.{InputStreamReader, FileReader}
+
+import dsmoq.services.json.DatasetData.{CopiedDataset, DatasetTask}
 import org.json4s._
 import org.json4s.JsonDSL._
 import org.json4s.jackson.JsonMethods._
@@ -20,6 +22,7 @@ import org.scalatra.servlet.FileItem
 import dsmoq.services.json.RangeSliceSummary
 import dsmoq.services.json.Image
 import scala.collection.mutable
+import com.github.tototoshi.csv._
 
 object DatasetService {
   // FIXME 暫定パラメータのため、将来的には削除する
@@ -1963,6 +1966,167 @@ object DatasetService {
             updatedAt = timestamp
           )
         }
+    }
+  }
+
+  def copyDataset(datasetId: String, user: User): Try[CopiedDataset] = {
+    try {
+      DB localTx { implicit s =>
+        datasetAccessabilityCheck(datasetId, user)
+
+        val myself = persistence.User.find(user.id).get
+        val timestamp = DateTime.now()
+
+        val newDatasetId = UUID.randomUUID.toString
+        val dataset = persistence.Dataset.find(datasetId).get
+        dataset.copy(
+          id = newDatasetId,
+          createdBy = myself.id,
+          createdAt = timestamp,
+          updatedBy = myself.id,
+          updatedAt = timestamp
+        ).save()
+
+        val da = persistence.DatasetAnnotation.da
+        val annotations = withSQL {
+          select
+            .from(DatasetAnnotation as da)
+            .where
+              .eq(da.datasetId, sqls.uuid(datasetId))
+        }.map(persistence.DatasetAnnotation(da.resultName)).list().apply
+
+        annotations.foreach {
+          _.copy(
+            id = UUID.randomUUID().toString,
+            datasetId = newDatasetId,
+            createdBy = myself.id,
+            createdAt = timestamp,
+            updatedBy = myself.id,
+            updatedAt = timestamp
+          ).save
+        }
+
+        val di = persistence.DatasetImage.di
+        val images = withSQL {
+          select
+            .from(DatasetImage as di)
+            .where
+              .eq(di.datasetId, sqls.uuid(datasetId))
+        }.map(persistence.DatasetImage(di.resultName)).list().apply
+
+        images.foreach {
+          _.copy(
+            id = UUID.randomUUID().toString,
+            datasetId = newDatasetId,
+            createdBy = myself.id,
+            createdAt = timestamp,
+            updatedBy = myself.id,
+            updatedAt = timestamp
+          ).save
+        }
+
+        val o = persistence.Ownership.o
+        val ownerships = withSQL {
+          select
+            .from(Ownership as o)
+            .where
+              .eq(o.datasetId, sqls.uuid(datasetId))
+        }.map(persistence.Ownership(o.resultName)).list().apply
+
+        ownerships.foreach {
+          _.copy(
+            id = UUID.randomUUID().toString,
+            datasetId = newDatasetId,
+            createdBy = myself.id,
+            createdAt = timestamp,
+            updatedBy = myself.id,
+            updatedAt = timestamp
+          ).save
+        }
+
+        Success(CopiedDataset(newDatasetId))
+      }
+    } catch {
+      case e: Throwable => Failure(e)
+    }
+  }
+
+  def importAttribute(datasetId: String, file: Option[FileItem], user: User): Try[Unit] = {
+    try
+    {
+      val file_ = file match {
+        case Some(x) => x
+        case None => throw new InputValidationException(Map("file" -> "file is empty"))
+      }
+      if (file_.getSize <= 0) throw new InputValidationException(Map("file" -> "file is empty"))
+
+      val csv = readCsv(file_)
+      val nameMap = csv.map(x => (x(0), x(1))).toMap
+      
+      DB localTx { s =>
+        val a = persistence.Annotation.a
+        val da = persistence.DatasetAnnotation.da
+        val exists = withSQL {
+          select
+            .from(Annotation as a)
+            .where
+              .in(a.name, csv.map(_(0)))
+        }.map(persistence.Annotation(a.resultName)).list().apply
+
+        val notExists = csv.filter(x => ! exists.map(_.name).contains(x(0)))
+        val myself = persistence.User.find(user.id).get
+        val timestamp = DateTime.now()
+
+        val created = notExists.map { annotation =>
+          persistence.Annotation.create(
+            id = UUID.randomUUID().toString,
+            name = annotation(0),
+            createdBy = myself.id,
+            createdAt = timestamp,
+            updatedBy = myself.id,
+            updatedAt = timestamp
+          )
+        }
+
+        val existRels = withSQL {
+          select
+            .from(DatasetAnnotation as da)
+            .join(Annotation as a).on(da.annotationId, a.id)
+            .where
+              .in(a.name, exists.map(_.name))
+        }.map(persistence.DatasetAnnotation(da.resultName)).list().apply
+
+        (exists.filter(x => ! existRels.map(_.annotationId).contains(x.id)) ++ created).foreach { annotation =>
+          persistence.DatasetAnnotation.create(
+            id = UUID.randomUUID().toString,
+            datasetId = datasetId,
+            annotationId = annotation.id,
+            data = nameMap(annotation.name),
+            createdBy = myself.id,
+            createdAt = timestamp,
+            updatedBy = myself.id,
+            updatedAt = timestamp
+          )
+        }
+
+        Success(Unit)
+      }
+    } catch {
+      case e: Throwable => Failure(e)
+    }
+  }
+
+  private def readCsv(file: FileItem): List[List[String]] = {
+    val isreader = new InputStreamReader(file.getInputStream)
+    try {
+      val reader = CSVReader.open(isreader)
+      reader.all()
+    } finally {
+      try {
+        isreader.close()
+      } catch {
+        case e: Exception =>
+      }
     }
   }
 }

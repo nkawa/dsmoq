@@ -247,6 +247,24 @@ class ApiController extends ScalatraServlet
     } yield result) |> toAjaxResponse
   }
 
+  post("/datasets/:datasetId/copy") {
+    val datasetId = params("datasetId")
+    (for {
+      user <- signedInUser
+      file <- DatasetService.copyDataset(datasetId, user)
+    } yield file) |> toAjaxResponse
+  }
+
+  post("/datasets/:datasetId/attribute/import") {
+    val datasetId = params("datasetId")
+    val file = fileParams.get("file")
+
+    (for {
+      user <- signedInUser
+      file <- DatasetService.importAttribute(datasetId, file, user)
+    } yield file) |> toAjaxResponse
+  }
+
   // --------------------------------------------------------------------------
   // group api
   // --------------------------------------------------------------------------

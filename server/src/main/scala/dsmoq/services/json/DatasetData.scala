@@ -88,4 +88,8 @@ object DatasetData {
   case class DatasetTask (
     taskId: String
   )
+
+  case class CopiedDataset (
+    datasetId: String
+  )
 }
