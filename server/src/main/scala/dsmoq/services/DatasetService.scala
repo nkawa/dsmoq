@@ -38,7 +38,6 @@ object DatasetService {
   def create(files: Seq[FileItem], saveLocal: Option[Boolean], saveS3: Option[Boolean], user: User): Try[DatasetData.Dataset] = {
     try {
       val files_ = files.filter(_.name.nonEmpty)
-      if (files_.isEmpty) throw new InputValidationException(Map("files" -> "file is empty"))
       val saveLocal_ = saveLocal.getOrElse(true)
       val saveS3_ = saveS3.getOrElse(false)
 
@@ -96,7 +95,7 @@ object DatasetService {
           s3State = if (saveS3_) { 2 } else { 0 }
         )
 
-        if (saveS3_) {
+        if (saveS3_ && ! f.isEmpty) {
           createTask(datasetId, MoveToS3, myself.id, timestamp, saveLocal_)
         }
 
