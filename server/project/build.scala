@@ -54,7 +54,9 @@ object DsmoqBuild extends Build {
         "com.google.http-client" % "google-http-client-jackson" % "1.18.0-rc" excludeAll( ExclusionRule(organization = "org.apache.httpcomponents") ),
         "com.google.apis" % "google-api-services-oauth2" % "v2-rev66-1.18.0-rc" excludeAll( ExclusionRule(organization = "org.apache.httpcomponents") ),
         "com.amazonaws" % "aws-java-sdk" % "1.9.4",
-        "com.github.tototoshi" %% "scala-csv" % "1.1.2"
+        "com.github.tototoshi" %% "scala-csv" % "1.1.2",
+        "com.github.scala-incubator.io" %% "scala-io-core" % "0.4.3",
+        "com.github.scala-incubator.io" %% "scala-io-file" % "0.4.3"
       )
     )
   )

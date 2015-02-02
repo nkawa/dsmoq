@@ -22,7 +22,10 @@ class FileController extends ScalatraServlet with SessionTrait with FileUploadSu
         if (x._1) {
           response.setHeader("Content-Disposition", "attachment; filename=" + x._4)
           response.setHeader("Content-Type", "application/octet-stream;charset=binary")
-          x._2
+          x._5 match {
+            case None => x._2
+            case Some(in) => org.scalatra.util.io.copy(in, response.getOutputStream)
+          }
         } else {
           redirect(x._3)
         }

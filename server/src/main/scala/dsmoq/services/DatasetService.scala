@@ -1,8 +1,10 @@
 package dsmoq.services
 
 import java.io.{FileOutputStream, FileInputStream, InputStreamReader, FileReader}
+import java.nio.charset.Charset
+import java.util.zip.{ZipFile, ZipInputStream}
 
-import dsmoq.services.json.DatasetData.{CopiedDataset, DatasetTask}
+import dsmoq.services.json.DatasetData.{DatasetZipedFile, CopiedDataset, DatasetTask}
 import org.json4s._
 import org.json4s.JsonDSL._
 import org.json4s.jackson.JsonMethods._
@@ -52,6 +54,7 @@ object DatasetService {
         val timestamp = DateTime.now()
 
         val f = files_.map(f => {
+          val isZip = f.getName.endsWith("zip")
           val file = persistence.File.create(
             id = UUID.randomUUID.toString,
             datasetId = datasetId,
@@ -60,6 +63,7 @@ object DatasetService {
             fileType = 0,
             fileMime = "application/octet-stream",
             fileSize = f.size,
+            isZip = isZip,
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
@@ -78,6 +82,10 @@ object DatasetService {
             updatedBy = myself.id,
             updatedAt = timestamp
           )
+
+          if (isZip) {
+            createZipedFiles(f, file.id, timestamp, myself)
+          }
 
           FileManager.uploadToLocal(datasetId, file.id, histroy.id, f)
 
@@ -141,7 +149,9 @@ object DatasetService {
             createdBy = user,
             createdAt = timestamp.toString(),
             updatedBy = user,
-            updatedAt = timestamp.toString()
+            updatedAt = timestamp.toString(),
+            isZip = x._1.isZip,
+            zipedFiles = if (x._1.isZip) { getZipedFiles(x._1.id) } else { Seq.empty }
           )),
           images = Seq(Image(
             id = AppConf.defaultDatasetImageId,
@@ -169,6 +179,26 @@ object DatasetService {
       case e: Throwable => Failure(e)
     }
   }
+
+  private def createZipedFiles(file: FileItem, fileId: String, timestamp: DateTime, myself: persistence.User): Unit = {
+    use(new ZipInputStream(file.getInputStream)) { in =>
+      while (in.available() != 0) {
+        val entry = in.getNextEntry
+        persistence.ZipedFiles.create(
+          id = UUID.randomUUID().toString,
+          fileId = fileId,
+          name = entry.getName,
+          description = "",
+          fileSize = entry.getSize,
+          createdBy = myself.id,
+          createdAt = timestamp,
+          updatedBy = myself.id,
+          updatedAt = timestamp
+        )
+      }
+    }
+  }
+
   private def createTask(datasetId: String, commandType: Int, userId: String, timestamp: DateTime, isSave: Boolean)(implicit s: DBSession): String = {
     val id = UUID.randomUUID.toString
     persistence.Task.create(
@@ -584,6 +614,7 @@ object DatasetService {
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
         val f = files.map(f => {
+          val isZip = f.getName.endsWith("zip")
           val file = persistence.File.create(
             id = UUID.randomUUID.toString,
             datasetId = id,
@@ -592,6 +623,7 @@ object DatasetService {
             fileType = 0,
             fileMime = "application/octet-stream",
             fileSize = f.size,
+            isZip = isZip,
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
@@ -610,6 +642,11 @@ object DatasetService {
             updatedBy = myself.id,
             updatedAt = timestamp
           )
+
+          if (isZip) {
+            createZipedFiles(f, file.id, timestamp, myself)
+          }
+
           FileManager.uploadToLocal(id, file.id, history.id, f)
 
           (file, history)
@@ -631,7 +668,9 @@ object DatasetService {
             createdBy = user,
             createdAt = timestamp.toString(),
             updatedBy = user,
-            updatedAt = timestamp.toString()
+            updatedAt = timestamp.toString(),
+            isZip = x._1.isZip,
+            zipedFiles = if (x._1.isZip) { getZipedFiles(x._1.id) } else { Seq.empty }
           ))
         ))
       }
@@ -696,7 +735,9 @@ object DatasetService {
           createdBy = user,
           createdAt = timestamp.toString(),
           updatedBy = user,
-          updatedAt = timestamp.toString()
+          updatedAt = timestamp.toString(),
+          isZip = result.isZip,
+          zipedFiles = if (result.isZip) { getZipedFiles(result.id) } else { Seq.empty }
         ))
       }
     } catch {
@@ -770,7 +811,9 @@ object DatasetService {
           createdBy = user,
           createdAt = timestamp.toString(),
           updatedBy = user,
-          updatedAt = timestamp.toString()
+          updatedAt = timestamp.toString(),
+          isZip = result.isZip,
+          zipedFiles = if (result.isZip) { getZipedFiles(result.id) } else { Seq.empty }
         ))
       }
     } catch {
@@ -1522,16 +1565,48 @@ object DatasetService {
         val file = persistence.File.find(fileId)
         val filePath: Option[String] = getFileHistory(fileId)
         file match {
-          case Some(f) => (f, filePath.get, dataset)
-          case None => throw new RuntimeException("data not found.")
+          case Some(f) => (f, filePath.get, dataset, None)
+          case None => {
+            val zipedFile = persistence.ZipedFiles.find(fileId)
+            zipedFile match {
+              case Some(zf) => {
+                val zipFile = persistence.File.find(zf.fileId).get
+                val zipFilePath = getFileHistory(zf.fileId)
+                (zipFile, zipFilePath.get, dataset, Some(zf))
+              }
+              case None => throw new RuntimeException("data not found.")
+            }
+          }
         }
       }
       if (fileInfo._3.localState == 1 || (fileInfo._3.s3State == 2 && fileInfo._3.localState == 3)) {
-        val file = FileManager.downloadFromLocal(fileInfo._2.substring(1) + "/" + fileInfo._1.name)
-        Success((true, file, "", fileInfo._1.name))
+        fileInfo._4 match {
+          case Some(zipedFile) => {
+            val file = FileManager.downloadFromLocal(fileInfo._2.substring(1) + "/" + fileInfo._1.name)
+            val zip = new ZipFile(file, Charset.forName("SJIS"))
+            val entry = zip.getEntry(zipedFile.name)
+            Success((true, file, "", zipedFile.name, Some(zip.getInputStream(entry))))
+
+          }
+          case None => {
+            val file = FileManager.downloadFromLocal(fileInfo._2.substring(1) + "/" + fileInfo._1.name)
+            Success((true, file, "", fileInfo._1.name, None))
+          }
+        }
       } else {
-        val url = FileManager.downloadFromS3(fileInfo._2.substring(1) + "/" + fileInfo._1.name)
-        Success((false, new java.io.File("."), url, fileInfo._1.name))
+        fileInfo._4 match {
+          case Some(zipedFile) => {
+            val file = FileManager.downloadFromS3(fileInfo._2.substring(1) + "/" + fileInfo._1.name)
+            val zip = new ZipFile(file, Charset.forName("SJIS"))
+            val entry = zip.getEntry(zipedFile.name)
+            file.delete()
+            Success((true, file, "", zipedFile.name, Some(zip.getInputStream(entry))))
+          }
+          case None => {
+            val url = FileManager.downloadFromS3Url(fileInfo._2.substring(1) + "/" + fileInfo._1.name)
+            Success((false, new java.io.File("."), url, fileInfo._1.name, None))
+          }
+        }
       }
     } catch {
       case e: Exception => Failure(e)
@@ -1807,7 +1882,6 @@ object DatasetService {
     val u2 = persistence.User.syntax("u2")
     val ma1 = persistence.MailAddress.syntax("ma1")
     val ma2 = persistence.MailAddress.syntax("ma2")
-
     withSQL {
       select(f.result.*, u1.result.*, u2.result.*, ma1.result.address, ma2.result.address)
         .from(persistence.File as f)
@@ -1838,9 +1912,21 @@ object DatasetService {
         createdBy = User(x._2, x._4),
         createdAt = x._1.createdAt.toString(),
         updatedBy = User(x._3, x._5),
-        updatedAt = x._1.updatedAt.toString()
+        updatedAt = x._1.updatedAt.toString(),
+        isZip = x._1.isZip,
+        zipedFiles = if (x._1.isZip) { getZipedFiles(x._1.id) } else { Seq.empty[DatasetZipedFile] }
       )
     )
+  }
+
+  def getZipedFiles(fileId: String)(implicit s: DBSession) = {
+    val zf = persistence.ZipedFiles.zf
+    withSQL {
+      select
+      .from(ZipedFiles as zf)
+      .where
+        .eq(zf.fileId, sqls.uuid(fileId))
+    }.map(persistence.ZipedFiles(zf.resultName)).list.apply.map(x => DatasetZipedFile(x.id, x.name, x.fileSize)).toSeq
   }
 
   private def updateDatasetFileStatus(datasetId: String, userId:String, timestamp: DateTime)(implicit s: DBSession) = {
@@ -2065,7 +2151,7 @@ object DatasetService {
       }
       val nameMap = csv.map(x => (x(0), x(1))).toMap
 
-      DB localTx { s =>
+      DB localTx { implicit s =>
         val a = persistence.Annotation.a
         val da = persistence.DatasetAnnotation.da
         val exists = withSQL {
@@ -2073,7 +2159,7 @@ object DatasetService {
             .from(Annotation as a)
             .where
               .in(a.name, csv.map(_(0)))
-        }.map(persistence.Annotation(a.resultName)).list().apply
+        }.map(persistence.Annotation(a.resultName)).list().apply()
 
         val notExists = csv.filter(x => ! exists.map(_.name).contains(x(0)))
         val myself = persistence.User.find(user.id).get
@@ -2133,7 +2219,7 @@ object DatasetService {
   def exportAttribute(datasetId: String, user: User): Try[java.io.File] = {
     try
     {
-      DB readOnly { s =>
+      DB readOnly { implicit s =>
         val a = persistence.Annotation.a
         val da = persistence.DatasetAnnotation.da
         val attributes = withSQL {
@@ -2142,7 +2228,7 @@ object DatasetService {
             .join(DatasetAnnotation as da).on(a.id, da.annotationId)
             .where
               .eq(da.datasetId, sqls.uuid(datasetId))
-        }.map(rs => List(rs.string(a.resultName.name), rs.string(da.resultName.data)).mkString(",")).list().apply
+        }.map(rs => List(rs.string(a.resultName.name), rs.string(da.resultName.data)).mkString(",")).list().apply()
 
         val file = new java.io.File("export.csv")
 

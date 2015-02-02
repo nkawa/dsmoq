@@ -71,7 +71,15 @@ object DatasetData {
     createdBy: User,
     createdAt: String,
     updatedBy: User,
-    updatedAt: String
+    updatedAt: String,
+    isZip: Boolean,
+    zipedFiles: Seq[DatasetZipedFile]
+  )
+
+  case class DatasetZipedFile (
+    id: String,
+    name: String,
+    size: Long
   )
 
   case class DatasetOwnership (
