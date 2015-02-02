@@ -221,7 +221,9 @@ class DatasetEditPage {
                 Service.instance.addDatasetFiles(id, root.find("#dataset-file-add-form")).then(
                     function (res) {
                         root.find("#dataset-file-add-submit").hide();
-                        JsViews.observable(data.dataset.files).insert(res[0]);
+						for (i in 0...res.length) {
+							JsViews.observable(data.dataset.files).insert(res[i]);
+						}
                         root.find("#dataset-file-add-form input").val("");
                         Notification.show("success", "save successful");
                     },

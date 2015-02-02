@@ -40,11 +40,12 @@ object DatasetService {
    * @param user
    * @return
    */
-  def create(files: Seq[FileItem], saveLocal: Option[Boolean], saveS3: Option[Boolean], user: User): Try[DatasetData.Dataset] = {
+  def create(files: Seq[FileItem], saveLocal: Option[Boolean], saveS3: Option[Boolean], name: Option[String], user: User): Try[DatasetData.Dataset] = {
     try {
       val files_ = files.filter(_.name.nonEmpty)
       val saveLocal_ = saveLocal.getOrElse(true)
       val saveS3_ = saveS3.getOrElse(false)
+      val name_ = name.getOrElse("")
 
       DB localTx { implicit s =>
         val myself = persistence.User.find(user.id).get
@@ -94,7 +95,7 @@ object DatasetService {
 
         val dataset = persistence.Dataset.create(
           id = datasetId,
-          name = if (f.isEmpty) { "Dataset Name" } else { f.head._1.name },
+          name = if (f.isEmpty) { name_ } else { f.head._1.name },
           description = "",
           licenseId = AppConf.defaultLicenseId,
           filesCount = f.length,

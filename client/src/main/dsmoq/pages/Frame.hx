@@ -101,7 +101,7 @@ class Frame {
         JQuery._("#new-dataset-dialog").on("hide.bs.modal", function (_) {
             JQuery._("#new-dataset-dialog form .form-group").remove();
             JQuery._("#new-dataset-dialog form")
-                .append("<div class=\"form-group\"><input type=\"file\" name=\"file[]\" multiple=\"multiple\"></div>");
+                .append("<div class=\"form-group\"><input type=\"text\" name=\"name\" placeholder=\"Dataset Name\"><input type=\"file\" name=\"file[]\" multiple=\"multiple\"></div>");
         });
 
         JQuery._("#new-dataset-dialog form").on("change", "input[type='file']", function (event: Event) {
@@ -121,7 +121,8 @@ class Frame {
                 untyped JQuery._("#new-dataset-dialog").modal("hide");
                 JQuery._("#new-dataset-dialog form")
                     .find("input[type='file']").remove().end()
-                    .append("<div class=\"form-group\"><input type=\"file\" name=\"file[]\" multiple=\"multiple\"></div>");
+					.find("input[type='text']").remove().end()
+                    .append("<div class=\"form-group\"><input type=\"text\" name=\"name\" placeholder=\"Dataset Name\"><input type=\"file\" name=\"file[]\" multiple=\"multiple\"></div>");
 				JQuery._("#saveLocal").prop("checked", false);
 				JQuery._("#saveS3").prop("checked", false);
                 navigation.update(Navigation.Navigate(DatasetShow(data.id)));
