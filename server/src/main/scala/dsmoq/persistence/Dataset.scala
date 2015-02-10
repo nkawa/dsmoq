@@ -18,7 +18,8 @@ case class Dataset(
   deletedBy: Option[String] = None,
   deletedAt: Option[DateTime] = None, 
   localState: Int, 
-  s3State: Int) {
+  s3State: Int,
+  files: Seq[File] = Nil) {
 
   def save()(implicit session: DBSession = Dataset.autoSession): Dataset = Dataset.save(this)(session)
 
@@ -34,7 +35,7 @@ object Dataset extends SQLSyntaxSupport[Dataset] {
   override val columns = Seq("id", "name", "description", "license_id", "files_count", "files_size", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at", "local_state", "s3_state")
 
   def apply(d: SyntaxProvider[Dataset])(rs: WrappedResultSet): Dataset = apply(d.resultName)(rs)
-  def apply(d: ResultName[Dataset])(rs: WrappedResultSet): Dataset = new Dataset(
+  def apply(d: ResultName[Dataset])(rs: WrappedResultSet) = new Dataset(
     id = rs.string(d.id),
     name = rs.string(d.name),
     description = rs.string(d.description),

@@ -14,11 +14,23 @@
 		<p><h2><a href="/groups" data-navigation>SEARCH GROUPS</a></h2></p>
 	</div>
 	<div class="col-md-4 middle-bar statistics">
-		<p><h3><span class="glyphicon glyphicon-file"></span> Datasets　10000Records</h3></p>
-		<p><h3><span class="glyphicon glyphicon-floppy-disk"></span> Total Size　800GiB</h3></p>
-		<p><h4>　　<span class="glyphicon glyphicon-floppy-open"></span> Real Size　1000GiB</h4></p>
-		<p><h4>　　<span class="glyphicon glyphicon-cloud"></span> On Cloud　400GiB</h4></p>
-		<p><h4>　　<span class="glyphicon glyphicon-hdd"></span> On Local　4000GiB</h4></p>
+	{^{async statistics}}
+		{^{if #data.length > 0}}
+		{^{for #data}}
+		<p><h3><span class="glyphicon glyphicon-file"></span> Datasets　{{>dataset_amount}}Records</h3></p>
+		<p><h3><span class="glyphicon glyphicon-floppy-disk"></span> Total Size　{{datasize total_size /}}</h3></p>
+		<p><h4>　　<span class="glyphicon glyphicon-floppy-open"></span> Real Size　{{datasize real_size /}}</h4></p>
+		<p><h4>　　<span class="glyphicon glyphicon-cloud"></span> On Cloud　{{datasize s3_size /}}</h4></p>
+		<p><h4>　　<span class="glyphicon glyphicon-hdd"></span> On Local　{{datasize local_size /}}</h4></p>
+		{{/for}}
+		{{else}}
+		<p><h3><span class="glyphicon glyphicon-file"></span> Datasets　0Records</h3></p>
+		<p><h3><span class="glyphicon glyphicon-floppy-disk"></span> Total Size　0Byte</h3></p>
+		<p><h4>　　<span class="glyphicon glyphicon-floppy-open"></span> Real Size　0Byte</h4></p>
+		<p><h4>　　<span class="glyphicon glyphicon-cloud"></span> On Cloud　0Byte</h4></p>
+		<p><h4>　　<span class="glyphicon glyphicon-hdd"></span> On Local　0Byte</h4></p>
+		{{/if}}
+    {{/async}}
 	</div>
 </div>
 <div class="row">

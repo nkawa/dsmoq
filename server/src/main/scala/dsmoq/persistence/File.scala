@@ -14,12 +14,15 @@ case class File(
   fileMime: String, 
   fileSize: Long,
   isZip: Boolean,
+  realSize: Long,
   createdBy: String,
   createdAt: DateTime, 
   updatedBy: String,
   updatedAt: DateTime, 
   deletedBy: Option[String] = None,
-  deletedAt: Option[DateTime] = None) {
+  deletedAt: Option[DateTime] = None,
+  zipedFiles: Seq[ZipedFiles] = Nil
+) {
 
   def save()(implicit session: DBSession = File.autoSession): File = File.save(this)(session)
 
@@ -32,7 +35,7 @@ object File extends SQLSyntaxSupport[File] {
 
   override val tableName = "files"
 
-  override val columns = Seq("id", "dataset_id", "name", "description", "file_type", "file_mime", "file_size", "is_zip", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
+  override val columns = Seq("id", "dataset_id", "name", "description", "file_type", "file_mime", "file_size", "is_zip", "real_size", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
 
   def apply(f: ResultName[File])(rs: WrappedResultSet): File = new File(
     id = rs.string(f.id),
@@ -43,6 +46,7 @@ object File extends SQLSyntaxSupport[File] {
     fileMime = rs.string(f.fileMime),
     fileSize = rs.long(f.fileSize),
     isZip = rs.boolean(f.isZip),
+    realSize = rs.long(f.realSize),
     createdBy = rs.string(f.createdBy),
     createdAt = rs.timestamp(f.createdAt).toJodaDateTime,
     updatedBy = rs.string(f.updatedBy),
@@ -90,6 +94,7 @@ object File extends SQLSyntaxSupport[File] {
     fileMime: String,
     fileSize: Long,
     isZip: Boolean,
+    realSize: Long,
     createdBy: String,
     createdAt: DateTime,
     updatedBy: String,
@@ -106,6 +111,7 @@ object File extends SQLSyntaxSupport[File] {
         column.fileMime,
         column.fileSize,
         column.isZip,
+        column.realSize,
         column.createdBy,
         column.createdAt,
         column.updatedBy,
@@ -121,6 +127,7 @@ object File extends SQLSyntaxSupport[File] {
         fileMime,
         fileSize,
         isZip,
+        realSize,
         sqls.uuid(createdBy),
         createdAt,
         sqls.uuid(updatedBy),
@@ -139,6 +146,7 @@ object File extends SQLSyntaxSupport[File] {
       fileMime = fileMime,
       fileSize = fileSize,
       isZip = isZip,
+      realSize = realSize,
       createdBy = createdBy,
       createdAt = createdAt,
       updatedBy = updatedBy,
@@ -158,6 +166,7 @@ object File extends SQLSyntaxSupport[File] {
         column.fileMime -> entity.fileMime,
         column.fileSize -> entity.fileSize,
         column.isZip -> entity.isZip,
+        column.realSize -> entity.realSize,
         column.createdBy -> sqls.uuid(entity.createdBy),
         column.createdAt -> entity.createdAt,
         column.updatedBy -> sqls.uuid(entity.updatedBy),
@@ -172,5 +181,8 @@ object File extends SQLSyntaxSupport[File] {
   def destroy(entity: File)(implicit session: DBSession = autoSession): Unit = {
     withSQL { delete.from(File).where.eq(column.id, sqls.uuid(entity.id)) }.update.apply()
   }
+
+  def opt(f: SyntaxProvider[File])(rs: WrappedResultSet): Option[File] =
+    rs.stringOpt(f.resultName.id).map(_ => File(f.resultName)(rs))
         
 }

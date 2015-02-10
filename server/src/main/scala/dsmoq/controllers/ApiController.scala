@@ -432,6 +432,13 @@ class ApiController extends ScalatraServlet
     TaskService.getStatus(taskId) |> toAjaxResponse
   }
 
+  get("/statistics") {
+    val json = getJsonValue[StatisticsParams].getOrElse(StatisticsParams())
+    (for {
+     stat <- StatisticsService.getStatistics(json.from, json.to)
+    } yield stat) |> toAjaxResponse
+  }
+
   private def toAjaxResponse[A](result: Try[A]) = result match {
     case Success(Unit) => AjaxResponse("OK")
     case Success(x) => AjaxResponse("OK", x)

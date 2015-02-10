@@ -44,10 +44,10 @@ object DsmoqBuild extends Build {
         "org.eclipse.jetty.orbit" % "javax.servlet" % "3.0.0.v201112011016" % "container;provided;test" artifacts (Artifact("javax.servlet", "jar", "jar")),
         "org.scalatest" % "scalatest_2.11" % "2.2.1" % "test",
         "org.postgresql" % "postgresql" % "9.3-1101-jdbc41",
-        "org.scalikejdbc" %% "scalikejdbc" % "2.1.1",
-        "org.scalikejdbc" %% "scalikejdbc-interpolation" % "2.1.1",
-        "org.scalikejdbc" %% "scalikejdbc-config" % "2.1.1",
-        "org.scalikejdbc" %% "scalikejdbc-test" % "2.1.1" % "test",
+        "org.scalikejdbc" %% "scalikejdbc" % "2.2.3",
+        "org.scalikejdbc" %% "scalikejdbc-interpolation" % "2.2.3",
+        "org.scalikejdbc" %% "scalikejdbc-config" % "2.2.3",
+        "org.scalikejdbc" %% "scalikejdbc-test" % "2.2.3" % "test",
         "org.scalatra" %% "scalatra-json" % ScalatraVersion,
         "org.json4s" %% "json4s-jackson" % "3.2.10",
         "com.google.api-client" % "google-api-client" % "1.18.0-rc" excludeAll( ExclusionRule(organization = "org.apache.httpcomponents") ),
@@ -88,6 +88,17 @@ object DsmoqBuild extends Build {
         "com.typesafe.akka" % "akka-http-core-experimental_2.11" % "0.11",
         "com.typesafe.akka" % "akka-testkit_2.11" % "2.3.7"
       )
+    )
+  ).dependsOn(dsmoq)
+
+  lazy val statisticsBatch = Project(
+    id = "statisticsBatch",
+    base = file("statisticsBatch"),
+    settings = Defaults.coreDefaultSettings ++ Seq(
+      organization := Organization,
+      name := "statisticsBatch",
+      version := Version,
+      scalaVersion := ScalaVersion
     )
   ).dependsOn(dsmoq)
 }

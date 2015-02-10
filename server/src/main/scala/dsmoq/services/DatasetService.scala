@@ -56,8 +56,9 @@ object DatasetService {
 
         val f = files_.map(f => {
           val isZip = f.getName.endsWith("zip")
+          val fileId = UUID.randomUUID.toString
           val file = persistence.File.create(
-            id = UUID.randomUUID.toString,
+            id = fileId,
             datasetId = datasetId,
             name = f.name,
             description = "",
@@ -65,6 +66,7 @@ object DatasetService {
             fileMime = "application/octet-stream",
             fileSize = f.size,
             isZip = isZip,
+            realSize = if (isZip) { createZipedFiles(f, fileId, timestamp, myself) } else { f.size },
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
@@ -83,10 +85,6 @@ object DatasetService {
             updatedBy = myself.id,
             updatedAt = timestamp
           )
-
-          if (isZip) {
-            createZipedFiles(f, file.id, timestamp, myself)
-          }
 
           FileManager.uploadToLocal(datasetId, file.id, histroy.id, f)
 
@@ -181,10 +179,10 @@ object DatasetService {
     }
   }
 
-  private def createZipedFiles(file: FileItem, fileId: String, timestamp: DateTime, myself: persistence.User): Unit = {
+  private def createZipedFiles(file: FileItem, fileId: String, timestamp: DateTime, myself: persistence.User): Long = {
     use(new ZipInputStream(file.getInputStream)) { in =>
-      while (in.available() != 0) {
-        val entry = in.getNextEntry
+      val zips = Stream.iterate(in.getNextEntry)(_ => in.getNextEntry).takeWhile(x => x != null).toList
+      (for (entry <- zips) yield {
         persistence.ZipedFiles.create(
           id = UUID.randomUUID().toString,
           fileId = fileId,
@@ -196,7 +194,7 @@ object DatasetService {
           updatedBy = myself.id,
           updatedAt = timestamp
         )
-      }
+      }).foldLeft(0L)(_ + _.fileSize)
     }
   }
 
@@ -423,9 +421,15 @@ object DatasetService {
                 .isNull(a.deletedAt).and.isNull(da.deletedAt)
                 .and
                 .withRoundBracket(
-                  _.append(sqls.join(attributes.map(x => sqls.eq(a.name, x.name).and.eq(da.data, x.value)), sqls"or"))
+                  _.append(sqls.join(attributes.map{x =>
+                    if (x.value.isEmpty) {
+                      sqls.eq(a.name, x.name)
+                    } else {
+                      sqls.eq(a.name, x.name).and.eq(da.data, x.value)
+                    }
+                  }, sqls"or"))
                 )
-              .groupBy(da.datasetId).having(sqls.eq(sqls.count(da.datasetId), attributes.length))
+              .groupBy(da.datasetId)
               .as(xda)
           ).on(ds.id, xda(da).datasetId)
         } else {
@@ -616,8 +620,9 @@ object DatasetService {
         val timestamp = DateTime.now()
         val f = files.map(f => {
           val isZip = f.getName.endsWith("zip")
+          val fileId = UUID.randomUUID.toString
           val file = persistence.File.create(
-            id = UUID.randomUUID.toString,
+            id = fileId,
             datasetId = id,
             name = f.name,
             description = "",
@@ -625,6 +630,7 @@ object DatasetService {
             fileMime = "application/octet-stream",
             fileSize = f.size,
             isZip = isZip,
+            realSize = if (isZip) { createZipedFiles(f, fileId, timestamp, myself) } else { f.size },
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
@@ -643,10 +649,6 @@ object DatasetService {
             updatedBy = myself.id,
             updatedAt = timestamp
           )
-
-          if (isZip) {
-            createZipedFiles(f, file.id, timestamp, myself)
-          }
 
           FileManager.uploadToLocal(id, file.id, history.id, f)
 

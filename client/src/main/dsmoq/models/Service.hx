@@ -270,6 +270,10 @@ class Service extends Stream<ServiceEvent> {
             : Promise<Array<User>> {
         return send(Get, "/api/suggests/users", params);
     }
+	
+	public function getStatistics(?params :{ ?from: Date, ?to: Date } ) : Promise<Array<StatisticsDetail>> {
+		return send(Get, "/api/statistics", params);
+	}
 
     inline function guest(): Profile {
         return {

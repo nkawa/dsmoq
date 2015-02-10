@@ -25,6 +25,7 @@ class DashboardPage {
             recentDatasets: Async.Pending,
             myDatasets: Async.Pending,
             myGroups: Async.Pending,
+			statistics: Async.Pending,
         };
 
         var binding = JsViews.observable(data);
@@ -107,6 +108,10 @@ class DashboardPage {
 				ellipseLongDescription();
             });
         }
+		
+		Service.instance.getStatistics({ }).then(function(x) {
+			binding.setProperty("statistics", Async.Completed(x));
+		});
 		
         return new Promise(function (_) { });
     }

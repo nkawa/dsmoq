@@ -47,7 +47,7 @@ object ZipedFiles extends SQLSyntaxSupport[ZipedFiles] {
       
   val zf = ZipedFiles.syntax("zf")
 
-  override val autoSession = AutoSession
+  //override val autoSession = AutoSession
 
   def find(id: String)(implicit session: DBSession = autoSession): Option[ZipedFiles] = {
     withSQL {
@@ -151,5 +151,7 @@ object ZipedFiles extends SQLSyntaxSupport[ZipedFiles] {
   def destroy(entity: ZipedFiles)(implicit session: DBSession = autoSession): Unit = {
     withSQL { delete.from(ZipedFiles).where.eq(column.id, sqls.uuid(entity.id)) }.update.apply()
   }
-        
+
+  def opt(f: SyntaxProvider[ZipedFiles])(rs: WrappedResultSet): Option[ZipedFiles] =
+    rs.longOpt(f.resultName.id).map(_ => ZipedFiles(f.resultName)(rs))
 }
