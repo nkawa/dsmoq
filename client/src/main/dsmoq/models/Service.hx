@@ -274,6 +274,10 @@ class Service extends Stream<ServiceEvent> {
 	public function getStatistics(?params :{ ?from: Date, ?to: Date } ) : Promise<Array<StatisticsDetail>> {
 		return send(Get, "/api/statistics", params);
 	}
+	
+	public function copyDataset(datasetId: String): Promise<DatasetCopyId> {
+		return send(Post, '/api/datasets/$datasetId/copy');
+	}
 
     inline function guest(): Profile {
         return {

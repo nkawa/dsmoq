@@ -125,24 +125,24 @@ object DatasetAnnotation extends SQLSyntaxSupport[DatasetAnnotation] {
 
   def save(entity: DatasetAnnotation)(implicit session: DBSession = autoSession): DatasetAnnotation = {
     withSQL { 
-      update(DatasetAnnotation as da).set(
-        da.id -> entity.id,
-        da.datasetId -> entity.datasetId,
-        da.annotationId -> entity.annotationId,
-        da.data -> entity.data,
-        da.createdBy -> entity.createdBy,
-        da.createdAt -> entity.createdAt,
-        da.updatedBy -> entity.updatedBy,
-        da.updatedAt -> entity.updatedAt,
-        da.deletedBy -> entity.deletedBy,
-        da.deletedAt -> entity.deletedAt
-      ).where.eq(da.id, entity.id)
+      update(DatasetAnnotation).set(
+        column.id -> sqls.uuid(entity.id),
+        column.datasetId -> sqls.uuid(entity.datasetId),
+        column.annotationId -> sqls.uuid(entity.annotationId),
+        column.data -> entity.data,
+        column.createdBy -> sqls.uuid(entity.createdBy),
+        column.createdAt -> entity.createdAt,
+        column.updatedBy -> sqls.uuid(entity.updatedBy),
+        column.updatedAt -> entity.updatedAt,
+        column.deletedBy -> entity.deletedBy.map(sqls.uuid),
+        column.deletedAt -> entity.deletedAt
+      ).where.eq(column.id, sqls.uuid(entity.id))
     }.update.apply()
     entity 
   }
         
   def destroy(entity: DatasetAnnotation)(implicit session: DBSession = autoSession): Unit = {
-    withSQL { delete.from(DatasetAnnotation).where.eq(column.id, entity.id) }.update.apply()
+    withSQL { delete.from(DatasetAnnotation).where.eq(column.id, sqls.uuid(entity.id)) }.update.apply()
   }
         
 }

@@ -49,7 +49,7 @@ class DashboardPage {
 			} );
 		}
 		
-		Service.instance.findDatasets( { attributes: [ { name: "featured", value: "" } ], limit: 4 } ).then(function(x) {
+		Service.instance.findDatasets( { attributes: [ { name: "featured", value: "" } ], limit: 10 } ).then(function(x) {
 			if (x.results.length > 0) {
 				x.results.sort(function(x: DatasetSummary, y: DatasetSummary): Int {
 					var featured1 = x.attributes.filter(function(da: DatasetAttribute) {

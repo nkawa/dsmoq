@@ -54,6 +54,12 @@ class DatasetShowPage {
                 // TODO 削除対象データセット閲覧履歴（このページ）をHistoryから消す
                 navigation.fulfill(Navigation.Navigate(Page.DatasetList(1)));
             });
+			
+			html.find("#dataset-copy").createEventStream("click").flatMap(function (_) {
+				return Service.instance.copyDataset(id);
+			}).then(function(x) {
+				navigation.fulfill(Navigation.Navigate(Page.DatasetShow(x.datasetId)));
+			});
         }, function (err) {
             switch (err.name) {
                 case ServiceErrorType.Unauthorized:

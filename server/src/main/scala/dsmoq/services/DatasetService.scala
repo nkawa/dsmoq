@@ -2068,13 +2068,20 @@ object DatasetService {
 
         val newDatasetId = UUID.randomUUID.toString
         val dataset = persistence.Dataset.find(datasetId).get
-        dataset.copy(
+        persistence.Dataset.create(
           id = newDatasetId,
+          name = dataset.name,
+          description = dataset.description,
+          licenseId = dataset.licenseId,
+          filesCount = 0,
+          filesSize = 0,
+          localState = dataset.localState,
+          s3State = dataset.s3State,
           createdBy = myself.id,
           createdAt = timestamp,
           updatedBy = myself.id,
           updatedAt = timestamp
-        ).save()
+        )
 
         val da = persistence.DatasetAnnotation.da
         val annotations = withSQL {
@@ -2084,15 +2091,17 @@ object DatasetService {
               .eq(da.datasetId, sqls.uuid(datasetId))
         }.map(persistence.DatasetAnnotation(da.resultName)).list().apply
 
-        annotations.foreach {
-          _.copy(
+        annotations.foreach { annotation =>
+          persistence.DatasetAnnotation.create(
             id = UUID.randomUUID().toString,
             datasetId = newDatasetId,
+            annotationId = annotation.annotationId,
+            data = annotation.data,
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
             updatedAt = timestamp
-          ).save
+          )
         }
 
         val di = persistence.DatasetImage.di
@@ -2103,15 +2112,17 @@ object DatasetService {
               .eq(di.datasetId, sqls.uuid(datasetId))
         }.map(persistence.DatasetImage(di.resultName)).list().apply
 
-        images.foreach {
-          _.copy(
+        images.foreach { image =>
+          persistence.DatasetImage.create(
             id = UUID.randomUUID().toString,
             datasetId = newDatasetId,
+            imageId = image.imageId,
+            isPrimary = image.isPrimary,
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
             updatedAt = timestamp
-          ).save
+          )
         }
 
         val o = persistence.Ownership.o
@@ -2122,15 +2133,17 @@ object DatasetService {
               .eq(o.datasetId, sqls.uuid(datasetId))
         }.map(persistence.Ownership(o.resultName)).list().apply
 
-        ownerships.foreach {
-          _.copy(
+        ownerships.foreach { ownership =>
+          persistence.Ownership.create(
             id = UUID.randomUUID().toString,
             datasetId = newDatasetId,
+            groupId = ownership.groupId,
+            accessLevel = ownership.accessLevel,
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
             updatedAt = timestamp
-          ).save
+          )
         }
 
         Success(CopiedDataset(newDatasetId))
