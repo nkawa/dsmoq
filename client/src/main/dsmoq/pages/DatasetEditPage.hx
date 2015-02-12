@@ -19,6 +19,11 @@ import js.html.Event;
 import dsmoq.views.AutoComplete;
 import hxgnd.Result;
 import hxgnd.Error;
+import js.Browser;
+import js.html.FileReader;
+import js.html.InputElement;
+import dsmoq.CSV;
+import js.Lib;
 
 class DatasetEditPage {
     public static function render(root: Html, onClose: Promise<Unit>, id: String): Promise<Navigation<Page>> {
@@ -169,7 +174,28 @@ class DatasetEditPage {
                     }
                 );
             });
-
+			root.find("#dataset-attribute-import").click(function(_) {
+				var element = Browser.document.getElementById("csv-file");
+				var files = cast(element, InputElement).files;
+				if (files.length == 0) {
+					return;
+				}
+				var file = files.item(0);
+				var fileReader = new FileReader();
+				fileReader.readAsText(file, "UTF-8");
+				fileReader.onload = function(evt) {
+					var fileString = evt.target.result;
+					removeAttributeTypeahead(root);
+					var attrs = JsViews.observable(data.dataset.meta.attributes);
+					new CSV(fileString).forEach(function(result) {
+						var name = result[0];
+						var value = result[1];
+						attrs.insert({ name: name, value: value });
+					});
+					setAttributeTypeahead(root);
+				};
+			});
+			
             // icon
             root.find("#dataset-icon-form").on("change", "input[type=file]", function (e) {
                 if (new JqHtml(e.target).val() != "") {
@@ -237,7 +263,7 @@ class DatasetEditPage {
                 );
                 root.find("#dataset-file-add-form input").attr("disabled", true);
             });
-
+			
             root.on("click", ".dataset-file-edit-start", function (e) {
                 var fid: String = new JqHtml(e.target).data("value");
                 var file = data.dataset.files.filter(function (x) return x.id == fid)[0];

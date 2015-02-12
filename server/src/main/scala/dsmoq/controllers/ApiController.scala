@@ -256,7 +256,7 @@ class ApiController extends ScalatraServlet
     } yield file) |> toAjaxResponse
   }
 
-  post("/datasets/:datasetId/attribute/import") {
+  post("/datasets/:datasetId/attributes/import") {
     val datasetId = params("datasetId")
     val file = fileParams.get("file")
 
@@ -266,7 +266,7 @@ class ApiController extends ScalatraServlet
     } yield {}) |> toAjaxResponse
   }
 
-  get("/datasets/:datasetId/attribute/export") {
+  get("/datasets/:datasetId/attributes/export") {
     val datasetId = params("datasetId")
     val result = for {
       user <- signedInUser

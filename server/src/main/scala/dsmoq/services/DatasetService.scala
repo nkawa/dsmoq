@@ -2,6 +2,7 @@ package dsmoq.services
 
 import java.io.{FileOutputStream, FileInputStream, InputStreamReader, FileReader}
 import java.nio.charset.Charset
+import java.nio.file.Paths
 import java.util.zip.{ZipFile, ZipInputStream}
 
 import dsmoq.services.json.DatasetData.{DatasetZipedFile, CopiedDataset, DatasetTask}
@@ -2239,14 +2240,14 @@ object DatasetService {
         val a = persistence.Annotation.a
         val da = persistence.DatasetAnnotation.da
         val attributes = withSQL {
-          select(a.name, da.data)
+          select
             .from(Annotation as a)
             .join(DatasetAnnotation as da).on(a.id, da.annotationId)
             .where
               .eq(da.datasetId, sqls.uuid(datasetId))
-        }.map(rs => List(rs.string(a.resultName.name), rs.string(da.resultName.data)).mkString(",")).list().apply()
+        }.map(rs => List(rs.string(a.resultName.name), rs.string(da.resultName.data)).mkString(",") + System.getProperty("line.separator")).list().apply()
 
-        val file = new java.io.File("export.csv")
+        val file = Paths.get(AppConf.tempDir, "export.csv").toFile
 
         use(new FileOutputStream(file)) { out =>
           attributes.foreach { x => out.write(x.getBytes) }
