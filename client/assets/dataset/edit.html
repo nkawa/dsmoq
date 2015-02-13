@@ -183,52 +183,59 @@
 
       <div class="tab-pane" id="dataset-acl">
         <h3 style="margin-top: 0;">Access Control List</h3>
-        <table class="table table-bordered table-condensed" id="dataset-owner-list" style="width: 600px;">
-          <tbody>
-            {^{for dataset.ownerships ~myself=myself}}
-              {{debug #data/}}
-              <tr>
-                <td>
-                  <p class="form-control-static"><img class="icon" src="{{>image}}"> {{>name}}</p>
-                </td>
-                <td>
-                  <div class="form-group">
-                    {{if ownerType == 1}}
-                      {{if ~myself.id == id}}
-                        Owner
-                      {{else}}
-                        <select class="form-control" style="width:auto;" data-link="{:accessLevel:toInt}">
-                          <option value="3">Owner</option>
-                          <option value="2">Full Read</option>
-                          <option value="1">Limited Read</option>
-                          <option value="0">Remove</option>
-                        </select>
-                      {{/if}}
-                    {{else ownerType == 2}}
-                      <select class="form-control" style="width:auto;" data-link="{:accessLevel:toInt}">
-                        <option value="3">Provider</option>
-                        <option value="2">Full Read</option>
-                        <option value="1">Limited Read</option>
-                        <option value="0">Remove</option>
-                      </select>
-                    {{else}}
-                      invalid ownerType
-                    {{/if}}
-                  </div>
-                </td>
-              </tr>
-            {{/for}}
-            <tr>
-              <td><input class="form-control" id="dataset-owner-typeahead" placeholder="Enter new user or group"></td>
-              <td><a class="btn btn-success btn-sm" id="dataset-owner-add">add</a></td></tr>
-          </tbody>
-        </table>
-        <div class="row" style="margin-top: 8px;">
-          <div class="col-sm-12">
-            <button type="button" class="btn btn-primary btm-sm" data-loading-text="Saving..." id="dataset-ownership-submit">Save</button>
+          <div style="margin-bottom: 10px">
+            <button class="btn btn-default" type="button" id="add-owner-item"><span class="glyphicon glyphicon-plus"></span></button>
           </div>
-        </div>
-
+		  {^{async owners}}
+          <table class="table table-striped">
+            <tbody>
+              {^{for items ~myself=#parent.data.myself}}
+                <tr data-index="{{>#index}}">
+                  <td>
+                    <div class="media">
+                      <div class="pull-left">
+                        <img src="{{>image}}/48"/>
+                      </div>
+                      <div class="media-body">
+                        <h4 class="media-heading"><strong>{{>fullname}}</strong> <small>{{>name}} &raquo; {{>organization}} {{>title}}</small></h4>
+                        <p>{{>description}}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+					  <div class="form-group">
+						{{if ownerType == 1}}
+						  {{if ~myself.id == id}}
+							Owner
+						  {{else}}
+							<select class="form-control dsmoq-acl-select" style="width:auto;" data-link="{:accessLevel:toInt}">
+							  <option value="3">Owner</option>
+							  <option value="2">Full Read</option>
+							  <option value="1">Limited Read</option>
+							</select>
+						  {{/if}}
+						{{else ownerType == 2}}
+						  <select class="form-control dsmoq-acl-select" style="width:auto;" data-link="{:accessLevel:toInt}">
+							<option value="3">Provider</option>
+							<option value="2">Full Read</option>
+							<option value="1">Limited Read</option>
+						  </select>
+						{{else}}
+						  invalid ownerType
+						{{/if}}
+					  </div>
+                  </td>
+                  <td>
+                    {{if ~myself.id != id}}
+                      <button class="btn btn-default dsmoq-remove-button"><span class="glyphicon glyphicon-trash"></span></button>
+                    {{/if}}
+                  </td>
+                </tr>
+              {{/for}}
+            </tbody>
+          </table>
+          {^{pagination index pages id="ownership-pagination" pagedelta=5 /}}
+		{{/async}}
         <h3>Guest Access Control</h3>
         <form role="form" id="dataset-guest-access-form">
           <div class="radio"><label><input type="radio" name="option" value="0" data-link="{:dataset.defaultAccessLevel:toInt}">Deny</label></div>

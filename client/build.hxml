@@ -21,6 +21,7 @@
 -resource assets/group/edit.html@template/group/edit
 -resource assets/group/add_member_dialog.html@template/group/add_member_dialog
 -resource assets/profile/edit.html@template/profile/edit
+-resource assets/dataset/add_owner_dialog.html@template/dataset/add_owner_dialog
 
 --next
 

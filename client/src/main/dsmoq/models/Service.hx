@@ -278,6 +278,11 @@ class Service extends Stream<ServiceEvent> {
 	public function copyDataset(datasetId: String): Promise<DatasetCopyId> {
 		return send(Post, '/api/datasets/$datasetId/copy');
 	}
+	
+	public function findUsersAndGroups(?params: { ?query: String, ?limit: Int, ?offset: Int, ?excludeIds: Array<String> } ) : Promise<Array<SuggestedOwner>>
+	{
+		return send(Get, "/api/suggests/users_and_groups", params);
+	}
 
     inline function guest(): Profile {
         return {

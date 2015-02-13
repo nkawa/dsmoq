@@ -1,0 +1,49 @@
+<div id="add-owner-dialog" class="modal fade" tabindex="-1" data-width="600" data-keyboard="false" data-backdrop="static" style="display: none;">
+  <div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+    <h4 class="modal-title">Add ownership</h4>
+  </div>
+
+  <div class="modal-body">
+    <form id="owner-search-form" class="container-fluid" style="margin-bottom: 10px;">
+      <div class="row">
+        <div class="input-group" style="float:left; width: 300px;">
+          <input type="text" class="form-control" placeholder="filter" data-link="query">
+          <span class="input-group-btn">
+            <button class="btn btn-primary" type="submit"><span class="glyphicon glyphicon-search"></span></button>
+          </span>
+        </div>
+      </div>
+    </form>
+
+    {^{for items}}
+      <div class="media">
+        <div class="pull-left">
+          {^{checkButton selected/}}
+          <img src="{{:item.image}}/48"/>
+        </div>
+        <div class="media-body">
+          <h4 class="media-heading"><strong>{{>item.fullname}}</strong> <small>{{>item.name}} &raquo; {{>item.organization}}</small></h4>
+        </div>
+      </div>
+    {{/for}}
+    {^{range ^start=items.length end=5}}
+      <div class="media" style="visibility: hidden;">
+        <div class="media-body">
+          <h4 class="media-heading">&nbsp;</h4>
+          <p>&nbsp;</p>
+        </div>
+      </div>
+    {{/range}}
+
+    <div class="text-right">
+      <button id="owner-list-prev" class="btn btn-default btn-sm" type="button" data-link="disabled{:!hasPrev}">&larr; Prev</button>
+      <button id="owner-list-next" class="btn btn-default btn-sm" type="button" data-link="disabled{:!hasNext}">Next &rarr;</button>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn btn-primary" id="add-owner-dialog-submit" data-link="disabled{:selectedIds.length <= 0}">Apply</button>
+    <button type="button" data-dismiss="modal" class="btn btn-default">Cancel</button>
+  </div>
+</div>

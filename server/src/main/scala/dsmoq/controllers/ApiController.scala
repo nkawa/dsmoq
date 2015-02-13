@@ -416,8 +416,8 @@ class ApiController extends ScalatraServlet
   }
 
   get("/suggests/users_and_groups") {
-    val query = params.get("query")
-    val result = SystemService.getUsersAndGroups(query)
+    val json = getJsonValue[UserAndGroupSuggestApiParams].getOrElse(UserAndGroupSuggestApiParams())
+    val result = SystemService.getUsersAndGroups(json.query, json.limit, json.offset, json.excludeIds)
     AjaxResponse("OK", result)
   }
 

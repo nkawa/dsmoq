@@ -3,11 +3,12 @@ package dsmoq.services
 import java.util.UUID
 
 import dsmoq.{AppConf, persistence}
-import dsmoq.persistence.{SuggestType, GroupType}
+import dsmoq.persistence.{PostgresqlHelper, SuggestType, GroupType}
 import dsmoq.services.json.SuggestData
 import org.joda.time.DateTime
 import scalikejdbc._
 import scala.util.{Failure, Success, Try}
+import PostgresqlHelper._
 
 object SystemService {
   def writeDatasetAccessLog(datasetId: String, user: User): Try[Unit] = {
@@ -123,7 +124,7 @@ object SystemService {
     }
   }
 
-  def getUsersAndGroups(param: Option[String]) = {
+  def getUsersAndGroups(param: Option[String], limit: Option[Int], offset: Option[Int], excludeIds: Seq[String]) = {
     val query = param match {
       case Some(x) => x + "%"
       case None => ""
@@ -138,25 +139,43 @@ object SystemService {
         select(u.id, u.name, u.imageId, u.fullname, u.organization, sqls"'1' as type")
           .from(persistence.User as u)
           .where
-          .like(u.name, query)
-          .or
-          .like(u.fullname, query)
-          .and
-          .isNull(u.deletedAt)
+            .notIn(u.id, excludeIds.map(sqls.uuid))
+            .and
+            .withRoundBracket(
+              _.map(q => q.append(
+                  if (!query.isEmpty) {
+                    sqls.like(u.name, query)
+                      .or
+                      .like(u.fullname, query)
+                  } else {
+                    sqls.isNull(u.deletedAt)
+                  }
+              )))
+            .and
+            .isNull(u.deletedAt)
           .union(
             select(g.id, g.name,gi.imageId, sqls"null, null, '2' as type")
               .from(persistence.Group as g)
               .innerJoin(persistence.GroupImage as gi)
               .on(sqls.eq(g.id, gi.groupId).and.eq(gi.isPrimary, true).and.isNull(gi.deletedAt))
               .where
-              .like(g.name, query)
+              .notIn(g.id, excludeIds.map(sqls.uuid))
               .and
-              .eq(g.groupType, GroupType.Public)
-              .and
-              .isNull(g.deletedAt)
+              .append(if (!query.isEmpty){
+                sqls.like(g.name, query)
+                .and
+                .eq(g.groupType, GroupType.Public)
+                .and
+                .isNull(g.deletedAt)
+              } else {
+                sqls.eq(g.groupType, GroupType.Public)
+                .and
+                .isNull(g.deletedAt)
+            })
           )
           .orderBy(sqls"name")
-          .limit(100)
+          .offset(offset.getOrElse(0))
+          .limit(limit.getOrElse(100))
       }.map(rs => (rs.string("id"),
         rs.string("name"),
         rs.string("image_id"),

@@ -2,8 +2,15 @@ package dsmoq.pages;
 
 import conduitbox.Navigation;
 import dsmoq.models.DatasetPermission;
+import dsmoq.models.Profile;
 import dsmoq.models.Service;
 import dsmoq.views.AutoComplete;
+import dsmoq.models.DatasetOwnership;
+import dsmoq.models.GroupRole;
+import dsmoq.models.SuggestedOwner;
+import dsmoq.View;
+import dsmoq.views.ViewTools;
+import haxe.ds.Option;
 import haxe.Resource;
 import hxgnd.js.Html;
 import hxgnd.js.JqHtml;
@@ -23,9 +30,14 @@ import js.Browser;
 import js.html.FileReader;
 import js.html.InputElement;
 import dsmoq.CSV;
+import js.html.EventTarget;
 import js.Lib;
 
+using hxgnd.OptionTools;
+
 class DatasetEditPage {
+    inline static var OwnerCandicateSize = 5;
+
     public static function render(root: Html, onClose: Promise<Unit>, id: String): Promise<Navigation<Page>> {
         var navigation = new PromiseBroker();
 
@@ -98,7 +110,8 @@ class DatasetEditPage {
                         },
                         ownerships: { },
                     }
-                }
+                },
+				owners: Async.Pending
             };
             rootBinding.setProperty("data", data);
 
@@ -401,43 +414,93 @@ class DatasetEditPage {
             });
 
             // Access Control
-            root.find("#dataset-owner-add").on("click", function (_) {
-                var owner = AutoComplete.getCompletedItem(root.find("#dataset-owner-typeahead"));
-                var ownerships = JsViews.observable(data.dataset.ownerships);
-                ownerships.insert({
-                    id: owner.id,
-                    name: owner.name,
-                    fullname: owner.fullname,
-                    organization: owner.organization,
-                    image: owner.image,
-                    ownerType: owner.dataType,
-                    accessLevel: 1,
+			function loadOwnerships() {
+                Service.instance.getDataset(id).then(function (x) {
+                    binding.setProperty("owners", Async.Completed({
+                        index: 0,
+                        total: x.ownerships.length,
+                        items: x.ownerships,
+                        pages: Math.ceil(x.ownerships.length / 20)
+                    }));
+                });
+            }
+			
+			loadOwnerships();
+			
+            function getOwnershipByElement(target: EventTarget): Option<dsmoq.models.DatasetOwnership> {
+                var node = JQuery._(target);
+                var index = node.parents("tr[data-index]").data("index");
+                return switch (data.owners) {
+                    case Async.Completed(owners):
+                        OptionTools.toOption(owners.items[index]);
+                    case _:
+                        Option.None;
+				}
+            }
+			
+			root.find("#dataset-acl").on("click", "#add-owner-item", function (_) {
+                showAddOwnerDialog(data.myself).then(function (owners) {
+                    ViewTools.showLoading("body");
+					Service.instance.updateDatasetACL(id, owners.map(function (x) {
+						return {
+							id: x.id,
+							ownerType: x.dataType,
+							accessLevel: DatasetPermission.LimitedRead
+						}
+					})).then(function (x) {
+                        ViewTools.hideLoading("body");
+                        loadOwnerships();
+                        Notification.show("success", "save successful");
+                    }, function (err) {
+                        ViewTools.hideLoading("body");
+                        Notification.show("error", "error happened");
+                    });
                 });
             });
-            root.find("#dataset-ownership-submit").on("click", function (_) {
-                BootstrapButton.setLoading(root.find("#dataset-ownership-submit"));
-                root.find("#dataset-owner-list").find("input,select,.btn").attr("disabled", true);
-                root.find("#dataset-owner-list input.tt-input").css("background-color", "");
-                Service.instance.updateDatasetACL(id, data.dataset.ownerships.map(function (x) {
-                    return {
-                        id: x.id,
-                        ownerType: x.ownerType,
-                        accessLevel: x.accessLevel
-                    }
-                })).then(
-                    function (_) {
-                        Notification.show("success", "save successful");
-                    },
-                    function (e) {
-                        Notification.show("error", "error happened");
-                    },
-                    function () {
-                        BootstrapButton.reset(root.find("#dataset-ownership-submit"));
-                        root.find("#dataset-owner-list").find("input,select,.btn").removeAttr("disabled");
-                        root.find("#dataset-owner-list input.tt-input").css("background-color", "transparent");
-                    }
-                );
+
+            root.find("#dataset-acl").on("change", ".dsmoq-acl-select", function (e) {
+                // bindingが更新タイミングの問題があるため、setImmediateを挟む
+                JsTools.setImmediate(function () {
+                    getOwnershipByElement(e.currentTarget).iter(function (owner) {
+                        Service.instance.updateDatasetACL(id, 
+							[{
+								id: owner.id, 
+								ownerType: owner.ownerType,
+								accessLevel: owner.accessLevel
+							}]
+						).then(function (_) {
+                            Notification.show("success", "save successful");
+							loadOwnerships();
+                        }, function (e) {
+                            Notification.show("error", "error happened");
+                        });
+                    });
+                });
             });
+			
+			root.find("#dataset-acl").on("click", ".dsmoq-remove-button", function (e) {
+                getOwnershipByElement(e.currentTarget).iter(function (owner) {
+                    ViewTools.showConfirm("Are you sure you want to remove?").then(function (isOk) {
+                        if (isOk) {
+                            ViewTools.showLoading("body");
+                            Service.instance.updateDatasetACL(id, [{
+									id: owner.id,
+									ownerType: owner.ownerType,
+									accessLevel :DatasetPermission.Deny
+								}]
+								).then(function (x) {
+									loadOwnerships();
+                                    ViewTools.hideLoading("body");
+                                    Notification.show("success", "save successful");
+                                }, function (err) {
+                                    ViewTools.hideLoading("body");
+                                    Notification.show("error", "error happened");
+                                });
+                        }
+                    });
+                });
+            });
+			
             root.find("#dataset-guest-access-submit").on("click", function (_) {
                 BootstrapButton.setLoading(root.find("#dataset-guest-access-submit"));
                 root.find("#dataset-guest-access-form input").attr("disabled", true);
@@ -474,5 +537,86 @@ class DatasetEditPage {
         });
 
         return navigation.promise;
+    }
+
+    static function showAddOwnerDialog(myself: Profile) {
+        var data = {
+            query: "",
+            offset: 0,
+            hasPrev: false,
+            hasNext: false,
+            items: new Array<{selected: Bool, item: SuggestedOwner}>(),
+            selectedIds: new Array<String>()
+        }
+        var binding = JsViews.observable(data);
+        var tpl = JsViews.template(Resource.getString("template/dataset/add_owner_dialog"));
+        
+        return ViewTools.showModal(tpl, data, function (html, ctx) {
+            function searchOwnerCandidate(?query: String, offset = 0) {
+                var limit = OwnerCandicateSize + 1;
+                Service.instance.findUsersAndGroups({ query: query, offset: offset, limit: limit, excludeIds: [myself.id] }).then(function (owners) {
+                    var list = owners.slice(0, OwnerCandicateSize)
+                                    .map(function (x) return {
+                                        selected: data.selectedIds.indexOf(x.id) >= 0,
+                                        item: x
+                                    });
+                    var hasPrev = offset > 0;
+                    var hasNext = owners.length > OwnerCandicateSize;
+                    binding.setProperty("offset", offset);
+                    binding.setProperty("hasPrev", hasPrev);
+                    binding.setProperty("hasNext", hasNext);
+                    JsViews.observable(data.items).refresh(list);
+                });
+            }
+			
+            function filterSelectedOwner() {
+                return data.items
+                            .filter(function (x) return x.selected)
+                            .map(function (x) return x.item);
+            }
+
+            JsViews.observable(data.items).observeAll(function (e, args) {
+                if (args.path == "selected") {
+                    var owner: SuggestedOwner = e.target.item;
+                    var ids = data.selectedIds.copy();
+                    var b = JsViews.observable(data.selectedIds);
+                    if (args.value) {
+                        if (ids.indexOf(owner.id) < 0) {
+                            ids.push(owner.id);
+                            b.refresh(ids);
+                        }
+                    } else {
+                        if (ids.remove(owner.id)) {
+                            b.refresh(ids);
+                        }
+                    }
+                }
+            });
+
+            binding.setProperty("query", "");
+            JsViews.observable(data.selectedIds).refresh([]);
+            searchOwnerCandidate();
+
+            html.find("#owner-search-form").on("submit", function (e: Event) {
+                e.preventDefault();
+                searchOwnerCandidate(data.query);
+            });
+
+            html.find("#owner-list-prev").on("click", function (_) {
+                var query = data.query;
+                var offset = data.offset - OwnerCandicateSize;
+                searchOwnerCandidate(query, offset);
+            });
+
+            html.find("#owner-list-next").on("click", function (_) {
+                var query = data.query;
+                var offset = data.offset + OwnerCandicateSize;
+                searchOwnerCandidate(query, offset);
+            });
+
+            html.on("click", "#add-owner-dialog-submit", function (e) {
+                ctx.fulfill(filterSelectedOwner());
+            });
+        });
     }
 }
