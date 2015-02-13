@@ -230,7 +230,7 @@ class Main {
                     var range = [for (i in if (index < pageDeltaCenter) {
                                     0...((pageDelta < pages) ? pageDelta : pages);
                                 } else if (index >= (pages - pageDeltaCenter)) {
-                                    (pages - pageDelta)...(pages);
+                                    ((pageDelta < pages) ? (pages - pageDelta) : 0)...(pages);
                                 } else {
                                     var left = index - pageDeltaCenter;
                                     (left)...(left + pageDelta);
