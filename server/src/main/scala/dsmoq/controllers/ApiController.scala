@@ -213,6 +213,12 @@ class ApiController extends ScalatraServlet
     } yield primaryImage) |> toAjaxResponse
   }
 
+  get("/datasets/:datasetId/acl") {
+    val datasetId = params("datasetId")
+    val json = getJsonValue[SearchOwnershipsParams].getOrElse(SearchOwnershipsParams())
+    DatasetService.searchOwnerships(datasetId, json.offset, json.limit) |> toAjaxResponse
+  }
+
   post("/datasets/:datasetId/acl") {
     val datasetId = params("datasetId")
     val acl = getJsonValue[List[DataSetAccessControlItem]].getOrElse(List.empty)

@@ -283,6 +283,11 @@ class Service extends Stream<ServiceEvent> {
 	{
 		return send(Get, "/api/suggests/users_and_groups", params);
 	}
+	
+	public function getOwnerships(datasetId: String, ?params: { ?limit: Int, ?offset: Int } ) : Promise<RangeSlice<DatasetOwnership>>
+	{
+		return send(Get, '/api/datasets/$datasetId/acl', params);
+	}
 
     inline function guest(): Profile {
         return {

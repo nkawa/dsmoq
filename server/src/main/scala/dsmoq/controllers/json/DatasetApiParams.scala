@@ -37,3 +37,8 @@ case class DatasetStorageParams(
   saveLocal: Option[Boolean] = None,
   saveS3: Option[Boolean] = None
 )
+
+case class SearchOwnershipsParams(
+  limit: Option[Int] = None,
+  offset: Option[Int] = None
+)

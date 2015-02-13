@@ -5,7 +5,7 @@ import java.nio.charset.Charset
 import java.nio.file.Paths
 import java.util.zip.{ZipFile, ZipInputStream}
 
-import dsmoq.services.json.DatasetData.{DatasetZipedFile, CopiedDataset, DatasetTask}
+import dsmoq.services.json.DatasetData.{DatasetOwnership, DatasetZipedFile, CopiedDataset, DatasetTask}
 import org.json4s._
 import org.json4s.JsonDSL._
 import org.json4s.jackson.JsonMethods._
@@ -2254,6 +2254,77 @@ object DatasetService {
         }
 
         Success(file)
+      }
+    } catch {
+      case e: Throwable => Failure(e)
+    }
+  }
+
+  def searchOwnerships(datasetId: String, offset: Option[Int], limit: Option[Int]): Try[RangeSlice[DatasetOwnership]] = {
+    try {
+      DB readOnly { implicit s =>
+        val o = persistence.Ownership.o
+        val u = persistence.User.u
+        val g = persistence.Group.g
+        val m = persistence.Member.m
+        val gi = persistence.GroupImage.gi
+        val list = withSQL {
+          select(g.id, o.accessLevel, g.name, gi.imageId, sqls"null as fullname, '2' as type")
+            .from(persistence.Ownership as o)
+            .innerJoin(persistence.Group as g).on(sqls.eq(o.groupId, g.id).and.eq(g.groupType, GroupType.Public))
+            .innerJoin(persistence.GroupImage as gi).on(gi.groupId, g.id)
+            .where
+              .eq(o.datasetId, sqls.uuid(datasetId))
+              .and
+              .isNull(o.deletedBy)
+              .and
+              .isNull(o.deletedAt)
+              .and
+              .gt(o.accessLevel, 0)
+            .union(
+              select(u.id, o.accessLevel, u.name, u.imageId, u.fullname, sqls"'1' as type")
+                .from(persistence.Ownership as o)
+                .innerJoin(persistence.Group as g).on(sqls.eq(o.groupId, g.id).and.eq(g.groupType, GroupType.Personal))
+                .innerJoin(persistence.Member as m).on(sqls.eq(g.id, m.groupId).and.isNull(m.deletedAt))
+                .innerJoin(persistence.User as u).on(sqls.eq(u.id, m.userId).and.isNull(u.deletedAt))
+                .where
+                  .eq(o.datasetId, sqls.uuid(datasetId))
+                  .and
+                  .isNull(o.deletedBy)
+                  .and
+                  .isNull(o.deletedAt)
+                  .and
+                  .gt(o.accessLevel, 0)
+            )
+            .offset(offset.getOrElse(0))
+            .limit(limit.getOrElse(20))
+        }.map(
+            rs => (rs.string("id"),
+              rs.int("access_level"),
+              rs.string("name"),
+              rs.string("image_id"),
+              rs.string("fullname"),
+              rs.int("type"))
+          ).list.apply.map { o =>
+          DatasetOwnership(
+            id = o._1,
+            name = o._3,
+            fullname = o._5,
+            image = AppConf.imageDownloadRoot + o._4,
+            accessLevel = o._2,
+            ownerType = o._6
+          )
+        }.toSeq
+        Success(
+          RangeSlice(
+            summary = RangeSliceSummary(
+              total = list.size,
+              offset = offset.getOrElse(0),
+              count = limit.getOrElse(20)
+            ),
+            results = list
+          )
+        )
       }
     } catch {
       case e: Throwable => Failure(e)

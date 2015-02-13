@@ -415,12 +415,12 @@ class DatasetEditPage {
 
             // Access Control
 			function loadOwnerships() {
-                Service.instance.getDataset(id).then(function (x) {
+                Service.instance.getOwnerships(id).then(function (x) {
                     binding.setProperty("owners", Async.Completed({
-                        index: 0,
-                        total: x.ownerships.length,
-                        items: x.ownerships,
-                        pages: Math.ceil(x.ownerships.length / 20)
+                        index: Math.ceil(x.summary.offset / 20),
+                        total: x.summary.total,
+                        items: x.results,
+                        pages: Math.ceil(x.summary.total / 20)
                     }));
                 });
             }
