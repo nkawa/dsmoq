@@ -2268,6 +2268,36 @@ object DatasetService {
         val g = persistence.Group.g
         val m = persistence.Member.m
         val gi = persistence.GroupImage.gi
+        val count = withSQL {
+          select(sqls.countDistinct(g.id))
+            .from(persistence.Ownership as o)
+            .innerJoin(persistence.Group as g).on(sqls.eq(o.groupId, g.id).and.eq(g.groupType, GroupType.Public))
+            .innerJoin(persistence.GroupImage as gi).on(gi.groupId, g.id)
+            .where
+            .eq(o.datasetId, sqls.uuid(datasetId))
+            .and
+            .isNull(o.deletedBy)
+            .and
+            .isNull(o.deletedAt)
+            .and
+            .gt(o.accessLevel, 0)
+            .union(
+              select(sqls.countDistinct(u.id))
+                .from(persistence.Ownership as o)
+                .innerJoin(persistence.Group as g).on(sqls.eq(o.groupId, g.id).and.eq(g.groupType, GroupType.Personal))
+                .innerJoin(persistence.Member as m).on(sqls.eq(g.id, m.groupId).and.isNull(m.deletedAt))
+                .innerJoin(persistence.User as u).on(sqls.eq(u.id, m.userId).and.isNull(u.deletedAt))
+                .where
+                .eq(o.datasetId, sqls.uuid(datasetId))
+                .and
+                .isNull(o.deletedBy)
+                .and
+                .isNull(o.deletedAt)
+                .and
+                .gt(o.accessLevel, 0)
+            )
+        }.map(rs => rs.int(1)).list.apply.foldLeft(0)(_ + _)
+
         val list = withSQL {
           select(g.id, o.accessLevel, g.name, gi.imageId, sqls"null as fullname, '2' as type")
             .from(persistence.Ownership as o)
@@ -2318,7 +2348,7 @@ object DatasetService {
         Success(
           RangeSlice(
             summary = RangeSliceSummary(
-              total = list.size,
+              total = count,
               offset = offset.getOrElse(0),
               count = limit.getOrElse(20)
             ),

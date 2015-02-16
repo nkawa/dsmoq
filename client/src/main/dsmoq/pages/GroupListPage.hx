@@ -11,6 +11,7 @@ import hxgnd.Promise;
 import hxgnd.PromiseBroker;
 import hxgnd.Unit;
 import hxgnd.js.JQuery;
+import js.Lib;
 
 class GroupListPage {
     public static function render(html: Html, onClose: Promise<Unit>, pageNum: PositiveInt): Promise<Navigation<Page>> {
@@ -47,7 +48,7 @@ class GroupListPage {
         // observe binding
         JsViews.observe(condition, "index", function (_, args) {
             var page = args.value + 1;
-            navigation.fulfill(Navigation.Navigate(Page.DatasetList(page)));
+            navigation.fulfill(Navigation.Navigate(Page.GroupList(page)));
         });
 
         // init search form

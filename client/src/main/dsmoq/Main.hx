@@ -313,7 +313,9 @@ class Main {
                             { path: '/datasets/$id/edit' };
 
                         case GroupList(page):
-                            { path: "/groups" };
+							var query = new Map();
+                            query["page"] = Std.string(page);
+                            { path: "/groups", query: query };
                         case GroupShow(id):
                             { path: '/groups/$id' };
                         case GroupEdit(id):
