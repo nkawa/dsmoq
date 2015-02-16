@@ -6,20 +6,24 @@
   </ol>
 
   <div class="panel panel-default">
-    <div class="panel-body">
+    <div class="panel-body group-panel">
       <div class="row">
         <div class="col-sm-10">
           <h1>
-            <img data-link="src{>group.primaryImage.url+'/128'}" alt="group image">
-            {^{>group.name}} {^{if group.role >= 1}}<small>joined</small>{{/if}}
+			<div class="pull-left group-image">
+				<img data-link="src{>group.primaryImage.url+'/128'}" alt="group image">
+			</div>
+			<div>
+				{^{>group.name}} {^{if group.role >= 1}}<small>joined</small>{{/if}}
+			</div>
           </h1>
           <p>{^{>group.description}}</p>
         </div>
         <div class="col-sm-2 text-right">
           {^{if group.role >= 2}}
             <div class="btn-group-vertical">
-              <button type="button" class="btn btn-default" id="group-edit"><span class="glyphicon glyphicon-edit"></span> Edit</button>
-              <button type="button" class="btn btn-default" id="group-delete"><span class="glyphicon glyphicon-trash"></span> Delete</button>
+              <button type="button" class="btn btn-default btn-lg" id="group-edit"><span class="glyphicon glyphicon-edit"></span> Edit</button>
+              <button type="button" class="btn btn-default btn-lg" id="group-delete"><span class="glyphicon glyphicon-trash"></span> Delete</button>
             </div>
           {{/if}}
         </div>
