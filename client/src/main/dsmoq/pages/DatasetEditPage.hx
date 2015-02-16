@@ -416,12 +416,25 @@ class DatasetEditPage {
             // Access Control
 			function loadOwnerships() {
                 Service.instance.getOwnerships(id).then(function (x) {
-                    binding.setProperty("owners", Async.Completed({
-                        index: Math.ceil(x.summary.offset / 20),
-                        total: x.summary.total,
-                        items: x.results,
-                        pages: Math.ceil(x.summary.total / 20)
-                    }));
+					var owners = {
+						index: Math.ceil(x.summary.offset / 20),
+						total: x.summary.total,
+						items: x.results,
+						pages: Math.ceil(x.summary.total / 20)
+					};	
+					binding.setProperty("owners", Async.Completed(owners));
+					JsViews.observe(owners, "index", function (_, _) {
+						var i = owners.index;
+						Service.instance.getOwnerships(id, { offset: 20 * i, limit: 20 } ).then(function (x) {
+							var b = JsViews.observable(owners);
+							b.setProperty("index", i);
+							b.setProperty("total", x.summary.total);
+							b.setProperty("items", x.results);
+							b.setProperty("pages", Math.ceil(x.summary.total / 20));
+						}, function (e) {
+							Notification.show("error", "error happened");
+						});
+					});
                 });
             }
 			

@@ -57,12 +57,25 @@ class GroupEditPage {
 
             function loadGroupMember() {
                 Service.instance.getGroupMembers(id).then(function (x) {
-                    binding.setProperty("members", Async.Completed({
-                        index: Math.ceil(x.summary.offset / 20),
-                        total: x.summary.total,
-                        items: x.results,
-                        pages: Math.ceil(x.summary.total / 20)
-                    }));
+					var members = {
+						index: Math.ceil(x.summary.offset / 20),
+						total: x.summary.total,
+						items: x.results,
+						pages: Math.ceil(x.summary.total / 20)
+					};	
+					binding.setProperty("members", Async.Completed(members));
+					JsViews.observe(members, "index", function (_, _) {
+						var i = members.index;
+						Service.instance.getGroupMembers(id, { offset: 20 * i, limit: 20 } ).then(function (x) {
+							var b = JsViews.observable(members);
+							b.setProperty("index", i);
+							b.setProperty("total", x.summary.total);
+							b.setProperty("items", x.results);
+							b.setProperty("pages", Math.ceil(x.summary.total / 20));
+						}, function (e) {
+							Notification.show("error", "error happened");
+						});
+					});
                 });
             }
 
