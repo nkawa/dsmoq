@@ -151,7 +151,7 @@ object DatasetService {
             updatedBy = user,
             updatedAt = timestamp.toString(),
             isZip = x._1.isZip,
-            zipedFiles = if (x._1.isZip) { getZipedFiles(x._1.id) } else { Seq.empty }
+            zipedFiles = if (x._1.isZip) { getZipedFiles(datasetId, x._1.id) } else { Seq.empty }
           )),
           images = Seq(Image(
             id = AppConf.defaultDatasetImageId,
@@ -674,7 +674,7 @@ object DatasetService {
             updatedBy = user,
             updatedAt = timestamp.toString(),
             isZip = x._1.isZip,
-            zipedFiles = if (x._1.isZip) { getZipedFiles(x._1.id) } else { Seq.empty }
+            zipedFiles = if (x._1.isZip) { getZipedFiles(id, x._1.id) } else { Seq.empty }
           ))
         ))
       }
@@ -741,7 +741,7 @@ object DatasetService {
           updatedBy = user,
           updatedAt = timestamp.toString(),
           isZip = result.isZip,
-          zipedFiles = if (result.isZip) { getZipedFiles(result.id) } else { Seq.empty }
+          zipedFiles = if (result.isZip) { getZipedFiles(datasetId, result.id) } else { Seq.empty }
         ))
       }
     } catch {
@@ -817,7 +817,7 @@ object DatasetService {
           updatedBy = user,
           updatedAt = timestamp.toString(),
           isZip = result.isZip,
-          zipedFiles = if (result.isZip) { getZipedFiles(result.id) } else { Seq.empty }
+          zipedFiles = if (result.isZip) { getZipedFiles(datasetId, result.id) } else { Seq.empty }
         ))
       }
     } catch {
@@ -1918,19 +1918,25 @@ object DatasetService {
         updatedBy = User(x._3, x._5),
         updatedAt = x._1.updatedAt.toString(),
         isZip = x._1.isZip,
-        zipedFiles = if (x._1.isZip) { getZipedFiles(x._1.id) } else { Seq.empty[DatasetZipedFile] }
+        zipedFiles = if (x._1.isZip) { getZipedFiles(datasetId, x._1.id) } else { Seq.empty[DatasetZipedFile] }
       )
     )
   }
 
-  def getZipedFiles(fileId: String)(implicit s: DBSession) = {
+  def getZipedFiles(datasetId: String, fileId: String)(implicit s: DBSession) = {
     val zf = persistence.ZipedFiles.zf
     withSQL {
       select
       .from(ZipedFiles as zf)
       .where
         .eq(zf.fileId, sqls.uuid(fileId))
-    }.map(persistence.ZipedFiles(zf.resultName)).list.apply.map(x => DatasetZipedFile(x.id, x.name, x.fileSize)).toSeq
+    }.map(persistence.ZipedFiles(zf.resultName)).list.apply.map{x =>
+      DatasetZipedFile(
+        id = x.id,
+        name = x.name,
+        size = x.fileSize,
+        url = AppConf.fileDownloadRoot + datasetId + "/" + x.id
+      )}.toSeq
   }
 
   private def updateDatasetFileStatus(datasetId: String, userId:String, timestamp: DateTime)(implicit s: DBSession) = {

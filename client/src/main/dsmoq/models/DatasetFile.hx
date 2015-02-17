@@ -10,4 +10,5 @@ typedef DatasetFile = {
     var createdBy: Profile;
     var updatedAt: String; //TODO Date
     var updatedBy: Profile;
+	var zipedFiles: Array<DatasetZipedFile>;
 }

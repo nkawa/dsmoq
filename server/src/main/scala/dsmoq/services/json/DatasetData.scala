@@ -79,7 +79,8 @@ object DatasetData {
   case class DatasetZipedFile (
     id: String,
     name: String,
-    size: Long
+    size: Long,
+    url: String
   )
 
   case class DatasetOwnership (
