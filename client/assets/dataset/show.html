@@ -42,10 +42,10 @@
           <div class="form-group">
             <label class="col-sm-1 control-label">Files</label>
             <div class="col-sm-11">
+				<ul class="list-group">
               {^{for files ~canDownload=canDownload}}
-                <div class="well well-sm">
-                  <div class="row">
-                    <div class="col-sm-12">
+				<li class="list-group-item">
+					<div>
                       <span class="glyphicon glyphicon-file"></span>
                       {{if ~canDownload}}
                         <a data-link="href{>url}">{{>name}}</a> ({{datasize size /}})
@@ -53,17 +53,19 @@
                         <span>{{>name}}</span>
                       {{/if}}
                       uploaded by <strong>{{img src=updatedBy.image+"/16" class="icon"/}}{{>updatedBy.fullname}}</strong>
-                    </div>
-                  </div>
-                  <div class="form-control-static">{{>description}}</div>
-                </div>
+					</div>
+					{^{if description.length > 0}}
+					<div class="form-control-static">{{>description}}</div>
+					{{/if}}
+				  </li>
               {{/for}}
+			   </ul>
             </div>
           </div>
           <div class="form-group">
             <label class="col-sm-1 control-label">Attributes</label>
             <div class="col-sm-6">
-              <table class="table table-bordered table-condensed table-striped">
+              <table class="table table-bordered table-condensed table-striped attribute-table">
                 <thead>
                   <tr><td>name</td><td>value</td></tr>
                 </thead>

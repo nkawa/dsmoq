@@ -14,10 +14,10 @@
 				<img data-link="src{>group.primaryImage.url+'/128'}" alt="group image">
 			</div>
 			<div>
-				{^{>group.name}} {^{if group.role >= 1}}<small>joined</small>{{/if}}
+				{^{>group.name}} {^{if group.role >= 1}}<small>(joined)</small>{{/if}}
 			</div>
           </h1>
-          <p>{^{>group.description}}</p>
+          <p class="group-description">{^{>group.description}}</p>
         </div>
         <div class="col-sm-2 text-right">
           {^{if group.role >= 2}}
@@ -75,7 +75,7 @@
 				  </div>
 				  <div class="media-body">
 					<h4 class="media-heading"><a href="/datasets/{{>id}}" data-navigation>{{>name}}</a></h4>
-					<p>{{if description}}{{>description}}{{else}}<span class="text-muted">(No description)</span>{{/if}}</p>
+					<p class="group-description">{{if description}}{{>description}}{{else}}<span class="text-muted">(No description)</span>{{/if}}</p>
 					<div>
 					  {{for ownerships ~length=ownerships.length}}
 						<span class="label label-success">
