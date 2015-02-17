@@ -40,6 +40,16 @@ object FileManager {
     val obj = client.getObject(request)
     val in = obj.getObjectContent()
     val input = Resource.fromInputStream(in)
+    val splitDirs = obj.getKey.split("/")
+    val datasetDir = Paths.get(AppConf.tempDir, splitDirs(0)).toFile
+    if (!datasetDir.exists()) datasetDir.mkdir()
+
+    val fileDir = datasetDir.toPath.resolve(splitDirs(1)).toFile
+    if (!fileDir.exists()) fileDir.mkdir()
+
+    val historyDir = fileDir.toPath.resolve(splitDirs(2)).toFile
+    if (!historyDir.exists()) historyDir.mkdir()
+
     val file = Paths.get(AppConf.tempDir, obj.getKey).toFile
     use(new FileOutputStream(file)) { out =>
       out.write(input.byteArray)
