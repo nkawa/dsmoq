@@ -29,21 +29,19 @@
               <input type="text" class="form-control" placeholder="Dataset Name" data-link="dataset.meta.name">
               <span class="glyphicon glyphicon-remove form-control-feedback"></span>
             </div>
-            <p class="text-danger" data-link="dataset.errors.meta.name"></p>
           {{/if}}
 
           {^{if ~isEmpty(dataset.errors.meta.description)}}
             <div class="form-group" style="width: 600px;">
               <label for="form-description" class="control-label">Description</label>
-              <textarea class="form-control" row="3" data-link="dataset.meta.description"></textarea>
+              <textarea id="description"></textarea>
             </div>
           {{else}}
             <div class="form-group has-error has-feedback" style="width: 600px;">
               <label for="form-description" class="control-label">Description</label>
-              <textarea class="form-control" row="3" data-link="dataset.meta.description"></textarea>
+              <textarea id="description"></textarea>
               <span class="glyphicon glyphicon-remove form-control-feedback"></span>
             </div>
-            <p class="text-danger" data-link="dataset.errors.meta.description"></p>
           {{/if}}
 
           {^{if ~isEmpty(dataset.errors.meta.license)}}
@@ -120,16 +118,14 @@
             <div class="form-group">
               <div><label class="control-label">Change icon</label></div>
               <div>
-                <input type="file" name="images[]" style="display:inline;">
-                <a href="javascript:void 0;" class="btn btn-primary btn-sm" data-loading-text="Saving..." id="dataset-icon-submit" style="display:none;">Upload</a>
+                <a class="btn btn-primary" id="dataset-icon-select">Select</a>
               </div>
             </div>
           {{else}}
             <div class="form-group has-error has-feedback">
               <div><label class="control-label">Change icon</label></div>
               <div>
-                <input type="file" name="images[]" style="display:inline;">
-                <a href="javascript:void 0;" class="btn btn-primary btn-sm" data-loading-text="Saving..." id="dataset-icon-submit" style="display:none;">Upload</a>
+                <a class="btn btn-primary" id="dataset-icon-select">Select</a>
               </div>
             </div>
             <p class="text-danger" data-link="dataset.errors.icon"></p>

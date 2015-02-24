@@ -1,0 +1,50 @@
+<div id="select-image-dialog" class="modal fade" tabindex="-1" data-width="450" data-keyboard="false" data-backdrop="static" style="display: none; z-index:20000;">
+  <div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+    <h4 class="modal-title">Select Image</h4>
+  </div>
+
+  <div class="modal-body">
+	<form>
+    {^{for items}}
+      <div class="media" style="float:left;height:150px;width:100px;padding:10px;word-wrap:break-word;">
+        <div class="media-body">
+		  <div style="height:100px; width:100px">
+			<img src="{{:item.url}}/96"/>
+		  </div>
+        </div>
+		<input type="radio" name="selected-image" data-link="selected" value="{{>item.id}}">{{>item.name}}
+      </div>
+    {{/for}}
+    </form>
+	<div class="clear"></div>
+	{^{range ^start=items.length end=8}}
+      <div class="media" style="visibility: hidden;">
+        <div class="media-body">
+          <h4 class="media-heading">&nbsp;</h4>
+          <p>&nbsp;</p>
+        </div>
+      </div>
+    {{/range}}
+	
+    <div class="text-right">
+      <button id="image-list-prev" class="btn btn-default btn-sm" type="button" data-link="disabled{:!hasPrev}">&larr; Prev</button>
+      <button id="image-list-next" class="btn btn-default btn-sm" type="button" data-link="disabled{:!hasNext}">Next &rarr;</button>
+    </div>
+	<div class="text-left">
+		<form id="image-form" method="POST">
+			<input type="file" name="images" acccept="image/*">
+		</form>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+	<div class="pull-left">
+		<button type="button" id="delete-image" class="btn btn-default">Delete</button>
+	</div>
+	<div class="pull-right">
+		<button type="button" class="btn btn-primary" id="select-image-dialog-submit" data-link="disabled{:selectedIds.length <= 0}">Apply</button>
+		<button type="button" data-dismiss="modal" class="btn btn-default">Cancel</button>
+	</div>
+  </div>
+</div>

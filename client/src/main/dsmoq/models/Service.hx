@@ -153,6 +153,18 @@ class Service extends Stream<ServiceEvent> {
             });
         });
     }
+	
+	public function setDatasetImagePrimary(datasetId: String, imageId: String): Promise<Unit> {
+		return send(Put, '/api/datasets/$datasetId/images/primary', { imageId: imageId } );
+	}
+	
+	public function addDatasetImage(datasetId: String, form: JqHtml): Promise<{images: Array<Image>, primaryImage: String}> {
+		return sendForm('/api/datasets/$datasetId/images', form);
+	}
+
+    public function getDatasetImage(datasetId: String, ?params: { ?limit: Int, ?offset: Int } ): Promise<RangeSlice<DatasetImage>> {
+        return send(Get, '/api/datasets/$datasetId/images', params);
+    }
 
     public function removeDatasetImage(datasetId: String, imageId: String): Promise<{primaryImage: String}> {
         return send(Delete, '/api/datasets/$datasetId/images/$imageId');

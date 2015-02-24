@@ -33,7 +33,17 @@ class Main {
         JsViews.views.helpers("isEmpty", function (x) {
             return (x == null) || (x.length <= 0);
         });
-
+		
+		JsViews.views.helpers("trimTags", function (x) {
+			var r = ~/<[^<]+>/g;
+            return r.replace(x, "").trim();
+        });
+		
+		JsViews.views.helpers("trimScriptTags", function (x) {
+			var r = ~/<script[^<]+<\/script>/g;
+            return r.replace(x, "").trim();
+        });
+		
         JsViews.views.tags("debug", function (x) {
             trace(x);
             return "";

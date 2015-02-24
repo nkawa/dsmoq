@@ -58,6 +58,13 @@ object DatasetData {
     primaryImage: String
   )
 
+  case class DatasetGetImage (
+    id: String,
+    name: String,
+    url: String,
+    isPrimary: Boolean
+  )
+
   case class DatasetDeleteImage(
     primaryImage: String
   )

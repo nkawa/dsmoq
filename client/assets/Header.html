@@ -22,33 +22,33 @@
           <li class="dropdown login-form">
             <a class="btn dropdown-toggle header-txt" data-toggle="dropdown">Signin <span class="caret"></span></a>
             <div class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu1">
-              <form method="POST" class="form-horizontal" role="form" id="signin-form">
-                <div class="form-group">
-                  <label for="form-name" class="col-sm-4 control-label">User Id</label>
-                  <div class="col-sm-8"><input type="text" class="form-control" data-link="signinData.id"></div>
-                </div>
-                <div class="form-group">
-                  <label for="form-description" class="col-sm-4 control-label">Password</label>
-                  <div class="col-sm-8"><input type="password" class="form-control" data-link="signinData.password"></div>
-                </div>
-                <p class="text-danger text-center"><strong data-link="signinData.error"></strong></p>
-                <div class="form-group">
-                  <label class="col-sm-4 control-label"></label>
-                  <div class="col-sm-8">
-                    <button type="submit" class="btn btn-primary btn-sm" id="signin-submit" data-loading-text="Loading...">Submit</button>
-                    <span class="login-failure"></span>
-                  </div>
-                </div>
-              </form>
-              <hr/>
 		  	  <form method="GET" class="form-horizontal" role="form">
                 <div class="form-group">
                   <label class="col-sm-4 control-label"></label>
                   <div class="col-sm-8">
-                    <a data-link="href{:location}" class="btn btn-success btn-sm" id="signin-with-google">Signin with Google Account</a>
+                    <a data-link="href{:location}" class="btn btn-success" id="signin-with-google">Signin with Google Account</a>
                   </div>
                 </div>
               </form>
+              <hr/>
+			  <form method="POST" class="form-horizontal" role="form" id="signin-form">
+				<div class="form-group">
+				  <label for="form-name" class="col-sm-4 control-label">User Id</label>
+				  <div class="col-sm-8"><input type="text" class="form-control" data-link="signinData.id"></div>
+				</div>
+				<div class="form-group">
+				  <label for="form-description" class="col-sm-4 control-label">Password</label>
+				  <div class="col-sm-8"><input type="password" class="form-control" data-link="signinData.password"></div>
+				</div>
+				<p class="text-danger text-center"><strong data-link="signinData.error"></strong></p>
+				<div class="form-group">
+				  <label class="col-sm-4 control-label"></label>
+				  <div class="col-sm-8">
+					<button type="submit" class="btn btn-primary btn-sm" id="signin-submit" data-loading-text="Loading...">Signin with Normal Account</button>
+					<span class="login-failure"></span>
+				  </div>
+				</div>
+			  </form>
             </div>
           </li>
         {{else}}

@@ -5,6 +5,7 @@ import java.nio.charset.Charset
 import java.nio.file.Paths
 import java.util.zip.{ZipFile, ZipInputStream}
 
+import dsmoq.services.json
 import dsmoq.services.json.DatasetData.{DatasetOwnership, DatasetZipedFile, CopiedDataset, DatasetTask}
 import org.json4s._
 import org.json4s.JsonDSL._
@@ -2361,6 +2362,59 @@ object DatasetService {
             results = list
           )
         )
+      }
+    } catch {
+      case e: Throwable => Failure(e)
+    }
+  }
+
+  def getImages(datasetId: String, offset: Option[Int], limit: Option[Int], user: User): Try[RangeSlice[DatasetData.DatasetGetImage]] = {
+    try {
+      DB readOnly { implicit s =>
+        if (!isOwner(user.id, datasetId)) throw new NotAuthorizedException
+
+        val di = persistence.DatasetImage.di
+        val i = persistence.Image.i
+        val totalCount = withSQL {
+          select(sqls"count(1)")
+            .from(persistence.DatasetImage as di)
+            .innerJoin(persistence.Image as i).on(di.imageId, i.id)
+            .where
+            .eqUuid(di.datasetId, datasetId)
+            .and
+            .isNull(di.deletedBy)
+            .and
+            .isNull(di.deletedAt)
+        }.map(rs => rs.int(1)).single.apply
+        val result = withSQL {
+          select(i.result.*, di.result.isPrimary)
+            .from(persistence.DatasetImage as di)
+            .innerJoin(persistence.Image as i).on(di.imageId, i.id)
+            .where
+              .eqUuid(di.datasetId, datasetId)
+              .and
+              .isNull(di.deletedBy)
+              .and
+              .isNull(di.deletedAt)
+              .offset(offset.getOrElse(0))
+              .limit(limit.getOrElse(20))
+        }.map(rs => (rs.string(i.resultName.id), rs.string(i.resultName.name), rs.boolean(di.resultName.isPrimary))).list.apply.map{ x =>
+          DatasetData.DatasetGetImage(
+            id = x._1,
+            name = x._2,
+            url = AppConf.imageDownloadRoot + x._1,
+            isPrimary = x._3
+          )
+        }
+
+        Success(RangeSlice(
+          RangeSliceSummary(
+            total = totalCount.getOrElse(0),
+            count = limit.getOrElse(20),
+            offset = offset.getOrElse(0)
+          ),
+          result
+        ))
       }
     } catch {
       case e: Throwable => Failure(e)

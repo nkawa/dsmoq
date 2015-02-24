@@ -1,6 +1,7 @@
 package dsmoq.pages;
 
 import conduitbox.Navigation;
+import dsmoq.models.DatasetImage;
 import dsmoq.models.DatasetPermission;
 import dsmoq.models.Profile;
 import dsmoq.models.Service;
@@ -31,12 +32,15 @@ import js.html.FileReader;
 import js.html.InputElement;
 import dsmoq.CSV;
 import js.html.EventTarget;
+import js.html.OptionElement;
 import js.Lib;
+import dsmoq.CKEditor;
 
 using hxgnd.OptionTools;
 
 class DatasetEditPage {
     inline static var OwnerCandicateSize = 5;
+    inline static var ImageCandicateSize = 8;
 
     public static function render(root: Html, onClose: Promise<Unit>, id: String): Promise<Navigation<Page>> {
         var navigation = new PromiseBroker();
@@ -116,7 +120,24 @@ class DatasetEditPage {
             rootBinding.setProperty("data", data);
 
             var binding = JsViews.observable(rootBinding.data().data);
+			
+			// CKEditor setting
+			var editor = CKEditor.replace("description");
+			editor.setData(data.dataset.meta.description);
+			editor.on("change", function(evt) {
+				var text = editor.getData(false);
+				binding.setProperty('dataset.meta.description', text);
+			});
 
+			editor.on("on-click-dialog-button", function(evt) {
+				JQuery._(".cke_dialog_background_cover").css("z-index", "1000");
+				JQuery._(".cke_dialog ").css("z-index", "1010");
+				showSelectImageDialog(id).then(function(image) {
+					JQuery._('.url-text input[type="text"]').val(image.url);
+					editor.fireOnce("on-close-dialog", image);
+				});
+			} );
+			
             setAttributeTypeahead(root);
             AutoComplete.initialize(root.find("#dataset-owner-typeahead"), {
                 url: function (query: String) {
@@ -159,6 +180,7 @@ class DatasetEditPage {
                 BootstrapButton.setLoading(root.find("#dataset-basics-submit"));
                 root.find("#dataset-basics").find("input,textarea,select,a.btn").attr("disabled", true);
                 root.find("#dataset-basics").find("input.tt-input").css("background-color", "");
+				
                 Service.instance.updateDatasetMetadata(id, data.dataset.meta).then(
                     function (_) {
                         binding.setProperty('dataset.errors.meta.name', "");
@@ -210,41 +232,27 @@ class DatasetEditPage {
 			});
 			
             // icon
-            root.find("#dataset-icon-form").on("change", "input[type=file]", function (e) {
-                if (new JqHtml(e.target).val() != "") {
-                    root.find("#dataset-icon-submit").show();
-                } else {
-                    root.find("#dataset-icon-submit").hide();
-                }
-            });
-            root.find("#dataset-icon-submit").on("click", function (_) {
-                BootstrapButton.setLoading(root.find("#dataset-icon-submit"));
-                Service.instance.changeDatasetImage(id, JQuery._("#dataset-icon-form")).then(
-                    function (res) {
-                        var img = res.images.filter(function (x) return x.id == res.primaryImage)[0];
-                        binding.setProperty("dataset.primaryImage.id", img.id);
-                        binding.setProperty("dataset.primaryImage.url", img.url);
-                        binding.setProperty('dataset.errors.icon', "");
-                        root.find("#dataset-icon-form input[type=file]").val("");
-                        root.find("#dataset-icon-submit").hide();
-                        Notification.show("success", "save successful");
-                    },
-                    function (e) {
-                        switch (e.name) {
-                            case ServiceErrorType.BadRequest:
-                                binding.setProperty('dataset.errors.icon', "");
-                                for (x in cast(e, ServiceError).detail) {
-                                    if (x.name == "file") binding.setProperty('dataset.errors.icon', x.message);
-                                }
-                        }
-                        Notification.show("error", "error happened");
-                    },
-                    function () {
-                        BootstrapButton.reset(root.find("#dataset-icon-submit"));
-                        root.find("#dataset-icon-form input").removeAttr("disabled");
-                    }
-                );
-                root.find("#dataset-icon-form input").attr("disabled", true);
+            root.find("#dataset-icon-select").on("click", function (_) {
+				showSelectImageDialog(id).flatMap(function(image) {
+					return Service.instance.setDatasetImagePrimary(id, image.id).then(
+					    function (_) {
+							binding.setProperty("dataset.primaryImage.id", image.id);
+							binding.setProperty("dataset.primaryImage.url", image.url);
+							binding.setProperty('dataset.errors.icon', "");
+							Notification.show("success", "save successful");
+						},
+						function (e) {
+							switch (e.name) {
+								case ServiceErrorType.BadRequest:
+									binding.setProperty('dataset.errors.icon', "");
+									for (x in cast(e, ServiceError).detail) {
+										if (x.name == "file") binding.setProperty('dataset.errors.icon', x.message);
+									}
+							}
+							Notification.show("error", "error happened");
+						}
+					);
+				});				
             });
 
             // files
@@ -566,7 +574,7 @@ class DatasetEditPage {
         
         return ViewTools.showModal(tpl, data, function (html, ctx) {
             function searchOwnerCandidate(?query: String, offset = 0) {
-                var limit = OwnerCandicateSize + 1;
+                var limit = ImageCandicateSize + 1;
                 Service.instance.findUsersAndGroups({ query: query, offset: offset, limit: limit, excludeIds: [myself.id] }).then(function (owners) {
                     var list = owners.slice(0, OwnerCandicateSize)
                                     .map(function (x) return {
@@ -629,6 +637,102 @@ class DatasetEditPage {
 
             html.on("click", "#add-owner-dialog-submit", function (e) {
                 ctx.fulfill(filterSelectedOwner());
+            });
+        });
+    }
+	
+	static function showSelectImageDialog(id: String) {
+        var data = {
+            offset: 0,
+            hasPrev: false,
+            hasNext: false,
+            items: new Array<{selected: Bool, item: DatasetImage}>(),
+            selectedIds: new Array<String>()
+        }
+        var binding = JsViews.observable(data);
+        var tpl = JsViews.template(Resource.getString("template/dataset/select_image_dialog"));
+        
+        return ViewTools.showModal(tpl, data, function (html, ctx) {
+            function searchImageCandidate(offset = 0) {
+                var limit = ImageCandicateSize + 1;
+                Service.instance.getDatasetImage(id, { offset: offset, limit: limit }).then(function (images) {
+                    var list = images.results.slice(0, ImageCandicateSize)
+                                    .map(function (x) return {
+                                        selected: data.selectedIds.indexOf(x.id) >= 0,
+                                        item: x
+                                    });
+                    var hasPrev = offset > 0;
+                    var hasNext = images.results.length > ImageCandicateSize;
+                    binding.setProperty("offset", offset);
+                    binding.setProperty("hasPrev", hasPrev);
+                    binding.setProperty("hasNext", hasNext);
+                    JsViews.observable(data.items).refresh(list);
+                });
+            }
+			
+            function filterSelectedOwner() {
+                return data.items
+                            .filter(function (x) return x.selected)
+                            .map(function (x) return x.item);
+            }
+
+            JsViews.observable(data.items).observeAll(function (e, args) {
+                if (args.path == "selected") {
+                    var image: DatasetImage = e.target.item;
+                    var ids = data.selectedIds.copy();
+                    var b = JsViews.observable(data.selectedIds);
+                    if (args.value) {
+                        if (ids.indexOf(image.id) < 0) {
+                            ids.push(image.id);
+                            b.refresh(ids);
+                        }
+                    } else {
+                        if (ids.remove(image.id)) {
+                            b.refresh(ids);
+                        }
+                    }
+                }
+            });
+
+            JsViews.observable(data.selectedIds).refresh([]);
+            searchImageCandidate();
+			
+			html.find("#image-form > input").on("change", function(_) {
+				Service.instance.addDatasetImage(id, html.find("#image-form")).then(
+				    function (_) {
+                        Notification.show("success", "save successful");
+						searchImageCandidate();
+						html.find("#image-form > input").replaceWith('<input type="file" name="images" acccept="image/*">');
+                    },
+                    function (e) {
+                        Notification.show("error", "error happened");
+                    });
+			});
+			
+			html.find("#delete-image").on("click", function(_) { 
+				var selected = html.find("input:checked").val();
+				Service.instance.removeDatasetImage(id, selected).then(
+				    function (_) {
+                        Notification.show("success", "save successful");
+						searchImageCandidate();
+                    },
+                    function (e) {
+                        Notification.show("error", "error happened");
+                    });
+			} );
+			
+            html.find("#image-list-prev").on("click", function (_) {
+                var offset = data.offset - ImageCandicateSize;
+                searchImageCandidate(offset);
+            });
+
+            html.find("#image-list-next").on("click", function (_) {
+                var offset = data.offset + ImageCandicateSize;
+                searchImageCandidate(offset);
+            });
+
+            html.on("click", "#select-image-dialog-submit", function (e) {
+                ctx.fulfill(filterSelectedOwner()[0]);
             });
         });
     }

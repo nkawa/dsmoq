@@ -54,7 +54,7 @@
 				<div class="clear"></div>
 			</div>
 			<div class="description">
-				<p><h4>{{if description}}{{>description}}{{else}}<span class="text-muted">(No description)</span>{{/if}}</h4></p>
+				<p><h4>{{if ~trimTags(description)}}{{> ~trimTags(description)}}{{else}}<span class="text-muted">(No description)</span>{{/if}}</h4></p>
 			</div>
 			<div>
 				<h3>
@@ -106,7 +106,7 @@
 				<div class="clear"></div>
 			</div>
 			<div class="description">
-				<p><h4>{{if description}}{{>description}}{{else}}<span class="text-muted">(No description)</span>{{/if}}</h4></p>
+				<p><h4>{{if ~trimTags(description)}}{{> ~trimTags(description)}}{{else}}<span class="text-muted">(No description)</span>{{/if}}</h4></p>
 			</div>
 			<div>
 				<h3>
@@ -159,7 +159,7 @@
 				<div class="clear"></div>
 			</div>
 			<div class="description">
-				<p><h4>{{if description}}{{>description}}{{else}}<span class="text-muted">(No description)</span>{{/if}}</h4></p>
+				<p><h4>{{if ~trimTags(description)}}{{> ~trimTags(description)}}{{else}}<span class="text-muted">(No description)</span>{{/if}}</h4></p>
 			</div>
 			<div>
 				<h3>

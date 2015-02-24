@@ -185,6 +185,15 @@ class ApiController extends ScalatraServlet
     } yield {}) |> toAjaxResponse
   }
 
+  get("/datasets/:datasetId/images") {
+    val datasetId = params("datasetId")
+    val json = getJsonValue[SearchRangeParams].getOrElse(SearchRangeParams())
+    (for {
+      user <- signedInUser
+      images <- DatasetService.getImages(datasetId, json.offset, json.limit, user)
+    } yield images) |> toAjaxResponse
+  }
+
   post("/datasets/:datasetId/images") {
     val datasetId = params("datasetId")
     val images = fileMultiParams.get("images").getOrElse(Seq.empty)
@@ -215,7 +224,7 @@ class ApiController extends ScalatraServlet
 
   get("/datasets/:datasetId/acl") {
     val datasetId = params("datasetId")
-    val json = getJsonValue[SearchOwnershipsParams].getOrElse(SearchOwnershipsParams())
+    val json = getJsonValue[SearchRangeParams].getOrElse(SearchRangeParams())
     DatasetService.searchOwnerships(datasetId, json.offset, json.limit) |> toAjaxResponse
   }
 

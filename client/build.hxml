@@ -22,6 +22,7 @@
 -resource assets/group/add_member_dialog.html@template/group/add_member_dialog
 -resource assets/profile/edit.html@template/profile/edit
 -resource assets/dataset/add_owner_dialog.html@template/dataset/add_owner_dialog
+-resource assets/dataset/select_image_dialog.html@template/dataset/select_image_dialog
 
 --next
 
