@@ -13,19 +13,19 @@ import PostgresqlHelper._
 object Main extends App {
   val now = DateTime.now()
   DBs.setupAll()
-  DB readOnly { implicit s =>
-    val st = Statistics.s
-    val count = withSQL {
-      select(sqls"count(1)")
-        .from(Statistics as st)
-        .where
-          .eq(st.targetMonth, new DateTime(now.getYearOfCentury(), now.getMonthOfYear(), 1, 0, 0))
-    }.map(_.long(1)).single.apply.get
-
-    if (count > 0) {
-      System.exit(0)
-    }
-  }
+//  DB readOnly { implicit s =>
+//    val st = Statistics.s
+//    val count = withSQL {
+//      select(sqls"count(1)")
+//        .from(Statistics as st)
+//        .where
+//          .eq(st.targetMonth, new DateTime(now.getYearOfCentury(), now.getMonthOfYear(), 1, 0, 0))
+//    }.map(_.long(1)).single.apply.get
+//
+//    if (count > 0) {
+//      System.exit(0)
+//    }
+//  }
   DB localTx { implicit s =>
     val d = Dataset.d
     val f = File.f

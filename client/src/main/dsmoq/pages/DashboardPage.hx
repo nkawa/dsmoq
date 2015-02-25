@@ -26,11 +26,13 @@ class DashboardPage {
             myDatasets: Async.Pending,
             myGroups: Async.Pending,
 			statistics: Async.Pending,
+			message: untyped __js__('message')
         };
 
         var binding = JsViews.observable(data);
         View.getTemplate("dashboard/show").link(html, data);
 
+		//TODO パフォーマンス的に問題がある
 		function ellipseLongDescription() {
 			JQuery._(".description").each(function(i: Int, e: Element) { 
 				var target = JQuery._(e);

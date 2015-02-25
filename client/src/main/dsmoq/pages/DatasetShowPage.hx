@@ -56,6 +56,8 @@ class DatasetShowPage {
             });
 			
 			html.find("#dataset-copy").createEventStream("click").flatMap(function (_) {
+                return JsTools.confirm("Are you sure you want to copy this dataset?");
+            }).flatMap(function (_) {
 				return Service.instance.copyDataset(id);
 			}).then(function(x) {
 				navigation.fulfill(Navigation.Navigate(Page.DatasetShow(x.datasetId)));

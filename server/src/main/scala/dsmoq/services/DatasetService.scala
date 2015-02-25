@@ -182,7 +182,7 @@ object DatasetService {
   }
 
   private def createZipedFiles(file: FileItem, fileId: String, timestamp: DateTime, myself: persistence.User): Long = {
-    use(new ZipInputStream(file.getInputStream)) { in =>
+    use(new ZipInputStream(file.getInputStream, Charset.forName("Shift-JIS"))) { in =>
       val zips = Stream.iterate(in.getNextEntry)(_ => in.getNextEntry).takeWhile(x => x != null).toList
       (for (entry <- zips) yield {
         persistence.ZipedFiles.create(
@@ -2078,7 +2078,7 @@ object DatasetService {
         val dataset = persistence.Dataset.find(datasetId).get
         persistence.Dataset.create(
           id = newDatasetId,
-          name = dataset.name,
+          name = "Copy of " + dataset.name,
           description = dataset.description,
           licenseId = dataset.licenseId,
           filesCount = 0,

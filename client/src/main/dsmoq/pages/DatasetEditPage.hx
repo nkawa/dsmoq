@@ -217,7 +217,6 @@ class DatasetEditPage {
 				}
 				var file = files.item(0);
 				var fileReader = new FileReader();
-				fileReader.readAsText(file, "UTF-8");
 				fileReader.onload = function(evt) {
 					var fileString = evt.target.result;
 					removeAttributeTypeahead(root);
@@ -229,12 +228,13 @@ class DatasetEditPage {
 					});
 					setAttributeTypeahead(root);
 				};
+				fileReader.readAsText(file, "UTF-8");
 			});
 			
             // icon
             root.find("#dataset-icon-select").on("click", function (_) {
-				showSelectImageDialog(id).flatMap(function(image) {
-					return Service.instance.setDatasetImagePrimary(id, image.id).then(
+				showSelectImageDialog(id).then(function(image) {
+					Service.instance.setDatasetImagePrimary(id, image.id).then(
 					    function (_) {
 							binding.setProperty("dataset.primaryImage.id", image.id);
 							binding.setProperty("dataset.primaryImage.url", image.url);
@@ -702,7 +702,8 @@ class DatasetEditPage {
 				    function (_) {
                         Notification.show("success", "save successful");
 						searchImageCandidate();
-						html.find("#image-form > input").replaceWith('<input type="file" name="images" acccept="image/*">');
+						// TODO IE11で要検証
+						html.find("#image-form > input").val("");
                     },
                     function (e) {
                         Notification.show("error", "error happened");
