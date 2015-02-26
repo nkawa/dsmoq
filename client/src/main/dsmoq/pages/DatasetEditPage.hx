@@ -128,6 +128,10 @@ class DatasetEditPage {
 				var text = editor.getData(false);
 				binding.setProperty('dataset.meta.description', text);
 			});
+			
+			onClose.then(function(_) { 
+				editor.destroy();
+			} );
 
 			editor.on("on-click-dialog-button", function(evt) {
 				JQuery._(".cke_dialog_background_cover").css("z-index", "1000");
@@ -556,7 +560,7 @@ class DatasetEditPage {
                 );
             });
         });
-
+		
         return navigation.promise;
     }
 

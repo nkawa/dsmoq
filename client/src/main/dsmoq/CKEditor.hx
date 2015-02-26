@@ -13,6 +13,7 @@ extern class Editor {
 	public function on(eventName: String, listener: EventInfo -> Void): Dynamic;
 	public function fire(eventName: String, ?data: Dynamic, ?editor: Editor): Dynamic;
 	public function fireOnce(eventName: String, ?data: Dynamic, ?editor: Editor): Dynamic;
+	public function destroy(): Void;
 }
 
 @:native("CKEDITOR.eventInfo")

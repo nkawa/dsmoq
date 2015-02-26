@@ -88,7 +88,7 @@ class GroupShowPage {
             }).then(function (_) {
                 Service.instance.deleteGroup(id).then(function (_) {
                     Notification.show("success", "delete successful");
-                    navigation.fulfill(Navigation.Navigate(Page.GroupList(1)));
+                    navigation.fulfill(Navigation.Navigate(Page.GroupList(1, "")));
                 }, function (err) {
                     Notification.show("error", "error happened");
                 });

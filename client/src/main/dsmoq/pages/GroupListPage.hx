@@ -14,11 +14,11 @@ import hxgnd.js.JQuery;
 import js.Lib;
 
 class GroupListPage {
-    public static function render(html: Html, onClose: Promise<Unit>, pageNum: PositiveInt): Promise<Navigation<Page>> {
+    public static function render(html: Html, onClose: Promise<Unit>, pageNum: PositiveInt, query: String): Promise<Navigation<Page>> {
         var navigation = new PromiseBroker();
 
         var condition = {
-            query: "",
+            query: query,
             index: pageNum - 1
         };
         var binding = JsViews.observable({
@@ -48,7 +48,7 @@ class GroupListPage {
         // observe binding
         JsViews.observe(condition, "index", function (_, args) {
             var page = args.value + 1;
-            navigation.fulfill(Navigation.Navigate(Page.GroupList(page)));
+            navigation.fulfill(Navigation.Navigate(Page.GroupList(page, condition.query)));
         });
 
         // init search form

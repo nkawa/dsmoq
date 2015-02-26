@@ -15,14 +15,15 @@ import hxgnd.Result;
 import hxgnd.Unit;
 import js.bootstrap.BootstrapPopover;
 import js.html.KeyboardEvent;
+import js.Lib;
 
 class DatasetListPage {
-    public static function render(root: Html, onClose: Promise<Unit>, pageNum: PositiveInt): Promise<Navigation<Page>> {
+    public static function render(root: Html, onClose: Promise<Unit>, pageNum: PositiveInt, query: String, filters: Dynamic): Promise<Navigation<Page>> {
         var navigation = new PromiseBroker();
 
         var condition = {
-            query: "",
-            filters: new Array<{type: String, item: Dynamic}>(),
+            query: query,
+            filters: filters,//new Array<{type: String, item: Dynamic}>(),
             index: pageNum - 1
         }
         var binding = JsViews.observable({
@@ -69,14 +70,14 @@ class DatasetListPage {
         });
         JsViews.observe(condition, "index", function (_, args) {
             var page = args.value + 1;
-            navigation.fulfill(Navigation.Navigate(Page.DatasetList(page)));
+            navigation.fulfill(Navigation.Navigate(Page.DatasetList(page, condition.query, condition.filters)));
         });
 
         // init search form
         JQuery._("#search-button").on("click", function (_) {
             load();
         });
-
+		
         BootstrapPopover.initialize("#add-filter-button", {
             content: JQuery._("#filter-add-form").children(),
             placement: "bottom",
@@ -111,7 +112,7 @@ class DatasetListPage {
                 }
             });
             JQuery._("#filter-owner-input").on("autocomplete:complated", function (_) {
-                JQuery._("#filter-owner-apply").attr("disabled", false);
+                JQuery._("#filter-owner-apply").removeAttr("disabled");
             });
             JQuery._("#filter-owner-input").on("autocomplete:uncomplated", function (_) {
                 JQuery._("#filter-owner-apply").attr("disabled", true);
@@ -147,7 +148,7 @@ class DatasetListPage {
                 }
             });
             JQuery._("#filter-attribute-name-input").on("autocomplete:complated", function (_) {
-                JQuery._("#filter-attribute-apply").attr("disabled", false);
+                JQuery._("#filter-attribute-apply").removeAttr("disabled");
             });
             JQuery._("#filter-attribute-name-input").on("autocomplete:uncomplated", function (_) {
                 JQuery._("#filter-attribute-apply").attr("disabled", true);

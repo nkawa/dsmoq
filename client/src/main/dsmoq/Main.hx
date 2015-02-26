@@ -7,6 +7,7 @@ import dsmoq.models.Service;
 import dsmoq.Page;
 import dsmoq.pages.*;
 import haxe.Resource;
+import haxe.Json;
 import hxgnd.ArrayTools;
 import hxgnd.Error;
 import hxgnd.js.Html;
@@ -286,18 +287,30 @@ class Main {
                         var i = Std.parseInt(x);
                         return (i == null) ? None : Some(cast(i, PositiveInt));
                     }
+					
+					function getQuery(x: String) {
+						return (x == null) ? None : Some(x);
+					}
+					
+					function getFilters(x: String) {
+						return (x == null) ? None : Some(Json.parse(x));
+					}
 
                     return switch (path) {
                         case [""]:
                             Dashboard;
                         case ["datasets"]:
-                            DatasetList(parsePositiveInt(location.query["page"]).getOrDefault(1));
+                            DatasetList(
+								parsePositiveInt(location.query["page"]).getOrDefault(1), 
+								getQuery(location.query["query"]).getOrDefault(""),
+								getFilters(location.query["filters"]).getOrDefault(new Array<{type: String, item: Dynamic}>())
+							);
                         case ["datasets", id]:
                             DatasetShow(id);
                         case ["datasets", id, "edit"]:
                             DatasetEdit(id);
                         case ["groups"]:
-                            GroupList(parsePositiveInt(location.query["page"]).getOrDefault(1));
+                            GroupList(parsePositiveInt(location.query["page"]).getOrDefault(1), getQuery(location.query["query"]).getOrDefault(""));
                         case ["groups", id]:
                             GroupShow(id);
                         case ["groups", id, "edit"]:
@@ -313,19 +326,22 @@ class Main {
                         case Dashboard:
                             { path: "/" };
 
-                        case DatasetList(page):
-                            var query = new Map();
-                            query["page"] = Std.string(page);
-                            { path: "/datasets", query: query };
+                        case DatasetList(page, query, filters):
+                            var q = new Map();
+                            q["page"] = Std.string(page);
+							q["query"] = query;
+							q["filters"] = Json.stringify(filters);
+                            { path: "/datasets", query: q };
                         case DatasetShow(id):
                             { path: '/datasets/$id' };
                         case DatasetEdit(id):
                             { path: '/datasets/$id/edit' };
 
-                        case GroupList(page):
-							var query = new Map();
-                            query["page"] = Std.string(page);
-                            { path: "/groups", query: query };
+                        case GroupList(page, query):
+							var q = new Map();
+                            q["page"] = Std.string(page);
+							q["query"] = query;
+                            { path: "/groups", query: q };
                         case GroupShow(id):
                             { path: '/groups/$id' };
                         case GroupEdit(id):
@@ -346,10 +362,10 @@ class Main {
             renderPage: function (page: Page, slot: Html, onClosed: Promise<Unit>) {
                 return switch (page) {
                     case Dashboard: DashboardPage.render(slot, onClosed);
-                    case DatasetList(pageNum): DatasetListPage.render(slot, onClosed, pageNum);
+                    case DatasetList(pageNum, query, filters): DatasetListPage.render(slot, onClosed, pageNum, query, filters);
                     case DatasetShow(id): DatasetShowPage.render(slot, onClosed, id);
                     case DatasetEdit(id): DatasetEditPage.render(slot, onClosed, id);
-                    case GroupList(pageNum): GroupListPage.render(slot, onClosed, pageNum);
+                    case GroupList(pageNum, query): GroupListPage.render(slot, onClosed, pageNum, query);
                     case GroupShow(id): GroupShowPage.render(slot, onClosed, id);
                     case GroupEdit(id): GroupEditPage.render(slot, onClosed, id);
                     case Profile: ProfilePage.render(slot, onClosed);
