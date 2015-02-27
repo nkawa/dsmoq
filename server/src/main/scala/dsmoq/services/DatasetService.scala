@@ -49,6 +49,11 @@ object DatasetService {
       val saveS3_ = saveS3.getOrElse(false)
       val name_ = name.getOrElse("")
 
+      val errors = mutable.LinkedHashMap.empty[String, String]
+      if (! saveLocal_ && ! saveS3_) { errors.put("storage", "both check is false. select either") }
+      if (name_.isEmpty && files_.isEmpty) { errors.put("name", "name or file is necessary") }
+      if (errors.nonEmpty) throw new InputValidationException(errors)
+
       DB localTx { implicit s =>
         val myself = persistence.User.find(user.id).get
         val myGroup = getPersonalGroup(myself.id).get
@@ -163,8 +168,9 @@ object DatasetService {
             id = myself.id,
             name = myself.name,
             fullname = myself.fullname,
-            //organization = myself.organization,
-            //title = myself.title,
+            organization = myself.organization,
+            title = myself.title,
+            description = myself.description,
             image = AppConf.imageDownloadRoot + myself.imageId,
             accessLevel = ownership.accessLevel,
             ownerType = OwnerType.User
@@ -569,7 +575,10 @@ object DatasetService {
             fullname = rs.string(u.resultName.fullname),
             image = "",
             accessLevel = UserAccessLevel.Owner,
-            ownerType = GroupType.Personal
+            ownerType = GroupType.Personal,
+            description = "",
+            title = "",
+            organization = ""
           ))
         } else {
           (datasetId, DatasetData.DatasetOwnership(
@@ -578,7 +587,10 @@ object DatasetService {
             fullname = "",
             image = "",
             accessLevel = GroupAccessLevel.Provider,
-            ownerType = GroupType.Public
+            ownerType = GroupType.Public,
+            description = "",
+            title = "",
+            organization = ""
           ))
         }
       }).list().apply().groupBy(_._1).mapValues(_.map(_._2))
@@ -1398,8 +1410,9 @@ object DatasetService {
                 id = user_.id,
                 name = user_.name,
                 fullname = user_.fullname,
-                //organization = user.organization,
-                //title = user.title,
+                organization = user.organization,
+                title = user.title,
+                description = user.description,
                 image = AppConf.imageDownloadRoot + user_.imageId,
                 accessLevel = x.accessLevel,
                 ownerType = OwnerType.User
@@ -1412,8 +1425,9 @@ object DatasetService {
                 id = x.id,
                 name = group.name,
                 fullname = "",
-                //organization = "",
-                //title = "",
+                organization = "",
+                title = "",
+                description = group.description,
                 image = "",
                 accessLevel = x.accessLevel,
                 ownerType = OwnerType.Group
@@ -1776,8 +1790,9 @@ object DatasetService {
             id = rs.stringOpt(u.resultName.id).getOrElse(rs.string(g.resultName.id)),
             name = rs.stringOpt(u.resultName.name).getOrElse(rs.string(g.resultName.name)),
             fullname = rs.stringOpt(u.resultName.fullname).getOrElse(""),
-            //organization = rs.stringOpt(u.resultName.organization).getOrElse(""),
-            //title = rs.stringOpt(u.resultName.title).getOrElse(""),
+            organization = rs.stringOpt(u.resultName.organization).getOrElse(""),
+            title = rs.stringOpt(u.resultName.title).getOrElse(""),
+            description = rs.stringOpt(u.resultName.description).getOrElse(""),
             image = AppConf.imageDownloadRoot + rs.stringOpt(u.resultName.imageId).getOrElse(rs.string(gi.resultName.imageId)),
             accessLevel = rs.int(o.resultName.accessLevel),
             ownerType = rs.stringOpt(u.resultName.id) match {
@@ -1850,8 +1865,9 @@ object DatasetService {
         id = rs.stringOpt(u.resultName.id).getOrElse(rs.string(g.resultName.id)),
         name = rs.stringOpt(u.resultName.name).getOrElse(rs.string(g.resultName.name)),
         fullname = rs.stringOpt(u.resultName.fullname).getOrElse(""),
-        //organization = rs.stringOpt(u.resultName.organization).getOrElse(""),
-        //title = rs.stringOpt(u.resultName.title).getOrElse(""),
+        organization = rs.stringOpt(u.resultName.organization).getOrElse(""),
+        title = rs.stringOpt(u.resultName.title).getOrElse(""),
+        description = rs.stringOpt(u.resultName.description).getOrElse(""),
         image = AppConf.imageDownloadRoot +  rs.stringOpt(u.resultName.imageId).getOrElse(rs.string(gi.resultName.imageId)),
         accessLevel = rs.int(o.resultName.accessLevel),
         ownerType = rs.stringOpt(u.resultName.id) match {
@@ -2309,7 +2325,7 @@ object DatasetService {
     }
   }
 
-  def searchOwnerships(datasetId: String, offset: Option[Int], limit: Option[Int]): Try[RangeSlice[DatasetOwnership]] = {
+  def searchOwnerships(datasetId: String, offset: Option[Int], limit: Option[Int], user: User): Try[RangeSlice[DatasetOwnership]] = {
     try {
       DB readOnly { implicit s =>
         val o = persistence.Ownership.o
@@ -2348,7 +2364,7 @@ object DatasetService {
         }.map(rs => rs.int(1)).list.apply.foldLeft(0)(_ + _)
 
         val list = withSQL {
-          select(g.id, o.accessLevel, g.name, gi.imageId, sqls"null as fullname, '2' as type")
+          select(g.id, o.accessLevel, g.name, gi.imageId, g.description, sqls"null as fullname, '2' as type, null as organization, null as title, false as own")
             .from(persistence.Ownership as o)
             .innerJoin(persistence.Group as g).on(sqls.eq(o.groupId, g.id).and.eq(g.groupType, GroupType.Public))
             .innerJoin(persistence.GroupImage as gi).on(gi.groupId, g.id)
@@ -2361,7 +2377,7 @@ object DatasetService {
               .and
               .gt(o.accessLevel, 0)
             .union(
-              select(u.id, o.accessLevel, u.name, u.imageId, u.fullname, sqls"'1' as type")
+              select(u.id, o.accessLevel, u.name, u.imageId, u.description, u.fullname, sqls"'1' as type", u.organization, u.title, sqls.eqUuid(u.id, user.id).and.eq(o.accessLevel, 3).append(sqls"own"))
                 .from(persistence.Ownership as o)
                 .innerJoin(persistence.Group as g).on(sqls.eq(o.groupId, g.id).and.eq(g.groupType, GroupType.Personal))
                 .innerJoin(persistence.Member as m).on(sqls.eq(g.id, m.groupId).and.isNull(m.deletedAt))
@@ -2375,6 +2391,7 @@ object DatasetService {
                   .and
                   .gt(o.accessLevel, 0)
             )
+            .orderBy(sqls"own desc")
             .offset(offset.getOrElse(0))
             .limit(limit.getOrElse(20))
         }.map(
@@ -2382,16 +2399,22 @@ object DatasetService {
               rs.int("access_level"),
               rs.string("name"),
               rs.string("image_id"),
+              rs.string("description"),
               rs.string("fullname"),
-              rs.int("type"))
+              rs.int("type"),
+              rs.string("organization"),
+              rs.string("title"))
           ).list.apply.map { o =>
           DatasetOwnership(
             id = o._1,
             name = o._3,
-            fullname = o._5,
+            fullname = o._6,
             image = AppConf.imageDownloadRoot + o._4,
             accessLevel = o._2,
-            ownerType = o._6
+            ownerType = o._7,
+            description = o._5,
+            organization = o._8,
+            title = o._9
           )
         }.toSeq
         Success(

@@ -33,7 +33,7 @@
     </div>
 	<div class="text-left">
 		<form id="image-form" method="POST">
-			<button type="button" id="delete-image" class="btn btn-default">Delete</button>
+			<button type="button" id="delete-image" class="btn btn-default" data-link="disabled{:selectedIds.length <= 0}">Delete</button>
 			<div type="button" id="upload-image" class="btn btn-default">Upload
 				<input type="file" name="images" acccept="image/*">
 			</div>

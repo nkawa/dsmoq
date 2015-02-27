@@ -225,7 +225,10 @@ class ApiController extends ScalatraServlet
   get("/datasets/:datasetId/acl") {
     val datasetId = params("datasetId")
     val json = getJsonValue[SearchRangeParams].getOrElse(SearchRangeParams())
-    DatasetService.searchOwnerships(datasetId, json.offset, json.limit) |> toAjaxResponse
+    (for {
+      user <- signedInUser
+      result <- DatasetService.searchOwnerships(datasetId, json.offset, json.limit, user)
+    } yield result) |> toAjaxResponse
   }
 
   post("/datasets/:datasetId/acl") {

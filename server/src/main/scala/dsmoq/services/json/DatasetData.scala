@@ -94,8 +94,9 @@ object DatasetData {
     id: String,
     name: String,
     fullname: String,
-    //organization: String,
-    //title: String,
+    organization: String,
+    title: String,
+    description: String,
     image: String,
     accessLevel: Int,
     ownerType: Int

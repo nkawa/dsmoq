@@ -762,7 +762,7 @@ class DatasetEditPage {
                 }
             });
 
-            JsViews.observable(data.selectedIds).refresh([]);
+            var binding = JsViews.observable(data.selectedIds).refresh([]);
             searchImageCandidate();
 			
 			html.find("#image-form input").on("change", function(_) {
@@ -791,6 +791,7 @@ class DatasetEditPage {
 				    function (_) {
                         Notification.show("success", "save successful");
 						searchImageCandidate();
+						binding.refresh([]);
                     },
                     function (e) {
 						switch (e.name) {

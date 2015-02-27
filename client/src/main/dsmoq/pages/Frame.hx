@@ -101,7 +101,7 @@ class Frame {
         JQuery._("#new-dataset-dialog").on("hide.bs.modal", function (_) {
             JQuery._("#new-dataset-dialog form .form-group").remove();
             JQuery._("#new-dataset-dialog form")
-                .append("<div class=\"form-group\"><input type=\"text\" name=\"name\" placeholder=\"Dataset Name\"><input type=\"file\" name=\"file[]\" multiple=\"multiple\"></div>");
+                .append("<div class=\"form-group\"><input type=\"text\" class=\"form-control\" name=\"name\" placeholder=\"Dataset Name\"><input type=\"file\" name=\"file[]\" multiple=\"multiple\"></div>");
         });
 
         JQuery._("#new-dataset-dialog form").on("change", "input[type='file']", function (event: Event) {
@@ -122,13 +122,22 @@ class Frame {
                 JQuery._("#new-dataset-dialog form")
                     .find("input[type='file']").remove().end()
 					.find("input[type='text']").remove().end()
-                    .append("<div class=\"form-group\"><input type=\"text\" name=\"name\" placeholder=\"Dataset Name\"><input type=\"file\" name=\"file[]\" multiple=\"multiple\"></div>");
-				JQuery._("#saveLocal").prop("checked", false);
+                    .append("<div class=\"form-group\"><input type=\"text\" class=\"form-control\" name=\"name\" placeholder=\"Dataset Name\"><input type=\"file\" name=\"file[]\" multiple=\"multiple\"></div>");
+				JQuery._("#saveLocal").prop("checked", true);
 				JQuery._("#saveS3").prop("checked", false);
                 navigation.update(Navigation.Navigate(DatasetShow(data.id)));
                 Notification.show("success", "create successful");
             }, function (err) {
-                Notification.show("error", "error happened");
+				switch (err.name) {
+					case ServiceErrorType.BadRequest:
+						for (x in cast(err, ServiceError).detail) {
+							Notification.show("error", x.message);
+						}								
+					case ServiceErrorType.Unauthorized: 
+						Notification.show("error", "permission denied");
+					default:
+						Notification.show("error", "error happened");
+				}
             }, function () {
                 BootstrapButton.reset(JQuery._("#new-dataset-dialog-submit"));
             });

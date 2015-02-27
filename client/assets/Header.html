@@ -77,14 +77,14 @@
     <h4 class="modal-title">Create Dataset</h4>
   </div>
   <div class="modal-body">
-    <form role="form">
+    <form role="form" id="new-dataset-form">
 		<div class="form-group">
-			<input type="text" name="name" placeholder="Dataset Name">
+			<input type="text" class="form-control" name="name" placeholder="Dataset Name">
 			<input type="file" name="file[]" multiple="multiple">
 		</div>
     </form>
 	<div class="form-group">
-		<input type="checkbox" id="saveLocal"><label for="saveLocal">ローカルに保存する</label>
+		<input type="checkbox" id="saveLocal" checked><label for="saveLocal">ローカルに保存する</label>
 		<input type="checkbox" id="saveS3"><label for="saveS3">S3に保存する</label>
 	</div>
   </div>
