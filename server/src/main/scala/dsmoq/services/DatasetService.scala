@@ -1621,7 +1621,7 @@ object DatasetService {
                 val zipFilePath = getFileHistory(zf.fileId)
                 (zipFile, zipFilePath.get, dataset, Some(zf))
               }
-              case None => throw new RuntimeException("data not found.")
+              case None => throw new NotFoundException
             }
           }
         }

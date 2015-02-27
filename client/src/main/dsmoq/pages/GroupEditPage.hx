@@ -135,7 +135,14 @@ class GroupEditPage {
 							Notification.show("success", "save successful");
 						},
 						function (e) {
-							Notification.show("error", "error happened");
+							switch (e.name) {
+								case ServiceErrorType.NotFound:
+									Notification.show("error", "group not found");
+								case ServiceErrorType.Unauthorized: 
+									Notification.show("error", "permission denied");
+								default:
+									Notification.show("error", "error happened");
+							}
 						}
 					);
 				});				
@@ -151,7 +158,18 @@ class GroupEditPage {
                         Notification.show("success", "save successful");
                     }, function (err) {
                         ViewTools.hideLoading("body");
-                        Notification.show("error", "error happened");
+						switch (err.name) {
+							case ServiceErrorType.BadRequest:
+								for (x in cast(err, ServiceError).detail) {
+									Notification.show("error", x.message);
+								}								
+							case ServiceErrorType.NotFound:
+								Notification.show("error", "group not found");
+							case ServiceErrorType.Unauthorized: 
+								Notification.show("error", "permission denied");
+							default:
+								Notification.show("error", "error happened");
+						}
                     });
                 });
             });
@@ -174,7 +192,18 @@ class GroupEditPage {
                         Service.instance.updateGroupMemberRole(id, member.id, member.role).then(function (_) {
                             Notification.show("success", "save successful");
                         }, function (e) {
-                            Notification.show("error", "error happened");
+							switch (e.name) {
+								case ServiceErrorType.BadRequest:
+									for (x in cast(e, ServiceError).detail) {
+										Notification.show("error", x.message);
+									}								
+								case ServiceErrorType.NotFound:
+									Notification.show("error", "group not found");
+								case ServiceErrorType.Unauthorized: 
+									Notification.show("error", "permission denied");
+								default:
+									Notification.show("error", "error happened");
+							}
                         });
                     });
                 });
@@ -193,7 +222,12 @@ class GroupEditPage {
                                     Notification.show("success", "save successful");
                                 }, function (err) {
                                     ViewTools.hideLoading("body");
-                                    Notification.show("error", "error happened");
+									switch (err.name) {	
+										case ServiceErrorType.NotFound:
+											Notification.show("error", "member not found");
+										default:
+											Notification.show("error", "error happened");
+									}
                                 });
                         }
                     });
@@ -358,7 +392,14 @@ class GroupEditPage {
 						html.find("#image-form input").val("");
                     },
                     function (e) {
-                        Notification.show("error", "error happened");
+						switch (e.name) {
+							case ServiceErrorType.NotFound:
+								Notification.show("error", "not found");
+							case ServiceErrorType.Unauthorized: 
+								Notification.show("error", "permission denied");
+							default:
+								Notification.show("error", "error happened");
+						}
                     });
 			});
 			
@@ -370,7 +411,14 @@ class GroupEditPage {
 						searchImageCandidate();
                     },
                     function (e) {
-                        Notification.show("error", "error happened");
+						switch (e.name) {
+							case ServiceErrorType.NotFound:
+								Notification.show("error", "not found");
+							case ServiceErrorType.Unauthorized: 
+								Notification.show("error", "permission denied");
+							default:
+								Notification.show("error", "error happened");
+						}
                     });
 			} );
 			

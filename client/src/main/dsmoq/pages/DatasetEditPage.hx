@@ -280,7 +280,16 @@ class DatasetEditPage {
                         Notification.show("success", "save successful");
                     },
                     function (e) {
-                        Notification.show("error", "error happened");
+						switch (e.name) {
+							case ServiceErrorType.BadRequest:
+								Notification.show("error", "file is empty");
+							case ServiceErrorType.NotFound:
+								Notification.show("error", "dataset not found");
+							case ServiceErrorType.Unauthorized: 
+								Notification.show("error", "permission denied");
+							default:
+								Notification.show("error", "error happened");
+						}
                     },
                     function () {
                         BootstrapButton.reset(root.find("#dataset-file-add-submit"));
@@ -392,7 +401,16 @@ class DatasetEditPage {
                             Notification.show("success", "save successful");
                         },
                         function (e) {
-                            Notification.show("error", "error happened");
+							switch (e.name) {
+								case ServiceErrorType.BadRequest:
+									Notification.show("error", "file is empty");
+								case ServiceErrorType.NotFound:
+									Notification.show("error", "dataset not found");
+								case ServiceErrorType.Unauthorized: 
+									Notification.show("error", "permission denied");
+								default:
+									Notification.show("error", "error happened");
+							}
                         },
                         function () {
                             btns.removeAttr("disabled");
@@ -418,7 +436,14 @@ class DatasetEditPage {
                         Notification.show("success", "delete successful");
                     },
                     function (e) {
-                        Notification.show("error", "error happened");
+						switch (e.name) {
+							case ServiceErrorType.NotFound:
+								Notification.show("error", "dataset not found");
+							case ServiceErrorType.Unauthorized: 
+								Notification.show("error", "permission denied");
+							default:
+								Notification.show("error", "error happened");
+						}
                     },
                     function () {
                         btns.removeAttr("disabled");
@@ -479,7 +504,14 @@ class DatasetEditPage {
                         Notification.show("success", "save successful");
                     }, function (err) {
                         ViewTools.hideLoading("body");
-                        Notification.show("error", "error happened");
+						switch (err.name) {
+							case ServiceErrorType.NotFound:
+								Notification.show("error", "dataset not found");
+							case ServiceErrorType.Unauthorized: 
+								Notification.show("error", "permission denied");
+							default:
+								Notification.show("error", "error happened");
+						}
                     });
                 });
             });
@@ -498,7 +530,14 @@ class DatasetEditPage {
                             Notification.show("success", "save successful");
 							loadOwnerships();
                         }, function (e) {
-                            Notification.show("error", "error happened");
+							switch (e.name) {
+								case ServiceErrorType.NotFound:
+									Notification.show("error", "dataset not found");
+								case ServiceErrorType.Unauthorized: 
+									Notification.show("error", "permission denied");
+								default:
+									Notification.show("error", "error happened");
+							}
                         });
                     });
                 });
@@ -520,8 +559,16 @@ class DatasetEditPage {
                                     Notification.show("success", "save successful");
                                 }, function (err) {
                                     ViewTools.hideLoading("body");
-                                    Notification.show("error", "error happened");
-                                });
+									switch (err.name) {
+										case ServiceErrorType.NotFound:
+											Notification.show("error", "dataset not found");
+										case ServiceErrorType.Unauthorized: 
+											Notification.show("error", "permission denied");
+										default:
+											Notification.show("error", "error happened");
+									}
+								}
+							);
                         }
                     });
                 });
@@ -535,7 +582,14 @@ class DatasetEditPage {
                         Notification.show("success", "save successful");
                     },
                     function (e) {
-                        Notification.show("error", "error happened");
+						switch (e.name) {
+							case ServiceErrorType.NotFound:
+								Notification.show("error", "dataset not found");
+							case ServiceErrorType.Unauthorized: 
+								Notification.show("error", "permission denied");
+							default:
+								Notification.show("error", "error happened");
+						}
                     },
                     function () {
                         BootstrapButton.reset(root.find("#dataset-guest-access-submit"));
@@ -552,7 +606,16 @@ class DatasetEditPage {
                         Notification.show("success", "save successful");
                     },
                     function (e) {
-                        Notification.show("error", "error happened");
+						switch (e.name) {
+							case ServiceErrorType.BadRequest:
+								Notification.show("error", "select check box");
+							case ServiceErrorType.NotFound:
+								Notification.show("error", "dataset not found");
+							case ServiceErrorType.Unauthorized: 
+								Notification.show("error", "permission denied");
+							default:
+								Notification.show("error", "error happened");
+						}
                     },
                     function () {
                         BootstrapButton.reset(root.find("#dataset-storage-submit"));
@@ -711,7 +774,14 @@ class DatasetEditPage {
 						html.find("#image-form input").val("");
                     },
                     function (e) {
-                        Notification.show("error", "error happened");
+						switch (e.name) {
+							case ServiceErrorType.NotFound:
+								Notification.show("error", "not found");
+							case ServiceErrorType.Unauthorized: 
+								Notification.show("error", "permission denied");
+							default:
+								Notification.show("error", "error happened");
+						}
                     });
 			});
 			
@@ -723,7 +793,14 @@ class DatasetEditPage {
 						searchImageCandidate();
                     },
                     function (e) {
-                        Notification.show("error", "error happened");
+						switch (e.name) {
+							case ServiceErrorType.NotFound:
+								Notification.show("error", "not found");
+							case ServiceErrorType.Unauthorized: 
+								Notification.show("error", "permission denied");
+							default:
+								Notification.show("error", "error happened");
+						}
                     });
 			} );
 			
