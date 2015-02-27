@@ -50,4 +50,10 @@ object GroupData {
   case class GroupDeleteImage(
                                primaryImage: String
                                )
+  case class GroupGetImage (
+                               id: String,
+                               name: String,
+                               url: String,
+                               isPrimary: Boolean
+                               )
 }

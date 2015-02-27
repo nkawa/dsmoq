@@ -27,7 +27,7 @@
           </div>
           <div class="media-body">
             <h4 class="media-heading"><a href="/groups/{{>id}}" data-navigation>{{>name}}</a></h4>
-            <p>{{if description}}{{>description}}{{else}}<span class="text-muted">(No description)</span>{{/if}}</p>
+            <p>{{if ~trimTags(description)}}{{: ~trimTags(description)}}{{else}}<span class="text-muted">(No description)</span>{{/if}}</p>
             <div>
 			  <span class="label label-default">{{>members}} Members</span>
 			  <span class="label label-default">{{>datasets}} Datasets</span>&nbsp;

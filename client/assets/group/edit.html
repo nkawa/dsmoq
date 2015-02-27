@@ -32,12 +32,12 @@
           {^{if ~isEmpty(groupErrors.description)}}
             <div class="form-group" style="width:600px;">
               <label class="control-label">Description</label>
-              <textarea class="form-control" row="3" data-link="group.description"></textarea>
+              <textarea id="description"></textarea>
             </div>
           {{else}}
             <div class="form-group has-error has-feedback" style="width:600px;">
               <label class="control-label">Description</label>
-              <textarea class="form-control" row="3" data-link="group.description"></textarea>
+              <textarea id="description"></textarea>
               <span class="glyphicon glyphicon-remove form-control-feedback"></span>
             </div>
             <p class="text-danger" data-link="groupErrors.description"></p>
@@ -60,8 +60,7 @@
           <div class="form-group">
             <div><label class="control-label">Change icon</label></div>
             <div>
-              <input type="file" name="images[]" style="display:inline;">
-              <a href="javascript:void 0;" class="btn btn-primary btn-sm" data-loading-text="Saving..." id="group-icon-submit" style="display:none;">Upload</a>
+              <a class="btn btn-primary" id="group-icon-select">Select</a>
             </div>
           </div>
         </form>

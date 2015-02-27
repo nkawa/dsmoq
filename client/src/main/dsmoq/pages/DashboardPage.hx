@@ -51,50 +51,7 @@ class DashboardPage {
 			} );
 		}
 		
-		Service.instance.findDatasets( { attributes: [ { name: "featured", value: "" } ], limit: 10 } ).then(function(x) {
-			if (x.results.length > 0) {
-				x.results.sort(function(x: DatasetSummary, y: DatasetSummary): Int {
-					var featured1 = x.attributes.filter(function(da: DatasetAttribute) {
-						return da.name == "featured";
-					});
-					var featured2 = y.attributes.filter(function(da: DatasetAttribute) {
-						return da.name == "featured";
-					});
-					featured1.sort(function (x1, y1) {
-						var x1Value = Std.parseInt(x1.value);
-						var y1Value = Std.parseInt(y1.value);
-						if (x1Value == y1Value) {
-							return 0;
-						}
-						if (x1Value == null && y1Value != null || x1Value > y1Value) {
-							return 1;
-						}
-						return -1;
-					});
-					featured2.sort(function (x1, y1) {
-						var x1Value = Std.parseInt(x1.value);
-						var y1Value = Std.parseInt(y1.value);
-						if (x1Value == y1Value) {
-							return 0;
-						}
-						if (x1Value == null && y1Value != null || x1Value > y1Value) {
-							return 1;
-						}
-						return -1;
-					});
-					var fx = featured1[0];
-					var fy = featured2[0];
-					var xValue = Std.parseInt(fx.value);
-					var yValue = Std.parseInt(fy.value);
-					if (xValue == yValue) {
-						return 0;
-					}
-					if (xValue == null && yValue != null || xValue < yValue) {
-						return -1;
-					}
-					return 1;
-				});
-			}
+		Service.instance.findDatasets( { attributes: [ { name: "featured", value: "" } ], limit: 10, orderby: "attribute" } ).then(function(x) {
 			binding.setProperty("featuredDatasets", Async.Completed(x.results));
 			ellipseLongDescription();
 		});

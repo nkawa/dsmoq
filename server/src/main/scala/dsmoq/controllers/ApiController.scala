@@ -125,7 +125,7 @@ class ApiController extends ScalatraServlet
     val json = params.get("d").map(JsonMethods.parse(_).extract[SearchDatasetsParams])
                                .getOrElse(SearchDatasetsParams())
     DatasetService.search(json.query, json.owners, json.groups, json.attributes,
-                          json.limit, json.offset, currentUser) |> toAjaxResponse
+                          json.limit, json.offset, json.orderby, currentUser) |> toAjaxResponse
   }
 
   get("/datasets/:datasetId") {
@@ -332,6 +332,15 @@ class ApiController extends ScalatraServlet
       user <- signedInUser
       group <- GroupService.updateGroup(groupId, json.name.getOrElse(""), json.description.getOrElse(""), user)
     } yield group) |> toAjaxResponse
+  }
+
+  get("/groups/:groupId/images") {
+    val groupId = params("groupId")
+    val json = getJsonValue[SearchRangeParams].getOrElse(SearchRangeParams())
+    (for {
+      user <- signedInUser
+      images <- GroupService.getImages(groupId, json.offset, json.limit, user)
+    } yield images) |> toAjaxResponse
   }
 
   post("/groups/:groupId/images") {

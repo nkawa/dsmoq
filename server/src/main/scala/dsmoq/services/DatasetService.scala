@@ -233,6 +233,7 @@ object DatasetService {
              attributes: Seq[DataSetAttribute] = Seq.empty,
              limit: Option[Int] = None,
              offset: Option[Int] = None,
+             orderby: Option[String] = None,
              user: User): Try[RangeSlice[DatasetData.DatasetsSummary]] = {
     try {
       val limit_ = limit.getOrElse(20)
@@ -250,7 +251,7 @@ object DatasetService {
           case Some(x) =>
             val count = countDataSets(joinedGroups, query, x._1, x._2, attributes)
             val records = if (count > 0) {
-              findDataSets(joinedGroups, query, x._1, x._2, attributes, limit_, offset_)
+              findDataSets(joinedGroups, query, x._1, x._2, attributes, limit_, offset_, orderby)
             } else {
               List.empty
             }
@@ -329,18 +330,38 @@ object DatasetService {
 
   private def findDataSets(joindGroups : Seq[String], query: Option[String],
                            ownerUsers: Seq[String], ownerGroups: Seq[String],
-                           attributes: Seq[DataSetAttribute], limit: Int, offset: Int)(implicit s: DBSession) = {
+                           attributes: Seq[DataSetAttribute], limit: Int, offset: Int, orderby: Option[String])(implicit s: DBSession) = {
     val ds = persistence.Dataset.d
     val o = persistence.Ownership.o
+    val a = persistence.Annotation.a
+    val da = persistence.DatasetAnnotation.syntax("da")
+    val xda2 = SubQuery.syntax("xda2", da.resultName, a.resultName)
 
-    val datasets = withSQL {
-      createDatasetSql(select.apply[Any](ds.resultAll, sqls.max(o.accessLevel).append(sqls"access_level")),
-                                         joindGroups, query, ownerUsers, ownerGroups, attributes)
-        .groupBy(ds.id)
-        .orderBy(ds.updatedAt).desc
-        .offset(offset)
-        .limit(limit)
-    }.map(rs => (persistence.Dataset(ds.resultName)(rs), rs.int("access_level"))).list().apply()
+    val selects = orderby match {
+      case Some(ord) if ord == "attribute" => select.apply[Any](ds.resultAll, sqls.max(o.accessLevel).append(sqls"access_level"), xda2(da).data)
+      case _ => select.apply[Any](ds.resultAll, sqls.max(o.accessLevel).append(sqls"access_level"))
+    }
+
+    val datasets = orderby match {
+      case Some(ord) if ord == "attribute" => {
+        withSQL {
+          createDatasetSql(selects, joindGroups, query, ownerUsers, ownerGroups, attributes)
+            .groupBy(ds.id, xda2(da).data)
+            .orderBy(xda2(da).data)
+            .offset(offset)
+            .limit(limit)
+        }.map(rs => (persistence.Dataset(ds.resultName)(rs), rs.int("access_level"))).list().apply()
+      }
+      case _ => {
+        withSQL {
+          createDatasetSql(selects, joindGroups, query, ownerUsers, ownerGroups, attributes)
+            .groupBy(ds.id)
+            .orderBy(ds.updatedAt).desc
+            .offset(offset)
+            .limit(limit)
+        }.map(rs => (persistence.Dataset(ds.resultName)(rs), rs.int("access_level"))).list().apply()
+      }
+    }
 
     val datasetIds = datasets.map(_._1.id)
 
@@ -380,6 +401,7 @@ object DatasetService {
     val a = persistence.Annotation.a
     val da = persistence.DatasetAnnotation.syntax("da")
     val xda = SubQuery.syntax("xda", da.resultName, a.resultName)
+    val xda2 = SubQuery.syntax("xda2", da.resultName, a.resultName)
 
     selectSql
       .from(persistence.Dataset as ds)
@@ -434,6 +456,26 @@ object DatasetService {
               .groupBy(da.datasetId)
               .as(xda)
           ).on(ds.id, xda(da).datasetId)
+        } else {
+          sql
+        }
+      )
+      .map(sql =>
+        if (attributes.nonEmpty) {
+          sql.leftJoin(
+            select.apply(da.result.datasetId, da.result.data)
+              .from(persistence.Annotation as a)
+              .innerJoin(persistence.DatasetAnnotation as da).on(da.annotationId, a.id)
+              .where
+              .isNull(a.deletedAt).and.isNull(da.deletedAt)
+              .and
+              .withRoundBracket(
+                _.append(sqls.join(attributes.map{x =>
+                    sqls.eq(a.name, x.name)
+                }, sqls"or"))
+              )
+              .as(xda2)
+          ).on(ds.id, xda2(da).datasetId)
         } else {
           sql
         }

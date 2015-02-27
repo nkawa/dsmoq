@@ -17,7 +17,7 @@
 				{^{>group.name}} {^{if group.role >= 1}}<small>(joined)</small>{{/if}}
 			</div>
           </h1>
-          <p class="group-description">{^{>group.description}}</p>
+          <p class="group-description">{^{: ~trimScriptTags(group.description)}}</p>
         </div>
         <div class="col-sm-2 text-right">
           {^{if group.role >= 2}}

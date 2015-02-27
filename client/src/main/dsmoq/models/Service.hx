@@ -93,7 +93,9 @@ class Service extends Stream<ServiceEvent> {
                                            ?groups: Array<String>,
                                            ?attributes: Array<DatasetAttribute>,
                                            ?offset: Int,
-                                           ?limit: Int}): Promise<RangeSlice<DatasetSummary>> {
+                                           ?limit: Int,
+										   ?orderby: String
+										   }): Promise<RangeSlice<DatasetSummary>> {
         return send(Get, "/api/datasets", params);
     }
 
@@ -245,16 +247,20 @@ class Service extends Stream<ServiceEvent> {
 
     }
 
-    //public function addGroupImages(groupId: String, form: JqHtml): Promise<Unit> {
-        //return sendForm('/api/groups/$groupId/images', form);
-    //}
-//
-    //public function setGroupPrimaryImage(groupId: String, imageId: String): Promise<Unit> {
-        //return send(Put, '/api/groups/$groupId/iamges/primary', {id: imageId});
-    //}
+	public function getGroupImage(groupId: String, ?params: { ?limit: Int, ?offset: Int } ): Promise<RangeSlice<GroupImage>> {
+        return send(Get, '/api/groups/$groupId/images', params);
+    }
+	
+    public function addGroupImages(groupId: String, form: JqHtml): Promise<Unit> {
+        return sendForm('/api/groups/$groupId/images', form);
+    }
+
+    public function setGroupPrimaryImage(groupId: String, imageId: String): Promise<Unit> {
+        return send(Put, '/api/groups/$groupId/images/primary', {imageId: imageId});
+    }
 
     public function removeGroupImage(groupId: String, imageId: String): Promise<Unit> {
-        return send(Delete, '/api/groups/$groupId/iamges/$imageId');
+        return send(Delete, '/api/groups/$groupId/images/$imageId');
     }
 
     public function addGroupMember(groupId: String, members: Array<{userId: String, role: GroupRole}>) : Promise<Unit> {

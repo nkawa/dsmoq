@@ -1028,4 +1028,57 @@ object GroupService {
       case None => false
     }
   }
+
+  def getImages(groupId: String, offset: Option[Int], limit: Option[Int], user: User): Try[RangeSlice[GroupData.GroupGetImage]] = {
+    try {
+      DB readOnly { implicit s =>
+        if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
+
+        val gi = persistence.GroupImage.gi
+        val i = persistence.Image.i
+        val totalCount = withSQL {
+          select(sqls"count(1)")
+            .from(persistence.GroupImage as gi)
+            .innerJoin(persistence.Image as i).on(gi.imageId, i.id)
+            .where
+            .eqUuid(gi.groupId, groupId)
+            .and
+            .isNull(gi.deletedBy)
+            .and
+            .isNull(gi.deletedAt)
+        }.map(rs => rs.int(1)).single.apply
+        val result = withSQL {
+          select(i.result.*, gi.result.isPrimary)
+            .from(persistence.GroupImage as gi)
+            .innerJoin(persistence.Image as i).on(gi.imageId, i.id)
+            .where
+            .eqUuid(gi.groupId, groupId)
+            .and
+            .isNull(gi.deletedBy)
+            .and
+            .isNull(gi.deletedAt)
+            .offset(offset.getOrElse(0))
+            .limit(limit.getOrElse(20))
+        }.map(rs => (rs.string(i.resultName.id), rs.string(i.resultName.name), rs.boolean(gi.resultName.isPrimary))).list.apply.map{ x =>
+          GroupData.GroupGetImage(
+            id = x._1,
+            name = x._2,
+            url = AppConf.imageDownloadRoot + x._1,
+            isPrimary = x._3
+          )
+        }
+
+        Success(RangeSlice(
+          RangeSliceSummary(
+            total = totalCount.getOrElse(0),
+            count = limit.getOrElse(20),
+            offset = offset.getOrElse(0)
+          ),
+          result
+        ))
+      }
+    } catch {
+      case e: Throwable => Failure(e)
+    }
+  }
 }

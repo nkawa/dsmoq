@@ -8,7 +8,8 @@ case class SearchDatasetsParams(
   groups: List[String] = List.empty,
   attributes: List[DataSetAttribute] = List.empty,
   limit: Option[Int] = None,
-  offset: Option[Int] = None
+  offset: Option[Int] = None,
+  orderby: Option[String] = None
 )
 
 case class UpdateDatasetFileMetadataParams(

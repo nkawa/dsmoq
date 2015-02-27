@@ -1,6 +1,7 @@
 package dsmoq.pages;
 
 import conduitbox.Navigation;
+import dsmoq.models.GroupImage;
 import dsmoq.models.GroupMember;
 import dsmoq.models.GroupRole;
 import dsmoq.models.Service;
@@ -24,6 +25,7 @@ using hxgnd.OptionTools;
 
 class GroupEditPage {
     inline static var MemberCandidateSize = 5;
+    inline static var ImageCandicateSize = 10;
 
     public static function render(root: Html, onClose: Promise<Unit>, id: String): Promise<Navigation<Page>> {
         var navigation = new PromiseBroker();
@@ -55,6 +57,28 @@ class GroupEditPage {
             var binding = JsViews.observable(data);
             rootBinding.setProperty("data", Async.Completed(data));
 
+			// CKEditor setting
+			var editor = CKEditor.replace("description");
+			editor.setData(data.group.description);
+			editor.on("change", function(evt) {
+				var text = editor.getData(false);
+				binding.setProperty('group.description', text);
+			});
+			
+			onClose.then(function(_) { 
+				editor.destroy();
+			} );
+
+			editor.on("on-click-dialog-button", function(evt) {
+				JQuery._(".cke_dialog_background_cover").css("z-index", "1000");
+				JQuery._(".cke_dialog ").css("z-index", "1010");
+				showSelectImageDialog(id).then(function(image) {
+					JQuery._('.url-text input[type="text"]').val(image.url);
+					editor.fireOnce("on-close-dialog", image);
+				});
+			} );
+			
+			
             function loadGroupMember() {
                 Service.instance.getGroupMembers(id).then(function (x) {
 					var members = {
@@ -102,31 +126,21 @@ class GroupEditPage {
             });
 
             // icon tab -------------------------
-            root.find("#group-icon-form").on("change", "input[type=file]", function (e) {
-                if (JQuery._(e.target).val() != "") {
-                    root.find("#group-icon-submit").show();
-                } else {
-                    root.find("#group-icon-submit").hide();
-                }
+			root.find("#group-icon-select").on("click", function (_) {
+				showSelectImageDialog(id).then(function(image) {
+					Service.instance.setGroupPrimaryImage(id, image.id).then(
+					    function (_) {
+							binding.setProperty("group.primaryImage.id", image.id);
+							binding.setProperty("group.primaryImage.url", image.url);
+							Notification.show("success", "save successful");
+						},
+						function (e) {
+							Notification.show("error", "error happened");
+						}
+					);
+				});				
             });
-            root.find("#group-icon-submit").on("click", function (_) {
-                BootstrapButton.setLoading(root.find("#group-icon-submit"));
-                Service.instance.changeGroupImage(id, JQuery._("#group-icon-form")).then(function (res) {
-                    var img = res.images.filter(function (x) return x.id == res.primaryImage)[0];
-                    binding.setProperty("group.primaryImage.id", img.id);
-                    binding.setProperty("group.primaryImage.url", img.url);
-                    root.find("#group-icon-form input[type=file]").val("");
-                    root.find("#group-icon-submit").hide();
-                    Notification.show("success", "save successful");
-                }, function (err) {
-                    Notification.show("error", "error happened");
-                }, function () {
-                    BootstrapButton.reset(root.find("#group-icon-submit"));
-                    root.find("#group-icon input").removeAttr("disabled");
-                });
-                root.find("#group-icon input").attr("disabled", true);
-            });
-
+			
             // members tab ----------------------
             root.find("#group-members").on("click", "#add-member-menu-item", function (_) {
                 showAddMemberDialog().then(function (members) {
@@ -276,6 +290,102 @@ class GroupEditPage {
                 var members = data.selectedIds
                                 .map(function (x) return { userId: x, role:role });
                 ctx.fulfill(members);
+            });
+        });
+    }
+	
+	static function showSelectImageDialog(id: String) {
+        var data = {
+            offset: 0,
+            hasPrev: false,
+            hasNext: false,
+            items: new Array<{selected: Bool, item: GroupImage}>(),
+            selectedIds: new Array<String>()
+        }
+        var binding = JsViews.observable(data);
+        var tpl = JsViews.template(Resource.getString("template/share/select_image_dialog"));
+        
+        return ViewTools.showModal(tpl, data, function (html, ctx) {
+            function searchImageCandidate(offset = 0) {
+                var limit = ImageCandicateSize + 1;
+                Service.instance.getGroupImage(id, { offset: offset, limit: limit }).then(function (images) {
+                    var list = images.results.slice(0, ImageCandicateSize)
+                                    .map(function (x) return {
+                                        selected: data.selectedIds.indexOf(x.id) >= 0,
+                                        item: x
+                                    });
+                    var hasPrev = offset > 0;
+                    var hasNext = images.results.length > ImageCandicateSize;
+                    binding.setProperty("offset", offset);
+                    binding.setProperty("hasPrev", hasPrev);
+                    binding.setProperty("hasNext", hasNext);
+                    JsViews.observable(data.items).refresh(list);
+                });
+            }
+			
+            function filterSelectedOwner() {
+                return data.items
+                            .filter(function (x) return x.selected)
+                            .map(function (x) return x.item);
+            }
+
+            JsViews.observable(data.items).observeAll(function (e, args) {
+                if (args.path == "selected") {
+                    var image: GroupImage = e.target.item;
+                    var ids = data.selectedIds.copy();
+                    var b = JsViews.observable(data.selectedIds);
+                    if (args.value) {
+                        if (ids.indexOf(image.id) < 0) {
+                            ids.push(image.id);
+                            b.refresh(ids);
+                        }
+                    } else {
+                        if (ids.remove(image.id)) {
+                            b.refresh(ids);
+                        }
+                    }
+                }
+            });
+
+            JsViews.observable(data.selectedIds).refresh([]);
+            searchImageCandidate();
+			
+			html.find("#image-form input").on("change", function(_) {
+				Service.instance.addGroupImages(id, html.find("#image-form")).then(
+				    function (_) {
+                        Notification.show("success", "save successful");
+						searchImageCandidate();
+						html.find("#image-form input").val("");
+                    },
+                    function (e) {
+                        Notification.show("error", "error happened");
+                    });
+			});
+			
+			html.find("#delete-image").on("click", function(_) { 
+				var selected = html.find("input:checked").val();
+				Service.instance.removeGroupImage(id, selected).then(
+				    function (_) {
+                        Notification.show("success", "save successful");
+						searchImageCandidate();
+                    },
+                    function (e) {
+                        Notification.show("error", "error happened");
+                    });
+			} );
+			
+            html.find("#image-list-prev").on("click", function (_) {
+                var offset = data.offset - ImageCandicateSize;
+                searchImageCandidate(offset);
+            });
+
+            html.find("#image-list-next").on("click", function (_) {
+                var offset = data.offset + ImageCandicateSize;
+                searchImageCandidate(offset);
+            });
+
+            html.on("click", "#select-image-dialog-submit", function (e) {
+                ctx.fulfill(filterSelectedOwner()[0]);
             });
         });
     }

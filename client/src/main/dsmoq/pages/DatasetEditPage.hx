@@ -40,7 +40,7 @@ using hxgnd.OptionTools;
 
 class DatasetEditPage {
     inline static var OwnerCandicateSize = 5;
-    inline static var ImageCandicateSize = 8;
+    inline static var ImageCandicateSize = 10;
 
     public static function render(root: Html, onClose: Promise<Unit>, id: String): Promise<Navigation<Page>> {
         var navigation = new PromiseBroker();
@@ -213,7 +213,7 @@ class DatasetEditPage {
                     }
                 );
             });
-			root.find("#dataset-attribute-import").click(function(_) {
+			root.find("#csv-file").on("change", function(_) {
 				var element = Browser.document.getElementById("csv-file");
 				var files = cast(element, InputElement).files;
 				if (files.length == 0) {
@@ -231,6 +231,7 @@ class DatasetEditPage {
 						attrs.insert({ name: name, value: value });
 					});
 					setAttributeTypeahead(root);
+					root.find("#csv-file").val("");
 				};
 				fileReader.readAsText(file, "UTF-8");
 			});
@@ -654,7 +655,7 @@ class DatasetEditPage {
             selectedIds: new Array<String>()
         }
         var binding = JsViews.observable(data);
-        var tpl = JsViews.template(Resource.getString("template/dataset/select_image_dialog"));
+        var tpl = JsViews.template(Resource.getString("template/share/select_image_dialog"));
         
         return ViewTools.showModal(tpl, data, function (html, ctx) {
             function searchImageCandidate(offset = 0) {
@@ -701,13 +702,13 @@ class DatasetEditPage {
             JsViews.observable(data.selectedIds).refresh([]);
             searchImageCandidate();
 			
-			html.find("#image-form > input").on("change", function(_) {
+			html.find("#image-form input").on("change", function(_) {
 				Service.instance.addDatasetImage(id, html.find("#image-form")).then(
 				    function (_) {
                         Notification.show("success", "save successful");
 						searchImageCandidate();
 						// TODO IE11で要検証
-						html.find("#image-form > input").val("");
+						html.find("#image-form input").val("");
                     },
                     function (e) {
                         Notification.show("error", "error happened");
