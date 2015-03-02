@@ -950,6 +950,8 @@ object DatasetService {
       val saveLocal_ = saveLocal.getOrElse(true)
       val saveS3_ = saveS3.getOrElse(false)
 
+      if (! saveLocal_ && ! saveS3_) throw new InputValidationException(List(("storage" -> "both check is false. select either")))
+
       DB localTx { implicit s =>
         datasetAccessabilityCheck(id, user)
 
@@ -1720,14 +1722,18 @@ object DatasetService {
 
   private def getPermission(id: String, groups: Seq[String])(implicit s: DBSession) = {
     val o = persistence.Ownership.syntax("o")
-    withSQL {
-      select(sqls.max(o.accessLevel).append(sqls"access_level"))
+    val g = persistence.Group.g
+    val permissions = withSQL {
+      select(o.result.accessLevel, g.result.groupType)
         .from(persistence.Ownership as o)
+        .innerJoin(persistence.Group as g).on(o.groupId, g.id)
         .where
           .eq(o.datasetId, sqls.uuid(id))
           .and
           .inUuid(o.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
-    }.map(_.intOpt("access_level")).single().apply().flatten
+    }.map(rs => (rs.int(o.resultName.accessLevel), rs.int(g.resultName.groupType))).list().apply
+    // Provider権限のGroupはWriteできない
+    Some(permissions.map(x => if (x._1 == 3 && x._2 == GroupType.Public) { 2 } else { x._1 }).max)
   }
 
   private def getGuestAccessLevel(datasetId: String)(implicit s: DBSession) = {

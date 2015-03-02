@@ -75,6 +75,10 @@
             </div>
             <p class="text-danger" data-link="dataset.errors.meta.license"></p>
           {{/if}}
+			<a class="btn btn-success btn-sm" id="dataset-attribute-export" href="/api/datasets/{{>dataset.id}}/attributes/export">export</a>
+			<div class="btn btn-success btn-sm" id="dataset-attribute-import">import
+				<input type="file" id="csv-file" accept=".csv" name="file" style="display:inline;">
+			</div>
           <div class="form-group">
             <table class="table table-bordered table-condensed" style="width: 600px;">
               <thead>
@@ -91,10 +95,6 @@
                 <tr>
                   <td colspan="3">
 						<a class="btn btn-success btn-sm" id="dataset-attribute-add">add</a>
-						<a class="btn btn-success btn-sm" id="dataset-attribute-export" href="/api/datasets/{{>dataset.id}}/attributes/export">export</a>
-						<div class="btn btn-success btn-sm" id="dataset-attribute-import">import
-							<input type="file" id="csv-file" accept=".csv" name="file" style="display:inline;">
-						</div>
 				  </td>
                 </tr>
               </tbody>
@@ -194,7 +194,11 @@
                         <img src="{{>image}}/48"/>
                       </div>
                       <div class="media-body">
+						{{if ownerType == 1}}
                         <h4 class="media-heading"><strong>{{>fullname}}</strong> <small>{{>name}} &raquo; {{>organization}} {{>title}}</small></h4>
+						{{else ownerType == 2}}
+						<h4 class="media-heading"><strong>{{>name}}</strong></h4>
+						{{/if}}
                         <p>{{: ~trimTags(description)}}</p>
                       </div>
                     </div>
