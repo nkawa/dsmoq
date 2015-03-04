@@ -1,6 +1,5 @@
 // sbt assemblyの暫定設定(Standalone deployment用)
 import AssemblyKeys._
-import DsmoqBuild._
 
 scalikejdbcSettings
 

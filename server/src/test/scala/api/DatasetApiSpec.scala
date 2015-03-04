@@ -1,6 +1,9 @@
 package api
 
 import java.nio.file.Paths
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
+import java.net.URLEncoder
 
 import _root_.api.api.logic.SpecCommonLogic
 import com.amazonaws.auth.BasicAWSCredentials
@@ -24,7 +27,7 @@ import dsmoq.controllers.AjaxResponse
 import dsmoq.services.json.DatasetData.DatasetAddImages
 import dsmoq.services.json.RangeSlice
 import dsmoq.services.json.GroupData.Group
-import java.util.UUID
+import java.util.{Base64, UUID}
 import dsmoq.persistence.{DefaultAccessLevel, OwnerType, UserAccessLevel, GroupAccessLevel}
 import org.json4s._
 import org.json4s.JsonDSL._
@@ -983,6 +986,15 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           }
         }
       }
+
+      "APIキーによるログインで操作できるか" in {
+        val files = Map("file[]" -> dummyFile)
+        val signature = getSignature("5dac067a4c91de87ee04db3e3c34034e84eb4a599165bcc9741bb9a91e8212cb", "dc9765e63b2b469a7bfb611fad8a10f2394d2b98b7a7105078356ec2a74164ea")
+        val datasetId = post("/api/datasets", Map.empty, files, Map("Authorization" -> ("api_key=5dac067a4c91de87ee04db3e3c34034e84eb4a599165bcc9741bb9a91e8212cb, signature=" + signature))) {
+          checkStatus()
+          parse(body).extract[AjaxResponse[Dataset]].data.id
+        }
+      }
     }
   }
 
@@ -1004,6 +1016,14 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
       flatten(f.listFiles.toList)
     }
     case f: File if f.isFile => List(f)
+  }
+
+  def getSignature(apiKey: String, secretKey: String): String = {
+    val sk = new SecretKeySpec(secretKey.getBytes(), "HmacSHA1");
+    val mac = Mac.getInstance("HmacSHA1")
+    mac.init(sk)
+    val result = mac.doFinal((apiKey + "&" + secretKey).getBytes())
+    URLEncoder.encode(Base64.getEncoder.encodeToString(result), "UTF-8")
   }
 
   private def signIn() {
