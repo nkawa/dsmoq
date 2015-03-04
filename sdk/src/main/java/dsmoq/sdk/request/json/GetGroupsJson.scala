@@ -1,6 +1,6 @@
 package dsmoq.sdk.request.json
 
-case class GetGroupsJson(
+private[request] case class GetGroupsJson(
   query: Option[String] = None,
   user: Option[String] = None,
   limit: Option[Int] = Some(20),

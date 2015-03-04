@@ -1,6 +1,6 @@
 package dsmoq.sdk.request.json
 
-case class UpdateProfileJson(
+private[request] case class UpdateProfileJson(
   name: String,
   fullname: String,
   organization: String,

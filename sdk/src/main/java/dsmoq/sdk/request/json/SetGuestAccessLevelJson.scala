@@ -1,3 +1,3 @@
 package dsmoq.sdk.request.json
 
-case class SetGuestAccessLevelJson(accessLevel: Int) extends Jsonable
+private[request] case class SetGuestAccessLevelJson(accessLevel: Int) extends Jsonable

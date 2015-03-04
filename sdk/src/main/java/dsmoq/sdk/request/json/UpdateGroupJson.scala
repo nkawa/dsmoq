@@ -1,3 +1,3 @@
 package dsmoq.sdk.request.json
 
-case class UpdateGroupJson(name: String, description: String) extends Jsonable
+private[request] case class UpdateGroupJson(name: String, description: String) extends Jsonable

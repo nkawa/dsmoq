@@ -1,3 +1,3 @@
 package dsmoq.sdk.request.json
 
-case class AddMemberJson(userId: String, role: Int) extends Jsonable
+private[request] case class AddMemberJson(userId: String, role: Int) extends Jsonable

@@ -5,6 +5,7 @@ import dsmoq.exceptions.NotFoundException
 import dsmoq.services.DatasetService
 import org.scalatra.ScalatraServlet
 import org.scalatra.servlet.FileUploadSupport
+import dsmoq.services.{AccountService, User}
 
 class FileController extends ScalatraServlet with SessionTrait with FileUploadSupport with UserTrait {
 

@@ -197,7 +197,7 @@ class ApiController extends ScalatraServlet
     val datasetId = params("datasetId")
     val json = getJsonValue[SearchRangeParams].getOrElse(SearchRangeParams())
     (for {
-      user <- signedInUser
+      user <- getUser
       images <- DatasetService.getImages(datasetId, json.offset, json.limit, user)
     } yield images) |> toAjaxResponse
   }
@@ -234,7 +234,7 @@ class ApiController extends ScalatraServlet
     val datasetId = params("datasetId")
     val json = getJsonValue[SearchRangeParams].getOrElse(SearchRangeParams())
     (for {
-      user <- signedInUser
+      user <- getUser
       result <- DatasetService.searchOwnerships(datasetId, json.offset, json.limit, user)
     } yield result) |> toAjaxResponse
   }
@@ -277,7 +277,7 @@ class ApiController extends ScalatraServlet
   post("/datasets/:datasetId/copy") {
     val datasetId = params("datasetId")
     (for {
-      user <- signedInUser
+      user <- getUser
       file <- DatasetService.copyDataset(datasetId, user)
     } yield file) |> toAjaxResponse
   }
@@ -287,7 +287,7 @@ class ApiController extends ScalatraServlet
     val file = fileParams.get("file")
 
     (for {
-      user <- signedInUser
+      user <- getUser
       _ <- DatasetService.importAttribute(datasetId, file, user)
     } yield {}) |> toAjaxResponse
   }
@@ -295,7 +295,7 @@ class ApiController extends ScalatraServlet
   get("/datasets/:datasetId/attributes/export") {
     val datasetId = params("datasetId")
     val result = for {
-      user <- signedInUser
+      user <- getUser
       file <- DatasetService.exportAttribute(datasetId, user)
     } yield {
       file
@@ -349,7 +349,7 @@ class ApiController extends ScalatraServlet
     val groupId = params("groupId")
     val json = getJsonValue[SearchRangeParams].getOrElse(SearchRangeParams())
     (for {
-      user <- signedInUser
+      user <- getUser
       images <- GroupService.getImages(groupId, json.offset, json.limit, user)
     } yield images) |> toAjaxResponse
   }

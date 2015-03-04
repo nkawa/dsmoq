@@ -1,3 +1,3 @@
 package dsmoq.sdk.request.json
 
-case class SetPrimaryImageJson(imageId: String) extends Jsonable
+private[request] case class SetPrimaryImageJson(imageId: String) extends Jsonable
