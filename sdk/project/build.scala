@@ -21,7 +21,8 @@ object DsmoqSdkBuild extends Build {
         "org.apache.httpcomponents" % "httpmime" % "4.3.6",
         "org.json4s" %% "json4s-jackson" % "3.2.10",
         "com.fasterxml.jackson.core" % "jackson-databind" % "2.4.4",
-        "junit" % "junit" % "4.12"
+        "junit" % "junit" % "4.12",
+        "joda-time" % "joda-time" % "2.7"
       )
     )
   )

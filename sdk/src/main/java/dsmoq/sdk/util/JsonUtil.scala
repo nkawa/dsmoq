@@ -12,6 +12,18 @@ object JsonUtil {
     statusCheck(obj)
    toObject[Response[RangeSlice[DatasetsSummary]]](obj).getData
   }
+  def toDatasetOwnership(obj: String): RangeSlice[DatasetOwnership] = {
+    statusCheck(obj)
+    toObject[Response[RangeSlice[DatasetOwnership]]](obj).getData
+  }
+  def toDatasetGetImage(obj: String): RangeSlice[DatasetGetImage] = {
+    statusCheck(obj)
+    toObject[Response[RangeSlice[DatasetGetImage]]](obj).getData
+  }
+  def toGroupGetImage(obj: String): RangeSlice[GroupGetImage] = {
+    statusCheck(obj)
+    toObject[Response[RangeSlice[GroupGetImage]]](obj).getData
+  }
   def toDataset(obj: String): Dataset = {
     statusCheck(obj)
     toObject[Response[Dataset]](obj).getData
@@ -77,6 +89,15 @@ object JsonUtil {
   def toTaskStatus(obj: String): TaskStatus = {
     statusCheck(obj)
     toObject[Response[TaskStatus]](obj).getData
+  }
+  def toCopiedDataset(obj: String): CopiedDataset = {
+    statusCheck(obj)
+    toObject[Response[CopiedDataset]](obj).getData
+  }
+  def toStatistics(obj: String): java.util.List[StatisticsDetail] = {
+    statusCheck(obj)
+    val statistics = toObject[Response[List[StatisticsDetail]]](obj).getData
+    statistics.asJava
   }
   private def toResponse(obj: String): Response[NoData] = {
     toObject[Response[NoData]](obj)

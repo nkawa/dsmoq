@@ -116,7 +116,9 @@ case class DatasetFile(
   private val createdBy: User,
   private val createdAt: String,
   private val updatedBy: User,
-  private val updatedAt: String
+  private val updatedAt: String,
+  val isZip: Boolean,
+  private val zipedFiles: Seq[DatasetZipedFile]
 ) {
   def getId = id
   def getName = name
@@ -127,12 +129,28 @@ case class DatasetFile(
   def getCreatedAt = createdAt
   def getUpdatedBy = updatedBy
   def getUpdatedAt = updatedAt
+  def getZipedFiles = zipedFiles.asJava
+}
+
+case class DatasetZipedFile (
+  private val id: String,
+  private val name: String,
+  private val size: Long,
+  private val url: String
+) {
+  def getId = id
+  def getName = name
+  def getSize = size
+  def getUrl = url
 }
 
 case class DatasetOwnership (
   private val id: String,
   private val name: String,
   private val fullname: String,
+  private val organization: String,
+  private val title: String,
+  private val description: String,
   private val image: String,
   private val accessLevel: Int,
   private val ownerType: Int
@@ -140,6 +158,9 @@ case class DatasetOwnership (
   def getId = id
   def getName = name
   def getFullName = fullname
+  def getOrganization = organization
+  def getTitle = title
+  def getDescription = description
   def getImage = image
   def getAccessLevel = accessLevel
   def getOwnerType = ownerType
@@ -155,4 +176,21 @@ case class DatasetOwnerships (
   private val ownerships: Seq[DatasetOwnership]
 ) {
   def getOwnerships = ownerships.asJava
+}
+
+case class CopiedDataset (
+  private val datasetId: String
+) {
+  def getDatasetId = datasetId
+}
+
+case class DatasetGetImage (
+  private val id: String,
+  private val name: String,
+  private val url: String,
+  val isPrimary: Boolean
+) {
+  def getId = id
+  def getName = name
+  def getUrl = url
 }

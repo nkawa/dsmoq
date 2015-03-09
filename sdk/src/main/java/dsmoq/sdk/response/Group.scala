@@ -80,3 +80,14 @@ case class GroupDeleteImage(
 ) {
   def getPrimaryImage = primaryImage
 }
+
+case class GroupGetImage (
+  private val id: String,
+  private val name: String,
+  private val url: String,
+  val isPrimary: Boolean
+) {
+  def getId = id
+  def getName = name
+  def getUrl = url
+}

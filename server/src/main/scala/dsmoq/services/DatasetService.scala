@@ -2269,10 +2269,13 @@ object DatasetService {
             .from(DatasetAnnotation as da)
             .join(Annotation as a).on(da.annotationId, a.id)
             .where
+              .eqUuid(da.datasetId, datasetId)
+              .and
               .in(a.name, exists.map(_.name))
         }.map(persistence.DatasetAnnotation(da.resultName)).list().apply
 
         (exists.filter(x => ! existRels.map(_.annotationId).contains(x.id)) ++ created).foreach { annotation =>
+
           persistence.DatasetAnnotation.create(
             id = UUID.randomUUID().toString,
             datasetId = datasetId,
