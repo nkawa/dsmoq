@@ -23,6 +23,8 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Created by s.soyama on 2015/03/06.
@@ -496,6 +498,89 @@ public class DatasetClient {
         } catch(IOException e) {
             throw new ApiFailedException(e.getMessage(), e);
         }
+    }
+
+    /**
+     * データセットから一時ディレクトリにファイルをダウンロードする。
+     * @param datasetId DatasetID
+     * @param fileId ファイルID
+     * @return ダウンロードしたファイル
+     */
+    public File downloadFile(String datasetId, String fileId) {
+        File temp = new File("temp");
+        if (! temp.exists()) temp.mkdir();
+        return downloadFile(datasetId, fileId, "temp");
+    }
+
+    /**
+     * データセットからすべてのファイルをダウンロードする。
+     * @param datasetId DatasetID
+     * @param downloadDirectory ダウンロード先のディレクトリ
+     * @return ダウンロードしたファイル
+     */
+    public List<File> downloadAllFiles(String datasetId, String downloadDirectory) {
+        Dataset dataset = getDataset(datasetId);
+        List<DatasetFile> datasetFiles = dataset.getFiles();
+        return datasetFiles.stream().map(file -> downloadFile(datasetId, file.getId(), downloadDirectory)).collect(Collectors.toList());
+    }
+
+    /**
+     * データセットから一時ディレクトリにすべてのファイルをダウンロードする。
+     * @param datasetId DatasetID
+     * @return ダウンロードしたファイル
+     */
+    public List<File> downloadAllFiles(String datasetId) {
+        File temp = new File("temp");
+        if (! temp.exists()) temp.mkdir();
+        return downloadAllFiles(datasetId, "temp");
+    }
+
+    /**
+     * データセットからすべてのZipされたファイルをダウンロードする。
+     * @param datasetId DatasetID
+     * @param downloadDirectory ダウンロード先のディレクトリ
+     * @return ダウンロードしたファイル
+     */
+    public List<File> downloadAllZipedFiles(String datasetId, String downloadDirectory) {
+        Dataset dataset = getDataset(datasetId);
+        Stream<DatasetZipedFile> zipedFiles = dataset.getFiles().stream().flatMap(f -> f.getZipedFiles().stream());
+        return zipedFiles.map(file -> downloadFile(datasetId, file.getId(), downloadDirectory)).collect(Collectors.toList());
+    }
+
+    /**
+     * データセットから一時ディレクトリにすべてのZipされたファイルをダウンロードする。
+     * @param datasetId DatasetID
+     * @return ダウンロードしたファイル
+     */
+    public List<File> downloadAllZipedFiles(String datasetId) {
+        File temp = new File("temp");
+        if (! temp.exists()) temp.mkdir();
+        return downloadAllZipedFiles(datasetId, "temp");
+    }
+
+    /**
+     * データセットからすべてのファイルをダウンロードする。Zipファイルは圧縮されたファイルのみを取得する。
+     * @param datasetId DatasetID
+     * @param downloadDirectory ダウンロード先のディレクトリ
+     * @return ダウンロードしたファイル
+     */
+    public List<File> downloadAllExpandedFiles(String datasetId, String downloadDirectory) {
+        Dataset dataset = getDataset(datasetId);
+        List<String> datasetFiles = dataset.getFiles().stream().filter(f -> ! f.isZip()).map(f -> f.getId()).collect(Collectors.toList());
+        List<String> zipedFiles = dataset.getFiles().stream().flatMap(f -> f.getZipedFiles().stream()).map(f -> f.getId()).collect(Collectors.toList());
+        datasetFiles.addAll(zipedFiles);
+        return datasetFiles.stream().map(id -> downloadFile(datasetId, id, downloadDirectory)).collect(Collectors.toList());
+    }
+
+    /**
+     * データセットから一時ディレクトリにすべてのファイルをダウンロードする。Zipファイルは圧縮されたファイルのみを取得する。
+     * @param datasetId DatasetID
+     * @return ダウンロードしたファイル
+     */
+    public List<File> downloadAllExpandedFiles(String datasetId) {
+        File temp = new File("temp");
+        if (! temp.exists()) temp.mkdir();
+        return downloadAllExpandedFiles(datasetId, "temp");
     }
 
 }
