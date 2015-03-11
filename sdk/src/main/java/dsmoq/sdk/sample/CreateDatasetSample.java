@@ -3,9 +3,9 @@ package dsmoq.sdk.sample;
 import java.io.File;
 import java.util.*;
 
+import dsmoq.sdk.client.Consts;
 import dsmoq.sdk.client.DsmoqClient;
 import dsmoq.sdk.request.SetAccessLevelParam;
-import dsmoq.sdk.request.SetPrimaryImageParam;
 import dsmoq.sdk.response.*;
 
 public class CreateDatasetSample {
@@ -19,7 +19,9 @@ public class CreateDatasetSample {
         // データセットに画像を追加し、メイン画像に設定する
         client.setPrimaryImageToDataset(dataset.getId(), image);
         // ユーザーのアクセス権をOwnerとして追加する
-        List<SetAccessLevelParam> accesses = Arrays.asList(new SetAccessLevelParam("user id 1", 1, 3), new SetAccessLevelParam("user id 2", 1, 3));
+        List<SetAccessLevelParam> accesses = Arrays.asList(
+                new SetAccessLevelParam("05a8456e-7aad-c84e-bd4e-6cb255f9df9e", Consts.OwnerType.User, Consts.AccessLevel.Owner),
+                new SetAccessLevelParam("215316c8-283b-27af-57a5-654acddcf2f5", Consts.OwnerType.User, Consts.AccessLevel.Owner));
         client.changeAccessLevel(dataset.getId(), accesses);
     }
 
