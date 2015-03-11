@@ -7,10 +7,27 @@ object DsmoqSdkBuild extends Build {
   val Version = "0.1.0-SNAPSHOT"
   val ScalaVersion = "2.11.4"
 
+  val JavaDoc = config("genjavadoc") extend Compile
+
+  val javadocSettings = inConfig(JavaDoc)(Defaults.configSettings) ++ Seq(
+    libraryDependencies += compilerPlugin("com.typesafe.genjavadoc" %%
+      "genjavadoc-plugin" % "0.8" cross CrossVersion.full),
+    scalacOptions <+= target map (t => "-P:genjavadoc:out=" + (t / "java")),
+    packageDoc in Compile <<= packageDoc in JavaDoc,
+    sources in JavaDoc <<=
+      (target, compile in Compile, sources in Compile) map ((t, c, s) =>
+        (t / "java" ** "*.java").get ++ s.filter(_.getName.endsWith(".java"))),
+    javacOptions in JavaDoc := Seq(),
+    artifactName in packageDoc in JavaDoc :=
+      ((sv, mod, art) =>
+        "" + mod.name + "_" + sv.binary + "-" + mod.revision + "-javadoc.jar")
+  )
+
+
   lazy val project = Project(
     "dsmoq-sdk",
     file("."),
-    settings = Defaults.coreDefaultSettings ++ Seq(
+    settings = Defaults.coreDefaultSettings ++ javadocSettings ++ Seq(
       organization := Organization,
       name := "dsmoq-sdk",
       version := Version,

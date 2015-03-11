@@ -265,6 +265,16 @@ public class DsmoqClient {
     }
 
     /**
+     * データセットに一覧で表示するメイン画像を設定する。
+     * @param datasetId DatasetID
+     * @param file 追加する画像ファイル
+     */
+    public void setPrimaryImageToDataset(String datasetId, File file) {
+        DatasetAddImages image = addImagesToDataset(datasetId, file);
+        setPrimaryImageToDataset(datasetId, new SetPrimaryImageParam(image.getImages().get(0).getId()));
+    }
+
+    /**
      * データセットから画像を削除する。（DELETE /api/datasets/${dataset_id}/image/${image_id}相当）
      * @param datasetId DatasetID
      * @param imageId 画像ID
@@ -636,6 +646,16 @@ public class DsmoqClient {
             String json = execute(request);
             JsonUtil.statusCheck(json);
         }
+    }
+
+    /**
+     * グループに一覧で表示するメイン画像を設定する。
+     * @param groupId グループID
+     * @param file 画像ファイル
+     */
+    public void setPrimaryImageToGroup(String groupId, File file) {
+        GroupAddImages image = addImagesToGroup(groupId, file);
+        setPrimaryImageToGroup(groupId, new SetPrimaryImageParam(image.getImages().get(0).getId()));
     }
 
     /**

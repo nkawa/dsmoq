@@ -18,8 +18,8 @@ public class CreateGroupSample {
         Group group = client.createGroup(new CreateGroupParam("dummy group", "group of dummy"));
         // グループにメンバーを追加する
         client.addMember(group.getId(), Arrays.asList(new AddMemberParam("userId 1", 1), new AddMemberParam("userId 2", 1)));
-        // グループに画像を追加する
-        GroupAddImages image = client.addImagesToGroup(group.getId(), new File("test.png"));
+        // グループに画像を追加し、メイン画像に設定する
+        client.setPrimaryImageToGroup(group.getId(), new File("test.png"));
     }
 
 }

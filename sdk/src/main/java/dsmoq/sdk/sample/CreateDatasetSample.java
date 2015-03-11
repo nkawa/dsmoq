@@ -16,11 +16,8 @@ public class CreateDatasetSample {
         // データセットを作成する
         Dataset dataset = client.createDataset(true, false, new File("test.txt"), new File("test.csv"));
         File image = new File("test.png");
-        // データセットに画像を追加する
-        DatasetAddImages images = client.addImagesToDataset(dataset.getId(), image);
-        String imageId = images.getImages().get(0).getId();
-        // 追加した画像をメイン画像に設定する
-        client.setPrimaryImageToDataset(dataset.getId(), new SetPrimaryImageParam(imageId));
+        // データセットに画像を追加し、メイン画像に設定する
+        client.setPrimaryImageToDataset(dataset.getId(), image);
         // ユーザーのアクセス権をOwnerとして追加する
         List<SetAccessLevelParam> accesses = Arrays.asList(new SetAccessLevelParam("user id 1", 1, 3), new SetAccessLevelParam("user id 2", 1, 3));
         client.changeAccessLevel(dataset.getId(), accesses);
