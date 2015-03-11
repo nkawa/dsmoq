@@ -1,7 +1,7 @@
 package dsmoq.sdk.util;
 
 /**
- * Created by s.soyama on 2014/12/17.
+ * データが見つからないことを表す例外
  */
 public class NotFoundException extends RuntimeException {
     public NotFoundException() {

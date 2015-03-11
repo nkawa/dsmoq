@@ -3,6 +3,9 @@ package dsmoq.sdk.util;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 入力値が不正であることを表す例外
+ */
 public class InputValidationException extends RuntimeException {
     private List<InputValidationError> errors;
     public InputValidationException(List<InputValidationError> errors) {

@@ -1,5 +1,8 @@
 package dsmoq.sdk.util;
 
+/**
+ * 不正な入力値を名前とメッセージで管理するためのクラス
+ */
 public class InputValidationError {
     private String name;
     private String message;

@@ -100,7 +100,7 @@ object DatasetService {
 
         val dataset = persistence.Dataset.create(
           id = datasetId,
-          name = if (f.isEmpty) { name_ } else { f.head._1.name },
+          name = if (name_.isEmpty) { f.head._1.name } else { name_ },
           description = "",
           licenseId = AppConf.defaultLicenseId,
           filesCount = f.length,
