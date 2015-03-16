@@ -1,8 +1,8 @@
 
-import dsmoq.sdk.client.DsmoqClient;
-import dsmoq.sdk.request.*;
-import dsmoq.sdk.response.*;
-import dsmoq.sdk.util.*;
+import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient;
+import jp.ac.nagoya_u.dsmoq.sdk.request.*;
+import jp.ac.nagoya_u.dsmoq.sdk.response.*;
+import jp.ac.nagoya_u.dsmoq.sdk.util.*;
 import org.joda.time.DateTime;
 import org.junit.AfterClass;
 import org.junit.After;
