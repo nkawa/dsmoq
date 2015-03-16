@@ -1,4 +1,4 @@
-package dsmoq.adminTool
+package dsmoq.apiKeyTool
 
 import java.util.UUID
 import org.joda.time.DateTime

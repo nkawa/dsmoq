@@ -9,8 +9,8 @@ assemblyAdditionalSettings
 
 scalaVersion := "2.11.4"
 
-mainClass in assembly := Some("dsmoq.adminTool.Main")
+mainClass in assembly := Some("dsmoq.apiKeyTool.Main")
 
 test in assembly := {}
 
-jarName := "adminTool.jar"
+jarName := "apiKeyTool.jar"
