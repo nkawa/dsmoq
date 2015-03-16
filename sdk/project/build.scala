@@ -4,7 +4,7 @@ import Keys._
 object DsmoqSdkBuild extends Build {
   val Organization = "dsmoq"
   val Name = "dsmoq"
-  val Version = "0.1.0-SNAPSHOT"
+  val Version = "1.0"
   val ScalaVersion = "2.11.4"
 
   val JavaDoc = config("genjavadoc") extend Compile
