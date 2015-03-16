@@ -63,6 +63,7 @@ public class DatasetFileSample {
             bw.write("total files: " + files.size());
             for (String line : results) {
                 bw.write(line);
+                bw.newLine();
             }
         } catch (FileNotFoundException e) {
             // do something
