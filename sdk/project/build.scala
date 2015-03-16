@@ -17,7 +17,7 @@ object DsmoqSdkBuild extends Build {
     sources in JavaDoc <<=
       (target, compile in Compile, sources in Compile) map ((t, c, s) =>
         (t / "java" ** "*.java").get ++ s.filter(_.getName.endsWith(".java"))),
-    javacOptions in JavaDoc := Seq(),
+    javacOptions in JavaDoc := Seq("-charset", "UTF-8", "-docencoding", "UTF-8"),
     artifactName in packageDoc in JavaDoc :=
       ((sv, mod, art) =>
         "" + mod.name + "_" + sv.binary + "-" + mod.revision + "-javadoc.jar")
