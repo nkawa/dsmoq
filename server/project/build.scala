@@ -102,12 +102,12 @@ object DsmoqBuild extends Build {
     )
   ).dependsOn(dsmoq)
   
-  lazy val adminTool = Project(
-    id = "adminTool",
-    base = file("adminTool"),
+  lazy val apiKeyTool = Project(
+    id = "apiKeyTool",
+    base = file("apiKeyTool"),
     settings = Defaults.coreDefaultSettings ++ Seq(
       organization := Organization,
-      name := "adminTool",
+      name := "apiKeyTool",
       version := Version,
       scalaVersion := ScalaVersion,
       resolvers += Classpaths.typesafeReleases,
