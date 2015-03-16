@@ -100,7 +100,7 @@ object DatasetService {
 
         val dataset = persistence.Dataset.create(
           id = datasetId,
-          name = if (f.isEmpty) { name_ } else { f.head._1.name },
+          name = if (name_.isEmpty) { f.head._1.name } else { name_ },
           description = "",
           licenseId = AppConf.defaultLicenseId,
           filesCount = f.length,
@@ -2269,10 +2269,13 @@ object DatasetService {
             .from(DatasetAnnotation as da)
             .join(Annotation as a).on(da.annotationId, a.id)
             .where
+              .eqUuid(da.datasetId, datasetId)
+              .and
               .in(a.name, exists.map(_.name))
         }.map(persistence.DatasetAnnotation(da.resultName)).list().apply
 
         (exists.filter(x => ! existRels.map(_.annotationId).contains(x.id)) ++ created).foreach { annotation =>
+
           persistence.DatasetAnnotation.create(
             id = UUID.randomUUID().toString,
             datasetId = datasetId,

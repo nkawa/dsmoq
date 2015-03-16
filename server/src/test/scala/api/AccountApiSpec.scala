@@ -1,5 +1,8 @@
 package api
 
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
+
 import api.logic.SpecCommonLogic
 import dsmoq.services.User
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfter, FreeSpec}
@@ -13,7 +16,7 @@ import java.io.File
 import org.scalatra.servlet.MultipartConfig
 import dsmoq.persistence.SuggestType
 import dsmoq.services.json.GroupData.Group
-import java.util.UUID
+import java.util.{Base64, UUID}
 import dsmoq.AppConf
 import dsmoq.services.json.DatasetData.Dataset
 import org.json4s._

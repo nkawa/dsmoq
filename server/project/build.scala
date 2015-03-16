@@ -101,4 +101,19 @@ object DsmoqBuild extends Build {
       scalaVersion := ScalaVersion
     )
   ).dependsOn(dsmoq)
+  
+  lazy val apiKeyTool = Project(
+    id = "apiKeyTool",
+    base = file("apiKeyTool"),
+    settings = Defaults.coreDefaultSettings ++ Seq(
+      organization := Organization,
+      name := "apiKeyTool",
+      version := Version,
+      scalaVersion := ScalaVersion,
+      resolvers += Classpaths.typesafeReleases,
+      libraryDependencies ++= Seq(
+        "org.slf4j" % "slf4j-nop" % "1.7.7"
+      )
+    )
+  ).dependsOn(dsmoq)
 }
