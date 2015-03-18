@@ -28,6 +28,8 @@ import dsmoq.services.json.Image
 import scala.collection.mutable
 import com.github.tototoshi.csv._
 
+import scalax.io.Resource
+
 object DatasetService {
   // FIXME 暫定パラメータのため、将来的には削除する
   private val UserAndGroupAccessDeny = 0
@@ -1711,11 +1713,10 @@ object DatasetService {
       } else {
         fileInfo._4 match {
           case Some(zipedFile) => {
-            val bytes = FileManager.downloadFromS3Bytes(fileInfo._2.substring(1) + "/" + fileInfo._1.name, zipedFile.dataStart, zipedFile.dataStart + zipedFile.dataSize)
+            val bytes = FileManager.downloadFromS3Bytes(fileInfo._2.substring(1) + "/" + fileInfo._1.name, zipedFile.dataStart, zipedFile.dataStart + zipedFile.dataSize - 1)
             val full = bytes ++
               zipedFile.cenHeader ++
               Array[Byte] (80, 75, 5, 6, 0, 0, 0, 0, 1, 0, 1, 0)
-
             val file = Paths.get(AppConf.tempDir, "temp.zip").toFile
             use(new FileOutputStream(file)) { f =>
               f.write(full)
@@ -1723,10 +1724,13 @@ object DatasetService {
               IntToByte4(zipedFile.dataSize.toInt, f)
               f.write(Array[Byte] (0, 0))
             }
-
             val z = new ZipFile(file, Charset.forName("Shift-JIS"))
             val entry = z.getEntry(zipedFile.name)
-            Success((true, file, "", zipedFile.name, Some(z.getInputStream(entry))))
+            val outFile = Paths.get(AppConf.tempDir, zipedFile.name.split(Array[Char]('\\', '/')).last).toFile
+            use(new FileOutputStream(outFile)) { out =>
+              out.write(Resource.fromInputStream(z.getInputStream(entry)).byteArray)
+            }
+            Success((true, outFile, "", zipedFile.name, None))
           }
           case None => {
             val url = FileManager.downloadFromS3Url(fileInfo._2.substring(1) + "/" + fileInfo._1.name)
