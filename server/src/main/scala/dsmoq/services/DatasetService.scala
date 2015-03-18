@@ -2,7 +2,7 @@ package dsmoq.services
 
 import java.io.{FileOutputStream, FileInputStream, InputStreamReader, FileReader}
 import java.nio.charset.Charset
-import java.nio.file.Paths
+import java.nio.file.{Files, Path, Paths}
 import java.util.zip.{ZipFile, ZipInputStream}
 
 import dsmoq.services.json
@@ -64,6 +64,9 @@ object DatasetService {
         val f = files_.map(f => {
           val isZip = f.getName.endsWith("zip")
           val fileId = UUID.randomUUID.toString
+          val historyId = UUID.randomUUID.toString
+          FileManager.uploadToLocal(datasetId, fileId, historyId, f)
+          val path = Paths.get(AppConf.fileDir, datasetId, fileId, historyId, f.getName)
           val file = persistence.File.create(
             id = fileId,
             datasetId = datasetId,
@@ -73,13 +76,12 @@ object DatasetService {
             fileMime = "application/octet-stream",
             fileSize = f.size,
             isZip = isZip,
-            realSize = if (isZip) { createZipedFiles(f, fileId, timestamp, myself) } else { f.size },
+            realSize = if (isZip) { createZipedFiles(path, fileId, timestamp, myself) } else { f.size },
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
             updatedAt = timestamp
           )
-          val historyId = UUID.randomUUID.toString
           val histroy = persistence.FileHistory.create(
             id = historyId,
             fileId = file.id,
@@ -92,8 +94,6 @@ object DatasetService {
             updatedBy = myself.id,
             updatedAt = timestamp
           )
-
-          FileManager.uploadToLocal(datasetId, file.id, histroy.id, f)
 
           (file, histroy)
         })
@@ -187,23 +187,62 @@ object DatasetService {
     }
   }
 
-  private def createZipedFiles(file: FileItem, fileId: String, timestamp: DateTime, myself: persistence.User): Long = {
-    use(new ZipInputStream(file.getInputStream, Charset.forName("Shift-JIS"))) { in =>
-      val zips = Stream.iterate(in.getNextEntry)(_ => in.getNextEntry).takeWhile(x => x != null).toList
-      (for (entry <- zips) yield {
-        persistence.ZipedFiles.create(
-          id = UUID.randomUUID().toString,
-          fileId = fileId,
-          name = entry.getName,
-          description = "",
-          fileSize = entry.getSize,
-          createdBy = myself.id,
-          createdAt = timestamp,
-          updatedBy = myself.id,
-          updatedAt = timestamp
-        )
-      }).foldLeft(0L)(_ + _.fileSize)
+  private def createZipedFiles(path: Path, fileId: String, timestamp: DateTime, myself: persistence.User): Long = {
+    val bytes = Files.readAllBytes(path)
+    var i = 0
+    val list = new scala.collection.mutable.ListBuffer[(String, Int, Long)]
+    val list2 = new scala.collection.mutable.ListBuffer[(String, (Int, Int))]
+    while(i < bytes.length) {
+      if (bytes(i) == 80 && bytes(i + 1) == 75 && bytes(i + 2) == 3 && bytes(i + 3) == 4) {
+        val uncompressSize = bytes(i + 22) + (bytes(i + 23) << 8) + (bytes(i + 24) << 16) + (bytes(i + 25) << 24)
+        val fileNameLength = bytes(i + 26) + (bytes(i + 27) << 8)
+        val fileName:Array[Byte] = bytes.drop(i + 30).take(fileNameLength)
+        val n = new String(fileName, "Shift-JIS")
+        list.+=((n, i, uncompressSize))
+      }
+      if (bytes(i) == 80 && bytes(i + 1) == 75 && bytes(i + 2) == 1 && bytes(i + 3) == 2) {
+        val fileNameLength = bytes(i + 28) + (bytes(i + 29) << 8)
+        val extraLength = bytes(i + 30) + (bytes(i + 31) << 8)
+        val commentLength = bytes(i + 32) + (bytes(i + 33) << 8)
+        // ローカルヘッダの相対オフセットを0にする(先頭になるため)
+        bytes(i + 42) = 0
+        bytes(i + 43) = 0
+        bytes(i + 44) = 0
+        bytes(i + 45) = 0
+        val fileName:Array[Byte] = bytes.drop(i + 46).take(fileNameLength)
+        val n = new String(fileName, "Shift-JIS")
+        list2.+=((n, (i, 46 + fileNameLength + extraLength + commentLength)))
+      }
+
+      i += 1
     }
+
+    val l = list.zip(list.drop(1) += list2.map(x => (x._1, x._2._1, 0L)).head).map{ x =>
+      (x._1._1, (x._1._2, x._2._2 - x._1._2, x._1._3))
+    }.toMap
+
+    val l2 = list2.toMap
+
+    (for (key <- l.keys) yield {
+      val dataArea = l.get(key).get
+      val centralHeader = l2.get(key).get
+      val cenHeader = bytes.drop(centralHeader._1).take(centralHeader._2)
+      persistence.ZipedFiles.create(
+        id = UUID.randomUUID().toString,
+        fileId = fileId,
+        name = key,
+        description = "",
+        fileSize = dataArea._3,
+        createdBy = myself.id,
+        createdAt = timestamp,
+        updatedBy = myself.id,
+        updatedAt = timestamp,
+        cenSize = centralHeader._2,
+        dataStart = dataArea._1,
+        dataSize = dataArea._2,
+        cenHeader = cenHeader
+      )
+    }).foldLeft(0L)(_ + _.fileSize)
   }
 
   private def createTask(datasetId: String, commandType: Int, userId: String, timestamp: DateTime, isSave: Boolean)(implicit s: DBSession): String = {
@@ -677,6 +716,9 @@ object DatasetService {
         val f = files.map(f => {
           val isZip = f.getName.endsWith("zip")
           val fileId = UUID.randomUUID.toString
+          val historyId = UUID.randomUUID.toString
+          FileManager.uploadToLocal(id, fileId, historyId, f)
+          val path = Paths.get(AppConf.fileDir, id, fileId, historyId, f.getName)
           val file = persistence.File.create(
             id = fileId,
             datasetId = id,
@@ -686,13 +728,12 @@ object DatasetService {
             fileMime = "application/octet-stream",
             fileSize = f.size,
             isZip = isZip,
-            realSize = if (isZip) { createZipedFiles(f, fileId, timestamp, myself) } else { f.size },
+            realSize = if (isZip) { createZipedFiles(path, fileId, timestamp, myself) } else { f.size },
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
             updatedAt = timestamp
           )
-          val historyId = UUID.randomUUID.toString
           val history = persistence.FileHistory.create(
             id = historyId,
             fileId = file.id,
@@ -705,8 +746,6 @@ object DatasetService {
             updatedBy = myself.id,
             updatedAt = timestamp
           )
-
-          FileManager.uploadToLocal(id, file.id, history.id, f)
 
           (file, history)
         })
@@ -1645,11 +1684,24 @@ object DatasetService {
       if (fileInfo._3.localState == 1 || (fileInfo._3.s3State == 2 && fileInfo._3.localState == 3)) {
         fileInfo._4 match {
           case Some(zipedFile) => {
-            val file = FileManager.downloadFromLocal(fileInfo._2.substring(1) + "/" + fileInfo._1.name)
-            val zip = new ZipFile(file, Charset.forName("SJIS"))
-            val entry = zip.getEntry(zipedFile.name)
-            Success((true, file, "", zipedFile.name, Some(zip.getInputStream(entry))))
+            println("before")
+            val bytes = Files.readAllBytes(Paths.get(AppConf.fileDir, fileInfo._2.substring(1) + "/" + fileInfo._1.name))
+            println("after")
+            val full = bytes.drop(zipedFile.dataStart.toInt).take(zipedFile.dataSize.toInt) ++
+              zipedFile.cenHeader ++
+              Array[Byte] (80, 75, 5, 6, 0, 0, 0, 0, 1, 0, 1, 0)
 
+            val file = Paths.get(AppConf.tempDir, "temp.zip").toFile
+            use(new FileOutputStream(file)) { f =>
+              f.write(full)
+              IntToByte4(zipedFile.cenSize.toInt, f)
+              IntToByte4(zipedFile.dataSize.toInt, f)
+              f.write(Array[Byte] (0, 0))
+            }
+
+            val z = new ZipFile(file, Charset.forName("Shift-JIS"))
+            val entry = z.getEntry(zipedFile.name)
+            Success((true, file, "", zipedFile.name, Some(z.getInputStream(entry))))
           }
           case None => {
             val file = FileManager.downloadFromLocal(fileInfo._2.substring(1) + "/" + fileInfo._1.name)
@@ -1659,11 +1711,22 @@ object DatasetService {
       } else {
         fileInfo._4 match {
           case Some(zipedFile) => {
-            val file = FileManager.downloadFromS3(fileInfo._2.substring(1) + "/" + fileInfo._1.name)
-            val zip = new ZipFile(file, Charset.forName("SJIS"))
-            val entry = zip.getEntry(zipedFile.name)
-            file.delete()
-            Success((true, file, "", zipedFile.name, Some(zip.getInputStream(entry))))
+            val bytes = FileManager.downloadFromS3Bytes(fileInfo._2.substring(1) + "/" + fileInfo._1.name, zipedFile.dataStart, zipedFile.dataStart + zipedFile.dataSize)
+            val full = bytes ++
+              zipedFile.cenHeader ++
+              Array[Byte] (80, 75, 5, 6, 0, 0, 0, 0, 1, 0, 1, 0)
+
+            val file = Paths.get(AppConf.tempDir, "temp.zip").toFile
+            use(new FileOutputStream(file)) { f =>
+              f.write(full)
+              IntToByte4(zipedFile.cenSize.toInt, f)
+              IntToByte4(zipedFile.dataSize.toInt, f)
+              f.write(Array[Byte] (0, 0))
+            }
+
+            val z = new ZipFile(file, Charset.forName("Shift-JIS"))
+            val entry = z.getEntry(zipedFile.name)
+            Success((true, file, "", zipedFile.name, Some(z.getInputStream(entry))))
           }
           case None => {
             val url = FileManager.downloadFromS3Url(fileInfo._2.substring(1) + "/" + fileInfo._1.name)
@@ -1673,6 +1736,30 @@ object DatasetService {
       }
     } catch {
       case e: Exception => Failure(e)
+    }
+  }
+
+  private def IntToByte4(num: Int, f: FileOutputStream) = {
+    if (num < (1 << 8)) {
+      f.write(num)
+      f.write(0)
+      f.write(0)
+      f.write(0)
+    } else if (num < (1 << 16)) {
+      f.write(num & 0x000000FF)
+      f.write((num & 0x0000FF00) >> 8)
+      f.write(0)
+      f.write(0)
+    } else if (num < (1 << 24)) {
+      f.write(num & 0x000000FF)
+      f.write((num & 0x0000FF00) >> 8)
+      f.write((num & 0x00FF0000) >> 16)
+      f.write(0)
+    } else {
+      f.write(num & 0x000000FF)
+      f.write((num & 0x0000FF00) >> 8)
+      f.write((num & 0x00FF0000) >> 16)
+      f.write((num & 0xFF000000) >> 24)
     }
   }
 

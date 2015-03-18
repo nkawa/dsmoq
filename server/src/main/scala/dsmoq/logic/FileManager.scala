@@ -33,29 +33,15 @@ object FileManager {
     new File(fullPath.toString)
   }
 
-  def downloadFromS3(filePath: String): File = {
+  def downloadFromS3Bytes(filePath: String, start: Long, end: Long): Array[Byte] = {
     val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
     val client = new AmazonS3Client(cre)
     val request = new GetObjectRequest(AppConf.s3UploadRoot, filePath)
+    request.setRange(start, end)
     val obj = client.getObject(request)
     val in = obj.getObjectContent()
-    val input = Resource.fromInputStream(in)
-    val splitDirs = obj.getKey.split("/")
-    val datasetDir = Paths.get(AppConf.tempDir, splitDirs(0)).toFile
-    if (!datasetDir.exists()) datasetDir.mkdir()
-
-    val fileDir = datasetDir.toPath.resolve(splitDirs(1)).toFile
-    if (!fileDir.exists()) fileDir.mkdir()
-
-    val historyDir = fileDir.toPath.resolve(splitDirs(2)).toFile
-    if (!historyDir.exists()) historyDir.mkdir()
-
-    val file = Paths.get(AppConf.tempDir, obj.getKey).toFile
-    use(new FileOutputStream(file)) { out =>
-      out.write(input.byteArray)
-      ()
-    }
-    file
+    val st = Resource.fromInputStream(in)
+    st.byteArray
   }
 
   def downloadFromS3Url(filePath: String): String = {
