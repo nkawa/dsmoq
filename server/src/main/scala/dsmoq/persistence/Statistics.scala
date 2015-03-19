@@ -11,7 +11,8 @@ case class Statistics(
   realSize: Long, 
   compressedSize: Long, 
   s3Size: Long, 
-  localSize: Long, 
+  localSize: Long,
+  statisticsType: Int,
   createdBy: String,
   createdAt: DateTime, 
   updatedBy: String,
@@ -30,7 +31,7 @@ object Statistics extends SQLSyntaxSupport[Statistics] {
 
   override val tableName = "statistics"
 
-  override val columns = Seq("id", "target_month", "dataset_count", "real_size", "compressed_size", "s3_size", "local_size", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
+  override val columns = Seq("id", "target_month", "dataset_count", "real_size", "compressed_size", "s3_size", "local_size", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at", "statistics_type")
 
   def apply(s: SyntaxProvider[Statistics])(rs: WrappedResultSet): Statistics = apply(s.resultName)(rs)
   def apply(s: ResultName[Statistics])(rs: WrappedResultSet): Statistics = new Statistics(
@@ -41,6 +42,7 @@ object Statistics extends SQLSyntaxSupport[Statistics] {
     compressedSize = rs.long(s.compressedSize),
     s3Size = rs.long(s.s3Size),
     localSize = rs.long(s.localSize),
+    statisticsType = rs.int(s.statisticsType),
     createdBy = rs.string(s.createdBy),
     createdAt = rs.timestamp(s.createdAt).toJodaDateTime,
     updatedBy = rs.string(s.updatedBy),
@@ -87,6 +89,7 @@ object Statistics extends SQLSyntaxSupport[Statistics] {
     compressedSize: Long,
     s3Size: Long,
     localSize: Long,
+    statisticsType: Int,
     createdBy: String,
     createdAt: DateTime,
     updatedBy: String,
@@ -102,6 +105,7 @@ object Statistics extends SQLSyntaxSupport[Statistics] {
         column.compressedSize,
         column.s3Size,
         column.localSize,
+        column.statisticsType,
         column.createdBy,
         column.createdAt,
         column.updatedBy,
@@ -116,6 +120,7 @@ object Statistics extends SQLSyntaxSupport[Statistics] {
         compressedSize,
         s3Size,
         localSize,
+        statisticsType,
         sqls.uuid(createdBy),
         createdAt,
         sqls.uuid(updatedBy),
@@ -133,6 +138,7 @@ object Statistics extends SQLSyntaxSupport[Statistics] {
       compressedSize = compressedSize,
       s3Size = s3Size,
       localSize = localSize,
+      statisticsType = statisticsType,
       createdBy = createdBy,
       createdAt = createdAt,
       updatedBy = updatedBy,
@@ -151,6 +157,7 @@ object Statistics extends SQLSyntaxSupport[Statistics] {
         column.compressedSize -> entity.compressedSize,
         column.s3Size -> entity.s3Size,
         column.localSize -> entity.localSize,
+        column.statisticsType -> entity.statisticsType,
         column.createdBy -> sqls.uuid(entity.createdBy),
         column.createdAt -> entity.createdAt,
         column.updatedBy -> sqls.uuid(entity.updatedBy),

@@ -32,7 +32,7 @@ class StatisticsSpec extends Specification {
       count should be_>(0L)
     }
     "create new record" in new AutoRollback {
-      val created = Statistics.create(id = null, targetMonth = DateTime.now, datasetCount = 1L, realSize = 1L, compressedSize = 1L, s3Size = 1L, localSize = 1L, createdBy = null, createdAt = DateTime.now, updatedBy = null, updatedAt = DateTime.now)
+      val created = Statistics.create(id = null, targetMonth = DateTime.now, datasetCount = 1L, realSize = 1L, compressedSize = 1L, s3Size = 1L, localSize = 1L, createdBy = null, createdAt = DateTime.now, updatedBy = null, updatedAt = DateTime.now, statisticsType = 1)
       created should not beNull
     }
     "save a record" in new AutoRollback {

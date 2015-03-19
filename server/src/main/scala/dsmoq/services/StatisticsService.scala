@@ -17,8 +17,6 @@ object StatisticsService {
         val from_ = from.map(x => new DateTime(x.getYear, x.getMonthOfYear, 1, 0, 0)).getOrElse(new DateTime(now.getYear, now.getMonthOfYear, 1, 0, 0).minusMonths(1))
         // 2015/11/23 -> 2015/12/1
         val to_ = to.map(x => new DateTime(x.getYear, x.getMonthOfYear, 1, 0, 0)).getOrElse(new DateTime(now.getYear, now.getMonthOfYear, 1, 0, 0))
-        println(from_)
-        println(to_)
         val sta = persistence.Statistics.s
         val stats = withSQL {
           select
@@ -27,6 +25,8 @@ object StatisticsService {
               .ge(sta.targetMonth, from_)
               .and
               .lt(sta.targetMonth, to_)
+              .and
+              .eq(sta.statisticsType, 1)
         }.map(persistence.Statistics(sta)).list.apply().map { st =>
           StatisticsDetail(
             dataset_amount = st.datasetCount,
