@@ -385,6 +385,19 @@ class GroupEditPage {
             searchImageCandidate();
 			
 			html.find("#image-form input").on("change", function(_) {
+				var isPrevEnabled = html.find("#image-list-prev").attr("disabled") != "disabled";
+				var isNextEnabled = html.find("#image-list-next").attr("disabled") != "disabled";
+				
+				// ApplyとDeleteをDisableにするために必要
+				var b = JsViews.observable(data.selectedIds);
+				b.refresh([]);
+				html.find("#image-list-prev").attr("disabled", "disabled");
+				html.find("#image-list-next").attr("disabled", "disabled");
+				html.find("#select-image-dialog-cancel").attr("disabled", "disabled");
+				html.find("#upload-image").attr("disabled", "disabled");
+				// 直接Loadingを指定すると、内部のinput要素までloading-textで置き換わるため、模倣している。
+				// メッセージは内部のdivに担当させ、disableのみを#upload-imageボタンに設定する
+				BootstrapButton.setLoading(html.find("#upload-image > div"));
 				Service.instance.addGroupImages(id, html.find("#image-form")).then(
 				    function (_) {
                         Notification.show("success", "save successful");
@@ -400,11 +413,37 @@ class GroupEditPage {
 							default:
 								Notification.show("error", "error happened");
 						}
-                    });
+                    },
+					function () {
+						BootstrapButton.reset(html.find("#upload-image > div"));
+						html.find("#upload-image").removeAttr("disabled");
+
+						if (isPrevEnabled) {
+							html.find("#image-list-prev").removeAttr("disabled");
+						}
+						if (isNextEnabled) {
+							html.find("#image-list-next").removeAttr("disabled");
+						}
+						html.find("#select-image-dialog-cancel").removeAttr("disabled");
+					});
 			});
 			
 			html.find("#delete-image").on("click", function(_) { 
+				var isPrevEnabled = html.find("#image-list-prev").attr("disabled") != "disabled";
+				var isNextEnabled = html.find("#image-list-next").attr("disabled") != "disabled";
+
+				html.find("#upload-image").attr("disabled", "disabled");
+				html.find("#image-list-prev").attr("disabled", "disabled");
+				html.find("#image-list-next").attr("disabled", "disabled");
+				html.find("#select-image-dialog-cancel").attr("disabled", "disabled");
 				var selected = html.find("input:checked").val();
+				// 直接Loadingを指定すると、完了後に#delete-imageがアクティブになってしまうため、模倣している。
+				// メッセージは内部のdivに担当させ、disableのみを#delete-imageボタンに設定する
+				html.find("#delete-image").attr("disabled", "disabled");
+				BootstrapButton.setLoading(html.find("#delete-image > div"));
+				// ApplyをDisableにするために必要
+				var b = JsViews.observable(data.selectedIds);
+				b.refresh([]);
 				Service.instance.removeGroupImage(id, selected).then(
 				    function (_) {
                         Notification.show("success", "save successful");
@@ -420,7 +459,18 @@ class GroupEditPage {
 							default:
 								Notification.show("error", "error happened");
 						}
-                    });
+                    },
+					function () {
+						BootstrapButton.reset(html.find("#delete-image > div"));
+						html.find("#upload-image").removeAttr("disabled");
+						if (isPrevEnabled) {
+							html.find("#image-list-prev").removeAttr("disabled");
+						}
+						if (isNextEnabled) {
+							html.find("#image-list-next").removeAttr("disabled");
+						}
+						html.find("#select-image-dialog-cancel").removeAttr("disabled");
+					});
 			} );
 			
             html.find("#image-list-prev").on("click", function (_) {
