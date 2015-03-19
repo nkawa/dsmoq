@@ -21,7 +21,7 @@ class FileController extends ScalatraServlet with SessionTrait with FileUploadSu
     result match {
       case Success(x) =>
         if (x._1) {
-          response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + java.net.URLEncoder.encode(x._4,"UTF-8"))
+          response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + java.net.URLEncoder.encode(x._4.split(Array[Char]('\\', '/')).last,"UTF-8"))
           response.setHeader("Content-Type", "application/octet-stream;charset=binary")
           x._5 match {
             case None => x._2
