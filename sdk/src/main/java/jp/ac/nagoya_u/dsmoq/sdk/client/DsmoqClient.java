@@ -439,6 +439,29 @@ public class DsmoqClient {
     }
 
     /**
+     * データセットに一覧で表示するFeatured Dataset画像を設定する。（PUT /api/datasets/${dataset_id}/image/${image_id}/featured相当）
+     * @param datasetId DatasetID
+     * @param imageId 指定する画像ID
+     */
+    public void setFeaturedImageToDataset(String datasetId, String imageId) {
+        try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/datasets/%s/images/%s/featured", datasetId, imageId))) {
+            addAuthorizationHeader(request);
+            String json = execute(request);
+            JsonUtil.statusCheck(json);
+        }
+    }
+
+    /**
+     * データセットに一覧で表示するFeatured Dataset画像を設定する。
+     * @param datasetId DatasetID
+     * @param file 追加する画像ファイル
+     */
+    public void setFeaturedImageToDataset(String datasetId, File file) {
+        DatasetAddImages image = addImagesToDataset(datasetId, file);
+        setFeaturedImageToDataset(datasetId, image.getImages().get(0).getId());
+    }
+
+    /**
      * データセットからファイルをダウンロードする。（GET /files/${dataset_id}/${file_id}相当）
      * @param datasetId DatasetID
      * @param fileId ファイルID

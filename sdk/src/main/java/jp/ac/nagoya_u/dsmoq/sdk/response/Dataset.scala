@@ -45,6 +45,7 @@ case class Dataset(
   private val meta: DatasetMetaData,
   private val images: Seq[Image],
   private val primaryImage: String,
+  private val featuredImage: String,
   private val ownerships: Seq[DatasetOwnership],
   private val defaultAccessLevel: Int,
   private val permission: Int,
@@ -59,6 +60,7 @@ case class Dataset(
   def getMeta = meta
   def getImages = images.asJava
   def getPrimaryImage = primaryImage
+  def getFeaturedImage = featuredImage
   def getOwnerShips = ownerships.asJava
   def getDefaultAccessLevel = defaultAccessLevel
   def getPermission = permission

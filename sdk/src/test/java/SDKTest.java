@@ -153,6 +153,20 @@ public class SDKTest {
     }
 
     @Test
+    public void データセットのFeaturedDataset画像を変更できるか() {
+        DsmoqClient client = create();
+        client.createDataset(true, false, new File("../../README.md"));
+        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
+        String datasetId = summaries.stream().findFirst().get().getId();
+        String featured = client.getDataset(datasetId).getFeaturedImage();
+        DatasetAddImages images = client.addImagesToDataset(datasetId, new File("../../test.png"));
+        Image image = images.getImages().stream().filter(x -> !x.getId().equals(featured)).findFirst().get();
+        client.setFeaturedImageToDataset(datasetId, image.getId());
+        Dataset dataset = client.getDataset(datasetId);
+        assertThat(dataset.getFeaturedImage(), is(image.getId()));
+    }
+
+    @Test
     public void データセットの画像を削除できるか() {
         DsmoqClient client = create();
         client.createDataset(true, false, new File("../../README.md"));
