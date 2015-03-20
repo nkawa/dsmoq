@@ -309,6 +309,16 @@ class ApiController extends ScalatraServlet
     }
   }
 
+  put("/datasets/:datasetId/images/:imageId/featured") {
+    val datasetId = params("datasetId")
+    val imageId = params("imageId")
+
+    (for {
+      user <- getUser
+      _ <- DatasetService.changeFeaturedImage(datasetId, imageId, user)
+    } yield {}) |> toAjaxResponse
+  }
+
   // --------------------------------------------------------------------------
   // group api
   // --------------------------------------------------------------------------

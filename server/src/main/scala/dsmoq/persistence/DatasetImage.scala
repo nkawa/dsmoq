@@ -15,7 +15,8 @@ case class DatasetImage(
   updatedBy: String, 
   updatedAt: DateTime, 
   deletedBy: Option[String] = None, 
-  deletedAt: Option[DateTime] = None) {
+  deletedAt: Option[DateTime] = None,
+  isFeatured: Boolean) {
 
   def save()(implicit session: DBSession = DatasetImage.autoSession): DatasetImage = DatasetImage.save(this)(session)
 
@@ -28,7 +29,7 @@ object DatasetImage extends SQLSyntaxSupport[DatasetImage] {
 
   override val tableName = "dataset_images"
 
-  override val columns = Seq("id", "dataset_id", "image_id", "is_primary", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
+  override val columns = Seq("id", "dataset_id", "image_id", "is_primary", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at", "is_featured")
 
   def apply(di: ResultName[DatasetImage])(rs: WrappedResultSet): DatasetImage = new DatasetImage(
     id = rs.string(di.id),
@@ -40,7 +41,8 @@ object DatasetImage extends SQLSyntaxSupport[DatasetImage] {
     updatedBy = rs.string(di.updatedBy),
     updatedAt = rs.timestamp(di.updatedAt).toJodaDateTime,
     deletedBy = rs.stringOpt(di.deletedBy),
-    deletedAt = rs.timestampOpt(di.deletedAt).map(_.toJodaDateTime)
+    deletedAt = rs.timestampOpt(di.deletedAt).map(_.toJodaDateTime),
+    isFeatured = rs.boolean(di.isFeatured)
   )
       
   val di = DatasetImage.syntax("di")
@@ -78,6 +80,7 @@ object DatasetImage extends SQLSyntaxSupport[DatasetImage] {
     datasetId: String,
     imageId: String,
     isPrimary: Boolean,
+    isFeatured: Boolean,
     createdBy: String,
     createdAt: DateTime,
     updatedBy: String,
@@ -90,6 +93,7 @@ object DatasetImage extends SQLSyntaxSupport[DatasetImage] {
         column.datasetId,
         column.imageId,
         column.isPrimary,
+        column.isFeatured,
         column.createdBy,
         column.createdAt,
         column.updatedBy,
@@ -101,6 +105,7 @@ object DatasetImage extends SQLSyntaxSupport[DatasetImage] {
         sqls.uuid(datasetId),
         sqls.uuid(imageId),
         isPrimary,
+        isFeatured,
         sqls.uuid(createdBy),
         createdAt,
         sqls.uuid(updatedBy),
@@ -115,6 +120,7 @@ object DatasetImage extends SQLSyntaxSupport[DatasetImage] {
       datasetId = datasetId,
       imageId = imageId,
       isPrimary = isPrimary,
+      isFeatured = isFeatured,
       createdBy = createdBy,
       createdAt = createdAt,
       updatedBy = updatedBy,
@@ -130,6 +136,7 @@ object DatasetImage extends SQLSyntaxSupport[DatasetImage] {
         column.datasetId -> sqls.uuid(entity.datasetId),
         column.imageId -> sqls.uuid(entity.imageId),
         column.isPrimary -> entity.isPrimary,
+        column.isFeatured -> entity.isFeatured,
         column.createdBy -> sqls.uuid(entity.createdBy),
         column.createdAt -> entity.createdAt,
         column.updatedBy -> sqls.uuid(entity.updatedBy),

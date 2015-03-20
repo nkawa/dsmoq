@@ -107,6 +107,7 @@ class Service extends Stream<ServiceEvent> {
                 meta: cast a.meta,
                 images: cast a.images,
                 primaryImage: cast Lambda.find(a.images, function (x) return x.id == a.primaryImage),
+				featuredImage: cast Lambda.find(a.images, function (x) return x.id == a.featuredImage),
                 ownerships: cast a.ownerships,
                 defaultAccessLevel: cast a.defaultAccessLevel,
                 permission: cast a.permission,
@@ -305,6 +306,10 @@ class Service extends Stream<ServiceEvent> {
 	public function getOwnerships(datasetId: String, ?params: { ?limit: Int, ?offset: Int } ) : Promise<RangeSlice<DatasetOwnership>>
 	{
 		return send(Get, '/api/datasets/$datasetId/acl', params);
+	}
+	
+	public function setDatasetImageFeatured(datasetId: String, imageId: String): Promise<Unit> {
+		return send(Put, '/api/datasets/$datasetId/images/$imageId/featured');
 	}
 
     inline function guest(): Profile {

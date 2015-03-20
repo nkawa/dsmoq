@@ -29,6 +29,7 @@ object DatasetData {
     meta: DatasetMetaData,
     images: Seq[Image],
     primaryImage: String,
+    featuredImage: String,
     ownerships: Seq[DatasetOwnership],
     defaultAccessLevel: Int,
     permission: Int,

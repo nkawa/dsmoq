@@ -29,6 +29,7 @@ class DatasetShowPage {
                 name: res.meta.name,
                 description: res.meta.description,
                 primaryImage: res.primaryImage,
+				featuredImage: res.featuredImage,
                 ownerships: res.ownerships.filter(function (x) return Type.enumEq(x.accessLevel, DatasetPermission.Write)),
                 files: res.files,
                 attributes: res.meta.attributes,

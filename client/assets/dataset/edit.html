@@ -13,6 +13,7 @@
       <li><a href="#dataset-files" data-toggle="tab">Files</a></li>
       <li><a href="#dataset-acl" data-toggle="tab">Accesss Control</a></li>
 	  <li><a href="#dataset-storage" data-toggle="tab">Storage</a></li>
+	  <li><a href="#dataset-featured-image" data-toggle="tab">Featured Image</a></li>
     </ul>
 
     <div class="tab-content">
@@ -280,6 +281,22 @@
             <a class="btn btn-primary" id="dataset-storage-submit" data-loading-text="Saving...">Save</a>
           </p>
         </div>
+      </div>
+
+      <div class="tab-pane" id="dataset-featured-image">
+        <div class="form-group">
+          <div>
+            <img data-link="src{>dataset.featuredImage.url+'/128'}" alt="icon">
+          </div>
+        </div>
+        <form role="form" id="dataset-featured-form">
+            <div class="form-group">
+              <div><label class="control-label">Change Featured Image</label></div>
+              <div>
+                <a class="btn btn-primary" id="dataset-featured-select">Select</a>
+              </div>
+            </div>
+        </form>
       </div>
     </div>
   </div>

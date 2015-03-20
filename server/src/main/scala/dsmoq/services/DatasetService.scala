@@ -133,6 +133,7 @@ object DatasetService {
           datasetId = dataset.id,
           imageId = AppConf.defaultDatasetImageId,
           isPrimary = true,
+          isFeatured = true,
           createdBy = myself.id,
           createdAt = timestamp,
           updatedBy = myself.id,
@@ -166,6 +167,7 @@ object DatasetService {
             url = AppConf.imageDownloadRoot + AppConf.defaultDatasetImageId
           )),
           primaryImage =  AppConf.defaultDatasetImageId,
+          featuredImage = AppConf.defaultDatasetImageId,
           ownerships = Seq(DatasetData.DatasetOwnership(
             id = myself.id,
             name = myself.name,
@@ -663,6 +665,7 @@ object DatasetService {
           attributes <- Some(getAttributes(id))
           images <- Some(getImages(id))
           primaryImage <- getPrimaryImageId(id)
+          featuredImage <- getFeaturedImageId(id)
           count <- Some(getAccessCount(id))
         } yield {
           // FIXME チェック時、user権限はUserAccessLevelクラス, groupの場合はGroupAccessLevelクラスの定数を使用する
@@ -683,6 +686,7 @@ object DatasetService {
             ),
             images = images,
             primaryImage = primaryImage,
+            featuredImage = featuredImage,
             ownerships = owners,
             defaultAccessLevel = guestAccessLevel,
             permission = permission,
@@ -1270,6 +1274,7 @@ object DatasetService {
             datasetId = datasetId,
             imageId = imageId,
             isPrimary = if (isFirst && primaryImage.isEmpty) true else false,
+            isFeatured = false,
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
@@ -2135,6 +2140,24 @@ object DatasetService {
     }.map(rs => rs.string(i.resultName.id)).single().apply
   }
 
+  private def getFeaturedImageId(datasetId: String)(implicit s: DBSession) = {
+    val di = persistence.DatasetImage.syntax("di")
+    val i = persistence.Image.syntax("i")
+    withSQL {
+      select(i.result.id)
+        .from(persistence.Image as i)
+        .innerJoin(persistence.DatasetImage as di).on(i.id, di.imageId)
+        .where
+        .eq(di.datasetId, sqls.uuid(datasetId))
+        .and
+        .eq(di.isFeatured, true)
+        .and
+        .isNull(di.deletedAt)
+        .and
+        .isNull(i.deletedAt)
+    }.map(rs => rs.string(i.resultName.id)).single().apply
+  }
+
   private def getAccessCount(datasetId: String)(implicit s: DBSession): Long = {
     val dal = persistence.DatasetAccessLog.dal
     persistence.DatasetAccessLog.countBy(sqls.eqUuid(dal.datasetId, datasetId))
@@ -2281,6 +2304,7 @@ object DatasetService {
             datasetId = newDatasetId,
             imageId = image.imageId,
             isPrimary = image.isPrimary,
+            isFeatured = image.isFeatured,
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
@@ -2584,5 +2608,53 @@ object DatasetService {
     } catch {
       case e: Throwable => Failure(e)
     }
+  }
+
+  def changeFeaturedImage(datasetId: String, imageId: String, user: User): Try[Unit] = {
+    try {
+      DB localTx { implicit s =>
+        datasetAccessabilityCheck(datasetId, user)
+        if (!existsImage(datasetId, imageId)) throw new NotFoundException
+
+        val myself = persistence.User.find(user.id).get
+        val timestamp = DateTime.now()
+        // 対象のイメージをFeaturedに変更
+        turnImageToFeatured(datasetId, imageId, myself, timestamp)
+        // 対象以外のイメージをFeatured以外に変更
+        turnOffFeaturedOtherImage(datasetId, imageId, myself, timestamp)
+
+        Success(Unit)
+      }
+    } catch {
+      case e: Throwable => Failure(e)
+    }
+  }
+
+  private def turnOffFeaturedOtherImage(datasetId: String, imageId: String, myself: persistence.User, timestamp: DateTime)(implicit s: DBSession) {
+    withSQL {
+      val di = persistence.DatasetImage.column
+      update(persistence.DatasetImage)
+        .set(di.isFeatured -> false, di.updatedBy -> sqls.uuid(myself.id), di.updatedAt -> timestamp)
+        .where
+        .ne(di.imageId, sqls.uuid(imageId))
+        .and
+        .eq(di.datasetId, sqls.uuid(datasetId))
+        .and
+        .isNull(di.deletedAt)
+    }.update().apply
+  }
+
+  private def turnImageToFeatured(datasetId: String, imageId: String, myself: persistence.User, timestamp: DateTime)(implicit s: DBSession) {
+    withSQL {
+      val di = persistence.DatasetImage.column
+      update(persistence.DatasetImage)
+        .set(di.isFeatured -> true, di.updatedBy -> sqls.uuid(myself.id), di.updatedAt -> timestamp)
+        .where
+        .eq(di.imageId, sqls.uuid(imageId))
+        .and
+        .eq(di.datasetId, sqls.uuid(datasetId))
+        .and
+        .isNull(di.deletedAt)
+    }.update().apply
   }
 }

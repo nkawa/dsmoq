@@ -99,6 +99,7 @@ class DatasetEditPage {
                     ownerships: x.ownerships,
                     defaultAccessLevel: x.defaultAccessLevel,
                     primaryImage: x.primaryImage,
+					featuredImage: x.featuredImage,
 					localState: x.localState,
 					s3State: x.s3State,
                     errors: {
@@ -622,6 +623,22 @@ class DatasetEditPage {
                         root.find("#dataset-storage-form input").removeAttr("disabled");
                     }
                 );
+            });
+			
+			// featured
+            root.find("#dataset-featured-select").on("click", function (_) {
+				showSelectImageDialog(id).then(function(image) {
+					Service.instance.setDatasetImageFeatured(id, image.id).then(
+					    function (_) {
+							binding.setProperty("dataset.featuredImage.id", image.id);
+							binding.setProperty("dataset.featuredImage.url", image.url);
+							Notification.show("success", "save successful");
+						},
+						function (e) {
+							Notification.show("error", "error happened");
+						}
+					);
+				});				
             });
         });
 		
