@@ -169,7 +169,7 @@ class Service extends Stream<ServiceEvent> {
         return send(Get, '/api/datasets/$datasetId/images', params);
     }
 
-    public function removeDatasetImage(datasetId: String, imageId: String): Promise<{primaryImage: String}> {
+    public function removeDatasetImage(datasetId: String, imageId: String): Promise<{primaryImage: String, featuredImage: String}> {
         return send(Delete, '/api/datasets/$datasetId/images/$imageId');
     }
 
@@ -260,7 +260,7 @@ class Service extends Stream<ServiceEvent> {
         return send(Put, '/api/groups/$groupId/images/primary', {imageId: imageId});
     }
 
-    public function removeGroupImage(groupId: String, imageId: String): Promise<Unit> {
+    public function removeGroupImage(groupId: String, imageId: String): Promise<{primaryImage: String}> {
         return send(Delete, '/api/groups/$groupId/images/$imageId');
     }
 

@@ -1367,6 +1367,8 @@ object DatasetService {
     try {
       DB localTx { implicit s =>
         datasetAccessabilityCheck(datasetId, user)
+        val cantDeleteImages = Seq(AppConf.defaultDatasetImageId)
+        if (cantDeleteImages.contains(imageId)) throw new InputValidationException(Map("imageId" -> "default image can't delete"))
         if (!existsImage(datasetId, imageId)) throw new NotFoundException
 
         val myself = persistence.User.find(user.id).get
@@ -1376,7 +1378,7 @@ object DatasetService {
         val primaryImageId = getPrimaryImageId(datasetId).getOrElse({
           // primaryImageの差し替え
           // primaryImageとなるImageを取得
-          val primaryImage = findNextPrimaryImage(datasetId)
+          val primaryImage = findNextImage(datasetId)
 
           primaryImage match {
             case Some(x) =>
@@ -1385,7 +1387,20 @@ object DatasetService {
             case None => ""
           }
         })
-        Success(DatasetData.DatasetDeleteImage(primaryImage = primaryImageId))
+        val featuredImageId = getFeaturedImageId(datasetId).getOrElse({
+          val featuredImage = findNextImage(datasetId)
+          featuredImage match {
+            case Some(x) =>
+              turnImageToFeaturedById(x._1, myself, timestamp)
+              x._2
+            case None => ""
+          }
+        })
+
+        Success(DatasetData.DatasetDeleteImage(
+          primaryImage = primaryImageId,
+          featuredImage = featuredImageId
+        ))
       }
     } catch {
       case e: Throwable => Failure(e)
@@ -1402,7 +1417,17 @@ object DatasetService {
     }.update().apply
   }
 
-  private def findNextPrimaryImage(datasetId: String)(implicit s: DBSession): Option[(String, String)] = {
+  private def turnImageToFeaturedById(id:String, myself: persistence.User, timestamp: DateTime)(implicit s: DBSession) {
+    val di = persistence.DatasetImage.column
+    withSQL {
+      update(persistence.DatasetImage)
+        .set(di.isFeatured -> true, di.updatedBy -> sqls.uuid(myself.id), di.updatedAt -> timestamp)
+        .where
+        .eq(di.id, sqls.uuid(id))
+    }.update().apply
+  }
+
+  private def findNextImage(datasetId: String)(implicit s: DBSession): Option[(String, String)] = {
     val di = persistence.DatasetImage.di
     val i = persistence.Image.i
     withSQL {

@@ -72,7 +72,7 @@ class GroupEditPage {
 			editor.on("on-click-dialog-button", function(evt) {
 				JQuery._(".cke_dialog_background_cover").css("z-index", "1000");
 				JQuery._(".cke_dialog ").css("z-index", "1010");
-				showSelectImageDialog(id).then(function(image) {
+				showSelectImageDialog(id, binding).then(function(image) {
 					JQuery._('.url-text input[type="text"]').val(image.url);
 					editor.fireOnce("on-close-dialog", image);
 				});
@@ -127,7 +127,7 @@ class GroupEditPage {
 
             // icon tab -------------------------
 			root.find("#group-icon-select").on("click", function (_) {
-				showSelectImageDialog(id).then(function(image) {
+				showSelectImageDialog(id, binding).then(function(image) {
 					Service.instance.setGroupPrimaryImage(id, image.id).then(
 					    function (_) {
 							binding.setProperty("group.primaryImage.id", image.id);
@@ -328,7 +328,7 @@ class GroupEditPage {
         });
     }
 	
-	static function showSelectImageDialog(id: String) {
+	static function showSelectImageDialog(id: String, rootBinding: Observable) {
         var data = {
             offset: 0,
             hasPrev: false,
@@ -362,7 +362,13 @@ class GroupEditPage {
                             .filter(function (x) return x.selected)
                             .map(function (x) return x.item);
             }
-
+			
+			function getUrl(id: String) {
+				return data.items.filter(function(x) {
+					return x.item.id == id;
+				}).map(function(x) return x.item.url)[0];
+			}
+			
             JsViews.observable(data.items).observeAll(function (e, args) {
                 if (args.path == "selected") {
                     var image: GroupImage = e.target.item;
@@ -445,13 +451,19 @@ class GroupEditPage {
 				var b = JsViews.observable(data.selectedIds);
 				b.refresh([]);
 				Service.instance.removeGroupImage(id, selected).then(
-				    function (_) {
+				    function (ids) {
                         Notification.show("success", "save successful");
 						searchImageCandidate();
 						binding.refresh([]);
+						rootBinding.setProperty("group.primaryImage.id", ids.primaryImage);
+						rootBinding.setProperty("group.primaryImage.url", getUrl(ids.primaryImage));
                     },
                     function (e) {
 						switch (e.name) {
+							case ServiceErrorType.BadRequest:
+								for (x in cast(e, ServiceError).detail) {
+									Notification.show("error", x.message);
+								}
 							case ServiceErrorType.NotFound:
 								Notification.show("error", "not found");
 							case ServiceErrorType.Unauthorized: 

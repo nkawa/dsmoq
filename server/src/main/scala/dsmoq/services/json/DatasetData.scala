@@ -67,7 +67,8 @@ object DatasetData {
   )
 
   case class DatasetDeleteImage(
-    primaryImage: String
+    primaryImage: String,
+    featuredImage: String
   )
 
   case class DatasetFile(

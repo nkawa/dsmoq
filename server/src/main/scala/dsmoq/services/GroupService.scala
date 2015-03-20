@@ -696,6 +696,8 @@ object GroupService {
         val group = getGroup(groupId)
         if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
         if (!existsGroupImage(groupId, imageId)) throw new NotFoundException
+        val cantDeleteImages = Seq(AppConf.defaultGroupImageId)
+        if (cantDeleteImages.contains(imageId)) throw new InputValidationException(Map("imageId" -> "default image can't delete"))
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
