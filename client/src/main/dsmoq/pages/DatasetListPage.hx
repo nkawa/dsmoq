@@ -65,7 +65,7 @@ class DatasetListPage {
 
         // observe binding
         JsViews.observe(condition, "filters", function (_, _) {
-            load();
+            navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, condition.query, condition.filters)));
         });
         JsViews.observe(condition, "index", function (_, args) {
             var page = args.value + 1;
@@ -88,7 +88,7 @@ class DatasetListPage {
                 BootstrapPopover.hide("#add-filter-button");
             }
         });
-
+		
         JQuery._("#add-filter-button").on("shown.bs.popover", function (_) {
             // init owner tab
             JQuery._("#filter-owner-input").val("");

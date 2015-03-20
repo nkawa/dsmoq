@@ -1854,7 +1854,10 @@ object DatasetService {
           .inUuid(o.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
     }.map(rs => (rs.int(o.resultName.accessLevel), rs.int(g.resultName.groupType))).list().apply
     // Provider権限のGroupはWriteできない
-    Some(permissions.map(x => if (x._1 == 3 && x._2 == GroupType.Public) { 2 } else { x._1 }).max)
+    permissions match {
+      case x :: xs => Some(permissions.map(x => if (x._1 == 3 && x._2 == GroupType.Public) { 2 } else { x._1 }).max)
+      case Nil => None
+    }
   }
 
   private def getGuestAccessLevel(datasetId: String)(implicit s: DBSession) = {
