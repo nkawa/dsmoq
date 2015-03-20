@@ -53,7 +53,7 @@ class GroupListPage {
 
         // init search form
         JQuery._("#search-button").on("click", function (_) {
-            load();
+            navigation.fulfill(Navigation.Navigate(Page.GroupList(1, condition.query)));
         });
 
 

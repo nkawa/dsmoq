@@ -20,7 +20,6 @@ import js.Lib;
 class DatasetListPage {
     public static function render(root: Html, onClose: Promise<Unit>, pageNum: PositiveInt, query: String, filters: Dynamic): Promise<Navigation<Page>> {
         var navigation = new PromiseBroker();
-
         var condition = {
             query: query,
             filters: filters,//new Array<{type: String, item: Dynamic}>(),
@@ -75,7 +74,7 @@ class DatasetListPage {
 
         // init search form
         JQuery._("#search-button").on("click", function (_) {
-            load();
+			navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, condition.query, condition.filters)));
         });
 		
         BootstrapPopover.initialize("#add-filter-button", {
