@@ -52,7 +52,8 @@ class ApiController extends ScalatraServlet
   // profile api
   // --------------------------------------------------------------------------
   get("/profile") {
-    AjaxResponse("OK", userFromHeader.getOrElse(currentUser))
+    val user = userFromHeader.getOrElse(currentUser)
+    AjaxResponse("OK", AccountService.getUserProfile(user));
   }
 
   put("/profile") {

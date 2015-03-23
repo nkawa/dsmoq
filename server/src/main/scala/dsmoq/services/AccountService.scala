@@ -420,6 +420,10 @@ object AccountService {
     MessageDigest.getInstance("SHA-256").digest(password.getBytes("UTF-8")).map("%02x".format(_)).mkString
   }
 
+  def getUserProfile(user: User) = {
+    ProfileData(user, isGoogleUser(user.id))
+  }
+
   private def isGoogleUser(id: String): Boolean = {
     persistence.GoogleUser.findByUserId(id) match {
       case Some(x) => true
