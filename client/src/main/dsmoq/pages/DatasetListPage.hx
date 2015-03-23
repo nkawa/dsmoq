@@ -65,7 +65,11 @@ class DatasetListPage {
 
         // observe binding
         JsViews.observe(condition, "filters", function (_, _) {
-            navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, condition.query, condition.filters)));
+			if (query == condition.query && filters == condition.filters) {
+				navigation.fulfill(Navigation.Reload);
+			} else {
+				navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, condition.query, condition.filters)));				
+			}
         });
         JsViews.observe(condition, "index", function (_, args) {
             var page = args.value + 1;
@@ -74,14 +78,28 @@ class DatasetListPage {
 
         // init search form
         JQuery._("#search-button").on("click", function (_) {
-			navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, condition.query, condition.filters)));
+			if (query == condition.query && filters == condition.filters) {
+				navigation.fulfill(Navigation.Reload);
+			} else {
+				navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, condition.query, condition.filters)));				
+			}
         });
+		
+		JQuery._("#search-form").on("submit", function (_) {
+			if (query == condition.query && filters == condition.filters) {
+				navigation.fulfill(Navigation.Reload);
+			} else {
+				navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, condition.query, condition.filters)));				
+			}
+			return false;
+		});
 		
         BootstrapPopover.initialize("#add-filter-button", {
             content: JQuery._("#filter-add-form").children(),
             placement: "bottom",
             html: true
         });
+		
         JQuery._("body").on("keydown", function (e) {
             var event: KeyboardEvent = cast e;
             if (event.keyCode == 27) { //esc

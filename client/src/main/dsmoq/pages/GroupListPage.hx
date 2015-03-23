@@ -53,10 +53,22 @@ class GroupListPage {
 
         // init search form
         JQuery._("#search-button").on("click", function (_) {
-            navigation.fulfill(Navigation.Navigate(Page.GroupList(1, condition.query)));
+			if (query == condition.query) {
+				navigation.fulfill(Navigation.Reload);
+			} else {
+				navigation.fulfill(Navigation.Navigate(Page.GroupList(1, condition.query)));			
+			}
         });
 
-
+		JQuery._("#search-form").on("submit", function (_) {
+			if (query == condition.query) {
+				navigation.fulfill(Navigation.Reload);
+			} else {
+				navigation.fulfill(Navigation.Navigate(Page.GroupList(1, condition.query)));			
+			}
+			return false;
+		});
+		
         load();
 
         return navigation.promise;
