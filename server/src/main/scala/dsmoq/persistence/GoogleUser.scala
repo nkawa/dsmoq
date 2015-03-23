@@ -50,6 +50,12 @@ object GoogleUser extends SQLSyntaxSupport[GoogleUser] {
       select.from(GoogleUser as gu).where.eq(gu.id, sqls.uuid(id))
     }.map(GoogleUser(gu.resultName)).single.apply()
   }
+
+  def findByUserId(id: String)(implicit session: DBSession = autoSession): Option[GoogleUser] = {
+    withSQL {
+      select.from(GoogleUser as gu).where.eq(gu.userId, sqls.uuid(id))
+    }.map(GoogleUser(gu.resultName)).single.apply()
+  }
           
   def findAll()(implicit session: DBSession = autoSession): List[GoogleUser] = {
     withSQL(select.from(GoogleUser as gu)).map(GoogleUser(gu.resultName)).list.apply()

@@ -79,6 +79,10 @@ object AccountService {
    */
   def changeUserEmail(id: String, email: Option[String]) = {
     try {
+      if (isGoogleUser((id))) {
+        throw  new InputValidationException(Map("email" -> "Google user can't change email address"))
+      }
+
       // Eメールアドレスのフォーマットチェックはしていない
       val email_ = email.getOrElse("").trim
 
@@ -140,6 +144,10 @@ object AccountService {
     try {
       DB localTx { implicit s =>
         // input validation
+        if (isGoogleUser(id)) {
+          throw new InputValidationException(Map("current_password" -> "Google user can't change password"))
+        }
+
         val errors = mutable.LinkedHashMap.empty[String, String]
         val pwd = getCurrentPassword(id, currentPassword)
         if (pwd.isEmpty) {
@@ -222,6 +230,17 @@ object AccountService {
 
         // input validation
         val errors = mutable.LinkedHashMap.empty[String, String]
+
+        if (isGoogleUser(id)) {
+          // Googleアカウントユーザーはアカウント名の変更禁止(importスクリプトでusersテーブルのname列を使用しているため)
+          persistence.User.find(id) match {
+            case Some(x) =>
+              if (x.name != name_) {
+                errors.put("name", "Google user can't change account name")
+              }
+            case None => throw new NotFoundException
+          }
+        }
 
         if (name_.isEmpty) {
           errors.put("name", "name is empty")
@@ -399,5 +418,12 @@ object AccountService {
   private def createPasswordHash(password: String) = {
     // TODO パスワードソルトを追加
     MessageDigest.getInstance("SHA-256").digest(password.getBytes("UTF-8")).map("%02x".format(_)).mkString
+  }
+
+  private def isGoogleUser(id: String): Boolean = {
+    persistence.GoogleUser.findByUserId(id) match {
+      case Some(x) => true
+      case None => false
+    }
   }
 }
