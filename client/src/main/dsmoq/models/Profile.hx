@@ -11,4 +11,5 @@ typedef Profile = {
     var mailAddress(default, never): String;
     var isGuest(default, never): Bool;
     var isDeleted(default, never): Bool;
+    var isGoogleUser(default, never): Bool;
 }

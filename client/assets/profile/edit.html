@@ -16,12 +16,12 @@
       {^{if ~isEmpty(basics.errors.name)}}
         <div class="form-group">
           <label>Account Name</label>
-          <div><input type="text" class="form-control" name="name" data-link="basics.name"></div>
+          <div><input type="text" class="form-control disable-form-target" name="name" data-link="basics.name"></div>
         </div>
       {{else}}
         <div class="form-group has-error has-feedback">
           <label>Account Name</label>
-          <div><input type="text" class="form-control" name="name" data-link="basics.name"></div>
+          <div><input type="text" class="form-control disable-form-target" name="name" data-link="basics.name"></div>
           <span class="glyphicon glyphicon-remove form-control-feedback"></span>
         </div>
         <p class="text-danger" data-link="basics.errors.name"></p>
@@ -113,19 +113,19 @@
       {^{if ~isEmpty(email.errors.email)}}
         <div class="form-group">
           <label>Mail Address</label>
-          <div><input type="email" class="form-control" name="email" data-link="email.email"></div>
+          <div><input type="email" class="form-control disable-form-target" name="email" data-link="email.email"></div>
         </div>
       {{else}}
         <div class="form-group has-error has-feedback">
           <label>Mail Address</label>
-          <div><input type="email" class="form-control" name="email" data-link="email.email"></div>
+          <div><input type="email" class="form-control disable-form-target" name="email" data-link="email.email"></div>
           <span class="glyphicon glyphicon-remove form-control-feedback"></span>
         </div>
         <p class="text-danger" data-link="email.errors.email"></p>
       {{/if}}
     </form>
     <div>
-      <a class="btn btn-primary" data-loading="Saving..." id="email-form-submit">Save</a>
+      <a class="btn btn-primary disable-form-target" data-loading="Saving..." id="email-form-submit">Save</a>
     </div>
   </section>
 
@@ -135,12 +135,12 @@
       {^{if ~isEmpty(password.errors.currentValue)}}
         <div class="form-group">
           <label>Current Password</label>
-          <div><input type="password" class="form-control" data-link="password.currentValue"></div>
+          <div><input type="password" class="form-control disable-form-target" data-link="password.currentValue"></div>
         </div>
       {{else}}
         <div class="form-group has-error has-feedback">
           <label>Current Password</label>
-          <div><input type="password" class="form-control" data-link="password.currentValue"></div>
+          <div><input type="password" class="form-control disable-form-target" data-link="password.currentValue"></div>
           <span class="glyphicon glyphicon-remove form-control-feedback"></span>
         </div>
         <p class="text-danger" data-link="password.errors.currentValue"></p>
@@ -149,12 +149,12 @@
       {^{if ~isEmpty(password.errors.newValue)}}
         <div class="form-group">
           <label class="control-label">New Password</label>
-          <div><input type="password" class="form-control" data-link="password.newValue"></div>
+          <div><input type="password" class="form-control disable-form-target" data-link="password.newValue"></div>
         </div>
       {{else}}
         <div class="form-group has-error has-feedback">
           <label>New Password</label>
-          <div><input type="password" class="form-control" data-link="password.newValue"></div>
+          <div><input type="password" class="form-control disable-form-target" data-link="password.newValue"></div>
           <span class="glyphicon glyphicon-remove form-control-feedback"></span>
         </div>
         <p class="text-danger" data-link="password.errors.newValue"></p>
@@ -163,19 +163,19 @@
       {^{if ~isEmpty(password.errors.verifyValue)}}
         <div class="form-group">
           <label>Verify Password</label>
-          <div><input type="password" class="form-control" data-link="password.verifyValue"></div>
+          <div><input type="password" class="form-control disable-form-target" data-link="password.verifyValue"></div>
         </div>
       {{else}}
         <div class="form-group has-error has-feedback">
           <label>Verify Password</label>
-          <div><input type="password" class="form-control" data-link="password.verifyValue"></div>
+          <div><input type="password" class="form-control disable-form-target" data-link="password.verifyValue"></div>
           <span class="glyphicon glyphicon-remove form-control-feedback"></span>
         </div>
         <p class="text-danger" data-link="password.errors.verifyValue"></p>
       {{/if}}
 
       <div>
-        <a class="btn btn-primary" id="password-form-submit">Change</a>
+        <a class="btn btn-primary disable-form-target" id="password-form-submit">Change</a>
       </div>
     </form>
   </section>
