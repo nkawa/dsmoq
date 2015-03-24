@@ -461,9 +461,10 @@
 						padding: 0,
 						children: [ {
 							type: 'hbox',
-							widths: [ '280px', '110px' ],
+							widths: ['280px', '5px', '100px'],
 							align: 'right',
-							children: [ {
+							children: [
+							{
 								id: 'txtUrl',
 								type: 'text',
 								className: "url-text",
@@ -540,55 +541,56 @@
 								label: editor.lang.common.browseServer,
 								hidden: true,
 								filebrowser: 'info:txtUrl'
-							} ]
+							},
+							{
+								type: 'button',
+								id: 'buttonId',
+								label: 'Select Image',
+								style: 'margin-top:13px',
+								onClick: function() {
+									editor.fire("on-click-dialog-button");
+									var that = this;
+									editor.on("on-close-dialog", function(evt) {
+										var dialog = that.getDialog();
+										var newUrl = evt.data.url;
+
+										// Update original image.
+										// Prevent from load before onShow.
+										if ( newUrl.length > 0 ) {
+											dialog = that.getDialog();
+											var original = dialog.originalElement;
+
+											if ( dialog.preview ) {
+												dialog.preview.removeStyle( 'display' );
+											}
+
+											original.setCustomData( 'isReady', 'false' );
+											// Show loader.
+											var loader = CKEDITOR.document.getById( imagePreviewLoaderId );
+											if ( loader )
+												loader.setStyle( 'display', '' );
+
+											original.on( 'load', onImgLoadEvent, dialog );
+											original.on( 'error', onImgLoadErrorEvent, dialog );
+											original.on( 'abort', onImgLoadErrorEvent, dialog );
+											original.setAttribute( 'src', newUrl );
+
+											if ( dialog.preview ) {
+												// Query the preloader to figure out the url impacted by based href.
+												previewPreloader.setAttribute( 'src', newUrl );
+												dialog.preview.setAttribute( 'src', previewPreloader.$.src );
+												updatePreview( dialog );
+											}
+										}
+										// Dont show preview if no URL given.
+										else if ( dialog.preview ) {
+											dialog.preview.removeAttribute( 'src' );
+											dialog.preview.setStyle( 'display', 'none' );
+										}
+									});
+								}
+							}]
 						} ]
-					},
-					{
-						type: 'button',
-						id: 'buttonId',
-						label: 'Select Image',
-						onClick: function() {
-							editor.fire("on-click-dialog-button");
-							var that = this;
-							editor.on("on-close-dialog", function(evt) {
-								var dialog = that.getDialog();
-								var newUrl = evt.data.url;
-
-								// Update original image.
-								// Prevent from load before onShow.
-								if ( newUrl.length > 0 ) {
-									dialog = that.getDialog();
-									var original = dialog.originalElement;
-
-									if ( dialog.preview ) {
-										dialog.preview.removeStyle( 'display' );
-									}
-
-									original.setCustomData( 'isReady', 'false' );
-									// Show loader.
-									var loader = CKEDITOR.document.getById( imagePreviewLoaderId );
-									if ( loader )
-										loader.setStyle( 'display', '' );
-
-									original.on( 'load', onImgLoadEvent, dialog );
-									original.on( 'error', onImgLoadErrorEvent, dialog );
-									original.on( 'abort', onImgLoadErrorEvent, dialog );
-									original.setAttribute( 'src', newUrl );
-
-									if ( dialog.preview ) {
-										// Query the preloader to figure out the url impacted by based href.
-										previewPreloader.setAttribute( 'src', newUrl );
-										dialog.preview.setAttribute( 'src', previewPreloader.$.src );
-										updatePreview( dialog );
-									}
-								}
-								// Dont show preview if no URL given.
-								else if ( dialog.preview ) {
-									dialog.preview.removeAttribute( 'src' );
-									dialog.preview.setStyle( 'display', 'none' );
-								}
-							});
-						}
 					},
 					{
 						type: 'hbox',
