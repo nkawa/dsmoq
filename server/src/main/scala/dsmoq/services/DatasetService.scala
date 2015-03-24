@@ -1098,6 +1098,12 @@ object DatasetService {
             errors.put("license", "license is invalid")
           }
         }
+
+        // featured attributeは一つでなければならない
+        if (attributes_.filter(_._1 == "featured").length >= 2) {
+          errors.put("attribute", "featured attribute must be unique")
+        }
+
         if (errors.size != 0) {
           throw new InputValidationException(errors)
         }
