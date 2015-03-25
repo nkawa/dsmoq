@@ -55,6 +55,11 @@ class ProfilePage {
 
             var binding = JsViews.observable(data);
             View.getTemplate("profile/edit").link(root, data);
+            
+            var isGoogleUser = Service.instance.profile.isGoogleUser;            
+            if (isGoogleUser) {
+                root.find(".disable-form-target").attr("disabled", true);
+            }
 
             Service.instance.then(function (e) {
                 switch (e) {
@@ -104,6 +109,9 @@ class ProfilePage {
                     function () {
                         BootstrapButton.reset(root.find("#basics-form-submit"));
                         root.find("#basics-form input, #basics-form textarea").removeAttr("disabled");
+                        if (isGoogleUser) {
+                            root.find(".disable-form-target").attr("disabled", true);
+                        }
                     });
                 root.find("#basics-form input, #basics-form textarea").attr("disabled", true);
             });
@@ -143,6 +151,9 @@ class ProfilePage {
                         Notification.show("error", "error happened");
                     }, function () {
                         BootstrapButton.reset(root.find("#email-form-submit"));
+                        if (isGoogleUser) {
+                            root.find(".disable-form-target").attr("disabled", true);
+                        }
                     }
                 );
             });
@@ -183,6 +194,9 @@ class ProfilePage {
                     },
                     function () {
                         BootstrapButton.reset(root.find("#password-form-submit"));
+                        if (isGoogleUser) {
+                            root.find(".disable-form-target").attr("disabled", true);
+                        }
                     });
             });
         }
