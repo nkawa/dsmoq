@@ -2534,7 +2534,7 @@ object DatasetService {
           select(g.id, o.accessLevel, g.name, gi.imageId, g.description, sqls"null as fullname, '2' as type, null as organization, null as title, false as own")
             .from(persistence.Ownership as o)
             .innerJoin(persistence.Group as g).on(sqls.eq(o.groupId, g.id).and.eq(g.groupType, GroupType.Public))
-            .innerJoin(persistence.GroupImage as gi).on(gi.groupId, g.id)
+            .innerJoin(persistence.GroupImage as gi).on(sqls.eq(gi.groupId, g.id).and.eq(gi.isPrimary, true).and.isNull(gi.deletedBy))
             .where
               .eq(o.datasetId, sqls.uuid(datasetId))
               .and
