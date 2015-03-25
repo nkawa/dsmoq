@@ -82,7 +82,7 @@ class ApiController extends ScalatraServlet
         fullname = user.fullname,
         organization = user.organization,
         title = user.title,
-        image = dsmoq.AppConf.imageDownloadRoot + imageId,
+        image = dsmoq.AppConf.imageDownloadRoot + "user/" + user.id + "/" + imageId,
         mailAddress = user.mailAddress,
         description = user.description,
         isGuest = user.isGuest,

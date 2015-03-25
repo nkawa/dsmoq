@@ -5,7 +5,6 @@ import java.nio.charset.Charset
 import java.nio.file.{Files, Path, Paths}
 import java.util.zip.{ZipFile, ZipInputStream}
 
-import dsmoq.services.json
 import dsmoq.services.json.DatasetData.{DatasetOwnership, DatasetZipedFile, CopiedDataset, DatasetTask}
 import org.json4s._
 import org.json4s.JsonDSL._
@@ -37,6 +36,8 @@ object DatasetService {
 
   private val MoveToS3 = 0
   private val MoveToLocal = 1
+
+  private val datasetImageDownloadRoot = AppConf.imageDownloadRoot + "datasets/"
 
   /**
    * データセットを新規作成します。
@@ -164,7 +165,7 @@ object DatasetService {
           )),
           images = Seq(Image(
             id = AppConf.defaultDatasetImageId,
-            url = AppConf.imageDownloadRoot + AppConf.defaultDatasetImageId
+            url = datasetImageDownloadRoot + datasetId + "/" + AppConf.defaultDatasetImageId
           )),
           primaryImage =  AppConf.defaultDatasetImageId,
           featuredImage = AppConf.defaultDatasetImageId,
@@ -175,7 +176,7 @@ object DatasetService {
             organization = myself.organization,
             title = myself.title,
             description = myself.description,
-            image = AppConf.imageDownloadRoot + myself.imageId,
+            image = AppConf.imageDownloadRoot + "user/" + myself.id + "/" + myself.imageId,
             accessLevel = ownership.accessLevel,
             ownerType = OwnerType.User
           )),
@@ -421,7 +422,7 @@ object DatasetService {
     datasets.map(x => {
       val ds = x._1
       val permission = x._2
-      val imageUrl = imageIdMap.get(ds.id).map(x => AppConf.imageDownloadRoot + x).getOrElse("")
+      val imageUrl = imageIdMap.get(ds.id).map(x => datasetImageDownloadRoot + ds.id + "/" + x).getOrElse("")
       val accessLevel = guestAccessLevelMap.get(ds.id).getOrElse(DefaultAccessLevel.Deny)
       DatasetData.DatasetsSummary(
         id = ds.id,
@@ -1295,7 +1296,7 @@ object DatasetService {
         Success(DatasetData.DatasetAddImages(
           images = images.map(x => Image(
             id = x.id,
-            url = AppConf.imageDownloadRoot + x.id
+            url = datasetImageDownloadRoot + datasetId + "/" + x.id
           )),
           primaryImage = getPrimaryImageId(datasetId).getOrElse("")
         ))
@@ -1492,7 +1493,7 @@ object DatasetService {
                 organization = user.organization,
                 title = user.title,
                 description = user.description,
-                image = AppConf.imageDownloadRoot + user_.imageId,
+                image = AppConf.imageDownloadRoot + "user/" + user_.id + "/" + user_.imageId,
                 accessLevel = x.accessLevel,
                 ownerType = OwnerType.User
               )
@@ -1859,9 +1860,11 @@ object DatasetService {
           .and
           .inUuid(o.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
     }.map(rs => (rs.int(o.resultName.accessLevel), rs.int(g.resultName.groupType))).list().apply
+    // 上記のSQLではゲストユーザーは取得できないため、別途取得する必要がある
+    val guestPermission = (getGuestAccessLevel(id), GroupType.Personal)
     // Provider権限のGroupはWriteできない
-    permissions match {
-      case x :: xs => Some(permissions.map(x => if (x._1 == 3 && x._2 == GroupType.Public) { 2 } else { x._1 }).max)
+    (guestPermission :: permissions) match {
+      case x :: xs => Some((guestPermission :: permissions).map(x => if (x._1 == 3 && x._2 == GroupType.Public) { 2 } else { x._1 }).max)
       case Nil => None
     }
   }
@@ -1929,7 +1932,10 @@ object DatasetService {
             organization = rs.stringOpt(u.resultName.organization).getOrElse(""),
             title = rs.stringOpt(u.resultName.title).getOrElse(""),
             description = rs.stringOpt(u.resultName.description).getOrElse(""),
-            image = AppConf.imageDownloadRoot + rs.stringOpt(u.resultName.imageId).getOrElse(rs.string(gi.resultName.imageId)),
+            image = AppConf.imageDownloadRoot +
+              (if (rs.stringOpt(u.resultName.id).isEmpty) { "groups/" } else { "user/" }) +
+              rs.stringOpt(u.resultName.id).getOrElse(rs.string(g.resultName.id)) + "/" +
+              rs.stringOpt(u.resultName.imageId).getOrElse(rs.string(gi.resultName.imageId)),
             accessLevel = rs.int(o.resultName.accessLevel),
             ownerType = rs.stringOpt(u.resultName.id) match {
               case Some(x) => OwnerType.User
@@ -2004,7 +2010,10 @@ object DatasetService {
         organization = rs.stringOpt(u.resultName.organization).getOrElse(""),
         title = rs.stringOpt(u.resultName.title).getOrElse(""),
         description = rs.stringOpt(u.resultName.description).getOrElse(""),
-        image = AppConf.imageDownloadRoot +  rs.stringOpt(u.resultName.imageId).getOrElse(rs.string(gi.resultName.imageId)),
+        image = AppConf.imageDownloadRoot +
+          (if (rs.stringOpt(u.resultName.id).isEmpty) { "groups/" } else { "user/" }) +
+          rs.stringOpt(u.resultName.id).getOrElse(rs.string(g.resultName.id)) + "/" +
+          rs.stringOpt(u.resultName.imageId).getOrElse(rs.string(gi.resultName.imageId)),
         accessLevel = rs.int(o.resultName.accessLevel),
         ownerType = rs.stringOpt(u.resultName.id) match {
           case Some(x) => OwnerType.User
@@ -2070,7 +2079,7 @@ object DatasetService {
       ).list.apply.map(x =>
         Image(
           id = x._2.id,
-          url = AppConf.imageDownloadRoot + x._2.id
+          url = datasetImageDownloadRoot + datasetId + "/" + x._2.id
         )
       )
   }
@@ -2567,7 +2576,9 @@ object DatasetService {
             id = o._1,
             name = o._3,
             fullname = o._6,
-            image = AppConf.imageDownloadRoot + o._4,
+            image = AppConf.imageDownloadRoot +
+              (if (o._7 == 1) { "user/" } else { "groups/" }) +
+              o._1 + "/" + o._4,
             accessLevel = o._2,
             ownerType = o._7,
             description = o._5,
@@ -2625,7 +2636,7 @@ object DatasetService {
           DatasetData.DatasetGetImage(
             id = x._1,
             name = x._2,
-            url = AppConf.imageDownloadRoot + x._1,
+            url = datasetImageDownloadRoot + datasetId + "/" + x._1,
             isPrimary = x._3
           )
         }

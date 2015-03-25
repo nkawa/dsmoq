@@ -11,6 +11,9 @@ import scala.util.{Failure, Success, Try}
 import PostgresqlHelper._
 
 object SystemService {
+  private val userImageDownloadRoot = AppConf.imageDownloadRoot + "user/"
+  private val groupImageDownloadRoot = AppConf.imageDownloadRoot + "groups/"
+
   def writeDatasetAccessLog(datasetId: String, user: User): Try[Unit] = {
     try {
       DB localTx { implicit s =>
@@ -80,7 +83,7 @@ object SystemService {
             organization = x.organization,
             title = x.title,
             description = x.description,
-            image = AppConf.imageDownloadRoot + x.imageId
+            image = userImageDownloadRoot + x.id + "/" + x.imageId
           )
       }
     }
@@ -118,7 +121,7 @@ object SystemService {
         SuggestData.Group(
           id = x._1.id,
           name = x._1.name,
-          image = AppConf.imageDownloadRoot + x._2.imageId
+          image = groupImageDownloadRoot + x._1.id + "/" + x._2.imageId
         )
       }
     }
@@ -189,13 +192,13 @@ object SystemService {
             name = x._2,
             fullname = x._4,
             organization = x._5,
-            image = AppConf.imageDownloadRoot + x._3
+            image = userImageDownloadRoot + x._1 + "/" + x._3
           )
         } else if (x._6 == SuggestType.Group){
           SuggestData.GroupWithType(
             id = x._1,
             name = x._2,
-            image = AppConf.imageDownloadRoot + x._3
+            image = groupImageDownloadRoot + x._1 + "/" + x._3
           )
         }
       }

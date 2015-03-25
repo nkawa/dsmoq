@@ -7,7 +7,7 @@ import dsmoq.logic.{ImageSaveLogic, StringUtil}
 import dsmoq.persistence._
 import dsmoq.services.json.Image
 import dsmoq.services.json.{Image, RangeSlice, RangeSliceSummary, _}
-import dsmoq.{persistence, AppConf}
+import dsmoq.{AppConf, persistence}
 import org.joda.time.DateTime
 import org.scalatra.servlet.FileItem
 import scalikejdbc._
@@ -17,6 +17,8 @@ import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
 object GroupService {
+  private val groupImageDownloadRoot = AppConf.imageDownloadRoot + "groups/"
+
   /**
    * グループを検索します。
    * @param query
@@ -52,7 +54,7 @@ object GroupService {
               name = x.name,
               description = x.description,
               image = groupImages.get(x.id) match {
-                case Some(x) => AppConf.imageDownloadRoot + x
+                case Some(image) => groupImageDownloadRoot + x.id + "/" + image
                 case None => ""
               },
               members = membersCount.get(x.id).getOrElse(0),
@@ -133,7 +135,7 @@ object GroupService {
           description = group.description,
           images = images.map(x => Image(
             id = x.id,
-            url = AppConf.imageDownloadRoot + x.id
+            url = groupImageDownloadRoot + group.id + "/" + x.id
           )),
           primaryImage = primaryImage.getOrElse(""),
           isMember = groupRole match {
@@ -172,7 +174,7 @@ object GroupService {
               organization = x._1.organization,
               description = x._1.description,
               title = x._1.title,
-              image = AppConf.imageDownloadRoot + x._1.imageId,
+              image = AppConf.imageDownloadRoot + "user/" + x._1.id + "/" + x._1.imageId,
               role = x._2
             )
           }
@@ -254,7 +256,7 @@ object GroupService {
           description = group.description,
           images = Seq(Image(
             id = AppConf.defaultGroupImageId,
-            url = AppConf.imageDownloadRoot + AppConf.defaultGroupImageId
+            url = groupImageDownloadRoot + groupId + "/" + AppConf.defaultGroupImageId
           )),
           primaryImage = AppConf.defaultGroupImageId,
           isMember = true,
@@ -324,7 +326,7 @@ object GroupService {
           description = description,
           images = images.map(x => Image(
             id = x.id,
-            url = AppConf.imageDownloadRoot + x.id
+            url = groupImageDownloadRoot + group.id + "/" + x.id
           )),
           primaryImage = primaryImage.getOrElse(""),
           isMember = true,
@@ -399,7 +401,7 @@ object GroupService {
         })
 
         Success(GroupData.GroupAddImages(
-          images = addedImages.map(x => Image(id = x.id, url = AppConf.imageDownloadRoot + x.id)),
+          images = addedImages.map(x => Image(id = x.id, url = groupImageDownloadRoot + groupId + "/" + x.id)),
           primaryImage = getPrimaryImageId(groupId).getOrElse("")
         ))
       }
@@ -1065,7 +1067,7 @@ object GroupService {
           GroupData.GroupGetImage(
             id = x._1,
             name = x._2,
-            url = AppConf.imageDownloadRoot + x._1,
+            url = groupImageDownloadRoot + groupId + "/" + x._1,
             isPrimary = x._3
           )
         }

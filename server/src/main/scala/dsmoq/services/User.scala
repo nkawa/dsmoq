@@ -20,7 +20,7 @@ object User {
     fullname = x.fullname,
     organization = x.organization,
     title = x.title,
-    image = dsmoq.AppConf.imageDownloadRoot + x.imageId,
+    image = dsmoq.AppConf.imageDownloadRoot + "user/" + x.id + "/" + x.imageId,
     mailAddress = address,
     description = x.description,
     isGuest = false,

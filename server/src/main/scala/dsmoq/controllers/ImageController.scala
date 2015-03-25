@@ -2,32 +2,64 @@ package dsmoq.controllers
 
 import org.scalatra.{NotFound, ScalatraServlet}
 import dsmoq.services.ImageService
-import scala.util.{Success, Failure}
+import scala.util.{Try, Success, Failure}
+import dsmoq.exceptions._
 
-class ImageController extends ScalatraServlet with SessionTrait {
+class ImageController extends ScalatraServlet with SessionTrait with UserTrait {
   before("/*") {
     // TODO session control
   }
 
-  get("/:imageId") {
+  get("/user/:userId/:imageId") {
     val imageId = params("imageId")
-    getImage(imageId, None)
+    val userId = params("userId")
+    getImage(ImageService.getUserFile(userId, imageId, None))
   }
 
-  get("/:imageId/:size") {
+  get("/user/:userId/:imageId/:size") {
     val imageId = params("imageId")
+    val userId = params("userId")
     val size = params.get("size")
-    getImage(imageId, size)
+    getImage(ImageService.getUserFile(userId, imageId, size))
   }
 
-  private def getImage(imageId: String, size: Option[String]) = {
-    ImageService.getFile(imageId, size) match {
+  get("/datasets/:datasetId/:imageId") {
+    val imageId = params("imageId")
+    val datasetId = params("datasetId")
+    getImage(ImageService.getDatasetFile(datasetId, imageId, None, currentUser))
+  }
+
+  get("/datasets/:datasetId/:imageId/:size") {
+    val imageId = params("imageId")
+    val datasetId = params("datasetId")
+    val size = params.get("size")
+    getImage(ImageService.getDatasetFile(datasetId, imageId, size, currentUser))
+  }
+
+  get("/groups/:groupId/:imageId") {
+    val imageId = params("imageId")
+    val groupId = params("groupId")
+    getImage(ImageService.getGroupFile(groupId, imageId, None))
+  }
+
+  get("/groups/:groupId/:imageId/:size") {
+    val imageId = params("imageId")
+    val groupId = params("groupId")
+    val size = params.get("size")
+    getImage(ImageService.getGroupFile(groupId, imageId, size))
+  }
+
+  private def getImage(result: Try[(java.io.File, String)]) = {
+    result match {
       case Success(x) =>
         response.setHeader("Content-Disposition", "inline; filename=" + x._2)
         response.setHeader("Content-Type", "application/octet-stream;charset=binary")
         x._1
-      case Failure(e) =>
-        NotFound("file not found.")
+      case Failure(exp) => exp match {
+        case e: InputValidationException => halt(status = 403, reason = "imageId is not related to target", body="imageId is not related to target")
+        case e: NotAuthorizedException => halt(status = 403, reason = "Forbidden", body="Forbidden")
+        case e: RuntimeException => NotFound(e.getMessage)
+      }
     }
   }
 }
