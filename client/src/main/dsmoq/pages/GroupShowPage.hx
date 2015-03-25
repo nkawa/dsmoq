@@ -65,7 +65,7 @@ class GroupShowPage {
 
                 JsViews.observe(datasets, "index", function (_, _) {
                     var i = datasets.index;
-                    Service.instance.findDatasets({groups: [id], offset: 20 * i}).then(function (x) {
+                    Service.instance.findDatasets({groups: [res.name], offset: 20 * i}).then(function (x) {
                         var b = JsViews.observable(datasets);
                         b.setProperty("index", i);
                         b.setProperty("total", x.summary.total);

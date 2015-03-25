@@ -30,7 +30,12 @@
       </div>
     </div>
   </div>
-
+	
+<div class="row">
+	<div class="col-md-12 caption">
+		<p><h3>Members</h3></p>
+	</div>
+</div>
   {^{async members}}
     <div class="panel panel-default panel-with-pagination">
       <div class="panel-heading">
@@ -54,50 +59,44 @@
       </table>
     </div>
   {{/async}}
-
+<div class="row">
+	<div class="col-md-12 caption">
+		<p><h3>Datasets</h3></p>
+	</div>
+</div>
   {^{async datasets}}
-    <div class="panel panel-default panel-with-pagination">
-      <div class="panel-heading">
-        <div class="row">
-          <div class="col-sm-6">Datasets: {^{>total}} records</div>
-          <div class="col-sm-6 text-right">
-            {^{pagination index pages id="group-datasets-pagination" class="pagination-sm" pagedelta=5 /}}
-          </div>
-        </div>
-      </div>
-		<div class="panel-body">
-		  {^{if items.length > 0}}
-			<ul class="media-list dataset-list">
-			  {^{for items}}
-				<li class="media">
-				  <div class="pull-left" style="width: 96px; text-align: center;">
-					<a class="media-left" href="#"><img src="{{>image+'/96'}}" alt="{{>name}}" /></a>
-				  </div>
-				  <div class="media-body">
-					<h4 class="media-heading"><a href="/datasets/{{>id}}" data-navigation>{{>name}}</a></h4>
-					<p class="group-description">{{if ~trimTags(description)}}{{: ~trimTags(description)}}{{else}}<span class="text-muted">(No description)</span>{{/if}}</p>
-					<div>
-					  {{for ownerships ~length=ownerships.length}}
-						<span class="label label-success">
-						  <span class="glyphicon glyphicon-user"></span>
-						  {{if ownerType == 1}} {{>fullname}} {{else}} {{>name}} {{/if}}
-						</span>&nbsp;
-					  {{/for}}
-					</div>
-					<div>
-					  <span class="label label-default">{{>files}} files ({{datasize dataSize /}})</span>&nbsp;
-					  {{for attributes}}
-						<span class="label label-info"><span class="glyphicon glyphicon-tag"></span> {{>name}}{{if value}} : {{>value}}{{/if}}</span>
-					  {{/for}}
-					</div>
-				  </div>
-				</li>
-			  {{/for}}
-			</ul>
-		  {{else}}
-			 <p>There are no datasets.</p>
-		  {{/if}}
-		</div>
-    </div>
+	  {^{if total > 0}}
+		<p><strong>Found {^{>total}} records</strong></p>
+		<ul class="media-list dataset-list">
+		  {^{for items}}
+			<li class="media">
+			  <div class="pull-left" style="width: 96px; text-align: center;">
+				<a class="media-left" href="#"><img src="{{>image+'/96'}}" alt="{{>name}}" /></a>
+			  </div>
+			  <div class="media-body">
+				<h4 class="media-heading"><a href="/datasets/{{>id}}" data-navigation>{{>name}}</a></h4>
+				<p>{{if ~trimTags(description)}}{{:~trimTags(description)}}{{else}}<span class="text-muted">(No description)</span>{{/if}}</p>
+				<div>
+				  {{for ownerships ~length=ownerships.length}}
+					<span class="label label-success">
+					  <span class="glyphicon glyphicon-user"></span>
+					  {{if ownerType == 1}} {{>fullname}} {{else}} {{>name}} {{/if}}
+					</span>&nbsp;
+				  {{/for}}
+				</div>
+				<div>
+				  <span class="label label-default">{{>files}} files ({{datasize dataSize /}})</span>&nbsp;
+				  {{for attributes}}
+					<span class="label label-info"><span class="glyphicon glyphicon-tag"></span> {{>name}}{{if value}} : {{>value}}{{/if}}</span>
+				  {{/for}}
+				</div>
+			  </div>
+			</li>
+		  {{/for}}
+		</ul>
+		{^{pagination index pages id="group-datasets-pagination" class="pagination-sm" pagedelta=5 /}}
+	  {{else}}
+		 <p>There are no datasets.</p>
+	  {{/if}}
   {{/async}}
 {{/async}}
