@@ -8,6 +8,7 @@ object PostgresqlHelper {
     def notInUuid(column: SQLSyntax, values: Seq[String]): ConditionSQLBuilder[A] = self.append(sqls.notInUuid(column, values))
     def eqUuid(column: SQLSyntax, value: String): ConditionSQLBuilder[A] = self.append(sqls.eqUuid(column, value))
     def lowerEq(column: SQLSyntax, value: String): ConditionSQLBuilder[A] = self.append(sqls.lowerEq(column, value))
+    def likeQuery(column: SQLSyntax, value: String):ConditionSQLBuilder[A] = self.append(sqls.likeQuery(column, value))
   }
 
   implicit class PgSQLSyntax(val self: SQLSyntax) extends  AnyVal {
@@ -43,6 +44,8 @@ object PostgresqlHelper {
     }
 
     def lowerEq(column: SQLSyntax, value: String) = sqls"LOWER(${column}) = LOWER(${value})"
+
+    def likeQuery(column: SQLSyntax, value: String): SQLSyntax = sqls"${column} like LIKEQUERY(${value})"
   }
 
 }

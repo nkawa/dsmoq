@@ -539,7 +539,7 @@ object DatasetService {
         .map { sql =>
           query match {
             case Some(x) =>
-              sql.and.like(ds.name, "%" + x + "%")
+              sql.and.withRoundBracket((query => query.likeQuery(ds.name, x).or.likeQuery(ds.description, x)))
             case None =>
               sql
           }
