@@ -130,7 +130,7 @@ object SystemService {
   def getUsersAndGroups(param: Option[String], limit: Option[Int], offset: Option[Int], excludeIds: Seq[String]) = {
     val query = param match {
       case Some(x) => x + "%"
-      case None => ""
+      case None => "%"
     }
 
     DB readOnly { implicit s =>
@@ -144,16 +144,11 @@ object SystemService {
           .where
             .notIn(u.id, excludeIds.map(sqls.uuid))
             .and
-            .withRoundBracket(
-              _.map(q => q.append(
-                  if (!query.isEmpty) {
-                    sqls.like(u.name, query)
-                      .or
-                      .like(u.fullname, query)
-                  } else {
-                    sqls.isNull(u.deletedAt)
-                  }
-              )))
+            .append(sqls"(")
+              .like(u.name, query)
+              .or
+              .like(u.fullname, query)
+            .append(sqls")")
             .and
             .isNull(u.deletedAt)
           .union(
@@ -164,17 +159,11 @@ object SystemService {
               .where
               .notIn(g.id, excludeIds.map(sqls.uuid))
               .and
-              .append(if (!query.isEmpty){
-                sqls.like(g.name, query)
-                .and
-                .eq(g.groupType, GroupType.Public)
-                .and
-                .isNull(g.deletedAt)
-              } else {
-                sqls.eq(g.groupType, GroupType.Public)
-                .and
-                .isNull(g.deletedAt)
-            })
+              .like(g.name, query)
+              .and
+              .eq(g.groupType, GroupType.Public)
+              .and
+              .isNull(g.deletedAt)
           )
           .orderBy(sqls"name")
           .offset(offset.getOrElse(0))
