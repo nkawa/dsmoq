@@ -48,7 +48,7 @@ class GroupListPage {
         // observe binding
         JsViews.observe(condition, "index", function (_, args) {
             var page = args.value + 1;
-            navigation.fulfill(Navigation.Navigate(Page.GroupList(page, condition.query)));
+            navigation.fulfill(Navigation.Navigate(Page.GroupList(page, StringTools.urlEncode(condition.query))));
         });
 
         // init search form
@@ -56,7 +56,7 @@ class GroupListPage {
 			if (query == condition.query) {
 				navigation.fulfill(Navigation.Reload);
 			} else {
-				navigation.fulfill(Navigation.Navigate(Page.GroupList(1, condition.query)));			
+				navigation.fulfill(Navigation.Navigate(Page.GroupList(1, StringTools.urlEncode(condition.query))));			
 			}
         });
 
@@ -64,7 +64,7 @@ class GroupListPage {
 			if (query == condition.query) {
 				navigation.fulfill(Navigation.Reload);
 			} else {
-				navigation.fulfill(Navigation.Navigate(Page.GroupList(1, condition.query)));			
+				navigation.fulfill(Navigation.Navigate(Page.GroupList(1, StringTools.urlEncode(condition.query))));			
 			}
 			return false;
 		});

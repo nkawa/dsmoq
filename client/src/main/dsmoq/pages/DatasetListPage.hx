@@ -68,12 +68,12 @@ class DatasetListPage {
 			if (query == condition.query && filters == condition.filters) {
 				navigation.fulfill(Navigation.Reload);
 			} else {
-				navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, condition.query, condition.filters)));				
+				navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, StringTools.urlEncode(condition.query), condition.filters)));				
 			}
         });
         JsViews.observe(condition, "index", function (_, args) {
             var page = args.value + 1;
-            navigation.fulfill(Navigation.Navigate(Page.DatasetList(page, condition.query, condition.filters)));
+            navigation.fulfill(Navigation.Navigate(Page.DatasetList(page, StringTools.urlEncode(condition.query), condition.filters)));
         });
 
         // init search form
@@ -81,7 +81,7 @@ class DatasetListPage {
 			if (query == condition.query && filters == condition.filters) {
 				navigation.fulfill(Navigation.Reload);
 			} else {
-				navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, condition.query, condition.filters)));				
+				navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, StringTools.urlEncode(condition.query), condition.filters)));				
 			}
         });
 		
@@ -89,7 +89,7 @@ class DatasetListPage {
 			if (query == condition.query && filters == condition.filters) {
 				navigation.fulfill(Navigation.Reload);
 			} else {
-				navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, condition.query, condition.filters)));				
+				navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, StringTools.urlEncode(condition.query), condition.filters)));				
 			}
 			return false;
 		});
