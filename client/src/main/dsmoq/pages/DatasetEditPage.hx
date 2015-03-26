@@ -557,7 +557,7 @@ class DatasetEditPage {
 								).then(function (x) {
 									loadOwnerships();
                                     ViewTools.hideLoading("body");
-                                    Notification.show("success", "save successful");
+                                    Notification.show("success", "remove successful");
                                 }, function (err) {
                                     ViewTools.hideLoading("body");
 									switch (err.name) {
@@ -853,7 +853,7 @@ class DatasetEditPage {
 				b.refresh([]);
 				Service.instance.removeDatasetImage(id, selected).then(
 				    function (ids) {
-                        Notification.show("success", "save successful");
+                        Notification.show("success", "delete successful");
 						searchImageCandidate();
 						binding.refresh([]);
 						rootBinding.setProperty("dataset.primaryImage.id", ids.primaryImage);

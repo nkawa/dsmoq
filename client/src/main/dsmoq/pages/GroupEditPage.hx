@@ -219,7 +219,7 @@ class GroupEditPage {
                                 .then(function (x) {
                                     loadGroupMember();
                                     ViewTools.hideLoading("body");
-                                    Notification.show("success", "save successful");
+                                    Notification.show("success", "remove successful");
                                 }, function (err) {
                                     ViewTools.hideLoading("body");
 									switch (err.name) {	
@@ -452,7 +452,7 @@ class GroupEditPage {
 				b.refresh([]);
 				Service.instance.removeGroupImage(id, selected).then(
 				    function (ids) {
-                        Notification.show("success", "save successful");
+                        Notification.show("success", "delete successful");
 						searchImageCandidate();
 						binding.refresh([]);
 						rootBinding.setProperty("group.primaryImage.id", ids.primaryImage);
