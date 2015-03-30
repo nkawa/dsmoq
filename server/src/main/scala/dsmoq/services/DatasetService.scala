@@ -453,8 +453,12 @@ object DatasetService {
     val xda = SubQuery.syntax("xda", da.resultName, a.resultName)
     val xda2 = SubQuery.syntax("xda2", da.resultName, a.resultName)
 
-    val fullTextSearchHint = "BitmapScan(" + ds.tableAliasName + " datasets_name_idx datasets_description_idx)"
-    selectSql.hint(fullTextSearchHint)
+    val selectSqlWithHint = query match {
+      case Some(x) => selectSql.hint("BitmapScan(" + ds.tableAliasName + " datasets_name_idx datasets_description_idx)")
+      case None => selectSql
+    }
+
+    selectSqlWithHint
       .from(persistence.Dataset as ds)
       .innerJoin(persistence.Ownership as o).on(o.datasetId, ds.id)
       .map { sql =>
