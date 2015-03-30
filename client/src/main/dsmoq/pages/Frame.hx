@@ -8,6 +8,7 @@ import dsmoq.Page;
 import dsmoq.View;
 import hxgnd.js.JQuery;
 import hxgnd.js.jsviews.JsViews;
+import hxgnd.PromiseBroker;
 import hxgnd.Stream;
 import hxgnd.StreamBroker;
 import js.bootstrap.BootstrapButton;
@@ -61,9 +62,12 @@ class Frame {
 
         Service.instance.then(function (e) {
             switch (e) {
-                case SignedIn, SignedOut:
+                case SignedIn:
                     updateProfile(Service.instance.profile);
-                    navigation.update(Navigation.Reload);
+                    navigation.update(Navigation.Navigate(Page.Dashboard));
+				case SignedOut:
+                    navigation.update(Navigation.Navigate(Page.Top));
+                    updateProfile(Service.instance.profile);
                 case ProfileUpdated:
                     updateProfile(Service.instance.profile);
             }
@@ -197,6 +201,6 @@ class Frame {
     }
 
     static function getAuthUrl() {
-        return "/google_oauth/signin?location=" + Engine.currentUrl.urlEncode();
+        return "/google_oauth/signin?location=/dashboard";
     }
 }

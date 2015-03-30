@@ -298,7 +298,10 @@ class Main {
 
                     return switch (path) {
                         case [""]:
+                            Top;
+                        case ["dashboard"]:
                             Dashboard;
+							
                         case ["datasets"]:
                             DatasetList(
 								parsePositiveInt(location.query["page"]).getOrDefault(1), 
@@ -323,9 +326,11 @@ class Main {
                 },
                 toLocation: function (page) {
                     return switch (page) {
-                        case Dashboard:
+                        case Top:
                             { path: "/" };
-
+                        case Dashboard:
+                            { path: "/dashboard" };
+							
                         case DatasetList(page, query, filters):
                             var q = new Map();
                             q["page"] = Std.string(page);
@@ -361,6 +366,7 @@ class Main {
 
             renderPage: function (page: Page, slot: Html, onClosed: Promise<Unit>) {
                 return switch (page) {
+					case Top: TopPage.render(slot, onClosed);
                     case Dashboard: DashboardPage.render(slot, onClosed);
                     case DatasetList(pageNum, query, filters): DatasetListPage.render(slot, onClosed, pageNum, query, filters);
                     case DatasetShow(id): DatasetShowPage.render(slot, onClosed, id);

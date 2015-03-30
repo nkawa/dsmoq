@@ -3,6 +3,7 @@ package dsmoq;
 import hxgnd.PositiveInt;
 
 enum Page {
+	Top;
     Dashboard;
 
     //DatasetNew;
