@@ -14,6 +14,7 @@ object AppConf {
   val guestUserId = "6afb4198-859d-4053-8a15-5c791f3a8089"
   val guestGroupId = "f274a75c-e20e-4b4a-8db9-566fd41aa1bd"
 
+  val defaultAvatarImageId = "8a981652-ea4d-48cf-94db-0ceca7d81aef"
   val defaultDatasetImageId = "8b570468-9814-4d30-8c04-392b263b6404"
   val defaultGroupImageId = "960a5601-2b60-2531-e6ad-54b91612ede5"
   val defaultLicenseId = "dc16a22c-00de-b00e-dbec-38cbad333bf7"
