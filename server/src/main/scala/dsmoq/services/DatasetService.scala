@@ -229,25 +229,29 @@ object DatasetService {
     val l2 = list2.toMap
 
     (for (key <- l.keys) yield {
-      val dataArea = l.get(key).get
-      val centralHeader = l2.get(key).get
-      val cenHeader = bytes.drop(centralHeader._1).take(centralHeader._2)
-      persistence.ZipedFiles.create(
-        id = UUID.randomUUID().toString,
-        fileId = fileId,
-        name = key,
-        description = "",
-        fileSize = dataArea._3,
-        createdBy = myself.id,
-        createdAt = timestamp,
-        updatedBy = myself.id,
-        updatedAt = timestamp,
-        cenSize = centralHeader._2,
-        dataStart = dataArea._1,
-        dataSize = dataArea._2,
-        cenHeader = cenHeader
-      )
-    }).foldLeft(0L)(_ + _.fileSize)
+      if (key.endsWith("/")) {
+        None
+      } else {
+        val dataArea = l.get(key).get
+        val centralHeader = l2.get(key).get
+        val cenHeader = bytes.drop(centralHeader._1).take(centralHeader._2)
+        Some(persistence.ZipedFiles.create(
+          id = UUID.randomUUID().toString,
+          fileId = fileId,
+          name = key,
+          description = "",
+          fileSize = dataArea._3,
+          createdBy = myself.id,
+          createdAt = timestamp,
+          updatedBy = myself.id,
+          updatedAt = timestamp,
+          cenSize = centralHeader._2,
+          dataStart = dataArea._1,
+          dataSize = dataArea._2,
+          cenHeader = cenHeader
+        ))
+      }
+    }).filter(! _.isEmpty).flatten.foldLeft(0L)(_ + _.fileSize)
   }
 
   private def createTask(datasetId: String, commandType: Int, userId: String, timestamp: DateTime, isSave: Boolean)(implicit s: DBSession): String = {
@@ -1723,9 +1727,7 @@ object DatasetService {
       if (fileInfo._3.localState == 1 || (fileInfo._3.s3State == 2 && fileInfo._3.localState == 3)) {
         fileInfo._4 match {
           case Some(zipedFile) => {
-            println("before")
             val bytes = Files.readAllBytes(Paths.get(AppConf.fileDir, fileInfo._2.substring(1) + "/" + fileInfo._1.name))
-            println("after")
             val full = bytes.drop(zipedFile.dataStart.toInt).take(zipedFile.dataSize.toInt) ++
               zipedFile.cenHeader ++
               Array[Byte] (80, 75, 5, 6, 0, 0, 0, 0, 1, 0, 1, 0)
@@ -1738,8 +1740,10 @@ object DatasetService {
               f.write(Array[Byte] (0, 0))
             }
 
-            val z = new ZipFile(file, Charset.forName("Shift-JIS"))
-            val entry = z.getEntry(zipedFile.name)
+            val encoding = if (isSJIS(zipedFile.name)) { Charset.forName("Shift-JIS") } else { Charset.forName("UTF-8") }
+
+            val z = new ZipFile(file, encoding)
+            val entry = z.entries().nextElement()
             Success((true, file, "", zipedFile.name, Some(z.getInputStream(entry))))
           }
           case None => {
@@ -1761,8 +1765,11 @@ object DatasetService {
               IntToByte4(zipedFile.dataSize.toInt, f)
               f.write(Array[Byte] (0, 0))
             }
-            val z = new ZipFile(file, Charset.forName("Shift-JIS"))
-            val entry = z.getEntry(zipedFile.name)
+
+            val encoding = if (isSJIS(zipedFile.name)) { Charset.forName("Shift-JIS") } else { Charset.forName("UTF-8") }
+
+            val z = new ZipFile(file, encoding)
+            val entry = z.entries().nextElement()
             val outFile = Paths.get(AppConf.tempDir, zipedFile.name.split(Array[Char]('\\', '/')).last).toFile
             use(new FileOutputStream(outFile)) { out =>
               out.write(Resource.fromInputStream(z.getInputStream(entry)).byteArray)
@@ -1777,6 +1784,15 @@ object DatasetService {
       }
     } catch {
       case e: Exception => Failure(e)
+    }
+  }
+
+  private def isSJIS(str: String): Boolean = {
+    try {
+      val encoded = new String(str.getBytes("SHIFT_JIS"), "SHIFT_JIS")
+      encoded.equals(str)
+    } catch {
+      case e: Exception => false
     }
   }
 
