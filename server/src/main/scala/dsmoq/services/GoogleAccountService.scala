@@ -22,7 +22,14 @@ object GoogleAccountService {
   def loginWithGoogle(authenticationCode: String) = {
     try {
       val googleAccount = getGoogleAccount(authenticationCode)
+      getUser(googleAccount)
+    } catch {
+      case e: Throwable => Failure(e)
+    }
+  }
 
+  def getUser(googleAccount: Userinfoplus) = {
+    try {
       DB localTx { implicit s =>
         val u = persistence.User.u
         val gu = persistence.GoogleUser.gu
@@ -34,8 +41,8 @@ object GoogleAccountService {
             .where
             .eq(gu.googleId, googleAccount.getId)
         }
-        .map(persistence.User(u.resultName)).single().apply
-        .map(x => services.User(x, googleAccount.getEmail))
+          .map(persistence.User(u.resultName)).single().apply
+          .map(x => services.User(x, googleAccount.getEmail))
 
         val user = googleUser match {
           case Some(x) =>
@@ -52,8 +59,8 @@ object GoogleAccountService {
                 .and
                 .eq(u.name, googleAccount.getEmail)
             }
-            .map(persistence.User(u.resultName)).single().apply
-            .map(x => services.User(x, googleAccount.getEmail))
+              .map(persistence.User(u.resultName)).single().apply
+              .map(x => services.User(x, googleAccount.getEmail))
 
             importUser match {
               case Some(x) =>
