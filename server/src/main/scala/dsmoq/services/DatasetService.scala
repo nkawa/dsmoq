@@ -1732,8 +1732,13 @@ object DatasetService {
           .and
           .inUuid(o.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
     }.map(rs => (rs.int(o.resultName.accessLevel), rs.int(g.resultName.groupType))).list().apply
+    // 上記のSQLではゲストユーザーは取得できないため、別途取得する必要がある
+    val guestPermission = (getGuestAccessLevel(id), GroupType.Personal)
     // Provider権限のGroupはWriteできない
-    Some(permissions.map(x => if (x._1 == 3 && x._2 == GroupType.Public) { 2 } else { x._1 }).max)
+    (guestPermission :: permissions) match {
+      case x :: xs => Some((guestPermission :: permissions).map(x => if (x._1 == 3 && x._2 == GroupType.Public) { 2 } else { x._1 }).max)
+      case Nil => None
+    }
   }
 
   private def getGuestAccessLevel(datasetId: String)(implicit s: DBSession) = {
