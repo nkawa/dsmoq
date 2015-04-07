@@ -4,6 +4,7 @@ import conduitbox.Engine;
 import conduitbox.LocationMapping;
 import dsmoq.models.Profile;
 import dsmoq.models.Service;
+import dsmoq.models.TagDetail;
 import dsmoq.Page;
 import dsmoq.pages.*;
 import haxe.Resource;
@@ -44,6 +45,16 @@ class Main {
 			var r = ~/<script[^<]+<\/script>/g;
             return r.replace(x, "").trim();
         });
+		
+		JsViews.views.helpers("getTagColor", function(tag: Array<TagDetail>) {
+			return function(key: String) {
+				var target = tag.filter(function(x) { return x.tag == key; } );
+				if (target.length == 0) {
+					return "#777";
+				}
+				return target[0].color;
+			};
+		});
 		
         JsViews.views.tags("debug", function (x) {
             trace(x);

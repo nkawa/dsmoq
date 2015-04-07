@@ -2,6 +2,7 @@ package dsmoq.services
 
 import java.util.UUID
 
+import dsmoq.services.json.TagData.TagDetail
 import dsmoq.{AppConf, persistence}
 import dsmoq.persistence.{PostgresqlHelper, SuggestType, GroupType}
 import dsmoq.services.json.SuggestData
@@ -212,6 +213,23 @@ object SystemService {
           .limit(100)
       }.map(rs => rs.string(a.resultName.name)).list().apply
       attributes
+    }
+  }
+
+  def getTags() = {
+    DB readOnly { implicit s =>
+      val t = persistence.Tag.t
+      withSQL {
+        select
+          .from(persistence.Tag as t)
+          .where
+            .isNull(t.deletedBy)
+            .and
+            .isNull(t.deletedAt)
+          .orderBy(t.tag)
+      }.map(persistence.Tag(t.resultName)).list().apply().map { x =>
+        TagDetail(x.tag, x.color)
+      }
     }
   }
 }

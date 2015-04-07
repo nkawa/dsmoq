@@ -311,6 +311,10 @@ class Service extends Stream<ServiceEvent> {
 	public function setDatasetImageFeatured(datasetId: String, imageId: String): Promise<Unit> {
 		return send(Put, '/api/datasets/$datasetId/images/$imageId/featured');
 	}
+	
+	public function getTags() : Promise<Array<TagDetail>> {
+		return send(Get, '/api/tags');
+	}
 
     inline function guest(): Profile {
         return {

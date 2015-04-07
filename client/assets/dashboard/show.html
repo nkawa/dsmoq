@@ -1,8 +1,11 @@
+{^{async data ~tag=data.tag}}
+
 <div class="row">
 	<div class="col-md-12" id="welcome">
 		{{:message}}
 	</div>
 </div>
+
 <div class="row" style="margin-bottom: 80px;">
 	<div class="col-md-4 middle-bar big-button" id="search-datasets">
 		<a href="/datasets" data-navigation><img src="/resources/datasets.png"></a>
@@ -37,6 +40,7 @@
 		<p><h2>Featured Datasets</h2></p>
 	</div>
 </div>
+
 <div class="row dataset-container">
 	<div class="col-md-12">
 		{^{async featuredDatasets}}
@@ -72,7 +76,9 @@
 			<div>
 				<h3>
 				  {{for attributes}}
-					<span class="label label-info"><span class="glyphicon glyphicon-tag"></span> {{>name}}{{if value}} : {{>value}}{{/if}}</span>
+					{{if value=="$tag"}}
+					<span class="label label-info" style="background-color: {{: ~getTagColor(~tag)(name)}}"><span class="glyphicon glyphicon-tag"></span> {{>name}}</span>
+					{{/if}}
 				  {{/for}}
 				</h3>
 			</div>
@@ -124,7 +130,9 @@
 			<div>
 				<h3>
 				  {{for attributes}}
-					<span class="label label-info"><span class="glyphicon glyphicon-tag"></span> {{>name}}{{if value}} : {{>value}}{{/if}}</span>
+					{{if value=="$tag"}}
+					<span class="label label-info" style="background-color: {{: ~getTagColor(~tag)(name)}}"><span class="glyphicon glyphicon-tag"></span> {{>name}}</span>
+					{{/if}}
 				  {{/for}}
 				</h3>
 			</div>
@@ -177,7 +185,9 @@
 			<div>
 				<h3>
 				  {{for attributes}}
-					<span class="label label-info"><span class="glyphicon glyphicon-tag"></span> {{>name}}{{if value}} : {{>value}}{{/if}}</span>
+					{{if value=="$tag"}}
+					<span class="label label-info" style="background-color: {{: ~getTagColor(~tag)(name)}}"><span class="glyphicon glyphicon-tag"></span> {{>name}}</span>
+					{{/if}}
 				  {{/for}}
 				</h3>
 			</div>
@@ -190,3 +200,4 @@
 	</div>
 </div>
 {{/if}}
+{{/async}}

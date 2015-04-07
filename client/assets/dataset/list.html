@@ -69,7 +69,7 @@
   </div>
 </div>
 
-{^{async result ~condition=condition}}
+{^{async result ~condition=condition ~tag=tag}}
   {^{if total > 0}}
     <p><strong>Found {^{>total}} records</strong></p>
     <ul class="media-list dataset-list">
@@ -92,7 +92,9 @@
             <div>
               <span class="label label-default">{{>files}} files ({{datasize dataSize /}})</span>&nbsp;
               {{for attributes}}
-                <span class="label label-info"><span class="glyphicon glyphicon-tag"></span> {{>name}}{{if value}} : {{>value}}{{/if}}</span>
+				{{if value=="$tag"}}
+				<span class="label label-info" style="background-color: {{: ~getTagColor(~tag)(name)}}"><span class="glyphicon glyphicon-tag"></span> {{>name}}</span>
+				{{/if}}
               {{/for}}
             </div>
           </div>

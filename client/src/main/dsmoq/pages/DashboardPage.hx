@@ -19,18 +19,8 @@ class DashboardPage {
     public static function render(html: Html, onClose: Promise<Unit>): Promise<Navigation<Page>> {
         var profile = Service.instance.profile;
 
-        var data = {
-            isGuest: profile.isGuest,
-			featuredDatasets: Async.Pending,
-            recentDatasets: Async.Pending,
-            myDatasets: Async.Pending,
-            myGroups: Async.Pending,
-			statistics: Async.Pending,
-			message: untyped __js__('message')
-        };
-
-        var binding = JsViews.observable(data);
-        View.getTemplate("dashboard/show").link(html, data);
+		var rootBinding = JsViews.observable({ data: dsmoq.Async.Pending });
+		View.getTemplate("dashboard/show").link(html, rootBinding.data());
 
 		//TODO パフォーマンス的に問題がある
 		function ellipseLongDescription() {
@@ -51,25 +41,42 @@ class DashboardPage {
 			} );
 		}
 		
-		Service.instance.findDatasets( { attributes: [ { name: "featured", value: "" } ], limit: 10, orderby: "attribute" } ).then(function(x) {
-			binding.setProperty("featuredDatasets", Async.Completed(x.results));
-			ellipseLongDescription();
-		});
-		
-        Service.instance.findDatasets({ limit: 4 }).then(function (x) {
-            binding.setProperty("recentDatasets", Async.Completed(x.results));
-			ellipseLongDescription();
-        });
+		Service.instance.getTags().then(function(x) {
+			var data = {
+				isGuest: profile.isGuest,
+				featuredDatasets: Async.Pending,
+				recentDatasets: Async.Pending,
+				myDatasets: Async.Pending,
+				myGroups: Async.Pending,
+				statistics: Async.Pending,
+				tag: x,
+				message: untyped __js__('message')
+			};
 
-        if (!profile.isGuest) {
-            Service.instance.findDatasets({owners: [profile.name], limit: 4}).then(function (x) {
-                binding.setProperty("myDatasets", Async.Completed(x.results));
+            rootBinding.setProperty("data", data);
+            var binding = JsViews.observable(rootBinding.data().data);
+			
+			Service.instance.findDatasets( { attributes: [ { name: "featured", value: "" } ], limit: 10, orderby: "attribute" } ).then(function(x) {
+				binding.setProperty("featuredDatasets", Async.Completed(x.results));
 				ellipseLongDescription();
-            });
-        }
-		
-		Service.instance.getStatistics({ }).then(function(x) {
-			binding.setProperty("statistics", Async.Completed(x));
+			});
+			
+			Service.instance.findDatasets({ limit: 4 }).then(function (x) {
+				binding.setProperty("recentDatasets", Async.Completed(x.results));
+				ellipseLongDescription();
+			});
+
+			if (!profile.isGuest) {
+				Service.instance.findDatasets({owners: [profile.name], limit: 4}).then(function (x) {
+					binding.setProperty("myDatasets", Async.Completed(x.results));
+					ellipseLongDescription();
+				});
+			}
+			
+			Service.instance.getStatistics({ }).then(function(x) {
+				binding.setProperty("statistics", Async.Completed(x));
+			});
+			
 		});
 		
         return new Promise(function (_) { });

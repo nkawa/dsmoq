@@ -3,6 +3,7 @@ package dsmoq.pages;
 import conduitbox.Navigation;
 import dsmoq.Async;
 import dsmoq.models.Service;
+import dsmoq.models.TagDetail;
 import dsmoq.views.AutoComplete;
 import hxgnd.Error;
 import hxgnd.js.Html;
@@ -27,7 +28,8 @@ class DatasetListPage {
         }
         var binding = JsViews.observable({
             condition: condition,
-            result: Async.Pending
+            result: Async.Pending,
+			tag: new Array<TagDetail>()
         });
 
         View.getTemplate("dataset/list").link(root, binding.data());
@@ -44,23 +46,29 @@ class DatasetListPage {
                             .map(function (x) return x.item);
 
             binding.setProperty("result", Async.Pending);
-            Service.instance.findDatasets({
-                query: (condition.query != "") ? condition.query : null,
-                owners: owners,
-                groups: groups,
-                attributes: attrs,
-                offset: 20 * condition.index,
-                limit: 20
-            }).then(function (x) {
-                binding.setProperty("result", Async.Completed({
-                    total: x.summary.total,
-                    items: x.results,
-                    pages: Math.ceil(x.summary.total / 20)
-                }));
+			
+			Service.instance.getTags().then(function(x) {
+				binding.setProperty("tag", x);
+				Service.instance.findDatasets({
+					query: (condition.query != "") ? condition.query : null,
+					owners: owners,
+					groups: groups,
+					attributes: attrs,
+					offset: 20 * condition.index,
+					limit: 20
+				}).then(function (x) {
+					binding.setProperty("result", Async.Completed({
+						total: x.summary.total,
+						items: x.results,
+						pages: Math.ceil(x.summary.total / 20)
+					}));
+				}, function (err) {
+					trace(err);
+					Notification.show("error", "error happened");
+				});
             }, function (err) {
-                trace(err);
                 Notification.show("error", "error happened");
-            });
+			});
         }
 
         // observe binding

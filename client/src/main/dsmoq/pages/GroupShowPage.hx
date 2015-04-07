@@ -3,6 +3,7 @@ package dsmoq.pages;
 import conduitbox.Navigation;
 import dsmoq.Async;
 import dsmoq.models.Service;
+import dsmoq.models.TagDetail;
 import dsmoq.Page;
 import hxgnd.js.Html;
 import hxgnd.js.JsTools;
@@ -25,6 +26,7 @@ class GroupShowPage {
                 group: res,
                 members: Async.Pending,
                 datasets: Async.Pending,
+				tag: new Array<TagDetail>()
             };
             var binding = JsViews.observable(data);
             rootBinding.setProperty("data", data);
@@ -54,30 +56,36 @@ class GroupShowPage {
                 Notification.show("error", "error happened");
             });
 
-            Service.instance.findDatasets({groups: [res.name]}).then(function (x) {
-                var datasets = {
-                    index: Math.ceil(x.summary.offset / 20),
-                    total: x.summary.total,
-                    items: x.results,
-                    pages: Math.ceil(x.summary.total / 20)
-                };
-                binding.setProperty("datasets", Async.Completed(datasets));
+			Service.instance.getTags().then(function(x) {
+				binding.setProperty("tag", x);
+				Service.instance.findDatasets({groups: [res.name]}).then(function (x) {
+					var datasets = {
+						index: Math.ceil(x.summary.offset / 20),
+						total: x.summary.total,
+						items: x.results,
+						pages: Math.ceil(x.summary.total / 20)
+					};
+					binding.setProperty("datasets", Async.Completed(datasets));
 
-                JsViews.observe(datasets, "index", function (_, _) {
-                    var i = datasets.index;
-                    Service.instance.findDatasets({groups: [res.name], offset: 20 * i}).then(function (x) {
-                        var b = JsViews.observable(datasets);
-                        b.setProperty("index", i);
-                        b.setProperty("total", x.summary.total);
-                        b.setProperty("items", x.results);
-                        b.setProperty("pages", Math.ceil(x.summary.total / 20));
-                    }, function (e) {
-                        Notification.show("error", "error happened");
-                    });
-                });
+					JsViews.observe(datasets, "index", function (_, _) {
+						var i = datasets.index;
+						Service.instance.findDatasets({groups: [res.name], offset: 20 * i}).then(function (x) {
+							var b = JsViews.observable(datasets);
+							b.setProperty("index", i);
+							b.setProperty("total", x.summary.total);
+							b.setProperty("items", x.results);
+							b.setProperty("pages", Math.ceil(x.summary.total / 20));
+						}, function (e) {
+							Notification.show("error", "error happened");
+						});
+					});
+				}, function (err) {
+					Notification.show("error", "error happened");
+				});
             }, function (err) {
-                Notification.show("error", "error happened");
-            });
+                Notification.show("error", "error happened");				
+			});
+
 
             root.find("#group-edit").on("click", function (_) {
                 navigation.fulfill(Navigation.Navigate(GroupEdit(id)));
