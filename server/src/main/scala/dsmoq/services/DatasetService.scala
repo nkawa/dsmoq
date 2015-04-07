@@ -1736,7 +1736,7 @@ object DatasetService {
     val guestPermission = (getGuestAccessLevel(id), GroupType.Personal)
     // Provider権限のGroupはWriteできない
     (guestPermission :: permissions) match {
-      case x :: xs => Some((guestPermission :: permissions).map(x => if (x._1 == 3 && x._2 == GroupType.Public) { 2 } else { x._1 }).max)
+      case x :: xs => Some((guestPermission :: permissions).map(x => if (x._1 == GroupAccessLevel.Provider && x._2 == GroupType.Public) { 2 } else { x._1 }).max)
       case Nil => None
     }
   }
