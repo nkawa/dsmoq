@@ -55,9 +55,9 @@ object FileHistory extends SQLSyntaxSupport[FileHistory] {
 
   //val autoSession = AutoSession
 
-  def find(id: Any)(implicit session: DBSession = autoSession): Option[FileHistory] = {
+  def find(id: String)(implicit session: DBSession = autoSession): Option[FileHistory] = {
     withSQL { 
-      select.from(FileHistory as fh).where.eq(fh.id, id)
+      select.from(FileHistory as fh).where.eq(fh.id, sqls.uuid(id))
     }.map(FileHistory(fh.resultName)).single.apply()
   }
           
@@ -150,21 +150,21 @@ object FileHistory extends SQLSyntaxSupport[FileHistory] {
   def save(entity: FileHistory)(implicit session: DBSession = autoSession): FileHistory = {
     withSQL { 
       update(FileHistory as fh).set(
-        fh.id -> entity.id,
-        fh.fileId -> entity.fileId,
+        fh.id -> sqls.uuid(entity.id),
+        fh.fileId -> sqls.uuid(entity.fileId),
         fh.fileType -> entity.fileType,
         fh.fileMime -> entity.fileMime,
         fh.filePath -> entity.filePath,
         fh.fileSize -> entity.fileSize,
         fh.isZip -> entity.isZip,
         fh.realSize -> entity.realSize,
-        fh.createdBy -> entity.createdBy,
+        fh.createdBy -> sqls.uuid(entity.createdBy),
         fh.createdAt -> entity.createdAt,
-        fh.updatedBy -> entity.updatedBy,
+        fh.updatedBy -> sqls.uuid(entity.updatedBy),
         fh.updatedAt -> entity.updatedAt,
-        fh.deletedBy -> entity.deletedBy,
+        fh.deletedBy -> entity.deletedBy.map(sqls.uuid),
         fh.deletedAt -> entity.deletedAt
-      ).where.eq(fh.id, entity.id)
+      ).where.eq(fh.id, sqls.uuid(entity.id))
     }.update.apply()
     entity 
   }
