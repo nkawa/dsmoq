@@ -6,7 +6,7 @@ import PostgresqlHelper._
 
 case class ZipedFiles(
   id: String,
-  fileId: String,
+  historyId: String,
   name: String, 
   description: String, 
   fileSize: Long, 
@@ -28,12 +28,12 @@ object ZipedFiles extends SQLSyntaxSupport[ZipedFiles] {
 
   override val tableName = "ziped_files"
 
-  override val columns = Seq("id", "file_id", "name", "description", "file_size", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
+  override val columns = Seq("id", "history_id", "name", "description", "file_size", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
 
   def apply(zf: SyntaxProvider[ZipedFiles])(rs: WrappedResultSet): ZipedFiles = apply(zf.resultName)(rs)
   def apply(zf: ResultName[ZipedFiles])(rs: WrappedResultSet): ZipedFiles = new ZipedFiles(
     id = rs.string(zf.id),
-    fileId = rs.string(zf.fileId),
+    historyId = rs.string(zf.historyId),
     name = rs.get(zf.name),
     description = rs.get(zf.description),
     fileSize = rs.get(zf.fileSize),
@@ -77,7 +77,7 @@ object ZipedFiles extends SQLSyntaxSupport[ZipedFiles] {
       
   def create(
     id: String,
-    fileId: String,
+    historyId: String,
     name: String,
     description: String,
     fileSize: Long,
@@ -90,7 +90,7 @@ object ZipedFiles extends SQLSyntaxSupport[ZipedFiles] {
     withSQL {
       insert.into(ZipedFiles).columns(
         column.id,
-        column.fileId,
+        column.historyId,
         column.name,
         column.description,
         column.fileSize,
@@ -102,7 +102,7 @@ object ZipedFiles extends SQLSyntaxSupport[ZipedFiles] {
         column.deletedAt
       ).values(
         sqls.uuid(id),
-        sqls.uuid(fileId),
+        sqls.uuid(historyId),
         name,
         description,
         fileSize,
@@ -117,7 +117,7 @@ object ZipedFiles extends SQLSyntaxSupport[ZipedFiles] {
 
     ZipedFiles(
       id = id,
-      fileId = fileId,
+      historyId = historyId,
       name = name,
       description = description,
       fileSize = fileSize,
@@ -133,7 +133,7 @@ object ZipedFiles extends SQLSyntaxSupport[ZipedFiles] {
     withSQL {
       update(ZipedFiles).set(
         column.id -> sqls.uuid(entity.id),
-        column.fileId -> sqls.uuid(entity.fileId),
+        column.historyId -> sqls.uuid(entity.historyId),
         column.name -> entity.name,
         column.description -> entity.description,
         column.fileSize -> entity.fileSize,
