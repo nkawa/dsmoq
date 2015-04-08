@@ -211,8 +211,8 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
       "ユーザーの候補一覧を取得できるか" in {
         val userName = "dummy1"
         val regex = ("\\A" + userName + ".*\\z").r
-        val query = Map("query" -> userName)
-        get("/api/suggests/users_and_groups", query) {
+        val params = Map("d" -> compact(render(("query" -> userName))))
+        get("/api/suggests/users_and_groups", params) {
           checkStatus()
           // データパースしてチェック
           val valueMap = (parse(body) \ "data").values.asInstanceOf[List[Map[String, Any]]]
@@ -250,7 +250,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         }
 
         val regex = ("\\A" + groupName + ".*\\z").r
-        val query = Map("query" -> groupName)
+        val query = Map("d" -> compact(render(("query" -> groupName))))
         get("/api/suggests/users_and_groups", query) {
           checkStatus()
           // データパースしてチェック
