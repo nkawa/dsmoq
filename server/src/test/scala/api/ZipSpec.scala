@@ -88,10 +88,19 @@ class ZipSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           }
 
           val file = Map("file" -> new File("testdata/test1.zip"))
-          post("/api/datasets/" + datasetId + "/files/" + fileId, Map.empty, file) {
+          val (fileUrl, zipUrl) = post("/api/datasets/" + datasetId + "/files/" + fileId, Map.empty, file) {
             checkStatus()
-            val zips = parse(body).extract[AjaxResponse[DatasetFile]].data.zipedFiles
-            zips.length should be(2)
+            val f = parse(body).extract[AjaxResponse[DatasetFile]].data
+            f.zipedFiles.length should be(2)
+            (f.url, f.zipedFiles.head.url)
+          }
+
+          get(new java.net.URI(fileUrl).getPath) {
+            status should be(200)
+          }
+
+          get(new java.net.URI(zipUrl).getPath) {
+            status should be(200)
           }
         }
       }
@@ -109,10 +118,15 @@ class ZipSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             (datasetId, fileId)
           }
           val file = Map("file" -> dummyFile)
-          post("/api/datasets/" + datasetId + "/files/" + fileId, Map.empty, file) {
+          val url = post("/api/datasets/" + datasetId + "/files/" + fileId, Map.empty, file) {
             checkStatus()
-            val zips = parse(body).extract[AjaxResponse[DatasetFile]].data.zipedFiles
-            zips.length should be(0)
+            val f = parse(body).extract[AjaxResponse[DatasetFile]].data
+            f.zipedFiles.length should be(0)
+            f.url
+          }
+
+          get(new java.net.URI(url).getPath) {
+            status should be(200)
           }
         }
       }
@@ -130,10 +144,19 @@ class ZipSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             (datasetId, fileId)
           }
           val file = Map("file" -> new File("testdata/test2.zip"))
-          post("/api/datasets/" + datasetId + "/files/" + fileId, Map.empty, file) {
+          val (fileUrl, zipUrl) = post("/api/datasets/" + datasetId + "/files/" + fileId, Map.empty, file) {
             checkStatus()
-            val zips = parse(body).extract[AjaxResponse[DatasetFile]].data.zipedFiles
-            zips.length should be(3)
+            val f = parse(body).extract[AjaxResponse[DatasetFile]].data
+            f.zipedFiles.length should be(3)
+            (f.url, f.zipedFiles.head.url)
+          }
+
+          get(new java.net.URI(fileUrl).getPath) {
+            status should be(200)
+          }
+
+          get(new java.net.URI(zipUrl).getPath) {
+            status should be(200)
           }
         }
       }
