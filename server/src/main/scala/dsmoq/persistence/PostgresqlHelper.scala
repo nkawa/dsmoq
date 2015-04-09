@@ -3,11 +3,18 @@ package dsmoq.persistence
 import scalikejdbc._
 
 object PostgresqlHelper {
+  implicit class PgSelectSQLBuilder[A](val self: SelectSQLBuilder[A]) extends AnyVal {
+    def hint(hint: String): SelectSQLBuilder[A] = {
+      new SelectSQLBuilder[A](sqls.hint(hint).append(self.toSQLSyntax))
+    }
+  }
+
   implicit class PgConditionSQLBuilder[A](val self: ConditionSQLBuilder[A]) extends AnyVal {
     def inUuid(column: SQLSyntax, values: Seq[String]): ConditionSQLBuilder[A] = self.append(sqls.inUuid(column, values))
     def notInUuid(column: SQLSyntax, values: Seq[String]): ConditionSQLBuilder[A] = self.append(sqls.notInUuid(column, values))
     def eqUuid(column: SQLSyntax, value: String): ConditionSQLBuilder[A] = self.append(sqls.eqUuid(column, value))
     def lowerEq(column: SQLSyntax, value: String): ConditionSQLBuilder[A] = self.append(sqls.lowerEq(column, value))
+    def likeQuery(column: SQLSyntax, value: String):ConditionSQLBuilder[A] = self.append(sqls.likeQuery(column, value))
   }
 
   implicit class PgSQLSyntax(val self: SQLSyntax) extends  AnyVal {
@@ -43,6 +50,10 @@ object PostgresqlHelper {
     }
 
     def lowerEq(column: SQLSyntax, value: String) = sqls"LOWER(${column}) = LOWER(${value})"
+
+    def likeQuery(column: SQLSyntax, value: String): SQLSyntax = sqls"${column} like LIKEQUERY(${value})"
+
+    protected[PostgresqlHelper] def hint(hint: String): SQLSyntax = sqls.createUnsafely("/*+ " + hint + " */")
   }
 
 }

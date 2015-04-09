@@ -109,7 +109,7 @@ object GroupService {
         }
         .map { sql =>
           query match {
-            case Some(x) => sql.and.like(g.name, "%" + x + "%")
+            case Some(x) => sql.and.likeQuery(g.name, x)
             case None => sql
           }
         }
