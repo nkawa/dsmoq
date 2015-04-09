@@ -32,7 +32,7 @@ object ZipedFiles extends SQLSyntaxSupport[ZipedFiles] {
 
   override val tableName = "ziped_files"
 
-  override val columns = Seq("id", "history_id", "name", "description", "file_size", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
+  override val columns = Seq("id", "history_id", "name", "description", "file_size", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at", "cen_size", "data_start", "data_size", "cen_header")
 
   def apply(zf: SyntaxProvider[ZipedFiles])(rs: WrappedResultSet): ZipedFiles = apply(zf.resultName)(rs)
   def apply(zf: ResultName[ZipedFiles])(rs: WrappedResultSet): ZipedFiles = new ZipedFiles(
