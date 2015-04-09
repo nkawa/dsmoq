@@ -258,11 +258,16 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
           val anotherFile = new File("build.sbt")
           val anotherFileParam = Map("file" -> anotherFile)
-          post("/api/datasets/" + datasetId + "/files/" + fileId, Map.empty, anotherFileParam) {
+          val url = post("/api/datasets/" + datasetId + "/files/" + fileId, Map.empty, anotherFileParam) {
             println(body)
             checkStatus()
             val result = parse(body).extract[AjaxResponse[DatasetFile]]
             result.data.id should be(fileId)
+            result.data.url
+          }
+
+          get(new java.net.URI(url).getPath) {
+            status should be(200)
           }
 
           get("/api/datasets/" + datasetId) {
@@ -822,6 +827,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           changeStorageState(id, 1, 0)
           // ローカルのみに保存 => どちらにも保存しない(イレギュラー)
           put("/api/datasets/" + id + "/storage", Map("d" -> compact(render(("saveLocal" -> JBool(false)) ~ ("saveS3" -> JBool(false)))))) {
+            status should be(200)
             val result = parse(body).extract[AjaxResponse[Any]]
             result.status should be("BadRequest")
           }
@@ -876,6 +882,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           changeStorageState(id, 0, 1)
           // s3のみに保存 => どちらにも保存しない(イレギュラー)
           put("/api/datasets/" + id + "/storage", Map("d" -> compact(render(("saveLocal" -> JBool(false)) ~ ("saveS3" -> JBool(false)))))) {
+            status should be(200)
             val result = parse(body).extract[AjaxResponse[Any]]
             result.status should be("BadRequest")
           }
@@ -930,6 +937,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           changeStorageState(id, 1, 1)
           // ローカル・S3両方に保存 => どちらにも保存しない(イレギュラー)
           put("/api/datasets/" + id + "/storage", Map("d" -> compact(render(("saveLocal" -> JBool(false)) ~ ("saveS3" -> JBool(false)))))) {
+            status should be(200)
             val result = parse(body).extract[AjaxResponse[Any]]
             result.status should be("BadRequest")
           }

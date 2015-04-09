@@ -8,20 +8,18 @@ import PostgresqlHelper._
 case class File(
   id: String,
   datasetId: String,
-  name: String, 
+  historyId: String,
+  name: String,
   description: String, 
   fileType: Int, 
   fileMime: String, 
   fileSize: Long,
-  isZip: Boolean,
-  realSize: Long,
   createdBy: String,
   createdAt: DateTime, 
   updatedBy: String,
   updatedAt: DateTime, 
   deletedBy: Option[String] = None,
-  deletedAt: Option[DateTime] = None,
-  zipedFiles: Seq[ZipedFiles] = Nil
+  deletedAt: Option[DateTime] = None
 ) {
 
   def save()(implicit session: DBSession = File.autoSession): File = File.save(this)(session)
@@ -35,18 +33,17 @@ object File extends SQLSyntaxSupport[File] {
 
   override val tableName = "files"
 
-  override val columns = Seq("id", "dataset_id", "name", "description", "file_type", "file_mime", "file_size", "is_zip", "real_size", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
+  override val columns = Seq("id", "dataset_id", "history_id", "name", "description", "file_type", "file_mime", "file_size", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
 
   def apply(f: ResultName[File])(rs: WrappedResultSet): File = new File(
     id = rs.string(f.id),
     datasetId = rs.string(f.datasetId),
+    historyId = rs.string(f.historyId),
     name = rs.string(f.name),
     description = rs.string(f.description),
     fileType = rs.int(f.fileType),
     fileMime = rs.string(f.fileMime),
     fileSize = rs.long(f.fileSize),
-    isZip = rs.boolean(f.isZip),
-    realSize = rs.long(f.realSize),
     createdBy = rs.string(f.createdBy),
     createdAt = rs.timestamp(f.createdAt).toJodaDateTime,
     updatedBy = rs.string(f.updatedBy),
@@ -88,13 +85,12 @@ object File extends SQLSyntaxSupport[File] {
   def create(
     id: String,
     datasetId: String,
+    historyId: String,
     name: String,
     description: String,
     fileType: Int,
     fileMime: String,
     fileSize: Long,
-    isZip: Boolean,
-    realSize: Long,
     createdBy: String,
     createdAt: DateTime,
     updatedBy: String,
@@ -105,13 +101,12 @@ object File extends SQLSyntaxSupport[File] {
       insert.into(File).columns(
         column.id,
         column.datasetId,
+        column.historyId,
         column.name,
         column.description,
         column.fileType,
         column.fileMime,
         column.fileSize,
-        column.isZip,
-        column.realSize,
         column.createdBy,
         column.createdAt,
         column.updatedBy,
@@ -121,13 +116,12 @@ object File extends SQLSyntaxSupport[File] {
       ).values(
         sqls.uuid(id),
         sqls.uuid(datasetId),
+        sqls.uuid(historyId),
         name,
         description,
         fileType,
         fileMime,
         fileSize,
-        isZip,
-        realSize,
         sqls.uuid(createdBy),
         createdAt,
         sqls.uuid(updatedBy),
@@ -140,13 +134,12 @@ object File extends SQLSyntaxSupport[File] {
     File(
       id = id,
       datasetId = datasetId,
+      historyId = historyId,
       name = name,
       description = description,
       fileType = fileType,
       fileMime = fileMime,
       fileSize = fileSize,
-      isZip = isZip,
-      realSize = realSize,
       createdBy = createdBy,
       createdAt = createdAt,
       updatedBy = updatedBy,
@@ -160,13 +153,12 @@ object File extends SQLSyntaxSupport[File] {
       update(File).set(
         column.id -> sqls.uuid(entity.id),
         column.datasetId -> sqls.uuid(entity.datasetId),
+        column.historyId -> sqls.uuid(entity.historyId),
         column.name -> entity.name,
         column.description -> entity.description,
         column.fileType -> entity.fileType,
         column.fileMime -> entity.fileMime,
         column.fileSize -> entity.fileSize,
-        column.isZip -> entity.isZip,
-        column.realSize -> entity.realSize,
         column.createdBy -> sqls.uuid(entity.createdBy),
         column.createdAt -> entity.createdAt,
         column.updatedBy -> sqls.uuid(entity.updatedBy),

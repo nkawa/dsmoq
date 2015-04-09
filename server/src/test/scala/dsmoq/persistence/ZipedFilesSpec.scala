@@ -32,7 +32,7 @@ class ZipedFilesSpec extends Specification {
       count should be_>(0L)
     }
     "create new record" in new AutoRollback {
-      val created = ZipedFiles.create(id = null, fileId = null, name = "MyString", description = "MyString", fileSize = 1L, createdBy = null, createdAt = DateTime.now, updatedBy = null, updatedAt = DateTime.now, cenSize = 1L, dataStart = 1L, dataSize = 1L, cenHeader = Array[Byte]())
+      val created = ZipedFiles.create(id = null, historyId = null, name = "MyString", description = "MyString", fileSize = 1L, createdBy = null, createdAt = DateTime.now, updatedBy = null, updatedAt = DateTime.now)
       created should not beNull
     }
     "save a record" in new AutoRollback {

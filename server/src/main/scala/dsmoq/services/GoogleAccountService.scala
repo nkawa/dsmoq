@@ -3,6 +3,7 @@ package dsmoq.services
 import com.google.api.client.googleapis.auth.oauth2.{GoogleAuthorizationCodeRequestUrl, GoogleAuthorizationCodeFlow}
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.jackson.JacksonFactory
+import dsmoq.persistence.GroupMemberRole
 import dsmoq.{services, AppConf, persistence}
 import com.google.api.services.oauth2.Oauth2
 import org.joda.time.DateTime
@@ -21,7 +22,14 @@ object GoogleAccountService {
   def loginWithGoogle(authenticationCode: String) = {
     try {
       val googleAccount = getGoogleAccount(authenticationCode)
+      getUser(googleAccount)
+    } catch {
+      case e: Throwable => Failure(e)
+    }
+  }
 
+  def getUser(googleAccount: Userinfoplus) = {
+    try {
       DB localTx { implicit s =>
         val u = persistence.User.u
         val gu = persistence.GoogleUser.gu
@@ -33,8 +41,8 @@ object GoogleAccountService {
             .where
             .eq(gu.googleId, googleAccount.getId)
         }
-        .map(persistence.User(u.resultName)).single().apply
-        .map(x => services.User(x, googleAccount.getEmail))
+          .map(persistence.User(u.resultName)).single().apply
+          .map(x => services.User(x, googleAccount.getEmail))
 
         val user = googleUser match {
           case Some(x) =>
@@ -51,8 +59,8 @@ object GoogleAccountService {
                 .and
                 .eq(u.name, googleAccount.getEmail)
             }
-            .map(persistence.User(u.resultName)).single().apply
-            .map(x => services.User(x, googleAccount.getEmail))
+              .map(persistence.User(u.resultName)).single().apply
+              .map(x => services.User(x, googleAccount.getEmail))
 
             importUser match {
               case Some(x) =>
@@ -100,7 +108,7 @@ object GoogleAccountService {
       organization = "",
       title = "",
       description = "",
-      imageId = AppConf.defaultDatasetImageId,
+      imageId = AppConf.defaultAvatarImageId,
       createdBy = AppConf.systemUserId,
       createdAt = timestamp,
       updatedBy = AppConf.systemUserId,
@@ -133,7 +141,7 @@ object GoogleAccountService {
       id = UUID.randomUUID.toString,
       groupId = group.id,
       userId = user.id,
-      role = 1,
+      role = GroupMemberRole.Manager,
       status = 1,
       createdBy = AppConf.systemUserId,
       createdAt = timestamp,

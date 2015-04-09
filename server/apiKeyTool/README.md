@@ -6,7 +6,7 @@ sbtで以下のコマンドを実行する。
 	project apiKeyTool
 	assembly
 
-\prototype\server\apiKeyTool\target\scala-2.apiKeyTool.jarが配置されている。
+\prototype\server\apiKeyTool\target\scala-2.11以下にapiKeyTool.jarが配置されている。
 
 ### 2. application.confのDB接続情報を書き換える
 ### 3. コマンドラインから使用する

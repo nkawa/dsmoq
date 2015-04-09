@@ -73,13 +73,12 @@ object DatasetService {
           val file = persistence.File.create(
             id = fileId,
             datasetId = datasetId,
+            historyId = historyId,
             name = f.name,
             description = "",
             fileType = 0,
             fileMime = "application/octet-stream",
             fileSize = f.size,
-            isZip = isZip,
-            realSize = if (isZip) { createZipedFiles(path, fileId, timestamp, myself) } else { f.size },
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
@@ -92,6 +91,8 @@ object DatasetService {
             fileMime = "application/octet-stream",
             filePath = "/" + datasetId + "/" + file.id + "/" + historyId,
             fileSize = f.size,
+            isZip = isZip,
+            realSize = if (isZip) { createZipedFiles(path, historyId, timestamp, myself) } else { f.size },
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
@@ -160,8 +161,8 @@ object DatasetService {
             createdAt = timestamp.toString(),
             updatedBy = user,
             updatedAt = timestamp.toString(),
-            isZip = x._1.isZip,
-            zipedFiles = if (x._1.isZip) { getZipedFiles(datasetId, x._1.id) } else { Seq.empty }
+            isZip = x._2.isZip,
+            zipedFiles = if (x._2.isZip) { getZipedFiles(datasetId, x._2.id) } else { Seq.empty }
           )),
           images = Seq(Image(
             id = AppConf.defaultDatasetImageId,
@@ -192,7 +193,7 @@ object DatasetService {
     }
   }
 
-  private def createZipedFiles(path: Path, fileId: String, timestamp: DateTime, myself: persistence.User): Long = {
+  private def createZipedFiles(path: Path, historyId: String, timestamp: DateTime, myself: persistence.User): Long = {
     val bytes = Files.readAllBytes(path)
     var i = 0
     val list = new scala.collection.mutable.ListBuffer[(String, Int, Long)]
@@ -237,7 +238,7 @@ object DatasetService {
         val cenHeader = bytes.drop(centralHeader._1).take(centralHeader._2)
         Some(persistence.ZipedFiles.create(
           id = UUID.randomUUID().toString,
-          fileId = fileId,
+          historyId = historyId,
           name = key,
           description = "",
           fileSize = dataArea._3,
@@ -733,13 +734,12 @@ object DatasetService {
           val file = persistence.File.create(
             id = fileId,
             datasetId = id,
+            historyId = historyId,
             name = f.name,
             description = "",
             fileType = 0,
             fileMime = "application/octet-stream",
             fileSize = f.size,
-            isZip = isZip,
-            realSize = if (isZip) { createZipedFiles(path, fileId, timestamp, myself) } else { f.size },
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
@@ -752,6 +752,8 @@ object DatasetService {
             fileMime = "application/octet-stream",
             filePath = "/" + id + "/" + file.id + "/" + historyId,
             fileSize = f.size,
+            isZip = isZip,
+            realSize = if (isZip) { createZipedFiles(path, historyId, timestamp, myself) } else { f.size },
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
@@ -778,8 +780,8 @@ object DatasetService {
             createdAt = timestamp.toString(),
             updatedBy = user,
             updatedAt = timestamp.toString(),
-            isZip = x._1.isZip,
-            zipedFiles = if (x._1.isZip) { getZipedFiles(id, x._1.id) } else { Seq.empty }
+            isZip = x._2.isZip,
+            zipedFiles = if (x._2.isZip) { getZipedFiles(id, x._2.id) } else { Seq.empty }
           ))
         ))
       }
@@ -809,10 +811,14 @@ object DatasetService {
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
-
-        updateFileNameAndSize(fileId, file_, myself.id, timestamp)
-
         val historyId = UUID.randomUUID.toString
+
+        updateFileNameAndSize(fileId, historyId, file_, myself.id, timestamp)
+
+        val isZip = file_.getName.endsWith("zip")
+        FileManager.uploadToLocal(datasetId, fileId, historyId, file_)
+        val path = Paths.get(AppConf.fileDir, datasetId, fileId, historyId, file_.getName)
+
         val history = persistence.FileHistory.create(
           id = historyId,
           fileId = fileId,
@@ -820,6 +826,8 @@ object DatasetService {
           fileMime = "application/octet-stream",
           filePath = "/" + datasetId + "/" + fileId + "/" + historyId,
           fileSize = file.size,
+          isZip = isZip,
+          realSize = if (isZip) { createZipedFiles(path, historyId, timestamp, myself) } else { file_.size },
           createdBy = myself.id,
           createdAt = timestamp,
           updatedBy = myself.id,
@@ -845,8 +853,8 @@ object DatasetService {
           createdAt = timestamp.toString(),
           updatedBy = user,
           updatedAt = timestamp.toString(),
-          isZip = result.isZip,
-          zipedFiles = if (result.isZip) { getZipedFiles(datasetId, result.id) } else { Seq.empty }
+          isZip = history.isZip,
+          zipedFiles = if (history.isZip) { getZipedFiles(datasetId, history.id) } else { Seq.empty }
         ))
       }
     } catch {
@@ -868,12 +876,12 @@ object DatasetService {
     }
   }
 
-  private def updateFileNameAndSize(fileId: String, file: FileItem, userId: String, timestamp: DateTime)(implicit s: DBSession): Int =
+  private def updateFileNameAndSize(fileId: String, historyId: String, file: FileItem, userId: String, timestamp: DateTime)(implicit s: DBSession): Int =
   {
     withSQL {
       val f = persistence.File.column
       update(persistence.File)
-        .set(f.name -> file.getName, f.fileSize -> file.getSize, f.updatedBy -> sqls.uuid(userId), f.updatedAt -> timestamp)
+        .set(f.name -> file.getName, f.fileSize -> file.getSize, f.updatedBy -> sqls.uuid(userId), f.updatedAt -> timestamp, f.historyId -> sqls.uuid(historyId))
         .where
         .eq(f.id, sqls.uuid(fileId))
     }.update().apply
@@ -911,6 +919,7 @@ object DatasetService {
         updateFileNameAndDescription(fileId, datasetId, filename, description, myself.id, timestamp)
 
         val result = persistence.File.find(fileId).get
+        val history = persistence.FileHistory.find(result.historyId).get
         Success(DatasetData.DatasetFile(
           id = result.id,
           name = result.name,
@@ -921,8 +930,8 @@ object DatasetService {
           createdAt = timestamp.toString(),
           updatedBy = user,
           updatedAt = timestamp.toString(),
-          isZip = result.isZip,
-          zipedFiles = if (result.isZip) { getZipedFiles(datasetId, result.id) } else { Seq.empty }
+          isZip = history.isZip,
+          zipedFiles = if (history.isZip) { getZipedFiles(datasetId, history.id) } else { Seq.empty }
         ))
       }
     } catch {
@@ -1708,16 +1717,19 @@ object DatasetService {
         }
 
         val file = persistence.File.find(fileId)
-        val filePath: Option[String] = getFileHistory(fileId)
         file match {
-          case Some(f) => (f, filePath.get, dataset, None)
+          case Some(f) => {
+            val history = persistence.FileHistory.find(f.historyId).get
+            (f, history.filePath, dataset, None)
+          }
           case None => {
             val zipedFile = persistence.ZipedFiles.find(fileId)
             zipedFile match {
               case Some(zf) => {
-                val zipFile = persistence.File.find(zf.fileId).get
-                val zipFilePath = getFileHistory(zf.fileId)
-                (zipFile, zipFilePath.get, dataset, Some(zf))
+                val history = persistence.FileHistory.find(zf.historyId).get
+                val zipFile = persistence.File.find(history.fileId).get
+                val zipFilePath = history.filePath
+                (zipFile, zipFilePath, dataset, Some(zf))
               }
               case None => throw new NotFoundException
             }
@@ -1880,7 +1892,7 @@ object DatasetService {
     val guestPermission = (getGuestAccessLevel(id), GroupType.Personal)
     // Provider権限のGroupはWriteできない
     (guestPermission :: permissions) match {
-      case x :: xs => Some((guestPermission :: permissions).map(x => if (x._1 == 3 && x._2 == GroupType.Public) { 2 } else { x._1 }).max)
+      case x :: xs => Some((guestPermission :: permissions).map(x => if (x._1 == GroupAccessLevel.Provider && x._2 == GroupType.Public) { 2 } else { x._1 }).max)
       case Nil => None
     }
   }
@@ -2126,7 +2138,8 @@ object DatasetService {
         rs.string(ma1.resultName.address),
         rs.string(ma2.resultName.address)
       )
-    ).list.apply.map(x =>
+    ).list.apply.map(x =>{
+      val history = persistence.FileHistory.find(x._1.historyId).get
       DatasetData.DatasetFile(
         id = x._1.id,
         name = x._1.name,
@@ -2137,19 +2150,20 @@ object DatasetService {
         createdAt = x._1.createdAt.toString(),
         updatedBy = User(x._3, x._5),
         updatedAt = x._1.updatedAt.toString(),
-        isZip = x._1.isZip,
-        zipedFiles = if (x._1.isZip) { getZipedFiles(datasetId, x._1.id) } else { Seq.empty[DatasetZipedFile] }
+        isZip = history.isZip,
+        zipedFiles = if (history.isZip) { getZipedFiles(datasetId, history.id) } else { Seq.empty[DatasetZipedFile] }
       )
+    }
     )
   }
 
-  def getZipedFiles(datasetId: String, fileId: String)(implicit s: DBSession) = {
+  def getZipedFiles(datasetId: String, historyId: String)(implicit s: DBSession) = {
     val zf = persistence.ZipedFiles.zf
     withSQL {
       select
       .from(ZipedFiles as zf)
       .where
-        .eq(zf.fileId, sqls.uuid(fileId))
+        .eq(zf.historyId, sqls.uuid(historyId))
     }.map(persistence.ZipedFiles(zf.resultName)).list.apply.map{x =>
       DatasetZipedFile(
         id = x.id,

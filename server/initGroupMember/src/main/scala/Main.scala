@@ -33,7 +33,7 @@ object Main {
     reader.readNext()
 
     val systemUserId = "dccc110c-c34f-40ed-be2c-7e34a9f1b8f0"
-    val defaultDatasetImageId = "8b570468-9814-4d30-8c04-392b263b6404"
+    val defaultAvatarImageId = "8a981652-ea4d-48cf-94db-0ceca7d81aef"
     val timestamp = DateTime.now
     val userDataColumns = 6
 
@@ -76,7 +76,7 @@ object Main {
                 organization = "",
                 title = "",
                 description = "",
-                imageId = defaultDatasetImageId,
+                imageId = defaultAvatarImageId,
                 createdBy = systemUserId,
                 createdAt = timestamp,
                 updatedBy = systemUserId,
@@ -119,7 +119,7 @@ object Main {
                 id = UUID.randomUUID.toString,
                 groupId = group.id,
                 userId = user.id,
-                role = 1,
+                role = GroupMemberRole.Manager,
                 status = 1,
                 createdBy = systemUserId,
                 createdAt = timestamp,

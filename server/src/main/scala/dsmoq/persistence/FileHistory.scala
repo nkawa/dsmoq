@@ -11,7 +11,9 @@ case class FileHistory(
   fileType: Int, 
   fileMime: String, 
   filePath: String, 
-  fileSize: Long, 
+  fileSize: Long,
+  isZip: Boolean,
+  realSize: Long,
   createdBy: String,
   createdAt: DateTime, 
   updatedBy: String,
@@ -30,7 +32,7 @@ object FileHistory extends SQLSyntaxSupport[FileHistory] {
 
   override val tableName = "file_histories"
 
-  override val columns = Seq("id", "file_id", "file_type", "file_mime", "file_path", "file_size", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
+  override val columns = Seq("id", "file_id", "file_type", "file_mime", "file_path", "file_size", "is_zip", "real_size", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
 
   def apply(fh: ResultName[FileHistory])(rs: WrappedResultSet): FileHistory = new FileHistory(
     id = rs.string(fh.id),
@@ -39,6 +41,8 @@ object FileHistory extends SQLSyntaxSupport[FileHistory] {
     fileMime = rs.string(fh.fileMime),
     filePath = rs.string(fh.filePath),
     fileSize = rs.long(fh.fileSize),
+    isZip = rs.boolean(fh.isZip),
+    realSize = rs.long(fh.realSize),
     createdBy = rs.string(fh.createdBy),
     createdAt = rs.timestamp(fh.createdAt).toJodaDateTime,
     updatedBy = rs.string(fh.updatedBy),
@@ -51,9 +55,9 @@ object FileHistory extends SQLSyntaxSupport[FileHistory] {
 
   //val autoSession = AutoSession
 
-  def find(id: Any)(implicit session: DBSession = autoSession): Option[FileHistory] = {
+  def find(id: String)(implicit session: DBSession = autoSession): Option[FileHistory] = {
     withSQL { 
-      select.from(FileHistory as fh).where.eq(fh.id, id)
+      select.from(FileHistory as fh).where.eq(fh.id, sqls.uuid(id))
     }.map(FileHistory(fh.resultName)).single.apply()
   }
           
@@ -84,6 +88,8 @@ object FileHistory extends SQLSyntaxSupport[FileHistory] {
     fileMime: String,
     filePath: String,
     fileSize: Long,
+    isZip: Boolean,
+    realSize: Long,
     createdBy: String,
     createdAt: DateTime,
     updatedBy: String,
@@ -98,6 +104,8 @@ object FileHistory extends SQLSyntaxSupport[FileHistory] {
         column.fileMime,
         column.filePath,
         column.fileSize,
+        column.isZip,
+        column.realSize,
         column.createdBy,
         column.createdAt,
         column.updatedBy,
@@ -111,6 +119,8 @@ object FileHistory extends SQLSyntaxSupport[FileHistory] {
         fileMime,
         filePath,
         fileSize,
+        isZip,
+        realSize,
         sqls.uuid(createdBy),
         createdAt,
         sqls.uuid(updatedBy),
@@ -127,6 +137,8 @@ object FileHistory extends SQLSyntaxSupport[FileHistory] {
       fileMime = fileMime,
       filePath = filePath,
       fileSize = fileSize,
+      isZip = isZip,
+      realSize = realSize,
       createdBy = createdBy,
       createdAt = createdAt,
       updatedBy = updatedBy,
@@ -138,19 +150,21 @@ object FileHistory extends SQLSyntaxSupport[FileHistory] {
   def save(entity: FileHistory)(implicit session: DBSession = autoSession): FileHistory = {
     withSQL { 
       update(FileHistory as fh).set(
-        fh.id -> entity.id,
-        fh.fileId -> entity.fileId,
+        fh.id -> sqls.uuid(entity.id),
+        fh.fileId -> sqls.uuid(entity.fileId),
         fh.fileType -> entity.fileType,
         fh.fileMime -> entity.fileMime,
         fh.filePath -> entity.filePath,
         fh.fileSize -> entity.fileSize,
-        fh.createdBy -> entity.createdBy,
+        fh.isZip -> entity.isZip,
+        fh.realSize -> entity.realSize,
+        fh.createdBy -> sqls.uuid(entity.createdBy),
         fh.createdAt -> entity.createdAt,
-        fh.updatedBy -> entity.updatedBy,
+        fh.updatedBy -> sqls.uuid(entity.updatedBy),
         fh.updatedAt -> entity.updatedAt,
-        fh.deletedBy -> entity.deletedBy,
+        fh.deletedBy -> entity.deletedBy.map(sqls.uuid),
         fh.deletedAt -> entity.deletedAt
-      ).where.eq(fh.id, entity.id)
+      ).where.eq(fh.id, sqls.uuid(entity.id))
     }.update.apply()
     entity 
   }

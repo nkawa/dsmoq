@@ -5,10 +5,6 @@ import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient;
 import jp.ac.nagoya_u.dsmoq.sdk.request.AddMemberParam;
 import jp.ac.nagoya_u.dsmoq.sdk.request.CreateGroupParam;
 import jp.ac.nagoya_u.dsmoq.sdk.response.Group;
-import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient;
-import jp.ac.nagoya_u.dsmoq.sdk.request.AddMemberParam;
-import jp.ac.nagoya_u.dsmoq.sdk.response.Group;
-
 import java.util.Arrays;
 import java.io.File;
 

@@ -30,7 +30,7 @@ class FileHistorySpec extends Specification {
       count should be_>(0L)
     }
     "create new record" in new AutoRollback {
-      val created = FileHistory.create(id = null, fileId = null, fileType = 123, fileMime = "MyString", filePath = "MyString", fileSize = 1L, createdBy = null, createdAt = DateTime.now, updatedBy = null, updatedAt = DateTime.now)
+      val created = FileHistory.create(id = null, fileId = null, fileType = 123, fileMime = "MyString", filePath = "MyString", fileSize = 1L, isZip = false, realSize = 1L, createdBy = null, createdAt = DateTime.now, updatedBy = null, updatedAt = DateTime.now)
       created should not beNull
     }
     "save a record" in new AutoRollback {
