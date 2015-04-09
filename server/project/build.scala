@@ -40,7 +40,7 @@ object DsmoqBuild extends Build {
         "org.scalatra" %% "scalatra-specs2" % ScalatraVersion % "test",
         "org.scalatra" %% "scalatra-scalatest" % ScalatraVersion % "test",
         "ch.qos.logback" % "logback-classic" % "1.0.6" % "runtime",
-        "org.eclipse.jetty" % "jetty-webapp" % "8.1.10.v20130312" % "compile;container",
+        "org.eclipse.jetty" % "jetty-webapp" % "9.2.1.v20140609" % "compile;container",
         "org.eclipse.jetty.orbit" % "javax.servlet" % "3.0.0.v201112011016" % "container;provided;test" artifacts (Artifact("javax.servlet", "jar", "jar")),
         "org.scalatest" % "scalatest_2.11" % "2.2.1" % "test",
         "org.postgresql" % "postgresql" % "9.3-1101-jdbc41",

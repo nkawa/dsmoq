@@ -54,16 +54,6 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   addServlet(classOf[FileController], "/files/*")
   addServlet(classOf[ImageController], "/images/*")
 
-  //NOTE baseUrlの解決に失敗するため、まったく同じロジックでScalatraSuiteとoverrideしている
-  override def baseUrl: String =
-    server.getConnectors collectFirst {
-      case conn: Connector =>
-        val host = Option(conn.getHost) getOrElse "localhost"
-        val port = conn.getLocalPort
-        require(port > 0, "The detected local port is < 1, that's not allowed")
-        "http://%s:%d".format(host, port)
-    } getOrElse sys.error("can't calculate base URL: no connector")
-
   override def beforeAll() {
     super.beforeAll()
     DBsWithEnv("test").setup()
