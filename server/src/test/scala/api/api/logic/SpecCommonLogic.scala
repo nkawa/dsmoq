@@ -253,6 +253,11 @@ object SpecCommonLogic {
         updatedBy = AppConf.systemUserId,
         updatedAt = ts
       )
+
+      val imageDir = new java.io.File(AppConf.imageDir + "/upload")
+      if (!imageDir.exists()) {
+        imageDir.mkdir()
+      }
     }
   }
 
@@ -287,21 +292,25 @@ object SpecCommonLogic {
 
       // ファイル/画像の削除
       val fileDirs = new java.io.File(AppConf.fileDir).listFiles()
-      fileDirs.foreach { x =>
-        if (x.isDirectory) {
-          x.listFiles.foreach { y =>
-            deleteFile(y.getPath)
+      if (fileDirs != null) {
+        fileDirs.foreach { x =>
+          if (x.isDirectory) {
+            x.listFiles.foreach { y =>
+              deleteFile(y.getPath)
+            }
+            x.delete()
           }
-          x.delete()
         }
       }
       val imageDirs = new java.io.File(AppConf.imageDir + "/upload").listFiles()
-      imageDirs.foreach { x =>
-        if (x.isDirectory) {
-          x.listFiles.foreach { y =>
-            deleteFile(y.getPath)
+      if (imageDirs != null) {
+        imageDirs.foreach { x =>
+          if (x.isDirectory) {
+            x.listFiles.foreach { y =>
+              deleteFile(y.getPath)
+            }
+            x.delete()
           }
-          x.delete()
         }
       }
       deleteAllFile()
