@@ -490,6 +490,11 @@ class ApiController extends ScalatraServlet
     } yield stat) |> toAjaxResponse
   }
 
+  get("/message") {
+    val message = SystemService.getMessage()
+    AjaxResponse("OK", message)
+  }
+
   private def getUser: Try[User] = {
     userFromHeader match {
       case Some(user) => Success(user)

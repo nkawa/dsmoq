@@ -9,6 +9,7 @@ object AppConf {
   val imageDir = dsmoq.getString("image_dir")
   val fileDir = dsmoq.getString("file_dir")
   val tempDir = dsmoq.getString("temp_dir")
+  val messageDir = dsmoq.getString("message_dir")
 
   val systemUserId = "dccc110c-c34f-40ed-be2c-7e34a9f1b8f0"
   val guestUserId = "6afb4198-859d-4053-8a15-5c791f3a8089"

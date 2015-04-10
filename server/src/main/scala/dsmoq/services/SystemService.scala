@@ -1,5 +1,6 @@
 package dsmoq.services
 
+import java.nio.file.Paths
 import java.util.UUID
 
 import dsmoq.services.json.TagData.TagDetail
@@ -10,6 +11,7 @@ import org.joda.time.DateTime
 import scalikejdbc._
 import scala.util.{Failure, Success, Try}
 import PostgresqlHelper._
+import scalax.io.Resource
 
 object SystemService {
   private val userImageDownloadRoot = AppConf.imageDownloadRoot + "user/"
@@ -231,5 +233,10 @@ object SystemService {
         TagDetail(x.tag, x.color)
       }
     }
+  }
+
+  def getMessage() = {
+    val resource = Resource.fromFile(Paths.get(AppConf.messageDir, "message.txt").toFile)
+    resource.string
   }
 }
