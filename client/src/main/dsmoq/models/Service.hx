@@ -315,6 +315,10 @@ class Service extends Stream<ServiceEvent> {
 	public function getTags() : Promise<Array<TagDetail>> {
 		return send(Get, '/api/tags');
 	}
+	
+	public function getMessage() : Promise<String> {
+		return send(Get, '/api/message');
+	}
 
     inline function guest(): Profile {
         return {

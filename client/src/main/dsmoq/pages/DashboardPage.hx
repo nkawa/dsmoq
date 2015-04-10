@@ -50,7 +50,7 @@ class DashboardPage {
 				myGroups: Async.Pending,
 				statistics: Async.Pending,
 				tag: x,
-				message: untyped __js__('message')
+				message: Async.Pending
 			};
 
             rootBinding.setProperty("data", data);
@@ -75,6 +75,10 @@ class DashboardPage {
 			
 			Service.instance.getStatistics({ }).then(function(x) {
 				binding.setProperty("statistics", Async.Completed(x));
+			});
+			
+			Service.instance.getMessage().then(function(x) {
+				binding.setProperty("message", Async.Completed(x));
 			});
 			
 		});
