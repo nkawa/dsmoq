@@ -86,25 +86,44 @@
   </div>
 </div>
 
-<div id="new-dataset-dialog" class="modal fade" tabindex="-1" data-width="480" data-keyboard="false" style="display: none;">
+<div id="new-dataset-dialog" class="modal fade" tabindex="-1" data-width="600" data-keyboard="false" style="display: none;">
   <div class="modal-header">
     <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
     <h4 class="modal-title">Create Dataset</h4>
   </div>
   <div class="modal-body">
-    <form role="form" id="new-dataset-form">
-		<div class="form-group">
-			<input type="text" class="form-control" name="name" placeholder="Dataset Name">
-			<input type="file" name="file[]" multiple="multiple">
-		</div>
-    </form>
-	<div class="form-group">
-		<input type="checkbox" id="saveLocal" checked><label for="saveLocal">ローカルに保存する</label>
-		<input type="checkbox" id="saveS3"><label for="saveS3">S3に保存する</label>
+	<div class="container">
+		<form role="form" id="new-dataset-form">
+			<div class="row">
+				<label class="col-xs-1 control-label">名称</label>
+				<div class="col-xs-4">
+					<div class="form-group">
+						<input type="text" id="dataset-name" class="form-control" name="name" placeholder="Dataset Name">
+					</div>
+				</div>
+			</div>
+			<div class="row" style="margin-top:10px;">
+				<label class="col-xs-1 control-label">ファイル</label>
+				<div class="col-xs-10" id="files-row">
+					<div class="form-group">
+						<input type="file" name="file[]" multiple="multiple">
+					</div>
+				</div>
+			</div>
+			<div class="row" style="margin-top:10px;">
+				<label class="col-xs-1 control-label">保存先</label>
+				<div class="col-xs-10">
+					<div class="form-group">
+						<input type="checkbox" id="saveLocal" checked><label for="saveLocal">ローカル</label>
+						<input type="checkbox" id="saveS3"><label for="saveS3">S3</label>
+					</div>
+				</div>
+			</div>
+		</form>
 	</div>
   </div>
   <div class="modal-footer">
-    <button type="button" class="btn btn-primary" data-loading-text="Creating..." id="new-dataset-dialog-submit">Create</button>
+    <button type="button" class="btn btn-primary" data-loading-text="Creating..." id="new-dataset-dialog-submit" disabled>Create</button>
     <button type="button" data-dismiss="modal" class="btn btn-default">Cancel</button>
   </div>
 </div>

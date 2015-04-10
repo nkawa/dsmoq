@@ -14,6 +14,7 @@ import hxgnd.StreamBroker;
 import js.bootstrap.BootstrapButton;
 import js.Browser;
 import js.html.Event;
+import js.html.InputElement;
 import hxgnd.js.JsTools;
 
 using StringTools;
@@ -102,33 +103,47 @@ class Frame {
             Service.instance.signout();
         });
 
-        JQuery._("#new-dataset-dialog").on("hide.bs.modal", function (_) {
-            JQuery._("#new-dataset-dialog form .form-group").remove();
-            JQuery._("#new-dataset-dialog form")
-                .append("<div class=\"form-group\"><input type=\"text\" class=\"form-control\" name=\"name\" placeholder=\"Dataset Name\"><input type=\"file\" name=\"file[]\" multiple=\"multiple\"></div>");
+        JQuery._("#new-dataset-dialog").on("hide", function (_) {
+            JQuery._("#files-row .form-group").remove();
+            JQuery._("#files-row").append("<div class=\"form-group\"><input type=\"file\" name=\"file[]\" multiple=\"multiple\"></div>");
+			JQuery._("#dataset-name").val("");
+			JQuery._("#saveLocal").prop("checked", true);
+			JQuery._("#saveS3").prop("checked", false);
+			JQuery._("#new-dataset-dialog-submit").prop("disabled", true);
         });
 
+		JQuery._("#dataset-name").on("change", function(event: Event) { 
+			var value = JQuery._(event.target).val();
+			JQuery._("#new-dataset-dialog-submit").prop("disabled", value == "");
+		});
+		
         JQuery._("#new-dataset-dialog form").on("change", "input[type='file']", function (event: Event) {
+			var input = cast(event.target, InputElement);
+			
+			if (JQuery._("#dataset-name").val() == "") {
+				JQuery._("#dataset-name").val(input.files[0].name);
+			}
+			
             var form = JQuery._("#new-dataset-dialog form");
 
             form.find("input[type='file']")
                 .toArray()
                 .filter(function (x) return JQuery._(x).val() == "")
                 .iter(function (x) JQuery._(x).parent().remove());
-
-            form.append("<div class=\"form-group\"><input type=\"file\" name=\"file[]\" multiple=\"multiple\"></div>");
+			JQuery._("#new-dataset-dialog-submit").prop("disabled", false);
+            JQuery._("#files-row").append("<div class=\"form-group\"><input type=\"file\" name=\"file[]\" multiple=\"multiple\"></div>");
         });
 
         JQuery._("#new-dataset-dialog-submit").on("click", function (event: Event) {
             BootstrapButton.setLoading(JQuery._("#new-dataset-dialog-submit"));
             Service.instance.createDataset(JQuery._("#new-dataset-dialog form"), JQuery._("#saveLocal").prop("checked"), JQuery._("#saveS3").prop("checked")).then(function (data) {
                 untyped JQuery._("#new-dataset-dialog").modal("hide");
-                JQuery._("#new-dataset-dialog form")
-                    .find("input[type='file']").remove().end()
-					.find("input[type='text']").remove().end()
-                    .append("<div class=\"form-group\"><input type=\"text\" class=\"form-control\" name=\"name\" placeholder=\"Dataset Name\"><input type=\"file\" name=\"file[]\" multiple=\"multiple\"></div>");
+				JQuery._("#files-row .form-group").remove();
+				JQuery._("#files-row").append("<div class=\"form-group\"><input type=\"file\" name=\"file[]\" multiple=\"multiple\"></div>");
+				JQuery._("#dataset-name").val("");
 				JQuery._("#saveLocal").prop("checked", true);
 				JQuery._("#saveS3").prop("checked", false);
+				JQuery._("#new-dataset-dialog-submit").prop("disabled", true);
                 navigation.update(Navigation.Navigate(DatasetShow(data.id)));
                 Notification.show("success", "create successful");
             }, function (err) {
