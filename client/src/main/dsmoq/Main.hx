@@ -35,17 +35,17 @@ class Main {
         JsViews.views.helpers("isEmpty", function (x) {
             return (x == null) || (x.length <= 0);
         });
-		
+
 		JsViews.views.helpers("trimTags", function (x) {
 			var r = ~/<[^<]+>/g;
             return r.replace(x, "").trim();
         });
-		
+
 		JsViews.views.helpers("trimScriptTags", function (x) {
 			var r = ~/<script[^<]+<\/script>/g;
             return r.replace(x, "").trim();
         });
-		
+
 		JsViews.views.helpers("getTagColor", function(tag: Array<TagDetail>) {
 			return function(key: String) {
 				var target = tag.filter(function(x) { return x.tag == key; } );
@@ -55,7 +55,7 @@ class Main {
 				return target[0].color;
 			};
 		});
-		
+
         JsViews.views.tags("debug", function (x) {
             trace(x);
             return "";
@@ -298,11 +298,11 @@ class Main {
                         var i = Std.parseInt(x);
                         return (i == null) ? None : Some(cast(i, PositiveInt));
                     }
-					
+
 					function getQuery(x: String) {
 						return (x == null) ? None : Some(x);
 					}
-					
+
 					function getFilters(x: String) {
 						return (x == null) ? None : Some(Json.parse(x));
 					}
@@ -355,8 +355,8 @@ class Main {
 
                         case GroupList(page, query):
 							var q = new Map();
-                            q["page"] = Std.string(page);
-							q["query"] = query;
+                            if (page != 1) q["page"] = Std.string(page);
+							if (query.length > 0) q["query"] = query;
                             { path: "/groups", query: q };
                         case GroupShow(id):
                             { path: '/groups/$id' };
