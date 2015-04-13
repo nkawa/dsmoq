@@ -7,12 +7,12 @@ enum Page {
     Dashboard;
 
     //DatasetNew;
-    DatasetList(page: PositiveInt, query: String, filters: Dynamic);
+    DatasetList(page: Int, query: String, filters: Array<Dynamic>);
     DatasetShow(id: String);
     DatasetEdit(id: String);
 
     //GroupNew;
-    GroupList(page: PositiveInt, query: String);
+    GroupList(page: Int, query: String);
     GroupShow(id: String);
     GroupEdit(id: String);
 
