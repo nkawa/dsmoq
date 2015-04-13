@@ -19,7 +19,7 @@ import js.html.KeyboardEvent;
 import js.Lib;
 
 class DatasetListPage {
-    public static function render(root: Html, onClose: Promise<Unit>, pageNum: PositiveInt, query: String, filters: Dynamic): Promise<Navigation<Page>> {
+    public static function render(root: Html, onClose: Promise<Unit>, pageNum: Int, query: String, filters: Dynamic): Promise<Navigation<Page>> {
         var navigation = new PromiseBroker();
         var condition = {
             query: query,
@@ -46,7 +46,7 @@ class DatasetListPage {
                             .map(function (x) return x.item);
 
             binding.setProperty("result", Async.Pending);
-			
+
 			Service.instance.getTags().then(function(x) {
 				binding.setProperty("tag", x);
 				Service.instance.findDatasets({
@@ -73,10 +73,10 @@ class DatasetListPage {
 
         // observe binding
         JsViews.observe(condition, "filters", function (_, _) {
-			if (query == condition.query && filters == condition.filters) {
-				navigation.fulfill(Navigation.Reload);
+			if (query == condition.query && filters == condition.filters && condition.index == 0) {
+				load();
 			} else {
-				navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, StringTools.urlEncode(condition.query), condition.filters)));				
+				navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, StringTools.urlEncode(condition.query), condition.filters)));
 			}
         });
         JsViews.observe(condition, "index", function (_, args) {
@@ -86,35 +86,35 @@ class DatasetListPage {
 
         // init search form
         JQuery._("#search-button").on("click", function (_) {
-			if (query == condition.query && filters == condition.filters) {
-				navigation.fulfill(Navigation.Reload);
+			if (query == condition.query && filters == condition.filters && condition.index == 0) {
+				load();
 			} else {
-				navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, StringTools.urlEncode(condition.query), condition.filters)));				
+				navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, StringTools.urlEncode(condition.query), condition.filters)));
 			}
         });
-		
+
 		JQuery._("#search-form").on("submit", function (_) {
-			if (query == condition.query && filters == condition.filters) {
-				navigation.fulfill(Navigation.Reload);
+			if (query == condition.query && filters == condition.filters && condition.index == 0) {
+				load();
 			} else {
-				navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, StringTools.urlEncode(condition.query), condition.filters)));				
+				navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, StringTools.urlEncode(condition.query), condition.filters)));
 			}
 			return false;
 		});
-		
+
         BootstrapPopover.initialize("#add-filter-button", {
             content: JQuery._("#filter-add-form").children(),
             placement: "bottom",
             html: true
         });
-		
+
         JQuery._("body").on("keydown", function (e) {
             var event: KeyboardEvent = cast e;
             if (event.keyCode == 27) { //esc
                 BootstrapPopover.hide("#add-filter-button");
             }
         });
-		
+
         JQuery._("#add-filter-button").on("shown.bs.popover", function (_) {
             // init owner tab
             JQuery._("#filter-owner-input").val("");
