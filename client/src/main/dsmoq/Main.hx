@@ -312,10 +312,10 @@ class Main {
                             Top;
                         case ["dashboard"]:
                             Dashboard;
-							
+
                         case ["datasets"]:
                             DatasetList(
-								parsePositiveInt(location.query["page"]).getOrDefault(1), 
+								parsePositiveInt(location.query["page"]).getOrDefault(1),
 								getQuery(location.query["query"]).getOrDefault(""),
 								getFilters(location.query["filters"]).getOrDefault(new Array<{type: String, item: Dynamic}>())
 							);
@@ -341,12 +341,12 @@ class Main {
                             { path: "/" };
                         case Dashboard:
                             { path: "/dashboard" };
-							
+
                         case DatasetList(page, query, filters):
                             var q = new Map();
-                            q["page"] = Std.string(page);
-							q["query"] = query;
-							q["filters"] = Json.stringify(filters);
+                            if (page != 1) q["page"] = Std.string(page);
+							if (query.length > 0) q["query"] = query;
+							if (filters.length > 0) q["filters"] = Json.stringify(filters);
                             { path: "/datasets", query: q };
                         case DatasetShow(id):
                             { path: '/datasets/$id' };
