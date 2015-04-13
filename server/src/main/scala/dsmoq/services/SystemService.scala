@@ -235,8 +235,14 @@ object SystemService {
     }
   }
 
-  def getMessage() = {
-    val resource = Resource.fromFile(Paths.get(AppConf.messageDir, "message.txt").toFile)
-    resource.string
+  def getMessage(): String = {
+    val file = Paths.get(AppConf.messageDir, "message.txt").toFile
+    if (file.exists()) {
+      val resource = Resource.fromFile(file)
+      resource.string
+    } else {
+      // ファイルが存在していない場合は空文字を返す
+      ""
+    }
   }
 }
