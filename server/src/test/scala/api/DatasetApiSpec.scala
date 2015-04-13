@@ -164,32 +164,29 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
       "データセットの情報が編集できるか(attribute込み)" in {
         session {
           signIn()
-          session {
-            signIn()
-            val datasetId = createDataset()
-            val params = List("d" ->
-              compact(render(
-                ("name" -> "変更後データセット") ~
-                ("description" -> "change description") ~
-                ("license" -> AppConf.defaultLicenseId) ~
-                ("attributes" -> List(
-                  ("name" -> "attr_name") ~ ("value" -> "attr_value"),
-                  ("name" -> "attr_another_name") ~ ("value" -> "attr_another_value")
-                ))
+          val datasetId = createDataset()
+          val params = List("d" ->
+            compact(render(
+              ("name" -> "変更後データセット") ~
+              ("description" -> "change description") ~
+              ("license" -> AppConf.defaultLicenseId) ~
+              ("attributes" -> List(
+                ("name" -> "attr_name") ~ ("value" -> "attr_value"),
+                ("name" -> "attr_another_name") ~ ("value" -> "attr_another_value")
               ))
-            )
-            put("/api/datasets/" + datasetId + "/metadata", params) { checkStatus() }
-            get("/api/datasets/" + datasetId) {
-              checkStatus()
-              val result = parse(body).extract[AjaxResponse[Dataset]]
-              result.data.meta.name should be ("変更後データセット")
-              result.data.meta.description should be ("change description")
-              result.data.meta.license should be(AppConf.defaultLicenseId)
-              result.data.meta.attributes.map(_.name).contains("attr_name")
-              result.data.meta.attributes.map(_.name).contains("attr_another_name")
-              result.data.meta.attributes.map(_.value).contains("attr_value")
-              result.data.meta.attributes.map(_.value).contains("attr_another_value")
-            }
+            ))
+          )
+          put("/api/datasets/" + datasetId + "/metadata", params) { checkStatus() }
+          get("/api/datasets/" + datasetId) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.data.meta.name should be ("変更後データセット")
+            result.data.meta.description should be ("change description")
+            result.data.meta.license should be(AppConf.defaultLicenseId)
+            result.data.meta.attributes.map(_.name).contains("attr_name")
+            result.data.meta.attributes.map(_.name).contains("attr_another_name")
+            result.data.meta.attributes.map(_.value).contains("attr_value")
+            result.data.meta.attributes.map(_.value).contains("attr_another_value")
           }
         }
       }
@@ -467,15 +464,19 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           post("/api/signout") { checkStatus() }
 
           post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          // 一覧検索
           get("/api/datasets") {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+            result.data.summary.total should be(1)
             assert(result.data.results.map(_.id).contains(datasetId))
           }
+          // 詳細検索
           get("/api/datasets/" + datasetId) {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Dataset]]
             result.data.id should be(datasetId)
+            assert(result.data.ownerships.filter(_.ownerType == OwnerType.User).map(_.id).contains(dummyUserId))
           }
         }
       }
@@ -503,7 +504,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             compact(render(List(
               ("id" -> groupId) ~
               ("ownerType" -> JInt(OwnerType.Group)) ~
-              ("accessLevel" -> JInt(UserAccessLevel.FullPublic))
+              ("accessLevel" -> JInt(GroupAccessLevel.FullPublic))
             )))
           )
           post("/api/datasets/" + datasetId + "/acl", params) {
@@ -515,15 +516,19 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
           // アクセスレベルを設定したdatasetはそのユーザー(グループ)から参照できるはず
           post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          // 一覧検索
           get("/api/datasets") {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+            result.data.summary.total should be(1)
             assert(result.data.results.map(_.id).contains(datasetId))
           }
+          // 詳細検索
           get("/api/datasets/" + datasetId) {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Dataset]]
             result.data.id should be(datasetId)
+            assert(result.data.ownerships.filter(_.ownerType == OwnerType.Group).map(_.name).contains(groupName))
           }
         }
       }
