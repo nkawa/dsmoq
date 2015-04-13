@@ -129,10 +129,10 @@ object Main {
   private def printUsage(): Unit = {
     println(
       """usage:
-        |adminTool list                      : APIキーの一覧を表示します.
-        |adminTool search <some login name>  : 指定したユーザ名に割り当てられたAPIキーの一覧を表示します。
-        |adminTool publish <some login name> : 指定したユーザ名のユーザに対して、APIキーを発行します。
-        |adminTool remove <consumer_key>     : 指定したAPIキーを無効化します。
+        |apiKeyTool list                      : APIキーの一覧を表示します.
+        |apiKeyTool search <some login name>  : 指定したユーザ名に割り当てられたAPIキーの一覧を表示します。
+        |apiKeyTool publish <some login name> : 指定したユーザ名のユーザに対して、APIキーを発行します。
+        |apiKeyTool remove <consumer_key>     : 指定したAPIキーを無効化します。
       """.stripMargin)
   }
 

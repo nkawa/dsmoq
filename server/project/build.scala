@@ -117,4 +117,15 @@ object DsmoqBuild extends Build {
       )
     )
   ).dependsOn(dsmoq)
+
+  lazy val tagManager = Project(
+    id = "tagManager",
+    base = file("tagManager"),
+    settings = Defaults.coreDefaultSettings ++ Seq(
+      organization := Organization,
+      name := "tagManager",
+      version := Version,
+      scalaVersion := ScalaVersion
+    )
+  ).dependsOn(dsmoq)
 }
