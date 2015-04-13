@@ -1008,6 +1008,113 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         }
       }
     }
+    "SearchDatasetList" - {
+      "データセット名が部分一致するデータセットを検索できるか" in {
+        session {
+          signIn()
+          // データセットを3件作成、1件のみ情報変更
+          createDataset()
+          createDataset()
+          val datasetId = createDataset()
+          val modifyParams = Map("d" ->
+            compact(render(
+              ("name" -> "変更後データセット") ~
+                ("description" -> "change description") ~
+                ("license" -> AppConf.defaultLicenseId)
+            ))
+          )
+          put("/api/datasets/" + datasetId + "/metadata", modifyParams) { checkStatus() }
+
+          // 情報変更したデータセットが検索可能か(部分一致検索)
+          var searchParmas = Map("d" ->
+            compact(render(("query" -> "変更後")))
+          )
+          get("/api/datasets", searchParmas) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+            result.data.summary.total should be(1)
+            assert(result.data.results.map(_.id).contains(datasetId))
+            result.data.results.find(_.id == datasetId).get.name should be ("変更後データセット")
+          }
+        }
+      }
+
+      "データセット詳細が部分一致するデータセットを検索できるか" in {
+        session {
+          signIn()
+          // データセットを3件作成、1件のみ情報変更
+          createDataset()
+          createDataset()
+          val datasetId = createDataset()
+          val modifyParams = Map("d" ->
+            compact(render(
+              ("name" -> "変更後データセット") ~
+                ("description" -> "<p>詳細情報変更しました</p>") ~
+                ("license" -> AppConf.defaultLicenseId)
+            ))
+          )
+          put("/api/datasets/" + datasetId + "/metadata", modifyParams) { checkStatus() }
+
+          // 情報変更したデータセットが検索可能か(部分一致検索)
+          var searchParmas = Map("d" ->
+            compact(render(("query" -> "詳細情報")))
+          )
+          get("/api/datasets", searchParmas) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+            result.data.summary.total should be(1)
+            assert(result.data.results.map(_.id).contains(datasetId))
+            result.data.results.find(_.id == datasetId).get.description should be ("<p>詳細情報変更しました</p>")
+          }
+        }
+      }
+
+      "データセット名またはデータセット詳細が部分一致するデータセットをすべて検索できるか" in {
+        session {
+          signIn()
+          // データセットを3件作成、2件情報変更
+          createDataset()
+          val nameChangeDatasetId = createDataset()
+          val descriptionChangeDatasetId = createDataset()
+          val searchText = "検索用テキスト"
+
+          // 変更するデータ片方のname, もう片方のdescriptionに同じ文字が入るようにする
+          val name = searchText + UUID.randomUUID
+          val modifyParams = Map("d" ->
+            compact(render(
+              ("name" -> name) ~
+                ("description" -> "dummy description") ~
+                ("license" -> AppConf.defaultLicenseId)
+            ))
+          )
+          put("/api/datasets/" + nameChangeDatasetId + "/metadata", modifyParams) { checkStatus() }
+
+          val description = "<p>" + UUID.randomUUID + searchText + "</p>"
+          val modifyParams2 = Map("d" ->
+            compact(render(
+              ("name" -> "dummy name") ~
+                ("description" -> description) ~
+                ("license" -> AppConf.defaultLicenseId)
+            ))
+          )
+          put("/api/datasets/" + descriptionChangeDatasetId + "/metadata", modifyParams2) { checkStatus() }
+
+          // 情報変更したデータセットが検索可能か(部分一致検索)
+          var searchParmas = Map("d" ->
+            compact(render(("query" -> searchText)))
+          )
+          get("/api/datasets", searchParmas) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+            result.data.summary.total should be(2)
+            assert(result.data.results.map(_.id).contains(nameChangeDatasetId))
+            assert(result.data.results.map(_.id).contains(descriptionChangeDatasetId))
+            result.data.results.find(_.id == nameChangeDatasetId).get.name should be (name)
+            result.data.results.find(_.id == descriptionChangeDatasetId).get.description should be (description)
+          }
+        }
+      }
+    }
   }
 
   private def changeStorageState(id: String, local: Int, s3: Int): Unit = {
