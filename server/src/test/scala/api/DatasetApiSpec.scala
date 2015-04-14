@@ -1128,6 +1128,74 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         }
       }
 
+      "ファイル名の部分一致でデータセットを検索できるか" in {
+        session {
+          // データセットを2つ作成、片方にファイルを追加
+          signIn()
+          createDataset()
+          val datasetId = createDataset()
+          val files = Map("files[]" -> dummyImage)
+          val fileId = post("/api/datasets/" + datasetId + "/files", Map.empty, files) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[DatasetAddFiles]]
+            result.data.files(0).id
+          }
+
+          // 初期検索結果は2件
+          get("/api/datasets") {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+            result.data.summary.total should be(2)
+            assert(result.data.results.map(_.id).contains(datasetId))
+          }
+
+          // ファイル名でデータセットが検索可能か(部分一致検索)
+          var searchParmas = Map("d" ->
+            compact(render(("query" -> dummyImage.getName.substring(0, 6))))
+          )
+          get("/api/datasets", searchParmas) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+            result.data.summary.total should be(1)
+            assert(result.data.results.map(_.id).contains(datasetId))
+          }
+        }
+      }
+
+      "ZIPファイル中のファイル名の部分一致でデータセットを検索できるか" in {
+        session {
+          // データセットを2つ作成、片方にZIPファイルを追加
+          signIn()
+          createDataset()
+          val datasetId = createDataset()
+          val files = Map("files[]" -> new File("testdata/test2.zip"))
+          val fileId = post("/api/datasets/" + datasetId + "/files", Map.empty, files) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[DatasetAddFiles]]
+            result.data.files(0).id
+          }
+
+          // 初期検索結果は2件
+          get("/api/datasets") {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+            result.data.summary.total should be(2)
+            assert(result.data.results.map(_.id).contains(datasetId))
+          }
+
+          // ZIPファイル中のファイル名でデータセットが検索可能か(部分一致検索)
+          var searchParmas = Map("d" ->
+            compact(render(("query" -> "test5.txt")))
+          )
+          get("/api/datasets", searchParmas) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+            result.data.summary.total should be(1)
+            assert(result.data.results.map(_.id).contains(datasetId))
+          }
+        }
+      }
+
       "ユーザーを指定してデータセットを検索できるか" in {
         // 2つのユーザーでデータセットを1件ずつ作成
         session {
