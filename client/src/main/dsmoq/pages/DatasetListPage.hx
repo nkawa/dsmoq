@@ -1,5 +1,6 @@
 package dsmoq.pages;
 
+import haxe.Json;
 import conduitbox.Navigation;
 import dsmoq.Async;
 import dsmoq.models.Service;
@@ -108,7 +109,8 @@ class DatasetListPage {
             JQuery._("#filter-owner-input").val("");
             AutoComplete.initialize("#filter-owner-input", {
                 url: function (query: String) {
-                    return '/api/suggests/users_and_groups?query=${query}';
+					var d = Json.stringify({query: query});
+                    return '/api/suggests/users_and_groups?d=${d}';
                 },
                 path: "name",
                 filter: function (data: Dynamic) {
