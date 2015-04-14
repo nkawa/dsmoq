@@ -76,26 +76,28 @@
             </div>
             <p class="text-danger" data-link="dataset.errors.meta.license"></p>
           {{/if}}
-			<a class="btn btn-success btn-sm" id="dataset-attribute-export" href="/api/datasets/{{>dataset.id}}/attributes/export">export</a>
 			<div class="btn btn-success btn-sm" id="dataset-attribute-import">import
 				<input type="file" id="csv-file" accept=".csv" name="file" style="display:inline;">
 			</div>
+			<a class="btn btn-success btn-sm" id="dataset-attribute-export" href="/api/datasets/{{>dataset.id}}/attributes/export">export</a>
           <div class="form-group">
-            <table class="table table-bordered table-condensed" style="width: 600px;">
+            <table class="table table-bordered table-condensed no-border" style="width: 600px; border: 0px;">
               <thead>
-                <tr><td>name</td><td>value</td><td></td></tr>
+                <tr style="border:0px"><td style="border-top:1px solid #ddd">name</td><td style="border-top:1px solid #ddd">value</td><td style="border: 0px"></td></tr>
               </thead>
               <tbody>
                 {^{for dataset.meta.attributes}}
-                  <tr>
+                  <tr style="border: 0px">
                     <td><input type="text" class="form-control attribute-typeahead" data-link="name"></td>
                     <td><input type="text" class="form-control" data-link="value"></td>
-                    <td><a class="btn btn-warning btn-sm dataset-attribute-remove" data-value="{{>#index}}">del</a></td>
+                    <td style="border: 0px"><a class="btn btn-default btn-sm dataset-attribute-remove" data-value="{{>#index}}"><span class="glyphicon glyphicon-minus"></span></a></td>
                   </tr>
                 {{/for}}
-                <tr>
-                  <td colspan="3">
-						<a class="btn btn-success btn-sm" id="dataset-attribute-add">add</a>
+                <tr style="border: 0px">
+                  <td style="border: 0px"></td>
+				  <td style="border: 0px"></td>
+				  <td style="border: 0px">
+						<a class="btn btn-default btn-sm" id="dataset-attribute-add"><span class="glyphicon glyphicon-plus"></span></a>
 				  </td>
                 </tr>
               </tbody>
