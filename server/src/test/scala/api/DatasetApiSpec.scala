@@ -1011,6 +1011,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         }
       }
     }
+
     "SearchDatasetList" - {
       "データセット名が部分一致するデータセットを検索できるか" in {
         session {
@@ -1026,7 +1027,9 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
                 ("license" -> AppConf.defaultLicenseId)
             ))
           )
-          put("/api/datasets/" + datasetId + "/metadata", modifyParams) { checkStatus() }
+          put("/api/datasets/" + datasetId + "/metadata", modifyParams) {
+            checkStatus()
+          }
 
           // 情報変更したデータセットが検索可能か(部分一致検索)
           var searchParmas = Map("d" ->
@@ -1037,7 +1040,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
             result.data.summary.total should be(1)
             assert(result.data.results.map(_.id).contains(datasetId))
-            result.data.results.find(_.id == datasetId).get.name should be ("変更後データセット")
+            result.data.results.find(_.id == datasetId).get.name should be("変更後データセット")
           }
         }
       }
@@ -1056,7 +1059,9 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
                 ("license" -> AppConf.defaultLicenseId)
             ))
           )
-          put("/api/datasets/" + datasetId + "/metadata", modifyParams) { checkStatus() }
+          put("/api/datasets/" + datasetId + "/metadata", modifyParams) {
+            checkStatus()
+          }
 
           // 情報変更したデータセットが検索可能か(部分一致検索)
           var searchParmas = Map("d" ->
@@ -1067,7 +1072,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
             result.data.summary.total should be(1)
             assert(result.data.results.map(_.id).contains(datasetId))
-            result.data.results.find(_.id == datasetId).get.description should be ("<p>詳細情報変更しました</p>")
+            result.data.results.find(_.id == datasetId).get.description should be("<p>詳細情報変更しました</p>")
           }
         }
       }
@@ -1090,7 +1095,9 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
                 ("license" -> AppConf.defaultLicenseId)
             ))
           )
-          put("/api/datasets/" + nameChangeDatasetId + "/metadata", modifyParams) { checkStatus() }
+          put("/api/datasets/" + nameChangeDatasetId + "/metadata", modifyParams) {
+            checkStatus()
+          }
 
           val description = "<p>" + UUID.randomUUID + searchText + "</p>"
           val modifyParams2 = Map("d" ->
@@ -1100,7 +1107,9 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
                 ("license" -> AppConf.defaultLicenseId)
             ))
           )
-          put("/api/datasets/" + descriptionChangeDatasetId + "/metadata", modifyParams2) { checkStatus() }
+          put("/api/datasets/" + descriptionChangeDatasetId + "/metadata", modifyParams2) {
+            checkStatus()
+          }
 
           // 情報変更したデータセットが検索可能か(部分一致検索)
           var searchParmas = Map("d" ->
@@ -1112,11 +1121,12 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             result.data.summary.total should be(2)
             assert(result.data.results.map(_.id).contains(nameChangeDatasetId))
             assert(result.data.results.map(_.id).contains(descriptionChangeDatasetId))
-            result.data.results.find(_.id == nameChangeDatasetId).get.name should be (name)
-            result.data.results.find(_.id == descriptionChangeDatasetId).get.description should be (description)
+            result.data.results.find(_.id == nameChangeDatasetId).get.name should be(name)
+            result.data.results.find(_.id == descriptionChangeDatasetId).get.description should be(description)
           }
         }
       }
+
       "ユーザーを指定してデータセットを検索できるか" in {
         // 2つのユーザーでデータセットを1件ずつ作成
         session {
@@ -1143,7 +1153,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           post("/api/datasets/" + twoOwnersDatasetId + "/acl", aclParams) {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Seq[DatasetOwnership]]]
-            assert(result.data.map(_.id) contains(testUserId))
+            assert(result.data.map(_.id) contains (testUserId))
           }
           post("/api/signout") {
             checkStatus()
@@ -1428,6 +1438,673 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
             result.data.summary.total should be(0)
+          }
+        }
+      }
+
+      "絞り込み条件の組み合わせ検索 " - {
+        "query+owners" in {
+          session {
+            // datasetを別々のユーザーで2つ作成、どちらもguestアクセス可能とする
+            signIn()
+            val datasetId = createDataset()
+            val params = Map("d" -> compact(render(("accessLevel" -> JInt(DefaultAccessLevel.FullPublic)))))
+            put("/api/datasets/" + datasetId + "/guest_access", params) {
+              checkStatus()
+            }
+            post("/api/signout") {
+              checkStatus()
+            }
+
+            post("/api/signin", dummyUserLoginParams) {
+              checkStatus()
+            }
+            val anotherDatasetId = createDataset()
+            put("/api/datasets/" + anotherDatasetId + "/guest_access", params) {
+              checkStatus()
+            }
+            post("/api/signout") {
+              checkStatus()
+            }
+
+            signIn()
+            // 初期検索結果は2件
+            get("/api/datasets") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+              result.data.summary.total should be(2)
+              assert(result.data.results.map(_.id).contains(datasetId))
+              assert(result.data.results.map(_.id).contains(anotherDatasetId))
+            }
+
+            // 検索クエリとユーザー名を指定して検索可能か
+            var searchParmas = Map("d" ->
+              compact(render(
+                ("query" -> dummyFile.getName) ~
+                  ("owners" -> List(testUserName))
+              ))
+            )
+            get("/api/datasets", searchParmas) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+              result.data.summary.total should be(1)
+              assert(result.data.results.map(_.id).contains(datasetId))
+              // 検索クエリとユーザー名で絞り込めているかチェック
+              val dataset = result.data.results.find(_.id == datasetId).get
+              assert(dataset.name.contains(dummyFile.getName) || dataset.description.contains(dummyFile.getName))
+              assert(dataset.ownerships.filter(_.ownerType == OwnerType.User).map(_.name).contains(testUserName))
+            }
+
+            var searchParmas2 = Map("d" ->
+              compact(render(
+                ("query" -> dummyFile.getName) ~
+                  ("owners" -> List(dummyUserName))
+              ))
+            )
+            get("/api/datasets", searchParmas2) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+              result.data.summary.total should be(1)
+              assert(result.data.results.map(_.id).contains(anotherDatasetId))
+              // 検索クエリとユーザー名で絞り込めているかチェック
+              val dataset = result.data.results.find(_.id == anotherDatasetId).get
+              assert(dataset.name.contains(dummyFile.getName) || dataset.description.contains(dummyFile.getName))
+              assert(dataset.ownerships.filter(_.ownerType == OwnerType.User).map(_.name).contains(dummyUserName))
+            }
+          }
+        }
+
+        "query+groups" in {
+          session {
+            // datasetを2つ作成、片方はグループに所属させる(Provider権限を与える)
+            signIn()
+            createDataset()
+            val datasetId = createDataset()
+            val groupName = "groupName" + UUID.randomUUID().toString
+            val createGroupParams = Map("d" -> compact(render(("name" -> groupName) ~ ("description" -> "group description"))))
+            val groupId = post("/api/groups", createGroupParams) {
+              checkStatus()
+              parse(body).extract[AjaxResponse[Group]].data.id
+            }
+            val groupAclParams = Map("d" ->
+              compact(render(List(
+                ("id" -> groupId) ~
+                  ("ownerType" -> JInt(OwnerType.Group)) ~
+                  ("accessLevel" -> JInt(GroupAccessLevel.Provider))
+              )))
+            )
+            post("/api/datasets/" + datasetId + "/acl", groupAclParams) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Seq[DatasetOwnership]]]
+              assert(result.data.map(_.id) contains (groupId))
+            }
+
+            // 初期検索結果は2件
+            get("/api/datasets") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+              result.data.summary.total should be(2)
+              assert(result.data.results.map(_.id).contains(datasetId))
+            }
+
+            // 検索クエリとグループ名を指定して検索可能か
+            var searchParmas = Map("d" ->
+              compact(render(
+                ("query" -> dummyFile.getName) ~
+                  ("groups" -> List(groupName))
+              ))
+            )
+            get("/api/datasets", searchParmas) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+              result.data.summary.total should be(1)
+              assert(result.data.results.map(_.id).contains(datasetId))
+              // 検索クエリとグループ名で絞り込めているかチェック
+              val dataset = result.data.results.find(_.id == datasetId).get
+              assert(dataset.name.contains(dummyFile.getName) || dataset.description.contains(dummyFile.getName))
+              assert(dataset.ownerships.filter(_.ownerType == OwnerType.Group).map(_.name).contains(groupName))
+            }
+          }
+        }
+
+        "query+attributes" in {
+          session {
+            // datasetを2つ作成、片方はatrribute付与
+            signIn()
+            createDataset()
+            val datasetId = createDataset()
+            val datasetName = "TEST NAME" + UUID.randomUUID
+            val attribute = ("name" -> "hoge") ~ ("value" -> "piyo")
+            val metadataParams = List("d" ->
+              compact(render(
+                ("name" -> datasetName) ~
+                  ("description" -> "description") ~
+                  ("license" -> AppConf.defaultLicenseId) ~
+                  ("attributes" -> List(attribute))
+              ))
+            )
+            put("/api/datasets/" + datasetId + "/metadata", metadataParams) {
+              checkStatus()
+            }
+
+            // 初期検索結果は2件
+            get("/api/datasets") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+              result.data.summary.total should be(2)
+              assert(result.data.results.map(_.id).contains(datasetId))
+            }
+
+            // 検索クエリとattributeを指定して検索可能か
+            var searchParmas = Map("d" ->
+              compact(render(
+                ("query" -> datasetName) ~
+                  ("attributes" -> List(attribute))
+              ))
+            )
+            get("/api/datasets", searchParmas) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+              result.data.summary.total should be(1)
+              assert(result.data.results.map(_.id).contains(datasetId))
+              // 検索クエリとattributeで絞り込めているかチェック
+              val dataset = result.data.results.find(_.id == datasetId).get
+              assert(dataset.name.contains(datasetName))
+              assert(dataset.attributes.map(_.name).contains(attribute.values.get("name").get))
+              assert(dataset.attributes.map(_.value).contains(attribute.values.get("value").get))
+            }
+          }
+        }
+
+        "owners+gropus" in {
+          session {
+            // datasetを2つ作成、片方はグループに所属させる(Provider権限を与える)
+            signIn()
+            createDataset()
+            val datasetId = createDataset()
+            val groupName = "groupName" + UUID.randomUUID().toString
+            val createGroupParams = Map("d" -> compact(render(("name" -> groupName) ~ ("description" -> "group description"))))
+            val groupId = post("/api/groups", createGroupParams) {
+              checkStatus()
+              parse(body).extract[AjaxResponse[Group]].data.id
+            }
+            val groupAclParams = Map("d" ->
+              compact(render(List(
+                ("id" -> groupId) ~
+                  ("ownerType" -> JInt(OwnerType.Group)) ~
+                  ("accessLevel" -> JInt(GroupAccessLevel.Provider))
+              )))
+            )
+            post("/api/datasets/" + datasetId + "/acl", groupAclParams) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Seq[DatasetOwnership]]]
+              assert(result.data.map(_.id) contains (groupId))
+            }
+
+            // 初期検索結果は2件
+            get("/api/datasets") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+              result.data.summary.total should be(2)
+              assert(result.data.results.map(_.id).contains(datasetId))
+            }
+
+            // ユーザー名とグループ名を指定して検索可能か
+            var searchParmas = Map("d" ->
+              compact(render(
+                ("owners" -> List(testUserName)) ~
+                  ("groups" -> List(groupName))
+              ))
+            )
+            get("/api/datasets", searchParmas) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+              result.data.summary.total should be(1)
+              assert(result.data.results.map(_.id).contains(datasetId))
+              // ユーザー名とグループ名で絞り込めているかチェック
+              val dataset = result.data.results.find(_.id == datasetId).get
+              assert(dataset.ownerships.filter(_.ownerType == OwnerType.User).map(_.name).contains(testUserName))
+              assert(dataset.ownerships.filter(_.ownerType == OwnerType.Group).map(_.name).contains(groupName))
+            }
+          }
+        }
+
+        "owners+attributes" in {
+          session {
+            // datasetを2つ作成、片方はatrribute付与
+            signIn()
+            createDataset()
+            val datasetId = createDataset()
+            val datasetName = "TEST NAME" + UUID.randomUUID
+            val attribute = ("name" -> "hoge") ~ ("value" -> "piyo")
+            val metadataParams = List("d" ->
+              compact(render(
+                ("name" -> datasetName) ~
+                  ("description" -> "description") ~
+                  ("license" -> AppConf.defaultLicenseId) ~
+                  ("attributes" -> List(attribute))
+              ))
+            )
+            put("/api/datasets/" + datasetId + "/metadata", metadataParams) {
+              checkStatus()
+            }
+
+            // 初期検索結果は2件
+            get("/api/datasets") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+              result.data.summary.total should be(2)
+              assert(result.data.results.map(_.id).contains(datasetId))
+            }
+
+            // ユーザー名とattributeを指定して検索可能か
+            var searchParmas = Map("d" ->
+              compact(render(
+                ("owners" -> List(testUserName)) ~
+                  ("attributes" -> List(attribute))
+              ))
+            )
+            get("/api/datasets", searchParmas) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+              result.data.summary.total should be(1)
+              assert(result.data.results.map(_.id).contains(datasetId))
+              // ユーザー名とattributeで絞り込めているかチェック
+              val dataset = result.data.results.find(_.id == datasetId).get
+              assert(dataset.ownerships.filter(_.ownerType == OwnerType.User).map(_.name).contains(testUserName))
+              assert(dataset.attributes.map(_.name).contains(attribute.values.get("name").get))
+              assert(dataset.attributes.map(_.value).contains(attribute.values.get("value").get))
+            }
+          }
+        }
+
+        "groups+attributes" in {
+          session {
+            // datasetを2つ作成、片方はグループ権限(Provider)とatrribute付与
+            signIn()
+            createDataset()
+            val datasetId = createDataset()
+            // group
+            val groupName = "groupName" + UUID.randomUUID().toString
+            val createGroupParams = Map("d" -> compact(render(("name" -> groupName) ~ ("description" -> "group description"))))
+            val groupId = post("/api/groups", createGroupParams) {
+              checkStatus()
+              parse(body).extract[AjaxResponse[Group]].data.id
+            }
+            val groupAclParams = Map("d" ->
+              compact(render(List(
+                ("id" -> groupId) ~
+                  ("ownerType" -> JInt(OwnerType.Group)) ~
+                  ("accessLevel" -> JInt(GroupAccessLevel.Provider))
+              )))
+            )
+            post("/api/datasets/" + datasetId + "/acl", groupAclParams) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Seq[DatasetOwnership]]]
+              assert(result.data.map(_.id) contains (groupId))
+            }
+            // attributes
+            val datasetName = "TEST NAME" + UUID.randomUUID
+            val attribute = ("name" -> "hoge") ~ ("value" -> "piyo")
+            val metadataParams = List("d" ->
+              compact(render(
+                ("name" -> datasetName) ~
+                  ("description" -> "description") ~
+                  ("license" -> AppConf.defaultLicenseId) ~
+                  ("attributes" -> List(attribute))
+              ))
+            )
+            put("/api/datasets/" + datasetId + "/metadata", metadataParams) {
+              checkStatus()
+            }
+
+            // 初期検索結果は2件
+            get("/api/datasets") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+              result.data.summary.total should be(2)
+              assert(result.data.results.map(_.id).contains(datasetId))
+            }
+
+            // グループ名とattributeを指定して検索可能か
+            var searchParmas = Map("d" ->
+              compact(render(
+                ("groups" -> List(groupName)) ~
+                  ("attributes" -> List(attribute))
+              ))
+            )
+            get("/api/datasets", searchParmas) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+              result.data.summary.total should be(1)
+              assert(result.data.results.map(_.id).contains(datasetId))
+              // グループ名とattributeで絞り込めているかチェック
+              val dataset = result.data.results.find(_.id == datasetId).get
+              assert(dataset.ownerships.filter(_.ownerType == OwnerType.Group).map(_.name).contains(groupName))
+              assert(dataset.attributes.map(_.name).contains(attribute.values.get("name").get))
+              assert(dataset.attributes.map(_.value).contains(attribute.values.get("value").get))
+            }
+          }
+        }
+
+        "query+owners+groups" in {
+          session {
+            // datasetを2つ作成、片方はグループに所属させる(Provider権限を与える)
+            signIn()
+            createDataset()
+            val datasetId = createDataset()
+            val groupName = "groupName" + UUID.randomUUID().toString
+            val createGroupParams = Map("d" -> compact(render(("name" -> groupName) ~ ("description" -> "group description"))))
+            val groupId = post("/api/groups", createGroupParams) {
+              checkStatus()
+              parse(body).extract[AjaxResponse[Group]].data.id
+            }
+            val groupAclParams = Map("d" ->
+              compact(render(List(
+                ("id" -> groupId) ~
+                  ("ownerType" -> JInt(OwnerType.Group)) ~
+                  ("accessLevel" -> JInt(GroupAccessLevel.Provider))
+              )))
+            )
+            post("/api/datasets/" + datasetId + "/acl", groupAclParams) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Seq[DatasetOwnership]]]
+              assert(result.data.map(_.id) contains (groupId))
+            }
+
+            // 初期検索結果は2件
+            get("/api/datasets") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+              result.data.summary.total should be(2)
+              assert(result.data.results.map(_.id).contains(datasetId))
+            }
+
+            // 検索クエリ・ユーザー名・グループ名を指定して検索可能か
+            var searchParmas = Map("d" ->
+              compact(render(
+                ("query" -> dummyFile.getName) ~
+                  ("owners" -> List(testUserName)) ~
+                  ("groups" -> List(groupName))
+              ))
+            )
+            get("/api/datasets", searchParmas) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+              result.data.summary.total should be(1)
+              assert(result.data.results.map(_.id).contains(datasetId))
+              // 検索クエリ・ユーザー名・グループ名で絞り込めているかチェック
+              val dataset = result.data.results.find(_.id == datasetId).get
+              assert(dataset.name.contains(dummyFile.getName) || dataset.description.contains(dummyFile.getName))
+              assert(dataset.ownerships.filter(_.ownerType == OwnerType.User).map(_.name).contains(testUserName))
+              assert(dataset.ownerships.filter(_.ownerType == OwnerType.Group).map(_.name).contains(groupName))
+            }
+          }
+        }
+
+        "owners+groups+attributes" in {
+          session {
+            // datasetを2つ作成、片方はグループ権限(Provider)とatrribute付与
+            signIn()
+            createDataset()
+            val datasetId = createDataset()
+            // group
+            val groupName = "groupName" + UUID.randomUUID().toString
+            val createGroupParams = Map("d" -> compact(render(("name" -> groupName) ~ ("description" -> "group description"))))
+            val groupId = post("/api/groups", createGroupParams) {
+              checkStatus()
+              parse(body).extract[AjaxResponse[Group]].data.id
+            }
+            val groupAclParams = Map("d" ->
+              compact(render(List(
+                ("id" -> groupId) ~
+                  ("ownerType" -> JInt(OwnerType.Group)) ~
+                  ("accessLevel" -> JInt(GroupAccessLevel.Provider))
+              )))
+            )
+            post("/api/datasets/" + datasetId + "/acl", groupAclParams) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Seq[DatasetOwnership]]]
+              assert(result.data.map(_.id) contains (groupId))
+            }
+            // attributes
+            val datasetName = "TEST NAME" + UUID.randomUUID
+            val attribute = ("name" -> "hoge") ~ ("value" -> "piyo")
+            val metadataParams = List("d" ->
+              compact(render(
+                ("name" -> datasetName) ~
+                  ("description" -> "description") ~
+                  ("license" -> AppConf.defaultLicenseId) ~
+                  ("attributes" -> List(attribute))
+              ))
+            )
+            put("/api/datasets/" + datasetId + "/metadata", metadataParams) {
+              checkStatus()
+            }
+
+            // 初期検索結果は2件
+            get("/api/datasets") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+              result.data.summary.total should be(2)
+              assert(result.data.results.map(_.id).contains(datasetId))
+            }
+
+            // ユーザー名・グループ名・attributeを指定して検索可能か
+            var searchParmas = Map("d" ->
+              compact(render(
+                ("owners" -> List(testUserName)) ~
+                  ("groups" -> List(groupName)) ~
+                  ("attributes" -> List(attribute))
+              ))
+            )
+            get("/api/datasets", searchParmas) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+              result.data.summary.total should be(1)
+              assert(result.data.results.map(_.id).contains(datasetId))
+              // ユーザー名・グループ名・attributeで絞り込めているかチェック
+              val dataset = result.data.results.find(_.id == datasetId).get
+              assert(dataset.ownerships.filter(_.ownerType == OwnerType.User).map(_.name).contains(testUserName))
+              assert(dataset.ownerships.filter(_.ownerType == OwnerType.Group).map(_.name).contains(groupName))
+              assert(dataset.attributes.map(_.name).contains(attribute.values.get("name").get))
+              assert(dataset.attributes.map(_.value).contains(attribute.values.get("value").get))
+            }
+          }
+        }
+
+        "query+groups+attributes" in {
+          session {
+            // datasetを2つ作成、片方はグループ権限(Provider)とatrribute付与
+            signIn()
+            createDataset()
+            val datasetId = createDataset()
+            // group
+            val groupName = "groupName" + UUID.randomUUID().toString
+            val createGroupParams = Map("d" -> compact(render(("name" -> groupName) ~ ("description" -> "group description"))))
+            val groupId = post("/api/groups", createGroupParams) {
+              checkStatus()
+              parse(body).extract[AjaxResponse[Group]].data.id
+            }
+            val groupAclParams = Map("d" ->
+              compact(render(List(
+                ("id" -> groupId) ~
+                  ("ownerType" -> JInt(OwnerType.Group)) ~
+                  ("accessLevel" -> JInt(GroupAccessLevel.Provider))
+              )))
+            )
+            post("/api/datasets/" + datasetId + "/acl", groupAclParams) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Seq[DatasetOwnership]]]
+              assert(result.data.map(_.id) contains (groupId))
+            }
+            // attributes
+            val datasetName = "TEST NAME" + UUID.randomUUID
+            val attribute = ("name" -> "hoge") ~ ("value" -> "piyo")
+            val metadataParams = List("d" ->
+              compact(render(
+                ("name" -> datasetName) ~
+                  ("description" -> "description") ~
+                  ("license" -> AppConf.defaultLicenseId) ~
+                  ("attributes" -> List(attribute))
+              ))
+            )
+            put("/api/datasets/" + datasetId + "/metadata", metadataParams) {
+              checkStatus()
+            }
+
+            // 初期検索結果は2件
+            get("/api/datasets") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+              result.data.summary.total should be(2)
+              assert(result.data.results.map(_.id).contains(datasetId))
+            }
+
+            // 検索クエリ・グループ名・attributeを指定して検索可能か
+            var searchParmas = Map("d" ->
+              compact(render(
+                ("query" -> datasetName) ~
+                  ("groups" -> List(groupName)) ~
+                  ("attributes" -> List(attribute))
+              ))
+            )
+            get("/api/datasets", searchParmas) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+              result.data.summary.total should be(1)
+              assert(result.data.results.map(_.id).contains(datasetId))
+              // 検索クエリ・グループ名・attributeで絞り込めているかチェック
+              val dataset = result.data.results.find(_.id == datasetId).get
+              assert(dataset.name.contains(datasetName))
+              assert(dataset.ownerships.filter(_.ownerType == OwnerType.Group).map(_.name).contains(groupName))
+              assert(dataset.attributes.map(_.name).contains(attribute.values.get("name").get))
+              assert(dataset.attributes.map(_.value).contains(attribute.values.get("value").get))
+            }
+          }
+        }
+
+        "query+owners+attributes" in {
+          session {
+            // datasetを2つ作成、片方はatrribute付与
+            signIn()
+            createDataset()
+            val datasetId = createDataset()
+            val datasetName = "TEST NAME" + UUID.randomUUID
+            val attribute = ("name" -> "hoge") ~ ("value" -> "piyo")
+            val metadataParams = List("d" ->
+              compact(render(
+                ("name" -> datasetName) ~
+                  ("description" -> "description") ~
+                  ("license" -> AppConf.defaultLicenseId) ~
+                  ("attributes" -> List(attribute))
+              ))
+            )
+            put("/api/datasets/" + datasetId + "/metadata", metadataParams) {
+              checkStatus()
+            }
+
+            // 初期検索結果は2件
+            get("/api/datasets") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+              result.data.summary.total should be(2)
+              assert(result.data.results.map(_.id).contains(datasetId))
+            }
+
+            // 検索クエリ・ユーザー名・attributeを指定して検索可能か
+            var searchParmas = Map("d" ->
+              compact(render(
+                ("query" -> datasetName) ~
+                  ("owners" -> List(testUserName)) ~
+                  ("attributes" -> List(attribute))
+              ))
+            )
+            get("/api/datasets", searchParmas) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+              result.data.summary.total should be(1)
+              assert(result.data.results.map(_.id).contains(datasetId))
+              // 検索クエリ・ユーザー名・attributeで絞り込めているかチェック
+              val dataset = result.data.results.find(_.id == datasetId).get
+              assert(dataset.name.contains(datasetName))
+              assert(dataset.ownerships.filter(_.ownerType == OwnerType.User).map(_.name).contains(testUserName))
+              assert(dataset.attributes.map(_.name).contains(attribute.values.get("name").get))
+              assert(dataset.attributes.map(_.value).contains(attribute.values.get("value").get))
+            }
+          }
+        }
+
+        "all" in {
+          session {
+            // datasetを2つ作成、片方はグループ権限(Provider)とatrribute付与
+            signIn()
+            createDataset()
+            val datasetId = createDataset()
+            // group
+            val groupName = "groupName" + UUID.randomUUID().toString
+            val createGroupParams = Map("d" -> compact(render(("name" -> groupName) ~ ("description" -> "group description"))))
+            val groupId = post("/api/groups", createGroupParams) {
+              checkStatus()
+              parse(body).extract[AjaxResponse[Group]].data.id
+            }
+            val groupAclParams = Map("d" ->
+              compact(render(List(
+                ("id" -> groupId) ~
+                  ("ownerType" -> JInt(OwnerType.Group)) ~
+                  ("accessLevel" -> JInt(GroupAccessLevel.Provider))
+              )))
+            )
+            post("/api/datasets/" + datasetId + "/acl", groupAclParams) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Seq[DatasetOwnership]]]
+              assert(result.data.map(_.id) contains (groupId))
+            }
+            // attributes
+            val datasetName = "TEST NAME" + UUID.randomUUID
+            val attribute = ("name" -> "hoge") ~ ("value" -> "piyo")
+            val metadataParams = List("d" ->
+              compact(render(
+                ("name" -> datasetName) ~
+                  ("description" -> "description") ~
+                  ("license" -> AppConf.defaultLicenseId) ~
+                  ("attributes" -> List(attribute))
+              ))
+            )
+            put("/api/datasets/" + datasetId + "/metadata", metadataParams) {
+              checkStatus()
+            }
+
+            // 初期検索結果は2件
+            get("/api/datasets") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+              result.data.summary.total should be(2)
+              assert(result.data.results.map(_.id).contains(datasetId))
+            }
+
+            // 検索クエリ・ユーザー名・グループ名・attributeを指定して検索可能か
+            var searchParmas = Map("d" ->
+              compact(render(
+                ("query" -> datasetName) ~
+                  ("owners" -> List(testUserName)) ~
+                  ("groups" -> List(groupName)) ~
+                  ("attributes" -> List(attribute))
+              ))
+            )
+            get("/api/datasets", searchParmas) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+              result.data.summary.total should be(1)
+              assert(result.data.results.map(_.id).contains(datasetId))
+              // 検索クエリ・ユーザー名・グループ名・attributeで絞り込めているかチェック
+              val dataset = result.data.results.find(_.id == datasetId).get
+              assert(dataset.name.contains(datasetName))
+              assert(dataset.ownerships.filter(_.ownerType == OwnerType.User).map(_.name).contains(testUserName))
+              assert(dataset.ownerships.filter(_.ownerType == OwnerType.Group).map(_.name).contains(groupName))
+              assert(dataset.attributes.map(_.name).contains(attribute.values.get("name").get))
+              assert(dataset.attributes.map(_.value).contains(attribute.values.get("value").get))
+            }
           }
         }
       }
