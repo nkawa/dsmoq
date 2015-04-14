@@ -53,19 +53,11 @@ class GroupListPage {
 
         // init search form
         JQuery._("#search-button").on("click", function (_) {
-			if (query == condition.query) {
-				navigation.fulfill(Navigation.Reload);
-			} else {
-				navigation.fulfill(Navigation.Navigate(Page.GroupList(1, StringTools.urlEncode(condition.query))));			
-			}
+			navigation.fulfill(Navigation.Navigate(Page.GroupList(1, StringTools.urlEncode(condition.query))));			
         });
 
 		JQuery._("#search-form").on("submit", function (_) {
-			if (query == condition.query) {
-				navigation.fulfill(Navigation.Reload);
-			} else {
-				navigation.fulfill(Navigation.Navigate(Page.GroupList(1, StringTools.urlEncode(condition.query))));			
-			}
+			navigation.fulfill(Navigation.Navigate(Page.GroupList(1, StringTools.urlEncode(condition.query))));
 			return false;
 		});
 		
