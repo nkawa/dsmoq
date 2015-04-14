@@ -629,7 +629,7 @@ object DatasetService {
             fullname = rs.string(u.resultName.fullname),
             image = "",
             accessLevel = UserAccessLevel.Owner,
-            ownerType = GroupType.Personal,
+            ownerType = OwnerType.User,
             description = "",
             title = "",
             organization = ""
@@ -641,7 +641,7 @@ object DatasetService {
             fullname = "",
             image = "",
             accessLevel = GroupAccessLevel.Provider,
-            ownerType = GroupType.Public,
+            ownerType = OwnerType.Group,
             description = "",
             title = "",
             organization = ""
