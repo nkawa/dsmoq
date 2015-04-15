@@ -71,7 +71,10 @@ object DsmoqBuild extends Build {
       version := Version,
       scalaVersion := ScalaVersion,
       resolvers += Classpaths.typesafeReleases,
-      libraryDependencies += "com.github.tototoshi" %% "scala-csv" % "1.1.0"
+      libraryDependencies ++= Seq(
+        "org.scalatest" % "scalatest_2.11" % "2.2.1" % "test",
+        "com.github.tototoshi" %% "scala-csv" % "1.1.0"
+      )
     )
   ).dependsOn(dsmoq)
 
