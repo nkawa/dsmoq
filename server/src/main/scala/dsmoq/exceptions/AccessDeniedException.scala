@@ -1,0 +1,3 @@
+package dsmoq.exceptions
+
+class AccessDeniedException extends RuntimeException

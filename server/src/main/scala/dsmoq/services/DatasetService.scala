@@ -1712,7 +1712,7 @@ object DatasetService {
           getPermission(datasetId, groups).getOrElse(UserAndGroupAccessDeny)
         }
         if (permission < UserAndGroupAllowDownload) {
-          throw new RuntimeException("access denied")
+          throw new AccessDeniedException
         }
 
         // datasetが削除されていないか

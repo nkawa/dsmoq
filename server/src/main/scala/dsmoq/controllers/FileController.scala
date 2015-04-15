@@ -1,7 +1,7 @@
 package dsmoq.controllers
 
 import scala.util.{Failure, Success}
-import dsmoq.exceptions.NotFoundException
+import dsmoq.exceptions.{AccessDeniedException, NotFoundException}
 import dsmoq.services.DatasetService
 import org.scalatra.ScalatraServlet
 import org.scalatra.servlet.FileUploadSupport
@@ -32,7 +32,8 @@ class FileController extends ScalatraServlet with SessionTrait with FileUploadSu
         }
       case Failure(e) => e match {
         case _:NotFoundException => halt(status = 404, reason = "Not Found", body="Not Found")
-        case _:RuntimeException => halt(status = 403, reason = "Forbidden", body="Forbidden")
+        case _:AccessDeniedException => halt(status = 403, reason = "Forbidden", body="Forbidden")
+        case e:RuntimeException => halt(status = 500, reason = e.getMessage, body = e.getMessage)
       }
     }
   }
