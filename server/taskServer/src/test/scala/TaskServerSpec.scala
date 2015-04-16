@@ -96,9 +96,9 @@ class TaskServerSpec extends TestKit(ActorSystem()) with FreeSpecLike with Befor
       "S3へコピーできるか" in {
         val datasetId = createDataset(1, 2)
         val task = createTask(0, datasetId, 0, true)
-        val dir = Paths.get(AppConf.fileDir, datasetId, "dummyFileId", "dummyHistoryId").toFile
+        val dir = Paths.get(AppConf.fileDir, datasetId, "dummyFileId").toFile
         dir.mkdirs()
-        val file = dir.toPath.resolve("sample.txt").toFile
+        val file = dir.toPath.resolve("dummyHistoryId").toFile
         file.createNewFile()
         val command = Main.datasetToCommand(task.id, JsonMethods.parse(task.parameter).extract[TaskParameter])
         val taskActor = TestActorRef[TaskActor]
@@ -106,7 +106,7 @@ class TaskServerSpec extends TestKit(ActorSystem()) with FreeSpecLike with Befor
 
         val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
         val client = new AmazonS3Client(cre)
-        client.listObjects(AppConf.s3UploadRoot).getObjectSummaries().map(x => x.getKey).exists(_.endsWith("sample.txt")) should be(true)
+        client.listObjects(AppConf.s3UploadRoot).getObjectSummaries().map(x => x.getKey).exists(_.endsWith("dummyHistoryId")) should be(true)
 
         DB readOnly { implicit s =>
           val dataset = Dataset.find(datasetId).get
@@ -118,9 +118,9 @@ class TaskServerSpec extends TestKit(ActorSystem()) with FreeSpecLike with Befor
       "S3へコピーできるか(ローカルは削除)" in {
         val datasetId = createDataset(1, 2)
         val task = createTask(0, datasetId, 0, false)
-        val dir = Paths.get(AppConf.fileDir, datasetId, "dummyFileId", "dummyHistoryId").toFile
+        val dir = Paths.get(AppConf.fileDir, datasetId, "dummyFileId").toFile
         dir.mkdirs()
-        val file = dir.toPath.resolve("sample.txt").toFile
+        val file = dir.toPath.resolve("dummyHistoryId").toFile
         file.createNewFile()
         val command = Main.datasetToCommand(task.id, JsonMethods.parse(task.parameter).extract[TaskParameter])
         val taskActor = TestActorRef[TaskActor]
@@ -128,7 +128,7 @@ class TaskServerSpec extends TestKit(ActorSystem()) with FreeSpecLike with Befor
 
         val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
         val client = new AmazonS3Client(cre)
-        client.listObjects(AppConf.s3UploadRoot).getObjectSummaries().map(x => x.getKey).exists(_.endsWith("sample.txt")) should be(true)
+        client.listObjects(AppConf.s3UploadRoot).getObjectSummaries().map(x => x.getKey).exists(_.endsWith("dummyHistoryId")) should be(true)
         DB readOnly { implicit s =>
           val t = Task.t
           val tasks = Task.findAllBy(sqls.eq(t.status, 0))

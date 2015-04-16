@@ -88,7 +88,7 @@ class TaskActor extends Actor with ActorLogging {
                 System.getProperty("file.separator")
               }
 
-              val filePath = file.split(separator).reverse.take(4).reverse.mkString("/")
+              val filePath = file.split(separator).reverse.take(3).reverse.mkString("/")
               log.info("UploadToS3 " + filePath)
               FileManager.moveFromLocalToS3(filePath, client)
             }

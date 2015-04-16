@@ -47,17 +47,14 @@ object FileManager {
     val request = new GetObjectRequest(AppConf.s3UploadRoot, filePath)
     val manager = new TransferManager(client)
 
-    val pattern = """([^/]+)/([^/]+)/([^/]+)/[^/]+""".r
+    val pattern = """([^/]+)/([^/]+)/[^/]+""".r
     filePath match {
-      case pattern(datasetId, fileId, historyId) => {
+      case pattern(datasetId, fileId) => {
         val datasetDir = Paths.get(AppConf.fileDir, datasetId).toFile
         if (!datasetDir.exists()) datasetDir.mkdir()
 
         val fileDir = datasetDir.toPath.resolve(fileId).toFile
         if (!fileDir.exists()) fileDir.mkdir()
-
-        val historyDir = fileDir.toPath.resolve(historyId).toFile
-        if (!historyDir.exists()) historyDir.mkdir()
       }
       case _ => // do nothing
     }

@@ -69,7 +69,7 @@ object DatasetService {
           val fileId = UUID.randomUUID.toString
           val historyId = UUID.randomUUID.toString
           FileManager.uploadToLocal(datasetId, fileId, historyId, f)
-          val path = Paths.get(AppConf.fileDir, datasetId, fileId, historyId, f.getName)
+          val path = Paths.get(AppConf.fileDir, datasetId, fileId, historyId)
           val file = persistence.File.create(
             id = fileId,
             datasetId = datasetId,
@@ -735,7 +735,7 @@ object DatasetService {
           val fileId = UUID.randomUUID.toString
           val historyId = UUID.randomUUID.toString
           FileManager.uploadToLocal(id, fileId, historyId, f)
-          val path = Paths.get(AppConf.fileDir, id, fileId, historyId, f.getName)
+          val path = Paths.get(AppConf.fileDir, id, fileId, historyId)
           val file = persistence.File.create(
             id = fileId,
             datasetId = id,
@@ -822,7 +822,7 @@ object DatasetService {
 
         val isZip = file_.getName.endsWith("zip")
         FileManager.uploadToLocal(datasetId, fileId, historyId, file_)
-        val path = Paths.get(AppConf.fileDir, datasetId, fileId, historyId, file_.getName)
+        val path = Paths.get(AppConf.fileDir, datasetId, fileId, historyId)
 
         val history = persistence.FileHistory.create(
           id = historyId,
@@ -842,6 +842,16 @@ object DatasetService {
         val dataset = getDataset(datasetId).get
         if (dataset.s3State == 1 || dataset.s3State == 2) {
           createTask(datasetId, MoveToS3, myself.id, timestamp, dataset.localState == 1)
+
+          // S3に上がっている場合は、アップロードが完了するまで、ローカルからダウンロードしなければならない
+          withSQL {
+            val d = persistence.Dataset.column
+            update(persistence.Dataset)
+              .set(d.localState -> 3,
+                d.s3State -> 2)
+              .where
+              .eq(d.id, sqls.uuid(datasetId))
+          }.update().apply
         }
 
         // datasetsのfiles_size, files_countの更新
@@ -1744,7 +1754,7 @@ object DatasetService {
       if (fileInfo._3.localState == 1 || (fileInfo._3.s3State == 2 && fileInfo._3.localState == 3)) {
         fileInfo._4 match {
           case Some(zipedFile) => {
-            val bytes = Files.readAllBytes(Paths.get(AppConf.fileDir, fileInfo._2.substring(1) + "/" + fileInfo._1.name))
+            val bytes = Files.readAllBytes(Paths.get(AppConf.fileDir, fileInfo._2.substring(1)))
             val full = bytes.drop(zipedFile.dataStart.toInt).take(zipedFile.dataSize.toInt) ++
               zipedFile.cenHeader ++
               Array[Byte] (80, 75, 5, 6, 0, 0, 0, 0, 1, 0, 1, 0)
@@ -1764,14 +1774,14 @@ object DatasetService {
             Success((true, file, "", zipedFile.name, Some(z.getInputStream(entry))))
           }
           case None => {
-            val file = FileManager.downloadFromLocal(fileInfo._2.substring(1) + "/" + fileInfo._1.name)
+            val file = FileManager.downloadFromLocal(fileInfo._2.substring(1))
             Success((true, file, "", fileInfo._1.name, None))
           }
         }
       } else {
         fileInfo._4 match {
           case Some(zipedFile) => {
-            val bytes = FileManager.downloadFromS3Bytes(fileInfo._2.substring(1) + "/" + fileInfo._1.name, zipedFile.dataStart, zipedFile.dataStart + zipedFile.dataSize - 1)
+            val bytes = FileManager.downloadFromS3Bytes(fileInfo._2.substring(1), zipedFile.dataStart, zipedFile.dataStart + zipedFile.dataSize - 1)
             val full = bytes ++
               zipedFile.cenHeader ++
               Array[Byte] (80, 75, 5, 6, 0, 0, 0, 0, 1, 0, 1, 0)
@@ -1794,7 +1804,7 @@ object DatasetService {
             Success((true, outFile, "", zipedFile.name, None))
           }
           case None => {
-            val url = FileManager.downloadFromS3Url(fileInfo._2.substring(1) + "/" + fileInfo._1.name)
+            val url = FileManager.downloadFromS3Url(fileInfo._2.substring(1), fileInfo._1.name)
             Success((false, new java.io.File("."), url, fileInfo._1.name, None))
           }
         }

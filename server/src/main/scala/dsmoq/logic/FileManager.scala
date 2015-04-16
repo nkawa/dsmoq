@@ -5,7 +5,7 @@ import java.nio.file.Paths
 import java.util.Calendar
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.AmazonS3Client
-import com.amazonaws.services.s3.model.{GetObjectRequest, GeneratePresignedUrlRequest}
+import com.amazonaws.services.s3.model.{ResponseHeaderOverrides, GetObjectRequest, GeneratePresignedUrlRequest}
 import dsmoq.AppConf
 import org.scalatra.servlet.FileItem
 import scalikejdbc._
@@ -21,10 +21,7 @@ object FileManager {
     val fileDir = datasetDir.toPath.resolve(fileId).toFile
     if (!fileDir.exists()) fileDir.mkdir()
 
-    val historyDir = fileDir.toPath.resolve(historyId).toFile
-    if (!historyDir.exists()) historyDir.mkdir()
-
-    file.write(historyDir.toPath.resolve(file.getName).toFile)
+    file.write(fileDir.toPath.resolve(historyId).toFile)
   }
 
   def downloadFromLocal(filePath: String): File = {
@@ -44,7 +41,7 @@ object FileManager {
     st.byteArray
   }
 
-  def downloadFromS3Url(filePath: String): String = {
+  def downloadFromS3Url(filePath: String, fileName: String): String = {
     val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
     val client = new AmazonS3Client(cre)
     // 有効期限(3分)
@@ -52,8 +49,12 @@ object FileManager {
     cal.add(Calendar.MINUTE, 3)
     val limit = cal.getTime()
 
+    // ファイル名を指定
+    val response = new ResponseHeaderOverrides
+    response.setContentDisposition("attachment; filename*=UTF-8''" + java.net.URLEncoder.encode(fileName.split(Array[Char]('\\', '/')).last,"UTF-8"))
+
     // URLを生成
-    val url = client.generatePresignedUrl(new GeneratePresignedUrlRequest(AppConf.s3UploadRoot, filePath).withExpiration(limit))
+    val url = client.generatePresignedUrl(new GeneratePresignedUrlRequest(AppConf.s3UploadRoot, filePath).withExpiration(limit).withResponseHeaders(response))
     url.toString
   }
 
