@@ -14,6 +14,7 @@
             <div>
               <span>{^{>name}}</span> {^{if isPrivate}}<span class="status text-danger">(private)</span>{{/if}}
             </div>
+			{{if ownerships.length > 0}}
             <p class="title-owners text-muted">
               Owner:
               {^{for ownerships}}
@@ -24,6 +25,7 @@
                 {{/if}}
               {{/for}}
             </p>
+			{{/if}}
           </h1>
         </div>
         <div class="col-sm-2 text-right">
