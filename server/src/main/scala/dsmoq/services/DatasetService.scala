@@ -1532,7 +1532,7 @@ object DatasetService {
               )
           }
         }
-        Success(if (user.isGuest) { List.empty } else { ownerships })
+        Success(ownerships)
       }
     } catch {
       case e: Throwable => Failure(e)
