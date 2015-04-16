@@ -306,7 +306,7 @@ object DatasetService {
           case Some(x) =>
             val count = countDataSets(joinedGroups, query, x._1, x._2, attributes)
             val records = if (count > 0) {
-              findDataSets(joinedGroups, query, x._1, x._2, attributes, limit_, offset_, orderby)
+              findDataSets(joinedGroups, query, x._1, x._2, attributes, limit_, offset_, orderby, user)
             } else {
               List.empty
             }
@@ -385,7 +385,7 @@ object DatasetService {
 
   private def findDataSets(joindGroups : Seq[String], query: Option[String],
                            ownerUsers: Seq[String], ownerGroups: Seq[String],
-                           attributes: Seq[DataSetAttribute], limit: Int, offset: Int, orderby: Option[String])(implicit s: DBSession) = {
+                           attributes: Seq[DataSetAttribute], limit: Int, offset: Int, orderby: Option[String], user: User)(implicit s: DBSession) = {
     val ds = persistence.Dataset.d
     val o = persistence.Ownership.o
     val a = persistence.Annotation.a
@@ -435,7 +435,7 @@ object DatasetService {
         description = ds.description,
         image = imageUrl,
         attributes = getAttributes(ds.id), //TODO 非効率
-        ownerships = ownerMap.get(ds.id).getOrElse(List.empty),
+        ownerships = if (user.isGuest) { List.empty } else { ownerMap.get(ds.id).getOrElse(List.empty) } ,
         files = ds.filesCount,
         dataSize = ds.filesSize,
         defaultAccessLevel = accessLevel,
@@ -698,7 +698,7 @@ object DatasetService {
             images = images,
             primaryImage = primaryImage,
             featuredImage = featuredImage,
-            ownerships = owners,
+            ownerships = if (user.isGuest) { List.empty } else { owners },
             defaultAccessLevel = guestAccessLevel,
             permission = permission,
             accessCount = count,
@@ -1532,7 +1532,7 @@ object DatasetService {
               )
           }
         }
-        Success(ownerships)
+        Success(if (user.isGuest) { List.empty } else { ownerships })
       }
     } catch {
       case e: Throwable => Failure(e)
