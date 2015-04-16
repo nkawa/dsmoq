@@ -2108,6 +2108,31 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           }
         }
       }
+
+      "ゲストからデータセットのオーナー情報が閲覧できないか" in {
+        session {
+          signIn()
+          val datasetId = createDataset()
+
+          // アクセスレベル設定
+          val params = Map("d" -> compact(render(("accessLevel" -> JInt(DefaultAccessLevel.FullPublic)))))
+          put("/api/datasets/" + datasetId + "/guest_access", params) { checkStatus() }
+
+          // アクセスレベルを設定したdatasetはゲストから参照できるはず
+          post("/api/signout") { checkStatus() }
+          get("/api/datasets") {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+            result.data.results.head.ownerships.length should be(0)
+          }
+
+          get("/api/datasets/" + datasetId) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.data.ownerships.length should be(0)
+          }
+        }
+      }
     }
   }
 
