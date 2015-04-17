@@ -82,7 +82,9 @@ object DatasetService {
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
-            updatedAt = timestamp
+            updatedAt = timestamp,
+            localState = if (saveLocal_) { 1 } else { 3 },
+            s3State = if (saveS3_) { 2 } else { 0 }
           )
           val histroy = persistence.FileHistory.create(
             id = historyId,
@@ -728,6 +730,7 @@ object DatasetService {
 
         datasetAccessabilityCheck(id, user)
 
+        val dataset = getDataset(id).get
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
         val f = files.map(f => {
@@ -748,7 +751,9 @@ object DatasetService {
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
-            updatedAt = timestamp
+            updatedAt = timestamp,
+            localState = if (dataset.localState == 1 || dataset.localState == 2) { 1 } else { 3 },
+            s3State = if (dataset.s3State == 0) { 0 } else if (dataset.s3State == 3) { 3 } else { 2 }
           )
           val history = persistence.FileHistory.create(
             id = historyId,
@@ -767,7 +772,7 @@ object DatasetService {
 
           (file, history)
         })
-        val dataset = getDataset(id).get
+
         if (dataset.s3State == 1 || dataset.s3State == 2) {
           createTask(id, MoveToS3, myself.id, timestamp, dataset.localState == 1)
         }
@@ -818,7 +823,16 @@ object DatasetService {
         val timestamp = DateTime.now()
         val historyId = UUID.randomUUID.toString
 
-        updateFileNameAndSize(fileId, historyId, file_, myself.id, timestamp)
+        val dataset = getDataset(datasetId).get
+        updateFileNameAndSize(
+          fileId,
+          historyId,
+          file_,
+          myself.id,
+          timestamp,
+          if (dataset.s3State == 0) { 0 } else if (dataset.s3State == 3) { 3 } else { 2 },
+          if (dataset.localState == 1 || dataset.localState == 2) { 1 } else { 3 }
+        )
 
         val isZip = file_.getName.endsWith("zip")
         FileManager.uploadToLocal(datasetId, fileId, historyId, file_)
@@ -839,7 +853,6 @@ object DatasetService {
           updatedAt = timestamp
         )
         FileManager.uploadToLocal(datasetId, fileId, history.id, file_)
-        val dataset = getDataset(datasetId).get
         if (dataset.s3State == 1 || dataset.s3State == 2) {
           createTask(datasetId, MoveToS3, myself.id, timestamp, dataset.localState == 1)
 
@@ -891,12 +904,20 @@ object DatasetService {
     }
   }
 
-  private def updateFileNameAndSize(fileId: String, historyId: String, file: FileItem, userId: String, timestamp: DateTime)(implicit s: DBSession): Int =
+  private def updateFileNameAndSize(fileId: String, historyId: String, file: FileItem, userId: String, timestamp: DateTime, s3State: Int, localState: Int)(implicit s: DBSession): Int =
   {
     withSQL {
       val f = persistence.File.column
       update(persistence.File)
-        .set(f.name -> file.getName, f.fileSize -> file.getSize, f.updatedBy -> sqls.uuid(userId), f.updatedAt -> timestamp, f.historyId -> sqls.uuid(historyId))
+        .set(
+          f.name -> file.getName,
+          f.fileSize -> file.getSize,
+          f.updatedBy -> sqls.uuid(userId),
+          f.updatedAt -> timestamp,
+          f.historyId -> sqls.uuid(historyId),
+          f.s3State -> s3State,
+          f.localState -> localState
+        )
         .where
         .eq(f.id, sqls.uuid(fileId))
     }.update().apply
@@ -1751,7 +1772,7 @@ object DatasetService {
           }
         }
       }
-      if (fileInfo._3.localState == 1 || (fileInfo._3.s3State == 2 && fileInfo._3.localState == 3)) {
+      if (fileInfo._1.localState == 1 || (fileInfo._1.s3State == 2 && fileInfo._1.localState == 3)) {
         fileInfo._4 match {
           case Some(zipedFile) => {
             val bytes = Files.readAllBytes(Paths.get(AppConf.fileDir, fileInfo._2.substring(1)))

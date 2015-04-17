@@ -30,7 +30,7 @@ class FileSpec extends Specification {
       count should be_>(0L)
     }
     "create new record" in new AutoRollback {
-      val created = File.create(id = null, datasetId = null, historyId = null, name = "MyString", description = "MyString", fileType = 0, fileMime = "MyString", fileSize = 0, createdBy = null, createdAt = DateTime.now, updatedBy = null, updatedAt = DateTime.now)
+      val created = File.create(id = null, datasetId = null, historyId = null, name = "MyString", description = "MyString", fileType = 0, fileMime = "MyString", fileSize = 0, createdBy = null, createdAt = DateTime.now, updatedBy = null, updatedAt = DateTime.now, localState = 0, s3State = 0)
       created should not beNull
     }
     "save a record" in new AutoRollback {

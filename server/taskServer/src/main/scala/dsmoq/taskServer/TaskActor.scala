@@ -7,6 +7,7 @@ import akka.actor.Actor
 import akka.actor.ActorLogging
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.AmazonS3Client
+import dsmoq.persistence
 import dsmoq.persistence.{Dataset, Task, TaskLog}
 import org.joda.time.DateTime
 import dsmoq.persistence.PostgresqlHelper._
@@ -201,6 +202,7 @@ class TaskActor extends Actor with ActorLogging {
       f.listFiles().foreach(deleteLocalFiles(_))
       f.delete()
     }
+    case _ =>
   }
 
   def getS3FilePaths(datasetId: String)(implicit client: AmazonS3Client) = client.listObjects(AppConf.s3UploadRoot, datasetId).getObjectSummaries().map(_.getKey).filterNot(_.endsWith("/"))
@@ -262,6 +264,7 @@ class TaskActor extends Actor with ActorLogging {
   def changeS3State(datasetId: String, s3State: Int)(implicit s: DBSession): Unit = {
     Dataset.find(datasetId) match {
       case Some(d) => {
+        val timestamp = DateTime.now
         Dataset(
           id = d.id,
           name = d.name,
@@ -272,12 +275,22 @@ class TaskActor extends Actor with ActorLogging {
           createdBy = d.createdBy,
           createdAt = d.createdAt,
           updatedBy = AppConf.systemUserId,
-          updatedAt = DateTime.now,
+          updatedAt = timestamp,
           deletedAt = d.deletedAt,
           deletedBy = d.deletedBy,
           localState = d.localState,
           s3State = s3State
         ).save()
+
+        withSQL {
+          val c = persistence.File.column
+          update(persistence.File)
+            .set(
+              c.s3State -> s3State
+            )
+            .where
+              .eqUuid(c.datasetId, datasetId)
+        }.update.apply
       }
       case None => throw new IllegalArgumentException("datasetId=%sに対応するDatasetが存在しません".format(datasetId))
     }
@@ -286,6 +299,7 @@ class TaskActor extends Actor with ActorLogging {
   def changeLocalState(datasetId: String, localState: Int)(implicit s: DBSession): Unit = {
     Dataset.find(datasetId) match {
       case Some(d) => {
+        val timestamp = DateTime.now
         Dataset(
           id = d.id,
           name = d.name,
@@ -296,12 +310,22 @@ class TaskActor extends Actor with ActorLogging {
           createdBy = d.createdBy,
           createdAt = d.createdAt,
           updatedBy = AppConf.systemUserId,
-          updatedAt = DateTime.now,
+          updatedAt = timestamp,
           deletedAt = d.deletedAt,
           deletedBy = d.deletedBy,
           localState = localState,
           s3State = d.s3State
         ).save()
+
+        withSQL {
+          val c = persistence.File.column
+          update(persistence.File)
+            .set(
+              c.localState -> localState
+            )
+            .where
+            .eqUuid(c.datasetId, datasetId)
+        }.update.apply
       }
       case None => throw new IllegalArgumentException("datasetId=%sに対応するDatasetが存在しません".format(datasetId))
     }

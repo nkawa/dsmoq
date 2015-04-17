@@ -14,6 +14,8 @@ case class File(
   fileType: Int, 
   fileMime: String, 
   fileSize: Long,
+  s3State: Int,
+  localState: Int,
   createdBy: String,
   createdAt: DateTime, 
   updatedBy: String,
@@ -33,7 +35,7 @@ object File extends SQLSyntaxSupport[File] {
 
   override val tableName = "files"
 
-  override val columns = Seq("id", "dataset_id", "history_id", "name", "description", "file_type", "file_mime", "file_size", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
+  override val columns = Seq("id", "dataset_id", "history_id", "name", "description", "file_type", "file_mime", "file_size", "s3_state", "local_state", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
 
   def apply(f: ResultName[File])(rs: WrappedResultSet): File = new File(
     id = rs.string(f.id),
@@ -44,6 +46,8 @@ object File extends SQLSyntaxSupport[File] {
     fileType = rs.int(f.fileType),
     fileMime = rs.string(f.fileMime),
     fileSize = rs.long(f.fileSize),
+    s3State = rs.int(f.s3State),
+    localState = rs.int(f.localState),
     createdBy = rs.string(f.createdBy),
     createdAt = rs.timestamp(f.createdAt).toJodaDateTime,
     updatedBy = rs.string(f.updatedBy),
@@ -91,6 +95,8 @@ object File extends SQLSyntaxSupport[File] {
     fileType: Int,
     fileMime: String,
     fileSize: Long,
+    s3State: Int,
+    localState: Int,
     createdBy: String,
     createdAt: DateTime,
     updatedBy: String,
@@ -107,6 +113,8 @@ object File extends SQLSyntaxSupport[File] {
         column.fileType,
         column.fileMime,
         column.fileSize,
+        column.s3State,
+        column.localState,
         column.createdBy,
         column.createdAt,
         column.updatedBy,
@@ -122,6 +130,8 @@ object File extends SQLSyntaxSupport[File] {
         fileType,
         fileMime,
         fileSize,
+        s3State,
+        localState,
         sqls.uuid(createdBy),
         createdAt,
         sqls.uuid(updatedBy),
@@ -140,6 +150,8 @@ object File extends SQLSyntaxSupport[File] {
       fileType = fileType,
       fileMime = fileMime,
       fileSize = fileSize,
+      s3State = s3State,
+      localState = localState,
       createdBy = createdBy,
       createdAt = createdAt,
       updatedBy = updatedBy,
@@ -159,6 +171,8 @@ object File extends SQLSyntaxSupport[File] {
         column.fileType -> entity.fileType,
         column.fileMime -> entity.fileMime,
         column.fileSize -> entity.fileSize,
+        column.s3State -> entity.s3State,
+        column.localState -> entity.localState,
         column.createdBy -> sqls.uuid(entity.createdBy),
         column.createdAt -> entity.createdAt,
         column.updatedBy -> sqls.uuid(entity.updatedBy),
