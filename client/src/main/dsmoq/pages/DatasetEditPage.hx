@@ -437,13 +437,15 @@ class DatasetEditPage {
                         Notification.show("success", "delete successful");
                     },
                     function (e) {
-						switch (e.name) {
-							case ServiceErrorType.NotFound:
-								Notification.show("error", "dataset not found");
-							case ServiceErrorType.Unauthorized: 
-								Notification.show("error", "permission denied");
-							default:
-								Notification.show("error", "error happened");
+						if (e.message != "Canceled") {
+							switch (e.name) {
+								case ServiceErrorType.NotFound:
+									Notification.show("error", "dataset not found");
+								case ServiceErrorType.Unauthorized: 
+									Notification.show("error", "permission denied");
+								default:
+									Notification.show("error", "error happened");
+							}
 						}
                     },
                     function () {
