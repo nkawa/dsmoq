@@ -128,6 +128,7 @@ object GroupService {
         val images = getGroupImage(group.id)
         val primaryImage = getGroupPrimaryImageId(group.id)
         val groupRole = getGroupRole(user, group.id)
+        val datasetCount = countDatasets(List(groupId)).get(groupId).getOrElse(0)
 
         Success(GroupData.Group(
           id = group.id,
@@ -142,7 +143,8 @@ object GroupService {
             case Some(x) => true
             case None => false
           },
-          role = groupRole.getOrElse(0)
+          role = groupRole.getOrElse(0),
+          providedDatasetCount = datasetCount
         ))
       }
     } catch {
@@ -260,7 +262,8 @@ object GroupService {
           )),
           primaryImage = AppConf.defaultGroupImageId,
           isMember = true,
-          role = persistence.GroupMemberRole.Manager
+          role = persistence.GroupMemberRole.Manager,
+          providedDatasetCount = 0
         ))
       }
     } catch {
@@ -319,6 +322,7 @@ object GroupService {
 
         val images = getGroupImage(groupId)
         val primaryImage = getGroupPrimaryImageId(groupId)
+        val datasetCount = countDatasets(List(groupId)).get(groupId).getOrElse(0)
 
         Success(GroupData.Group(
           id = group.id,
@@ -330,7 +334,8 @@ object GroupService {
           )),
           primaryImage = primaryImage.getOrElse(""),
           isMember = true,
-          role = getGroupRole(user, group.id).getOrElse(0)
+          role = getGroupRole(user, group.id).getOrElse(0),
+          providedDatasetCount = datasetCount
         ))
       }
     } catch {
@@ -804,7 +809,7 @@ object GroupService {
         .where
         .inUuid(o.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
         .and
-        .gt(o.accessLevel, GroupAccessLevel.Deny)
+        .eq(o.accessLevel, GroupAccessLevel.Provider)
         .and
         .isNull(ds.deletedAt)
         .and

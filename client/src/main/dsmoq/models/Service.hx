@@ -223,6 +223,7 @@ class Service extends Stream<ServiceEvent> {
                 primaryImage: cast Lambda.find(a.images, function (x) return x.id == a.primaryImage),
                 isMember: cast a.isMember,
                 role: cast a.role,
+				providedDatasetCount: cast a.providedDatasetCount
             };
         });
     }

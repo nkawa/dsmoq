@@ -64,9 +64,11 @@
 		<p><h3>Datasets</h3></p>
 	</div>
 </div>
-  {^{async datasets ~tag=tag}}
+  {^{async datasets ~tag=tag ~count=group.providedDatasetCount}}
+	  {^{if ~count > 0}}
+		<p><strong>Found {^{>~count}} records</strong></p>
+	  {{/if}}
 	  {^{if total > 0}}
-		<p><strong>Found {^{>total}} records</strong></p>
 		<ul class="media-list dataset-list">
 		  {^{for items}}
 			<li class="media">

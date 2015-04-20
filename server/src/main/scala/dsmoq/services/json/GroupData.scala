@@ -21,7 +21,8 @@ object GroupData {
                     images: Seq[Image],
                     primaryImage: String,
                     isMember: Boolean,
-                    role: Int
+                    role: Int,
+                    providedDatasetCount: Int
                     )
 
   case class MemberSummary(

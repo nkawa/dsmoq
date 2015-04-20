@@ -8,4 +8,5 @@ typedef Group = {
     var primaryImage(default, never): Image;
     var isMember(default, never): Bool;
     var role(default, never): GroupRole;
+	var providedDatasetCount(default, never): Int;
 }
