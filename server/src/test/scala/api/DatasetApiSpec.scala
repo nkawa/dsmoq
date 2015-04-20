@@ -32,6 +32,7 @@ import dsmoq.persistence.{DefaultAccessLevel, OwnerType, UserAccessLevel, GroupA
 import org.json4s._
 import org.json4s.JsonDSL._
 import scalikejdbc._
+import dsmoq.persistence.PostgresqlHelper._
 
 class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
@@ -2142,6 +2143,16 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         localState = local,
         s3State = s3
       ).save()
+      withSQL {
+        val c = dsmoq.persistence.File.column
+        update(dsmoq.persistence.File)
+          .set(
+            c.localState -> local,
+            c.s3State -> s3
+          )
+          .where
+            .eqUuid(c.datasetId, id)
+      }.update.apply
     }
   }
   private def flattenFilePath(file: File): List[File] = file match {
