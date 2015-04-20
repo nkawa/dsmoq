@@ -136,10 +136,12 @@ object Main extends App {
   def countRealSize(from: Option[DateTime])(implicit s: DBSession) = {
     val d = Dataset.d
     val f = File.f
+    val fh = FileHistory.fh
     withSQL {
-      select[Long](sqls.count(f.realSize))
+      select[Long](sqls.count(fh.realSize))
         .from(Dataset as d)
         .innerJoin(File as f).on(f.datasetId, d.id)
+        .innerJoin(FileHistory as fh).on(fh.fileId, f.id)
         .where
           .isNull(f.deletedAt)
           .and
