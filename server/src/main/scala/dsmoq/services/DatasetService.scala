@@ -1110,19 +1110,6 @@ object DatasetService {
       localState = localState,
       s3State = s3State
     ).save()
-
-    withSQL {
-      val c = persistence.File.column
-      update(persistence.File)
-        .set(
-          c.localState -> localState,
-          c.s3State -> s3State,
-          c.updatedBy -> sqls.uuid(userId),
-          c.updatedAt -> timestamp
-        )
-        .where
-          .eqUuid(c.datasetId, ds.id)
-    }.update().apply()
   }
 
   /**
