@@ -2134,6 +2134,65 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           }
         }
       }
+
+      "Featured Datasets検索で、attributeのvalue順にソートされるか" in {
+        session {
+          // datasetを5つ作成、それぞれname:featuredのattributeを付与(ただしvalueは全て異なる)
+          signIn()
+          val attributeValues = Array("hoge", "piyo", "foo", "bar", "てすと")
+          val datasetIdAndValueTuple = for(i <- 0 to attributeValues.length - 1) yield {
+            (createDataset(), attributeValues(i))
+          }
+          // attributes設定
+          val datasetBaseName = "TEST NAME"
+          val featuredAttributeName = ("name" -> "featured")
+          datasetIdAndValueTuple.foreach{tuple =>
+            val metadataParams = List("d" ->
+              compact(render(
+                ("name" -> (datasetBaseName + UUID.randomUUID)) ~
+                  ("description" -> "description") ~
+                  ("license" -> AppConf.defaultLicenseId) ~
+                  ("attributes" -> List(featuredAttributeName ~ ("value" -> tuple._2)))
+              ))
+            )
+            put("/api/datasets/" + tuple._1 + "/metadata", metadataParams) {
+              checkStatus()
+            }
+          }
+
+          // 初期検索結果は5件
+          get("/api/datasets") {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+            result.data.summary.total should be(datasetIdAndValueTuple.length)
+            result.data.results.map(_.id).diff(datasetIdAndValueTuple.map(_._1)).length should be(0)
+          }
+
+          // "orderby"に"attribute"、"attributes"に"name":"featured"を指定して検索できるか
+          var searchParmas = Map("d" ->
+            compact(render(
+              ("attributes" -> List(featuredAttributeName ~ ("value" -> ""))) ~
+                ("orderby" -> "attribute")
+            ))
+          )
+          get("/api/datasets", searchParmas) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+            result.data.summary.total should be(datasetIdAndValueTuple.length)
+
+            // attributeのvalue順にソートされているかチェック
+            val sortedTuple = datasetIdAndValueTuple.sortBy(d => d._2)
+            for (i <- 0 to sortedTuple.length - 1) {
+              val dataset = result.data.results(i)
+              dataset.id should be(sortedTuple(i)._1)
+              dataset.attributes.find(_.name == "featured") match {
+                case Some(attr) => attr.value should be(sortedTuple(i)._2)
+                case None => fail("attribute 'featured' not found.")
+              }
+            }
+          }
+        }
+      }
     }
   }
 
