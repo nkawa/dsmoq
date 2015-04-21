@@ -26,6 +26,7 @@ class AutoComplete {
 
         target.map(function (i, el) {
             var elem: TargetElement = cast el;
+            var jqElem = JQuery._(elem);
             var suggestion = JQuery._("<div class='autocomplete-suggestion'></div>");
             var isOpen = false;
             var selections = new Array<Dynamic>();
@@ -71,17 +72,17 @@ class AutoComplete {
                 if (selections[i] != null) {
                     var item = selections[i];
                     elem.__coumpleted = item;
-                    target.val(resolve(item));
-                    target.trigger("autocomplete:complated");
-                    target.trigger("change");
+                    jqElem.val(resolve(item));
+                    jqElem.trigger("autocomplete:complated");
+                    jqElem.trigger("change");
                 }
             }
 
             function uncomplete() {
                 if (elem.__coumpleted != null) {
                     elem.__coumpleted = null;
-                    target.trigger("autocomplete:uncomplated");
-                    target.trigger("change");
+                    jqElem.trigger("autocomplete:uncomplated");
+                    jqElem.trigger("change");
                 }
             }
 
@@ -97,7 +98,6 @@ class AutoComplete {
                     return '<div class="autocomplete-suggestion-item" data-index="${i}">${template(x)}</div>';
                 }).join("");
 
-                var jqElem = JQuery._(elem);
                 var position = jqElem.offset();
                 var width = jqElem.outerWidth();
                 var height = jqElem.outerHeight();                
@@ -215,7 +215,7 @@ class AutoComplete {
                 }
             });
 
-            var stream = JQuery._(elem).asEventStream("input.autocomplete")
+            var stream = jqElem.asEventStream("input.autocomplete")
                             .debounce(400)
                             .map(function (e: Event) {
                                 var elem: InputElement = cast e.currentTarget;
