@@ -97,9 +97,10 @@ class AutoComplete {
                     return '<div class="autocomplete-suggestion-item" data-index="${i}">${template(x)}</div>';
                 }).join("");
 
-                var position = target.offset();
-                var width = target.outerWidth();
-                var height = target.outerHeight();
+                var jqElem = JQuery._(elem);
+                var position = jqElem.offset();
+                var width = jqElem.outerWidth();
+                var height = jqElem.outerHeight();                
 
                 suggestion.html(html);
                 suggestion.css({
@@ -214,7 +215,7 @@ class AutoComplete {
                 }
             });
 
-            var stream = target.asEventStream("input.autocomplete")
+            var stream = JQuery._(elem).asEventStream("input.autocomplete")
                             .debounce(400)
                             .map(function (e: Event) {
                                 var elem: InputElement = cast e.currentTarget;
