@@ -459,15 +459,48 @@ object DatasetService {
     val da = persistence.DatasetAnnotation.syntax("da")
     val xda = SubQuery.syntax("xda", da.resultName, a.resultName)
     val xda2 = SubQuery.syntax("xda2", da.resultName, a.resultName)
+    val f = persistence.File.f
+    val fh = persistence.FileHistory.fh
+    val zf = persistence.ZipedFiles.zf
+    val xf = SubQuery.syntax("xf", ds.resultName, f.resultName, fh.resultName, zf.resultName)
 
     val selectSqlWithHint = query match {
-      case Some(x) => selectSql.hint("BitmapScan(" + ds.tableAliasName + " datasets_name_idx datasets_description_idx)")
+      case Some(x) => selectSql.hint("BitmapScan(" + ds.tableAliasName + " datasets_name_idx datasets_description_idx) " +
+        "BitmapScan(" + f.tableAliasName + " files_name_idx) " +
+        "BitmapScan(" + zf.tableAliasName + " ziped_files_name_idx) ")
       case None => selectSql
     }
 
     selectSqlWithHint
       .from(persistence.Dataset as ds)
       .innerJoin(persistence.Ownership as o).on(o.datasetId, ds.id)
+      .map { sql =>
+        query match {
+          case Some(q) => {
+            sql.innerJoin(
+              select(ds.id)
+                .from(persistence.Dataset as ds)
+                .where
+                  .withRoundBracket(s => s.upperLikeQuery(ds.name, q).or.upperLikeQuery(ds.description, q))
+              .union(
+                select(f.datasetId.append(sqls" id"))
+                  .from(persistence.File as f)
+                  .where
+                    .upperLikeQuery(f.name, q)
+                ).union(
+                  select(f.datasetId.append(sqls" id"))
+                    .from(persistence.File as f)
+                    .innerJoin(persistence.FileHistory as fh).on(fh.fileId, f.id)
+                    .innerJoin(persistence.ZipedFiles as zf).on(zf.historyId, fh.id)
+                    .where
+                      .upperLikeQuery(zf.name, q)
+                )
+                .as(xf)
+            ).on(sqls"xf.id", ds.id)
+          }
+          case None => sql
+        }
+      }
       .map { sql =>
         if (ownerUsers.nonEmpty || ownerGroups.nonEmpty) {
           sql.innerJoin(
@@ -515,7 +548,7 @@ object DatasetService {
                     }
                   }, sqls"or"))
                 )
-              .groupBy(da.datasetId)
+              .groupBy(da.datasetId).having(sqls.eq(sqls.count(da.datasetId), attributes.length))
               .as(xda)
           ).on(ds.id, xda(da).datasetId)
         } else {
@@ -548,14 +581,6 @@ object DatasetService {
         .gt(o.accessLevel, GroupAccessLevel.Deny)
         .and
         .isNull(ds.deletedAt)
-        .map { sql =>
-          query match {
-            case Some(x) =>
-              sql.and.withRoundBracket((query => query.likeQuery(ds.name, x).or.likeQuery(ds.description, x)))
-            case None =>
-              sql
-          }
-        }
   }
 
   private def getGuestAccessLevelMap(datasetIds: Seq[String])(implicit s: DBSession): Map[String, Int] = {
