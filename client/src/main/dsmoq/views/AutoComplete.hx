@@ -227,6 +227,7 @@ class AutoComplete {
             stream.flatMapLastest(request).then(function (record) {
                 if (record.items.length > 0) {
                     if (record.items.length == 1 && record.value == resolve(record.items[0])) {
+						selections = record.items;
                         complete(0);
                         close();
                     } else {
