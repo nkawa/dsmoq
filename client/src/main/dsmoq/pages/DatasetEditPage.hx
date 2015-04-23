@@ -177,8 +177,14 @@ class DatasetEditPage {
             root.on("click", ".dataset-attribute-remove", function (e) {
                 removeAttributeTypeahead(root);
                 var index = new JqHtml(e.target).data("value");
+				// undefined が取れてくる場合、e.targetはspanになっている。
+				if (index == null) {
+					index = new JqHtml(e.target).parent().data("value");
+				}
                 var attrs = JsViews.observable(data.dataset.meta.attributes);
                 attrs.remove(index);
+				// 削除ボタンのインデクスを振りなおすために、refreshしている
+				attrs.refresh(data.dataset.meta.attributes);
                 setAttributeTypeahead(root);
             });
             root.find("#dataset-basics-submit").on("click", function (_) {
