@@ -109,7 +109,7 @@ class DatasetListPage {
             JQuery._("#filter-owner-input").val("");
             AutoComplete.initialize("#filter-owner-input", {
                 url: function (query: String) {
-					var d = Json.stringify({query: query});
+					var d = Json.stringify({query: StringTools.urlEncode(query)});
                     return '/api/suggests/users_and_groups?d=${d}';
                 },
                 path: "name",
@@ -147,7 +147,8 @@ class DatasetListPage {
             JQuery._("#filter-attribute-value-input").val("");
             AutoComplete.initialize("#filter-attribute-name-input", {
                 url: function (query: String) {
-                    return '/api/suggests/attributes?query=${query}';
+					var q = StringTools.urlEncode(query);
+                    return '/api/suggests/attributes?query=${q}';
                 },
                 filter: function (data: Dynamic) {
                     return if (data.status == "OK" && Std.is(data.data, Array)) {

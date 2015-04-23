@@ -99,7 +99,7 @@ object SystemService {
    */
   def getGroups(param: Option[String]) = {
     val query = param match {
-      case Some(x) => x + "%"
+      case Some(x) => x.replaceAll("%", "\\\\%").replaceAll("_", "\\\\_") + "%"
       case None => ""
     }
 
@@ -132,7 +132,7 @@ object SystemService {
 
   def getUsersAndGroups(param: Option[String], limit: Option[Int], offset: Option[Int], excludeIds: Seq[String]) = {
     val query = param match {
-      case Some(x) => x + "%"
+      case Some(x) => x.replaceAll("%", "\\\\%").replaceAll("_", "\\\\_") + "%"
       case None => "%"
     }
 
@@ -206,7 +206,7 @@ object SystemService {
           .where
           .map {sql =>
             query match {
-                case Some(x) => sql.like(a.name, x + "%").and
+                case Some(x) => sql.like(a.name, x.replaceAll("%", "\\\\%").replaceAll("_", "\\\\_") + "%").and
                 case None => sql
               }
           }
