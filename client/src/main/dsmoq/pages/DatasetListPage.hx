@@ -173,7 +173,7 @@ class DatasetListPage {
                 var name = AutoComplete.getCompletedItem("#filter-attribute-name-input");
                 JsViews.observable(binding.data().condition.filters).insert({
                     type: "attribute",
-                    item: { name: name, value: JQuery._("#filter-attribute-value-input").val() }
+                    item: { name: StringTools.urlEncode(name), value: StringTools.urlEncode(JQuery._("#filter-attribute-value-input").val()) }
                 });
                 AutoComplete.clear("#filter-attribute-name-input");
                 JQuery._("#filter-attribute-value-input").val("");
