@@ -464,14 +464,7 @@ object DatasetService {
     val zf = persistence.ZipedFiles.zf
     val xf = SubQuery.syntax("xf", ds.resultName, f.resultName, fh.resultName, zf.resultName)
 
-    val selectSqlWithHint = query match {
-      case Some(x) => selectSql.hint("BitmapScan(" + ds.tableAliasName + " datasets_name_idx datasets_description_idx) " +
-        "BitmapScan(" + f.tableAliasName + " files_name_idx) " +
-        "BitmapScan(" + zf.tableAliasName + " ziped_files_name_idx) ")
-      case None => selectSql
-    }
-
-    selectSqlWithHint
+    selectSql
       .from(persistence.Dataset as ds)
       .innerJoin(persistence.Ownership as o).on(o.datasetId, ds.id)
       .map { sql =>
