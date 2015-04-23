@@ -88,11 +88,13 @@ select.disabled,.can-disable.disabled{pointer-events:none;cursor:not-allowed;opa
 .group-image{padding-right:30px;}
 .group-description{font-size:18px;}
 table.attribute-table{width:auto;min-width:auto;}
-.zipedfiles{margin-bottom:0px;margin-top:15px;}
+.zipedfiles{margin-bottom:0px;margin-top:0px;}
 #upload-image{position:relative;overflow:hidden;}
 #image-form input[type="file"]{opacity:0;filter:progid:DXImageTransform.Microsoft.Alpha(opacity=0);position:absolute;right:0;top:0;margin:0;font-size:100px;cursor:pointer;}
 .image-box{float:left;height:150px;width:110px;padding:10px;word-wrap:break-word;}
 #dataset-attribute-import{position:relative;overflow:hidden;}
 #csv-file{opacity:0;filter:progid:DXImageTransform.Microsoft.Alpha(opacity=0);position:absolute;right:0;top:0;margin:0;font-size:100px;cursor:pointer;}
 #new-dataset-form input[type="file"]{padding-top:10px;}
+.zipedfile-area{max-height:300px;overflow:auto;margin-top:10px;}
+#profile-icon{position:relative;width:70px;overflow:hidden;}
 

@@ -402,7 +402,7 @@ table.attribute-table {
 }
 .zipedfiles {
   margin-bottom: 0px;
-  margin-top: 15px;
+  margin-top: 0px;
 }
 #upload-image {
   position: relative;
@@ -441,4 +441,14 @@ table.attribute-table {
 }
 #new-dataset-form input[type="file"] {
   padding-top: 10px;
+}
+.zipedfile-area {
+  max-height: 300px;
+  overflow: auto;
+  margin-top: 10px;
+}
+#profile-icon {
+  position: relative;
+  width: 70px;
+  overflow: hidden;
 }
