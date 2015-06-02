@@ -123,18 +123,20 @@ a:hover img{filter:alpha(opacity=85);-moz-opacity:0.85;opacity:0.85;}
 .signin{border:0;margin:0;position:absolute;top:0;right:0;}
 .signin.name{position:absolute;top:0;right:0;width:150px;height:45px;margin:0;padding:12px 0 0 0;text-align:center;text-decoration:none;border-top:#004DA8 solid 5px;color:#555;}
 .signin.name:hover{background-color:#004DA8;border-top:#004DA8 solid 5px;color:#EEE;}
-.signin label.btn{width:150px;display:block;background:#0059b2 url(img/common/head/login.png) no-repeat 50% 55%;background-size:80px;border-bottom:#004DA8 solid 5px;height:75px;margin:0;text-indent:-9999px;cursor:pointer;position:relative;}
-.signin label.btn:hover{background:#004da8 url(img/common/head/login.png) no-repeat 50% 55%;background-size:80px;border-bottom:#004DA8 solid 5px;}
+.signin label.login-btn{width:150px;display:block;background:#0059b2 url(img/common/head/login.png) no-repeat 50% 55%;background-size:80px;border-bottom:#004DA8 solid 5px;height:75px;margin:0;text-indent:-9999px;cursor:pointer;position:relative;}
+.signin label.login-btn:hover{background:#004da8 url(img/common/head/login.png) no-repeat 50% 55%;background-size:80px;border-bottom:#004DA8 solid 5px;}
 input[type="checkbox"].on-off{display:none;}
-.signin ul.signin_area{width:300px;-webkit-transition:all 0.5s;-moz-transition:all 0.5s;-ms-transition:all 0.5s;-o-transition:all 0.5s;transition:all 0.5s;margin:0;padding:0;list-style:none;position:absolute;background:url(img/common/login/bg.png);right:0;top:79px;z-index:1000;text-align:left;}
+.signin ul.signin_area{width:300px;-webkit-transition:all 0.5s;-moz-transition:all 0.5s;-ms-transition:all 0.5s;-o-transition:all 0.5s;transition:all 0.5s;margin:0;padding:0;list-style:none;position:absolute;background:url(img/common/login/bg.png);right:0;top:74px;z-index:1000;text-align:left;}
 .signin ul.signin_area li{padding:10px;margin:0;}
 .signin ul.signin_area li div{padding:10px;}
 .signin ul.signin_area li div a{display:block;background:#0059b2 url(img/common/login/arrow_right.png) no-repeat 98% 50%;background-size:10px;border:1px solid #FFFCBB;color:#FFFCBB;font-size:14px;width:100%;height:auto;padding:7px 0;text-align:center;text-indent:0;margin:0 0 10px 0;text-decoration:none;}
 .signin ul.signin_area li div a:hover{background:#ffffff url(img/common/login/arrow_right_bl.png) no-repeat 98% 50%;background-size:10px;border:1px solid #FFF;color:#3078C1;}
 input[type="checkbox"].on-off+ul{height:0;overflow:hidden;}
-input[type="checkbox"].on-off:checked+ul{height:220px;}
+input[type="checkbox"].on-off:checked+ul{height:230px;}
+.signin label{font-weight:normal;}
 .signin label.normal{position:relative;cursor:pointer;display:block;background:url(img/common/login/arrow_bottom.png) no-repeat 1% 50%;background-size:10px;color:#FFF;font-size:11px;width:100%;height:auto;padding:0 0 0 20px;text-indent:0;margin:0 0 10px 0;text-align:left;text-decoration:underline;}
 .signin label.normal:hover{background:url(img/common/login/arrow_bottom.png) no-repeat 1% 50%;background-size:10px;text-decoration:none;}
+.signin dt{font-weight:normal;}
 .signin ul.normal_area{list-style:none;background:#FFF;border-right:1px solid #FFF;border-left:1px solid #FFF;z-index:1000;text-align:left;-webkit-transition:all 0.5s;-moz-transition:all 0.5s;-ms-transition:all 0.5s;-o-transition:all 0.5s;transition:all 0.5s;margin:0!important;padding:0!important;width:100%;}
 .signin ul.normal_area li dl{padding:5px 10px;margin:0;overflow:hidden;}
 .signin ul.normal_area li dt{width:30%;float:left;padding:0;margin:0;font-size:12px;}
@@ -142,6 +144,7 @@ input[type="checkbox"].on-off:checked+ul{height:220px;}
 .signin ul.normal_area li a{display:block!important;background:#FFF!important;width:96%!important;height:auto!important;padding:3px 0!important;text-align:center;text-indent:0!important;margin:5px 2% 0 2%!important;border:#004DA8 solid 1px!important;color:#004DA8!important;font-size:11px!important;}
 .signin ul.normal_area li a:hover{border-bottom:#0059B2 solid 5px!important;}
 .user-menu{display:none;background:white;position:absolute;top:50px;right:0px;width:200px;z-index:1;}
+.open>.user-menu{display:block;}
 .user-menu ul.menu{margin:0;padding:5px 0;}
 .user-menu ul.menu li{list-style-type:none;}
 .user-menu ul.menu li.divider{height:1px;margin:9px 0;overflow:hidden;background:#E5E5E5;}

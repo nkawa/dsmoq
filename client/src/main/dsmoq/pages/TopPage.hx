@@ -61,11 +61,12 @@ class TopPage {
 					thumbnailPointer: true, 
 					fade: true, 
 					arrows: true,
-					autoplay: false
+					keyboard: false,
+					touchSwipe: false
 				});
 			});
 			
-			Service.instance.findDatasets({ limit: 12 }).then(function (x) {
+			Service.instance.findDatasets({ limit: 12 }).then(function(x) {
 				binding.setProperty("recentDatasets", Async.Completed(x.results));
 			});
 			
@@ -76,7 +77,6 @@ class TopPage {
 			JQuery._("#main").css({ width: "" });
 		});
 		
-        return new Promise(function (_) { });
+        return new Promise(function(_) { });
     }
-
 }

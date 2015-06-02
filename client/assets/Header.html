@@ -8,8 +8,8 @@
     <li class="group"><a data-navigation href="/groups">groups</a></li>
     <li class="create-dataset"><a data-toggle="modal" data-target="#new-dataset-dialog" class="header-txt" href="#">create dataset</a></li>
   </ul>
-  <a class="signin name" href="javascript:void(0);">
-  曽山勝利 ▼
+  <a class="signin name" href="javascript:void(0);" data-toggle="dropdown">
+  {^{>profile.fullname}} ▼
   </a>
 	<div class="user-menu">
 		<ul class="menu">
@@ -27,24 +27,26 @@
     <li class="group"><a data-navigation href="/groups">groups</a></li>
   </ul>
   <div class="signin">
-    <label for="Panel1" class="btn">login</label>
+    <label for="Panel1" class="login-btn">login</label>
     <input type="checkbox" id="Panel1" class="on-off" />
     <ul class="signin_area">
       <li>
-        <div> <a data-link="href{:location}" id="signin-with-google">Login with Google Account</a>
+        <div>
+		  <form method="POST" class="form-horizontal" role="form" id="signin-form">
+			  <input type="submit" style="display: none;" />
+          <a data-link="href{:location}" id="signin-with-google">Login with Google Account</a>
           <label for="Panel12" class="normal">Login with Normal Account</label>
           <input type="checkbox" id="Panel12" class="on-off" />
-		  <form method="POST" class="form-horizontal" role="form" id="signin-form">
 			  <ul class="normal_area">
 				<li>
 				  <dl>
-					<dt>User id</dt>
+					<dt style="line-height: 27px;">User id</dt>
 					<dd>
-					  <input type="text" data-link="signinData.id">
+					  <input type="text" data-link="signinData.id" style="width: 100%;" />
 					</dd>
-					<dt>Password</dt>
+					<dt style="line-height: 27px;">Password</dt>
 					<dd>
-					  <input type="password" data-link="signinData.password">
+					  <input type="password" data-link="signinData.password" style="width: 100%;" />
 					</dd>
 				  </dl>
 				  <a id="submitForm" href="#">Login with Normal Account</a> </li>

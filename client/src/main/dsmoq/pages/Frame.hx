@@ -81,11 +81,6 @@ class Frame {
 			binding.setProperty("statistics", Async.Completed(x));
 		});
 		
-		var userMenu = JQuery._(".user-menu");
-		JQuery._("a.signin").on("click", function(_) { 
-			userMenu.toggle();
-		});
-		
         header.on("submit", "#signin-form", function (event: Event) {
             event.preventDefault();
 
@@ -101,7 +96,7 @@ class Frame {
                     switch (e.name) {
                         case ServiceErrorType.BadRequest:
                             var detail = cast(e, ServiceError).detail;
-                            binding.setProperty("signinData.error", detail[0].message);
+							Notification.show("error", detail[0].message);
                     }
                 },
                 function () {

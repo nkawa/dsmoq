@@ -1,50 +1,57 @@
 {^{async data ~tag=data.tag}}
-		{^{async featuredDatasets}}
+	{^{async featuredDatasets}}
+		{^{if #data.length > 0}}
 <div id="feature" class="slider-pro">
-  <div class="sp-slides">
-
-	<ul>
-		{^{for #data}}
-        <li class="sp-slide" style="background:url({{>featuredImage+'/96'}}) no-repeat 50% 70%; background-size: cover;">
-			<a href="/datasets/{{>id}}" data-navigation class="sp-image">
-				<p>{{>name}}</p>
-			</a>
-		</li>
-		{{/for}}
-    </ul>
-  </div>
-  <div class="sp-thumbnails"> 
-{^{for #data}}
-	<a href="" class="sp-thumbnail" style="background:url({{>featuredImage+'/96'}}) no-repeat; background-size: 150%;"></a> 
-{{/for}}
-  </div>
+	<div class="sp-slides">
+		<ul>
+			{^{for #data}}
+			<li class="sp-slide" style="background:url({{>featuredImage+'/96'}}) no-repeat 50% 70%; background-size: cover;">
+				<a href="/datasets/{{>id}}" data-navigation class="sp-image">
+					<p>{{>name}}</p>
+				</a>
+			</li>
+			{{/for}}
+		</ul>
+	</div>
+	<div class="sp-thumbnails">
+			{^{for #data}}
+		<a href="" class="sp-thumbnail" style="background:url({{>featuredImage+'/96'}}) no-repeat; background-size: 150%;"></a>
+			{{/for}}
+	</div>
 </div>
-      {{/async}}
+		{{/if}}
+	{{/async}}
 <!-- Recent Datasets -->
 <h2 class="ttl_recent"><img src="/resources/img/top/ttl_recent.jpg" alt="Recent Datasets"/></h2>
 <ul id="recent">
-			{^{async recentDatasets}}
+	{^{async recentDatasets}}
 		{^{if #data.length > 0}}
-		{^{for #data}}
-  <li><a href="/datasets/{{>id}}">
-    <p class="thumb"><img src="{{>image+'/96'}}" alt="タイトル××××××××××××××××××××××××××××××××××××××××××"></p>
-    {{>name}}</a>
-	<div class="description">
-		{{if ~trimTags(description)}}{{: ~trimTags(description)}}{{else}}<span class="text-muted">(No description)</span>{{/if}}
-    </div>
-	<div class="file">{{>files}} files <small>({{datasize dataSize /}})</small></div>
-    <div class="tag">
-	{{for attributes}}
-		{{if value=="$tag"}}
+			{^{for #data}}
+	<li>
+		<a href="/datasets/{{>id}}">
+			<p class="thumb"><img src="{{>image+'/96'}}" alt="{{>name}}"></p>
+			{{>name}}
+		</a>
+		<div class="description">
+				{{if ~trimTags(description)}}
+			{{: ~trimTags(description)}}
+				{{else}}
+			<span class="text-muted">(No description)</span>
+				{{/if}}
+		</div>
+		<div class="file">{{>files}} files <small>({{datasize dataSize /}})</small></div>
+		<div class="tag">
+				{{for attributes}}
+					{{if value=="$tag"}}
 			<a style="background-color: {{: ~getTagColor(~tag)(name)}}">{{>name}}</a>
-		{{/if}}
-	{{/for}}
-	</div>
-  </li>
-		{{/for}}
+					{{/if}}
+				{{/for}}
+		</div>
+	</li>
+			{{/for}}
 		{{else}}
-		<p>There are no datasets.</p>
+	<p>There are no datasets.</p>
 		{{/if}}
-    {{/async}}
+	{{/async}}
 </ul>
 {{/async}}

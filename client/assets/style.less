@@ -691,7 +691,7 @@ a:hover img {
 	border-top: #004DA8 solid 5px;
 	color: #EEE;
 }
-.signin label.btn {
+.signin label.login-btn {
 	width: 150px;
 	display: block;
 	background: #0059B2 url(./img/common/head/login.png) no-repeat 50% 55%;
@@ -703,7 +703,7 @@ a:hover img {
 	cursor: pointer;
 	position: relative;
 }
-.signin label.btn:hover {
+.signin label.login-btn:hover {
 	background: #004DA8 url(./img/common/head/login.png) no-repeat 50% 55%;
 	background-size: 80px;
 	border-bottom: #004DA8 solid 5px;
@@ -724,7 +724,7 @@ input[type="checkbox"].on-off {
 	position: absolute;
 	background: url(./img/common/login/bg.png);
 	right: 0;
-	top: 79px;
+	top: 74px;
 	z-index: 1000;
 	text-align: left;
 }
@@ -761,7 +761,10 @@ input[type="checkbox"].on-off + ul {
 	overflow: hidden;
 }
 input[type="checkbox"].on-off:checked + ul {
-	height: 220px;
+	height: 230px;
+}
+.signin label {
+	font-weight: normal;
 }
 .signin label.normal {
 	position: relative;
@@ -783,6 +786,9 @@ input[type="checkbox"].on-off:checked + ul {
 	background: url(./img/common/login/arrow_bottom.png) no-repeat 1% 50%;
 	background-size: 10px;
 	text-decoration: none;
+}
+.signin dt {
+	font-weight: normal;
 }
 .signin ul.normal_area {
 	list-style: none;
@@ -842,6 +848,9 @@ input[type="checkbox"].on-off:checked + ul {
 	right: 0px;
 	width: 200px;
 	z-index: 1;
+}
+.open > .user-menu {
+	display: block;
 }
 .user-menu ul.menu {
 	margin: 0;
