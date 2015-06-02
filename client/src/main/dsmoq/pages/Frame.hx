@@ -36,7 +36,8 @@ class Frame {
                 name: "",
                 errors: { name: "" }
             },
-            location: getAuthUrl()
+            location: getAuthUrl(),
+			statistics: Async.Pending
         };
 
         var binding = JsViews.observable(data);
@@ -64,16 +65,27 @@ class Frame {
         Service.instance.then(function (e) {
             switch (e) {
                 case SignedIn:
-                    updateProfile(Service.instance.profile);
-                    navigation.update(Navigation.Navigate(Page.Dashboard));
+					js.Browser.location.href = "/dashboard";
+                    //updateProfile(Service.instance.profile);
+                    //navigation.update(Navigation.Navigate(Page.Dashboard));
 				case SignedOut:
-                    navigation.update(Navigation.Navigate(Page.Top));
-                    updateProfile(Service.instance.profile);
+					js.Browser.location.href = "/";
+                    //navigation.update(Navigation.Navigate(Page.Top));
+                    //updateProfile(Service.instance.profile);
                 case ProfileUpdated:
-                    updateProfile(Service.instance.profile);
+                    //updateProfile(Service.instance.profile);
             }
         });
-
+		
+		Service.instance.getStatistics({ }).then(function(x) {
+			binding.setProperty("statistics", Async.Completed(x));
+		});
+		
+		var userMenu = JQuery._(".user-menu");
+		JQuery._("a.signin").on("click", function(_) { 
+			userMenu.toggle();
+		});
+		
         header.on("submit", "#signin-form", function (event: Event) {
             event.preventDefault();
 
@@ -98,6 +110,10 @@ class Frame {
                 }
             );
         });
+		
+		header.on("click", "#submitForm", function(_) { 
+			JQuery._("#signin-form").submit();
+		} );
 
         header.on("click", "#signout-button", function (_) {
             Service.instance.signout();
@@ -206,7 +222,9 @@ class Frame {
                 BootstrapButton.reset(JQuery._("#new-group-dialog-submit"));
             });
         });
-
+		
+		untyped __js__('$( "a[rel*=leanModal]").leanModal({ top: 50, overlay : 0.5, closeButton: ".modal_close"});');
+		
         body.removeClass("loading");
 
         return {

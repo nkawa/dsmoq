@@ -425,17 +425,20 @@ object DatasetService {
     val ownerMap = getOwnerMap(datasetIds)
     val guestAccessLevelMap = getGuestAccessLevelMap(datasetIds)
     val imageIdMap = getImageIdMap(datasetIds)
+    val featuredImageIdMap = getFeaturedImageIdMap(datasetIds)
 
     datasets.map(x => {
       val ds = x._1
       val permission = x._2
       val imageUrl = imageIdMap.get(ds.id).map(x => datasetImageDownloadRoot + ds.id + "/" + x).getOrElse("")
+      val featuredImageUrl = featuredImageIdMap.get(ds.id).map(x => datasetImageDownloadRoot + ds.id + "/" + x).getOrElse("")
       val accessLevel = guestAccessLevelMap.get(ds.id).getOrElse(DefaultAccessLevel.Deny)
       DatasetData.DatasetsSummary(
         id = ds.id,
         name = ds.name,
         description = ds.description,
         image = imageUrl,
+        featuredImage = featuredImageUrl,
         attributes = getAttributes(ds.id), //TODO 非効率
         ownerships = if (user.isGuest) { List.empty } else { ownerMap.get(ds.id).getOrElse(List.empty) } ,
         files = ds.filesCount,
@@ -604,6 +607,24 @@ object DatasetService {
           .inUuid(di.datasetId, datasetIds)
           .and
           .eq(di.isPrimary, true)
+          .and
+          .isNull(di.deletedAt)
+      }.map(rs => (rs.string(di.resultName.datasetId), rs.string(di.resultName.imageId))).list().apply().toMap
+    } else {
+      Map.empty
+    }
+  }
+
+  private def getFeaturedImageIdMap(datasetIds: Seq[String])(implicit s: DBSession): Map[String, String] = {
+    if (datasetIds.nonEmpty) {
+      val di = persistence.DatasetImage.syntax("di")
+      withSQL {
+        select(di.result.datasetId, di.result.imageId)
+          .from(persistence.DatasetImage as di)
+          .where
+          .inUuid(di.datasetId, datasetIds)
+          .and
+          .eq(di.isFeatured, true)
           .and
           .isNull(di.deletedAt)
       }.map(rs => (rs.string(di.resultName.datasetId), rs.string(di.resultName.imageId))).list().apply().toMap

@@ -5,6 +5,7 @@ typedef DatasetSummary = {
     var name(default, never): String;
     var description(default, never): String;
     var image(default, never): String;
+	var featuredImage(default, never): String;
     var license(default, never): String;
     var attributes(default, never): Array<DatasetAttribute>;
     var ownerships(default, never): Array<DatasetOwnership>;

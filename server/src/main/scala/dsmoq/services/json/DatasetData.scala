@@ -10,6 +10,7 @@ object DatasetData {
     name: String,
     description: String,
     image: String,
+    featuredImage: String,
     license: Option[String] = None,
     attributes: Seq[DatasetAttribute],
     ownerships: Seq[DatasetOwnership],

@@ -9,44 +9,7 @@
     <link href="/resources/bootstrap-modal-2.2.5/css/bootstrap-modal-bs3patch.css" rel="stylesheet" />
     <link href="/resources/bootstrap-modal-2.2.5/css/bootstrap-modal.css" rel="stylesheet" />
     <link href="/resources/style.css" rel="stylesheet">
-  </head>
-  <body role="document" class="loading" style="height: 100%;">
-    <div id="header"></div>
-    <div id="main" class="container"></div>
-
-    <div id="dsmoq-confirm-dialog" class="modal fade" tabindex="-1" data-width="760" style="display: none;">
-      <div class="modal-header">
-        <h4 class="modal-title">Responsive</h4>
-      </div>
-      <div class="modal-body">
-        <div class="row">
-          <div class="col-md-6">
-            <h4>Some Input</h4>
-            <p><input class="form-control" type="text"></p>
-            <p><input class="form-control" type="text"></p>
-            <p><input class="form-control" type="text"></p>
-            <p><input class="form-control" type="text"></p>
-            <p><input class="form-control" type="text"></p>
-            <p><input class="form-control" type="text"></p>
-            <p><input class="form-control" type="text"></p>
-          </div>
-          <div class="col-md-6">
-            <h4>Some More Input</h4>
-            <p><input class="form-control" type="text"></p>
-            <p><input class="form-control" type="text"></p>
-            <p><input class="form-control" type="text"></p>
-            <p><input class="form-control" type="text"></p>
-            <p><input class="form-control" type="text"></p>
-            <p><input class="form-control" type="text"></p>
-            <p><input class="form-control" type="text"></p>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" data-dismiss="modal" class="btn btn-default">Close</button>
-        <button type="button" class="btn btn-primary">Save changes</button>
-      </div>
-    </div>
+	<link rel="stylesheet" href="/resources/css/slider-pro.min.css"/>
 
     <script type="text/javascript" src="/resources/jquery-1.11.1.js"></script>
     <script type="text/javascript" src="/resources/jquery.form.min.js"></script>
@@ -59,7 +22,72 @@
     <script type="text/javascript" src="/resources/bootstrap-modal-2.2.5/js/bootstrap-modal.js"></script>
 	<script type="text/javascript" src="/resources/csv.min.js"></script>
 	<script type="text/javascript" src="/resources/ckeditor/ckeditor.js"></script>
-	<script type="text/javascript" src="/resources/message.js"></script>
+	<script type="text/javascript" src="/resources/jquery.leanModal.min.js"></script>
+	<script type="text/javascript" src="/resources/jquery.sliderPro.js"></script>
     <script type="text/javascript" src="/resources/application.js"></script>
+  </head>
+  <body role="document" class="loading" style="height: 100%;">
+	<div id="wrap">
+		<div id="header"></div>
+		<div id="main" class="container" style="padding-bottom:50px;"></div>
+
+		<div id="dsmoq-confirm-dialog" class="modal fade" tabindex="-1" data-width="760" style="display: none;">
+		  <div class="modal-header">
+			<h4 class="modal-title">Responsive</h4>
+		  </div>
+		  <div class="modal-body">
+			<div class="row">
+			  <div class="col-md-6">
+				<h4>Some Input</h4>
+				<p><input class="form-control" type="text"></p>
+				<p><input class="form-control" type="text"></p>
+				<p><input class="form-control" type="text"></p>
+				<p><input class="form-control" type="text"></p>
+				<p><input class="form-control" type="text"></p>
+				<p><input class="form-control" type="text"></p>
+				<p><input class="form-control" type="text"></p>
+			  </div>
+			  <div class="col-md-6">
+				<h4>Some More Input</h4>
+				<p><input class="form-control" type="text"></p>
+				<p><input class="form-control" type="text"></p>
+				<p><input class="form-control" type="text"></p>
+				<p><input class="form-control" type="text"></p>
+				<p><input class="form-control" type="text"></p>
+				<p><input class="form-control" type="text"></p>
+				<p><input class="form-control" type="text"></p>
+			  </div>
+			</div>
+		  </div>
+		  <div class="modal-footer">
+			<button type="button" data-dismiss="modal" class="btn btn-default">Close</button>
+			<button type="button" class="btn btn-primary">Save changes</button>
+		  </div>
+		</div>
+
+		<div class="copyright">(c)2015- Nagoya COI</div>
+		<div id="modal_window">
+		<a class="modal_close" href="#"></a>
+			<div class="inner">
+				
+			  <h3>About</h3>
+				  Nagoya COI Data Storeは、名古屋COIが収集・保有する様々なデータの共有や情報提供を行うことを目的としたシステムです。<br>
+			  COI Data StoreはAPIを通じて他のシステムやクラウドストレージと連携することが可能です。<br>
+			  名古屋COIメンバーで連携に興味がある方は、責任者 ( <a href="mailto:coids-admin@ucl.nuee.nagoya-u.ac.jp">coids-admin@ucl.nuee.nagoya-u.ac.jp</a> )までご連絡ください。
+		<hr>
+				  <h3>Links</h3>
+				  <ul class="link">
+						<li><a href="http://www.nagoya-u.ac.jp/" target="_blank">名古屋大学</a></li>
+						<li><a href="http://www.jst.go.jp/coi/" target="_blank">センター・オブ・イノベーション（COI）プログラム</a></li>
+				</ul>
+				<!--hr>
+				  <h3>License</h3>
+				  <ul class="license">
+						<li>ライセンス表記がここに入ります</li>
+						<li>ライセンス表記がここに入ります</li>
+				</ul-->
+			</div>
+		</div>
+	</div>
   </body>
 </html>

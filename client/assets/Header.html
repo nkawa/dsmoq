@@ -1,90 +1,73 @@
-<div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
-  <div class="container">
-    <div class="navbar-header">
-      <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
-        <span class="sr-only">Toggle navigation</span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-      </button>
-      <a data-navigation class="navbar-brand header-txt" href="/">COI Data Store</a>
-    </div>
-    <div class="collapse navbar-collapse">
-      <ul class="nav navbar-nav">
-        <li><a data-toggle="modal" data-target="#about-dialog" class="header-txt">About</a></li>
-        <li><a data-navigation href="/datasets" class="header-txt">Datasets</a></li>
-       　<li><a data-navigation href="/groups" class="header-txt">Groups</a></li>
-        {^{if profile == null || profile.isGuest === false}}
-          <li><a data-toggle="modal" data-target="#new-dataset-dialog" class="header-txt"><span class="glyphicon glyphicon-cloud-upload"></span> Create Dataset</a></li>
-        {{/if}}
-      </ul>
-      <ul class="nav navbar-nav navbar-right">
-        {^{if profile != null && profile.isGuest !== false}}
-          <li class="dropdown login-form">
-            <a class="btn dropdown-toggle header-txt" data-toggle="dropdown">Signin <span class="caret"></span></a>
-            <div class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu1">
-		  	  <form method="GET" class="form-horizontal" role="form">
-                <div class="form-group">
-                  <label class="col-sm-4 control-label"></label>
-                  <div class="col-sm-8">
-                    <a data-link="href{:location}" class="btn btn-success" id="signin-with-google">Signin with Google Account</a>
-                  </div>
-                </div>
-              </form>
-              <hr/>
-			  <form method="POST" class="form-horizontal" role="form" id="signin-form">
-				<div class="form-group">
-				  <label for="form-name" class="col-sm-4 control-label">User Id</label>
-				  <div class="col-sm-8"><input type="text" class="form-control" data-link="signinData.id"></div>
-				</div>
-				<div class="form-group">
-				  <label for="form-description" class="col-sm-4 control-label">Password</label>
-				  <div class="col-sm-8"><input type="password" class="form-control" data-link="signinData.password"></div>
-				</div>
-				<p class="text-danger text-center"><strong data-link="signinData.error"></strong></p>
-				<div class="form-group">
-				  <label class="col-sm-4 control-label"></label>
-				  <div class="col-sm-8">
-					<button type="submit" class="btn btn-primary btn-sm" id="signin-submit" data-loading-text="Loading...">Signin with Normal Account</button>
-					<span class="login-failure"></span>
-				  </div>
-				</div>
-			  </form>
-            </div>
-          </li>
-        {{else}}
-          <li class="dropdown">
-            <a href="#" class="dropdown-toggle header-txt" data-toggle="dropdown">{^{>profile.fullname}} <b class="caret"></b></a>
-            <ul class="dropdown-menu">
-              <li><a data-navigation class="control-label" href="/dashboard">DashBoard</a></li>
+
+<div id="innerHeader">
+  <h1><a href="/">NAGOYA COI DataStore</a></h1>
+{^{if profile != null && profile.isGuest !== true }}
+  <ul class="gNav login">
+    <li class="about"><a rel="leanModal" href="#modal_window">about</a></li>
+    <li class="dataset"><a data-navigation href="/datasets">dataset</a></li>
+    <li class="group"><a data-navigation href="/groups">groups</a></li>
+    <li class="create-dataset"><a data-toggle="modal" data-target="#new-dataset-dialog" class="header-txt" href="#">create dataset</a></li>
+  </ul>
+  <a class="signin name" href="javascript:void(0);">
+  曽山勝利 ▼
+  </a>
+	<div class="user-menu">
+		<ul class="menu">
+			<li><a data-navigation class="control-label" href="/dashboard">DashBorad</a></li>
               <li><a data-toggle="modal" data-target="#new-group-dialog">Create Group</a></li>
               <li><a data-navigation class="control-label" href="/profile">Edit Profile</a></li>
               <li class="divider"></li>
-              <li><a class="control-label" href="javascript:void 0;" id="signout-button">Signout</a></li>
-            </ul>
-          </li>
-        <li>
-
-          </li>
-        {{/if}}
-      </ul>
-    </div><!--/.nav-collapse -->
+              <li><a class="control-label" href="javascript:void(0);" id="signout-button">Signout</a></li>
+		</ul>
+	</div>
+{{else}}
+  <ul class="gNav">
+    <li class="about"><a rel="leanModal" href="#modal_window">about</a></li>
+    <li class="dataset"><a data-navigation href="/datasets">dataset</a></li>
+    <li class="group"><a data-navigation href="/groups">groups</a></li>
+  </ul>
+  <div class="signin">
+    <label for="Panel1" class="btn">login</label>
+    <input type="checkbox" id="Panel1" class="on-off" />
+    <ul class="signin_area">
+      <li>
+        <div> <a data-link="href{:location}" id="signin-with-google">Login with Google Account</a>
+          <label for="Panel12" class="normal">Login with Normal Account</label>
+          <input type="checkbox" id="Panel12" class="on-off" />
+		  <form method="POST" class="form-horizontal" role="form" id="signin-form">
+			  <ul class="normal_area">
+				<li>
+				  <dl>
+					<dt>User id</dt>
+					<dd>
+					  <input type="text" data-link="signinData.id">
+					</dd>
+					<dt>Password</dt>
+					<dd>
+					  <input type="password" data-link="signinData.password">
+					</dd>
+				  </dl>
+				  <a id="submitForm" href="#">Login with Normal Account</a> </li>
+			  </ul>
+		  </form>
+        </div>
+      </li>
+    </ul>
   </div>
+{{/if}}
+  <div class="clear"></div>
+	{^{async statistics}}
+		{^{if #data.length > 0}}
+		{^{for #data}}
+  <div class="data">Datasets<big>{{>dataset_amount}}</big>records ／ Total Size<big>{{datasize total_size /}}</big> ／ Real Size<big>{{datasize real_size /}}</big> ／ On Cloud<big>{{datasize s3_size /}}</big> ／ On Local<big>{{datasize local_size /}}</big></div>
+		{{/for}}
+		{{else}}
+  <div class="data">Datasets<big>0</big>records ／ Total Size<big> 0Byte</big> ／ Real Size<big>0Byte</big> ／ On Cloud<big>0Byte</big> ／ On Local<big>0Byte</big></div>
+		{{/if}}
+    {{/async}}
 </div>
 
 <!-- Modal -->
-<div id="about-dialog" class="modal fade" tabindex="-1" data-width="800" data-keyboard="false" style="display: none;">
-  <div class="modal-header">
-    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-    <h4 class="modal-title">About</h4>
-  </div>
-  <div class="modal-body">
-	<p><h3>Nagoya COI Data Storeは、名古屋COIが収集・保有する様々なデータの共有や情報提供を行うことを目的としたシステムです。COI Data StoreはAPIを通じて他のシステムやクラウドストレージと連携することが可能です。</h3></p>
-	<p><h3>名古屋COIメンバーで連携に興味がある方は、責任者 ( coids-admin[at]ucl.nuee.nagoya-u.ac.jp )までご連絡ください。</h3></p>
-  </div>
-  <div class="modal-footer">
-  </div>
-</div>
 
 <div id="new-dataset-dialog" class="modal fade" tabindex="-1" data-width="600" data-keyboard="false" style="display: none;">
   <div class="modal-header">
