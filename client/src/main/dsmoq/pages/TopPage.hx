@@ -70,13 +70,8 @@ class TopPage {
 				binding.setProperty("recentDatasets", Async.Completed(x.results));
 			});
 			
-			JQuery._("#main").css({ width: "100%" });
 		});
-		
-		onClose.then(function(_) {
-			JQuery._("#main").css({ width: "" });
-		});
-		
+				
         return new Promise(function(_) { });
     }
 }

@@ -69,7 +69,7 @@ class Main {
                 var tagDef = JsViewsTools.tagDef();
                 return switch (val) {
                     case Async.Pending:
-                        "<img src='/resources/loading-large.gif' />";
+                        "<div class='loading'></div>";
                     case Async.Completed(x):
                         tagDef.tagCtx.render(x, true);
                 };

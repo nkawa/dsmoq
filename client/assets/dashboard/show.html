@@ -1,205 +1,101 @@
 {^{async data ~tag=data.tag}}
 
-<div class="row">
-	<div class="col-md-12" id="welcome">
-		{^{async message}}
-			{{:#data}}
-		{{/async}}
-	</div>
-</div>
-
-<div class="row" style="margin-bottom: 80px;">
-	<div class="col-md-4 middle-bar big-button" id="search-datasets">
-		<a href="/datasets" data-navigation><img src="/resources/datasets.png"></a>
-		<p><h2><a href="/datasets" data-navigation>SEARCH DATASETS</a></h2></p>
-	</div>
-	<div class="col-md-4 middle-bar big-button" id="search-groups">
-		<a href="/groups" data-navigation><img src="/resources/groups.png"></a>
-		<p><h2><a href="/groups" data-navigation>SEARCH GROUPS</a></h2></p>
-	</div>
-	<div class="col-md-4 middle-bar statistics">
-	{^{async statistics}}
+<h2 class="ttl"><span>Featured Datasets</span></h2>
+	{^{async featuredDatasets}}
+<ul class="dataset-container">
 		{^{if #data.length > 0}}
-		{^{for #data}}
-		<p><h3><span class="glyphicon glyphicon-file"></span> Datasets　{{>dataset_amount}}Records</h3></p>
-		<p><h3><span class="glyphicon glyphicon-floppy-disk"></span> Total Size　{{datasize total_size /}}</h3></p>
-		<p><h4>　　<span class="glyphicon glyphicon-floppy-open"></span> Real Size　{{datasize real_size /}}</h4></p>
-		<p><h4>　　<span class="glyphicon glyphicon-cloud"></span> On Cloud　{{datasize s3_size /}}</h4></p>
-		<p><h4>　　<span class="glyphicon glyphicon-hdd"></span> On Local　{{datasize local_size /}}</h4></p>
-		{{/for}}
-		{{else}}
-		<p><h3><span class="glyphicon glyphicon-file"></span> Datasets　0Records</h3></p>
-		<p><h3><span class="glyphicon glyphicon-floppy-disk"></span> Total Size　0Byte</h3></p>
-		<p><h4>　　<span class="glyphicon glyphicon-floppy-open"></span> Real Size　0Byte</h4></p>
-		<p><h4>　　<span class="glyphicon glyphicon-cloud"></span> On Cloud　0Byte</h4></p>
-		<p><h4>　　<span class="glyphicon glyphicon-hdd"></span> On Local　0Byte</h4></p>
-		{{/if}}
-    {{/async}}
-	</div>
-</div>
-<div class="row">
-	<div class="col-md-12 caption">
-		<p><h2>Featured Datasets</h2></p>
-	</div>
-</div>
-
-<div class="row dataset-container">
-	<div class="col-md-12">
-		{^{async featuredDatasets}}
-		{^{if #data.length > 0}}
-		{^{for #data}}
-		<div class="cell">
-			<div style="margin-bottom: 10px;">
-				<div class="ds-image">
-					<a href="/datasets/{{>id}}" data-navigation><img src="{{>image+'/96'}}"></a>
-				</div>
-				<div class="ds-title">
-					<p><h3><a href="/datasets/{{>id}}" data-navigation>{{>name}}</a></h3></p>
-				</div>
-				<div class="clear"></div>
-			</div>
-			<div class="description">
-				<p><h4>{{if ~trimTags(description)}}{{: ~trimTags(description)}}{{else}}<span class="text-muted">(No description)</span>{{/if}}</h4></p>
-			</div>
-			<div>
-				<h3>
-					{{for ownerships ~length=ownerships.length}}
-					<span class="label label-success">
-						<span class="glyphicon glyphicon-user"></span>
-						{{if ownerType == 1}} {{>fullname}} {{else}} {{>name}} {{/if}}
-					</span>&nbsp;
-					{{/for}}
-					<span class="label label-default">
-						<span class="glyphicon glyphicon-file"></span>
-						{{>files}} files ({{datasize dataSize /}})
-					</span>&nbsp;
-				</h3>
-			</div>
-			<div>
-				<h3>
-				  {{for attributes}}
-					{{if value=="$tag"}}
-					<span class="label label-info" style="background-color: {{: ~getTagColor(~tag)(name)}}"><span class="glyphicon glyphicon-tag"></span> {{>name}}</span>
-					{{/if}}
-				  {{/for}}
-				</h3>
-			</div>
+			{^{for #data}}
+	<li>
+		<a href="/datasets/{{>id}}">
+			<p class="thumb"><img src="{{>image+'/128'}}" srcset="{{>image+'/128'}} 1x, {{>image+'/256'}} 2x" alt="{{>name}}"></p>
+			{{>name}}
+		</a>
+		<div class="description">
+				{{if ~trimTags(description)}}
+			{{: ~trimTags(description)}}
+				{{else}}
+			<span class="text-muted">(No description)</span>
+				{{/if}}
 		</div>
-		{{/for}}
-		{{else}}
-		<p>There are no datasets.</p>
-		{{/if}}
-    {{/async}}
-	</div>
-</div>
-<div class="row">
-	<div class="col-md-12 caption">
-		<p><h2>Recent Datasets</h2></p>
-	</div>
-</div>
-<div class="row dataset-container">
-	<div class="col-md-12">
-		{^{async recentDatasets}}
-		{^{if #data.length > 0}}
-		{^{for #data}}
-		<div class="cell">
-			<div style="margin-bottom: 10px;">
-				<div class="ds-image">
-					<a href="/datasets/{{>id}}" data-navigation><img src="{{>image+'/96'}}"></a>
-				</div>
-				<div class="ds-title">
-					<p><h3><a href="/datasets/{{>id}}" data-navigation>{{>name}}</a></h3></p>
-				</div>
-				<div class="clear"></div>
-			</div>
-			<div class="description">
-				<p><h4>{{if ~trimTags(description)}}{{: ~trimTags(description)}}{{else}}<span class="text-muted">(No description)</span>{{/if}}</h4></p>
-			</div>
-			<div>
-				<h3>
-					{{for ownerships ~length=ownerships.length}}
-					<span class="label label-success">
-						<span class="glyphicon glyphicon-user"></span>
-						{{if ownerType == 1}} {{>fullname}} {{else}} {{>name}} {{/if}}
-					</span>&nbsp;
-					{{/for}}
-					<span class="label label-default">
-						<span class="glyphicon glyphicon-file"></span>
-						{{>files}} files ({{datasize dataSize /}})
-					</span>&nbsp;
-				</h3>
-			</div>
-			<div>
-				<h3>
-				  {{for attributes}}
+		<div class="file">{{>files}} files <small>({{datasize dataSize /}})</small></div>
+		<div class="tag">
+				{{for attributes}}
 					{{if value=="$tag"}}
-					<span class="label label-info" style="background-color: {{: ~getTagColor(~tag)(name)}}"><span class="glyphicon glyphicon-tag"></span> {{>name}}</span>
+			<a style="background-color: {{: ~getTagColor(~tag)(name)}}">{{>name}}</a>
 					{{/if}}
-				  {{/for}}
-				</h3>
-			</div>
+				{{/for}}
 		</div>
-		{{/for}}
+	</li>
+			{{/for}}
 		{{else}}
-		<p>There are no datasets.</p>
+	<p>There are no datasets.</p>
 		{{/if}}
-    {{/async}}
-	</div>
-</div>
+</ul>
+	{{/async}}
+<h2 class="ttl"><span>Recent Datasets</span></h2>
+	{^{async recentDatasets}}
+<ul class="dataset-container">
+		{^{if #data.length > 0}}
+			{^{for #data}}
+	<li>
+		<a href="/datasets/{{>id}}">
+			<p class="thumb"><img src="{{>image+'/128'}}" srcset="{{>image+'/128'}} 1x, {{>image+'/256'}} 2x" alt="{{>name}}"></p>
+			{{>name}}
+		</a>
+		<div class="description">
+				{{if ~trimTags(description)}}
+			{{: ~trimTags(description)}}
+				{{else}}
+			<span class="text-muted">(No description)</span>
+				{{/if}}
+		</div>
+		<div class="file">{{>files}} files <small>({{datasize dataSize /}})</small></div>
+		<div class="tag">
+				{{for attributes}}
+					{{if value=="$tag"}}
+			<a style="background-color: {{: ~getTagColor(~tag)(name)}}">{{>name}}</a>
+					{{/if}}
+				{{/for}}
+		</div>
+	</li>
+			{{/for}}
+		{{else}}
+	<p>There are no datasets.</p>
+		{{/if}}
+</ul>
+	{{/async}}
 {{if !isGuest}}
-<div class="row">
-	<div class="col-md-12 caption">
-		<p><h2>My Datasets</h2></p>
-	</div>
-</div>
-<div class="row dataset-container">
-	<div class="col-md-12">
-		{^{async myDatasets}}
+<h2 class="ttl"><span>My Datasets</span></h2>
+	{^{async myDatasets}}
+<ul class="dataset-container">
 		{^{if #data.length > 0}}
-		{^{for #data}}
-		<div class="cell">
-			<div style="margin-bottom: 10px;">
-				<div class="ds-image">
-					<a href="/datasets/{{>id}}" data-navigation><img src="{{>image+'/96'}}"></a>
-				</div>
-				<div class="ds-title">
-					<p><h3><a href="/datasets/{{>id}}" data-navigation>{{>name}}</a></h3></p>
-				</div>
-				<div class="clear"></div>
-			</div>
-			<div class="description">
-				<p><h4>{{if ~trimTags(description)}}{{: ~trimTags(description)}}{{else}}<span class="text-muted">(No description)</span>{{/if}}</h4></p>
-			</div>
-			<div>
-				<h3>
-					{{for ownerships ~length=ownerships.length}}
-					<span class="label label-success">
-						<span class="glyphicon glyphicon-user"></span>
-						{{if ownerType == 1}} {{>fullname}} {{else}} {{>name}} {{/if}}
-					</span>&nbsp;
-					{{/for}}
-					<span class="label label-default">
-						<span class="glyphicon glyphicon-file"></span>
-						{{>files}} files ({{datasize dataSize /}})
-					</span>&nbsp;
-				</h3>
-			</div>
-			<div>
-				<h3>
-				  {{for attributes}}
-					{{if value=="$tag"}}
-					<span class="label label-info" style="background-color: {{: ~getTagColor(~tag)(name)}}"><span class="glyphicon glyphicon-tag"></span> {{>name}}</span>
-					{{/if}}
-				  {{/for}}
-				</h3>
-			</div>
+			{^{for #data}}
+	<li>
+		<a href="/datasets/{{>id}}">
+			<p class="thumb"><img src="{{>image+'/128'}}" srcset="{{>image+'/128'}} 1x, {{>image+'/256'}} 2x" alt="{{>name}}"></p>
+			{{>name}}
+		</a>
+		<div class="description">
+				{{if ~trimTags(description)}}
+			{{: ~trimTags(description)}}
+				{{else}}
+			<span class="text-muted">(No description)</span>
+				{{/if}}
 		</div>
-		{{/for}}
+		<div class="file">{{>files}} files <small>({{datasize dataSize /}})</small></div>
+		<div class="tag">
+				{{for attributes}}
+					{{if value=="$tag"}}
+			<a style="background-color: {{: ~getTagColor(~tag)(name)}}">{{>name}}</a>
+					{{/if}}
+				{{/for}}
+		</div>
+	</li>
+			{{/for}}
 		{{else}}
-		<p>There are no datasets.</p>
+	<p>There are no datasets.</p>
 		{{/if}}
-    {{/async}}
-	</div>
-</div>
+</ul>
+	{{/async}}
 {{/if}}
 {{/async}}

@@ -5,8 +5,12 @@
 	<div class="sp-slides">
 		<ul>
 			{^{for #data}}
-			<li class="sp-slide" style="background:url({{>featuredImage+'/96'}}) no-repeat 50% 70%; background-size: cover;">
+			<!--
+			<li class="sp-slide" style="background:url({{>featuredImage}}) no-repeat 50% 70%; background-size: cover;"></li>
+			-->
+			<li class="sp-slide">
 				<a href="/datasets/{{>id}}" data-navigation class="sp-image">
+					<span><img src="{{>featuredImage}}" /></span>
 					<p>{{>name}}</p>
 				</a>
 			</li>
@@ -15,21 +19,24 @@
 	</div>
 	<div class="sp-thumbnails">
 			{^{for #data}}
-		<a href="" class="sp-thumbnail" style="background:url({{>featuredImage+'/96'}}) no-repeat; background-size: 150%;"></a>
+			<!--
+		<a href="" class="sp-thumbnail" style="background:url({{>featuredImage}}) no-repeat; background-size: 150%;"></a>
+			-->
+			<span class="sp-thumbnail"><img src="{{>featuredImage}}" /></span>
 			{{/for}}
 	</div>
 </div>
 		{{/if}}
 	{{/async}}
 <!-- Recent Datasets -->
-<h2 class="ttl_recent"><img src="/resources/img/top/ttl_recent.jpg" alt="Recent Datasets"/></h2>
-<ul id="recent">
+<h2 class="ttl"><img src="/resources/img/top/ttl_recent.jpg" alt="Recent Datasets"/></h2>
 	{^{async recentDatasets}}
+<ul class="dataset-container">
 		{^{if #data.length > 0}}
 			{^{for #data}}
 	<li>
 		<a href="/datasets/{{>id}}">
-			<p class="thumb"><img src="{{>image+'/96'}}" alt="{{>name}}"></p>
+			<p class="thumb"><img src="{{>image+'/128'}}" srcset="{{>image+'/128'}} 1x, {{>image+'/256'}} 2x" alt="{{>name}}"></p>
 			{{>name}}
 		</a>
 		<div class="description">
@@ -52,6 +59,6 @@
 		{{else}}
 	<p>There are no datasets.</p>
 		{{/if}}
-	{{/async}}
 </ul>
+	{{/async}}
 {{/async}}

@@ -10,7 +10,7 @@
       <div class="row">
         <div class="col-sm-10">
           <h1>
-            <div class="pull-left dataset-image"><img data-link="src{>primaryImage.url+'/128'}"></div>
+            <div class="pull-left dataset-image"><img data-link="src{>primaryImage.url+'/128'} srcset{>primaryImage.url+'/128 1x, '+primaryImage.url+'/256 2x'}"></div>
             <div>
               <span>{^{>name}}</span> {^{if isPrivate}}<span class="status text-danger">(private)</span>{{/if}}
             </div>

@@ -10,7 +10,7 @@
       <div class="media image-box">
         <div class="media-body">
 		  <div style="height:100px; width:100px">
-			<img src="{{:item.url}}/96"/>
+			<img src="{{:item.url}}/96" srcset="{{:item.url}}/96 1x, {{:item.url}}/192 2x" />
 		  </div>
         </div>
 		<input type="radio" name="selected-image" data-link="selected" value="{{>item.id}}">{{>item.name}}

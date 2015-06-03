@@ -143,6 +143,19 @@ object DatasetService {
           updatedBy = myself.id,
           updatedAt = timestamp)
 
+        for (id <- AppConf.defaultFeaturedImageIds) {
+          persistence.DatasetImage.create(
+            id = UUID.randomUUID.toString,
+            datasetId = dataset.id,
+            imageId = id,
+            isPrimary = false,
+            isFeatured = false,
+            createdBy = myself.id,
+            createdAt = timestamp,
+            updatedBy = myself.id,
+            updatedAt = timestamp)
+        }
+
         Success(DatasetData.Dataset(
           id = dataset.id,
           meta = DatasetData.DatasetMetaData(
@@ -204,7 +217,8 @@ object DatasetService {
       if (bytes(i) == 80 && bytes(i + 1) == 75 && bytes(i + 2) == 3 && bytes(i + 3) == 4) {
         val uncompressSize = bytes(i + 22) + (bytes(i + 23) << 8) + (bytes(i + 24) << 16) + (bytes(i + 25) << 24)
         val fileNameLength = bytes(i + 26) + (bytes(i + 27) << 8)
-        val fileName:Array[Byte] = bytes.drop(i + 30).take(fileNameLength)
+        //val fileName:Array[Byte] = bytes.drop(i + 30).take(fileNameLength)
+        val fileName:Array[Byte] = bytes.view(i + 30, i + 30 + fileNameLength).toArray
         val n = new String(fileName, "Shift-JIS")
         list.+=((n, i, uncompressSize))
       }
@@ -217,7 +231,8 @@ object DatasetService {
         bytes(i + 43) = 0
         bytes(i + 44) = 0
         bytes(i + 45) = 0
-        val fileName:Array[Byte] = bytes.drop(i + 46).take(fileNameLength)
+        //val fileName:Array[Byte] = bytes.drop(i + 46).take(fileNameLength)
+        val fileName:Array[Byte] = bytes.view(i + 46, i + 46 + fileNameLength).toArray
         val n = new String(fileName, "Shift-JIS")
         list2.+=((n, (i, 46 + fileNameLength + extraLength + commentLength)))
       }
@@ -230,14 +245,23 @@ object DatasetService {
     }.toMap
 
     val l2 = list2.toMap
-
-    (for (key <- l.keys) yield {
+    println("---------------------------------------------------------------------------")
+    println(list.size)
+    println(list2.size)
+    println("---------------------------------------------------------------------------")
+    println(l.size)
+    println(l2.size)
+    println("---------------------------------------------------------------------------")
+    list.map(_._1).filter(x => l2.contains(x)).foreach(println)
+    println("---------------------------------------------------------------------------")
+    val a = (for (key <- l.keys) yield {
       if (key.endsWith("/")) {
         None
       } else {
         val dataArea = l.get(key).get
         val centralHeader = l2.get(key).get
-        val cenHeader = bytes.drop(centralHeader._1).take(centralHeader._2)
+        //val cenHeader = bytes.drop(centralHeader._1).take(centralHeader._2)
+        val cenHeader = bytes.view(centralHeader._1, centralHeader._1 + centralHeader._2).toArray
         Some(persistence.ZipedFiles.create(
           id = UUID.randomUUID().toString,
           historyId = historyId,
@@ -255,6 +279,7 @@ object DatasetService {
         ))
       }
     }).filter(! _.isEmpty).flatten.foldLeft(0L)(_ + _.fileSize)
+    a
   }
 
   private def createTask(datasetId: String, commandType: Int, userId: String, timestamp: DateTime, isSave: Boolean)(implicit s: DBSession): String = {

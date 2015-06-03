@@ -11,7 +11,7 @@
         <div class="col-sm-10">
           <h1>
 			<div class="pull-left group-image">
-				<img data-link="src{>group.primaryImage.url+'/128'}" alt="group image">
+				<img data-link="src{>group.primaryImage.url+'/128'} srcset{>group.primaryImage.url+'/128 1x, '+group.primaryImage.url+'/256 2x'}" alt="group image">
 			</div>
 			<div>
 				{^{>group.name}} {^{if group.role >= 1}}<small>(joined)</small>{{/if}}
@@ -73,7 +73,7 @@
 		  {^{for items}}
 			<li class="media">
 			  <div class="pull-left" style="width: 96px; text-align: center;">
-				<a class="media-left" href="#"><img src="{{>image+'/96'}}" alt="{{>name}}" /></a>
+				<a class="media-left" href="#"><img src="{{>image+'/96'}}" srcset="{{>image+'/96'}} 1x, {{>image+'/192'}} 2x" alt="{{>name}}" /></a>
 			  </div>
 			  <div class="media-body">
 				<h4 class="media-heading"><a href="/datasets/{{>id}}" data-navigation>{{>name}}</a></h4>

@@ -114,7 +114,7 @@
       <div class="tab-pane" id="dataset-icon">
         <div class="form-group">
           <div>
-            <img data-link="src{>dataset.primaryImage.url+'/128'}" alt="icon">
+            <img data-link="src{>dataset.primaryImage.url+'/128'} srcset{>dataset.primaryImage.url+'/128 1x, '+dataset.primaryImage.url+'/256 2x'}" alt="icon">
           </div>
         </div>
         <form role="form" id="dataset-icon-form">
@@ -194,7 +194,7 @@
                   <td>
                     <div class="media">
                       <div class="pull-left">
-                        <img src="{{>image}}/48"/>
+                        <img src="{{>image}}/48" srcset="{{>image}}/48 1x, {{>image}}/96 2x" />
                       </div>
                       <div class="media-body">
 						{{if ownerType == 1}}
@@ -288,7 +288,7 @@
       <div class="tab-pane" id="dataset-featured-image">
         <div class="form-group">
           <div>
-            <img data-link="src{>dataset.featuredImage.url+'/128'}" alt="icon">
+            <img data-link="src{>dataset.featuredImage.url+'/128'} srcset{>dataset.featuredImage.url+'/128 1x, '+dataset.featuredImage.url+'/256 2x'}" alt="icon">
           </div>
         </div>
         <form role="form" id="dataset-featured-form">
