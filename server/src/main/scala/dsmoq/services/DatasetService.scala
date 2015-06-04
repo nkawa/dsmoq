@@ -1,33 +1,38 @@
 package dsmoq.services
 
-import java.io.{FileOutputStream, FileInputStream, InputStreamReader, FileReader}
+import java.io.{ByteArrayInputStream, FileOutputStream, InputStreamReader, RandomAccessFile}
 import java.nio.charset.Charset
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{StandardCopyOption, Files, Path, Paths}
+import java.util.UUID
 import java.util.zip.{ZipFile, ZipInputStream}
 
-import dsmoq.services.json.DatasetData.{DatasetOwnership, DatasetZipedFile, CopiedDataset, DatasetTask}
-import org.json4s._
-import org.json4s.JsonDSL._
-import org.json4s.jackson.JsonMethods._
-
-import scala.util.{Failure, Try, Success}
-import scalikejdbc._
-import java.util.UUID
-import dsmoq.{persistence, AppConf}
-import dsmoq.services.json._
-import dsmoq.persistence.PostgresqlHelper._
-import dsmoq.exceptions._
-import org.joda.time.DateTime
-import dsmoq.persistence._
-import dsmoq.logic.{FileManager, StringUtil, ImageSaveLogic}
-import dsmoq.services.json.RangeSlice
-import org.scalatra.servlet.FileItem
-import dsmoq.services.json.RangeSliceSummary
-import dsmoq.services.json.Image
 import scala.collection.mutable
-import com.github.tototoshi.csv._
+import scala.util.{Failure, Try, Success}
 
+import com.github.tototoshi.csv.CSVReader
+import org.joda.time.DateTime
+import org.json4s.JsonDSL._
+import org.json4s.jackson.JsonMethods.{compact, render}
+import org.json4s.{JInt, JBool}
+import org.scalatra.servlet.FileItem
 import scalax.io.Resource
+import scalikejdbc._
+
+import dsmoq.AppConf
+import dsmoq.persistence
+import dsmoq.persistence.{
+  Annotation,
+  Dataset, DatasetAnnotation, DatasetImage,
+  DefaultAccessLevel,
+  GroupAccessLevel, GroupType,
+  OwnerType, Ownership,
+  PresetType, UserAccessLevel, ZipedFiles
+}
+import dsmoq.exceptions.{AccessDeniedException, InputValidationException, NotAuthorizedException, NotFoundException}
+import dsmoq.logic.{FileManager, StringUtil, ImageSaveLogic, ZipUtil}
+import dsmoq.persistence.PostgresqlHelper._
+import dsmoq.services.json.{DatasetData, Image, RangeSlice, RangeSliceSummary}
+import dsmoq.services.json.DatasetData.{DatasetOwnership, DatasetZipedFile, CopiedDataset, DatasetTask}
 
 object DatasetService {
   // FIXME 暫定パラメータのため、将来的には削除する
@@ -196,7 +201,7 @@ object DatasetService {
             accessLevel = ownership.accessLevel,
             ownerType = OwnerType.User
           )),
-          defaultAccessLevel = DefaultAccessLevel.Deny,
+          defaultAccessLevel = persistence.DefaultAccessLevel.Deny,
           permission = ownership.accessLevel,
           accessCount = 0,
           localState = dataset.localState,
@@ -208,78 +213,27 @@ object DatasetService {
     }
   }
 
-  private def createZipedFiles(path: Path, historyId: String, timestamp: DateTime, myself: persistence.User): Long = {
-    val bytes = Files.readAllBytes(path)
-    var i = 0
-    val list = new scala.collection.mutable.ListBuffer[(String, Int, Long)]
-    val list2 = new scala.collection.mutable.ListBuffer[(String, (Int, Int))]
-    while(i < bytes.length) {
-      if (bytes(i) == 80 && bytes(i + 1) == 75 && bytes(i + 2) == 3 && bytes(i + 3) == 4) {
-        val uncompressSize = bytes(i + 22) + (bytes(i + 23) << 8) + (bytes(i + 24) << 16) + (bytes(i + 25) << 24)
-        val fileNameLength = bytes(i + 26) + (bytes(i + 27) << 8)
-        //val fileName:Array[Byte] = bytes.drop(i + 30).take(fileNameLength)
-        val fileName:Array[Byte] = bytes.view(i + 30, i + 30 + fileNameLength).toArray
-        val n = new String(fileName, "Shift-JIS")
-        list.+=((n, i, uncompressSize))
-      }
-      if (bytes(i) == 80 && bytes(i + 1) == 75 && bytes(i + 2) == 1 && bytes(i + 3) == 2) {
-        val fileNameLength = bytes(i + 28) + (bytes(i + 29) << 8)
-        val extraLength = bytes(i + 30) + (bytes(i + 31) << 8)
-        val commentLength = bytes(i + 32) + (bytes(i + 33) << 8)
-        // ローカルヘッダの相対オフセットを0にする(先頭になるため)
-        bytes(i + 42) = 0
-        bytes(i + 43) = 0
-        bytes(i + 44) = 0
-        bytes(i + 45) = 0
-        //val fileName:Array[Byte] = bytes.drop(i + 46).take(fileNameLength)
-        val fileName:Array[Byte] = bytes.view(i + 46, i + 46 + fileNameLength).toArray
-        val n = new String(fileName, "Shift-JIS")
-        list2.+=((n, (i, 46 + fileNameLength + extraLength + commentLength)))
-      }
-
-      i += 1
+  private def createZipedFiles(path: Path, historyId: String, timestamp: DateTime, myself: persistence.User)(implicit s: DBSession): Long = {
+    val zfs = for {
+      zipInfo <- ZipUtil.read(path).filter(!_.fileName.endsWith("/"))
+    } yield {
+      persistence.ZipedFiles.create(
+        id = UUID.randomUUID().toString,
+        historyId = historyId,
+        name = zipInfo.fileName,
+        description = "",
+        fileSize = zipInfo.uncompressSize,
+        createdBy = myself.id,
+        createdAt = timestamp,
+        updatedBy = myself.id,
+        updatedAt = timestamp,
+        cenSize = zipInfo.centralHeader.length,
+        dataStart = zipInfo.localHeaderOffset,
+        dataSize = zipInfo.dataSizeWithLocalHeader,
+        cenHeader = zipInfo.centralHeader
+      )
     }
-
-    val l = list.zip(list.drop(1) += list2.map(x => (x._1, x._2._1, 0L)).head).map{ x =>
-      (x._1._1, (x._1._2, x._2._2 - x._1._2, x._1._3))
-    }.toMap
-
-    val l2 = list2.toMap
-    println("---------------------------------------------------------------------------")
-    println(list.size)
-    println(list2.size)
-    println("---------------------------------------------------------------------------")
-    println(l.size)
-    println(l2.size)
-    println("---------------------------------------------------------------------------")
-    list.map(_._1).filter(x => l2.contains(x)).foreach(println)
-    println("---------------------------------------------------------------------------")
-    val a = (for (key <- l2.keys) yield {
-      if (key.endsWith("/")) {
-        None
-      } else {
-        val dataArea = l.get(key).get
-        val centralHeader = l2.get(key).get
-        //val cenHeader = bytes.drop(centralHeader._1).take(centralHeader._2)
-        val cenHeader = bytes.view(centralHeader._1, centralHeader._1 + centralHeader._2).toArray
-        Some(persistence.ZipedFiles.create(
-          id = UUID.randomUUID().toString,
-          historyId = historyId,
-          name = key,
-          description = "",
-          fileSize = dataArea._3,
-          createdBy = myself.id,
-          createdAt = timestamp,
-          updatedBy = myself.id,
-          updatedAt = timestamp,
-          cenSize = centralHeader._2,
-          dataStart = dataArea._1,
-          dataSize = dataArea._2,
-          cenHeader = cenHeader
-        ))
-      }
-    }).filter(! _.isEmpty).flatten.foldLeft(0L)(_ + _.fileSize)
-    a
+    zfs.map(_.fileSize).sum
   }
 
   private def createTask(datasetId: String, commandType: Int, userId: String, timestamp: DateTime, isSave: Boolean)(implicit s: DBSession): String = {
@@ -1839,24 +1793,47 @@ object DatasetService {
       if (fileInfo._1.localState == 1 || (fileInfo._1.s3State == 2 && fileInfo._1.localState == 3)) {
         fileInfo._4 match {
           case Some(zipedFile) => {
-            val bytes = Files.readAllBytes(Paths.get(AppConf.fileDir, fileInfo._2.substring(1)))
-            val full = bytes.drop(zipedFile.dataStart.toInt).take(zipedFile.dataSize.toInt) ++
-              zipedFile.cenHeader ++
-              Array[Byte] (80, 75, 5, 6, 0, 0, 0, 0, 1, 0, 1, 0)
-
-            val file = Paths.get(AppConf.tempDir, "temp.zip").toFile
-            use(new FileOutputStream(file)) { f =>
-              f.write(full)
-              IntToByte4(zipedFile.cenSize.toInt, f)
-              IntToByte4(zipedFile.dataSize.toInt, f)
-              f.write(Array[Byte] (0, 0))
+            val f = Paths.get(AppConf.fileDir, fileInfo._2.substring(1)).toFile
+            val ra = new RandomAccessFile(f, "r")
+            val dataArea = try {
+              val dataArea = new Array[Byte](zipedFile.dataSize.toInt)
+              ra.seek(zipedFile.dataStart)
+              ra.readFully(dataArea)
+              dataArea
+            } catch {
+              case e: Exception => {
+                e.printStackTrace()
+                throw e
+              }
+            } finally {
+              ra.close()
             }
-
+            val full = Array.concat(
+              dataArea,
+              zipedFile.cenHeader,
+              Array[Byte] (
+                0x50, 0x4b, 0x05, 0x06,
+                0, 0, 0, 0,
+                1, 0, 1, 0
+              ),
+              longToByte4(zipedFile.cenSize),
+              longToByte4(zipedFile.dataSize),
+              Array[Byte](0, 0)
+            )
+            val tempDirPath = Paths.get(AppConf.tempDir)
+            val tempZipFile = Files.createTempFile(tempDirPath, "temp_", ".zip")
+            Files.copy(new ByteArrayInputStream(full), tempZipFile, StandardCopyOption.REPLACE_EXISTING)
             val encoding = if (isSJIS(zipedFile.name)) { Charset.forName("Shift-JIS") } else { Charset.forName("UTF-8") }
-
-            val z = new ZipFile(file, encoding)
-            val entry = z.entries().nextElement()
-            Success((true, file, "", zipedFile.name, Some(z.getInputStream(entry))))
+            val tempFile = Files.createTempFile(tempDirPath, "temp_", "")
+            val z = new ZipFile(tempZipFile.toFile, encoding)
+            try {
+              val entry = z.entries().nextElement()
+              Files.copy(z.getInputStream(entry), tempFile, StandardCopyOption.REPLACE_EXISTING)
+            } finally {
+              z.close()
+            }
+            Files.delete(tempZipFile)
+            Success((true, tempFile.toFile, "", zipedFile.name, None))
           }
           case None => {
             val file = FileManager.downloadFromLocal(fileInfo._2.substring(1))
@@ -1895,7 +1872,10 @@ object DatasetService {
         }
       }
     } catch {
-      case e: Exception => Failure(e)
+      case e: Exception => {
+        e.printStackTrace()
+        Failure(e)
+      }
     }
   }
 
@@ -1908,6 +1888,14 @@ object DatasetService {
     }
   }
 
+  private def longToByte4(num: Long): Array[Byte] = {
+    Array[Long](
+      (num & 0x00000000000000FF),
+      (num & 0x000000000000FF00) >> 8,
+      (num & 0x0000000000FF0000) >> 16,
+      (num & 0x00000000FF000000) >> 24
+    ).map(_.toByte)
+  }
   private def IntToByte4(num: Int, f: FileOutputStream) = {
     if (num < (1 << 8)) {
       f.write(num)
