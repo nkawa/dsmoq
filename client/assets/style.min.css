@@ -155,10 +155,8 @@ input[type="checkbox"].on-off:checked+ul{height:230px;}
 #feature{margin:0 0 40px 0;padding-bottom:5px;position:relative;overflow:hidden;background:#CCC;}
 #feature .sp-slides{margin:0;padding:0;}
 #feature li.sp-slide{list-style:none;}
-#feature .sp-slide span{display:block;height:450px;line-height:450px;text-align:center;}
-#feature .sp-slide span img{max-width:100%;max-height:450px;vertical-align:middle;}
-#feature .sp-thumbnail{width:200px;height:130px;line-height:130px;text-align:center;}
-#feature .sp-thumbnail img{max-width:200px;max-height:130px;vertical-align:middle;}
+#feature .sp-slide span.img{display:inline-block;width:100%;height:450px;background-size:cover;background-position:center center;background-repeat:no-repeat;}
+#feature .sp-thumbnail{width:200px;height:130px;background-size:cover;background-position:center center;background-repeat:no-repeat;}
 #feature a{color:#FFF;display:block;height:450px;width:100%;}
 #feature p{position:absolute;padding:15px;background-color:rgba(0,0,0,0.8);width:300px;right:0;bottom:15px;margin:0;}
 #feature ul{padding:0;margin:0;list-style:none;}

@@ -1,71 +1,7 @@
 {^{async data ~tag=data.tag}}
-
-<h2 class="ttl"><span>Featured Datasets</span></h2>
-	{^{async featuredDatasets}}
-<ul class="dataset-container">
-		{^{if #data.length > 0}}
-			{^{for #data}}
-	<li>
-		<a href="/datasets/{{>id}}">
-			<p class="thumb"><img src="{{>image+'/128'}}" srcset="{{>image+'/128'}} 1x, {{>image+'/256'}} 2x" alt="{{>name}}"></p>
-			{{>name}}
-		</a>
-		<div class="description">
-				{{if ~trimTags(description)}}
-			{{: ~trimTags(description)}}
-				{{else}}
-			<span class="text-muted">(No description)</span>
-				{{/if}}
-		</div>
-		<div class="file">{{>files}} files <small>({{datasize dataSize /}})</small></div>
-		<div class="tag">
-				{{for attributes}}
-					{{if value=="$tag"}}
-			<a style="background-color: {{: ~getTagColor(~tag)(name)}}">{{>name}}</a>
-					{{/if}}
-				{{/for}}
-		</div>
-	</li>
-			{{/for}}
-		{{else}}
-	<p>There are no datasets.</p>
-		{{/if}}
-</ul>
-	{{/async}}
-<h2 class="ttl"><span>Recent Datasets</span></h2>
-	{^{async recentDatasets}}
-<ul class="dataset-container">
-		{^{if #data.length > 0}}
-			{^{for #data}}
-	<li>
-		<a href="/datasets/{{>id}}">
-			<p class="thumb"><img src="{{>image+'/128'}}" srcset="{{>image+'/128'}} 1x, {{>image+'/256'}} 2x" alt="{{>name}}"></p>
-			{{>name}}
-		</a>
-		<div class="description">
-				{{if ~trimTags(description)}}
-			{{: ~trimTags(description)}}
-				{{else}}
-			<span class="text-muted">(No description)</span>
-				{{/if}}
-		</div>
-		<div class="file">{{>files}} files <small>({{datasize dataSize /}})</small></div>
-		<div class="tag">
-				{{for attributes}}
-					{{if value=="$tag"}}
-			<a style="background-color: {{: ~getTagColor(~tag)(name)}}">{{>name}}</a>
-					{{/if}}
-				{{/for}}
-		</div>
-	</li>
-			{{/for}}
-		{{else}}
-	<p>There are no datasets.</p>
-		{{/if}}
-</ul>
-	{{/async}}
-{{if !isGuest}}
+<div style="height: 20px;"></div>
 <h2 class="ttl"><span>My Datasets</span></h2>
+{{if !isGuest}}
 	{^{async myDatasets}}
 <ul class="dataset-container">
 		{^{if #data.length > 0}}

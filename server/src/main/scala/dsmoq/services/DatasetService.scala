@@ -254,7 +254,7 @@ object DatasetService {
     println("---------------------------------------------------------------------------")
     list.map(_._1).filter(x => l2.contains(x)).foreach(println)
     println("---------------------------------------------------------------------------")
-    val a = (for (key <- l.keys) yield {
+    val a = (for (key <- l2.keys) yield {
       if (key.endsWith("/")) {
         None
       } else {

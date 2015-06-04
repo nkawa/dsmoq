@@ -44,42 +44,19 @@ class DashboardPage {
 		Service.instance.getTags().then(function(x) {
 			var data = {
 				isGuest: profile.isGuest,
-				featuredDatasets: Async.Pending,
-				recentDatasets: Async.Pending,
 				myDatasets: Async.Pending,
-				myGroups: Async.Pending,
-				statistics: Async.Pending,
-				tag: x,
-				message: Async.Pending
+				tag: x
 			};
 
             rootBinding.setProperty("data", data);
             var binding = JsViews.observable(rootBinding.data().data);
-			
-			Service.instance.findDatasets( { attributes: [ { name: "featured", value: "" } ], limit: 10, orderby: "attribute" } ).then(function(x) {
-				binding.setProperty("featuredDatasets", Async.Completed(x.results));
-				ellipseLongDescription();
-			});
-			
-			Service.instance.findDatasets({ limit: 4 }).then(function (x) {
-				binding.setProperty("recentDatasets", Async.Completed(x.results));
-				ellipseLongDescription();
-			});
 
 			if (!profile.isGuest) {
-				Service.instance.findDatasets({owners: [profile.name], limit: 4}).then(function (x) {
+				Service.instance.findDatasets({owners: [profile.name], limit: 12}).then(function (x) {
 					binding.setProperty("myDatasets", Async.Completed(x.results));
 					ellipseLongDescription();
 				});
 			}
-			
-			Service.instance.getStatistics({ }).then(function(x) {
-				binding.setProperty("statistics", Async.Completed(x));
-			});
-			
-			Service.instance.getMessage().then(function(x) {
-				binding.setProperty("message", Async.Completed(x));
-			});
 			
 		});
 		
