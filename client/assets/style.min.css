@@ -24,7 +24,7 @@ hr{margin:5px;}
 .dataset-item{padding-bottom:8px;}
 .dataset-item .result-list-body{margin-left:125px;}
 .panel .dataset-item .result-list-body{margin-left:72px;}
-.panel img.icon,.table img.icon,.well img.icon,.form-control img.icon{width:16px;height:16px;margin-right:2px;}
+.panel img.icon,.table img.icon,.well img.icon,.form-control img.icon{width:16px;height:16px;margin:0 2px 2px 0;vertical-align:middle;}
 .panel ul{padding-left:15px;}
 .panel li h3{margin-top:5px;margin-bottom:5px;}
 .statictics .large{font-size:x-large;}
