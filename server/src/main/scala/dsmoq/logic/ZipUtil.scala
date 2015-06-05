@@ -109,10 +109,10 @@ object ZipUtil {
     )
     (offset, bs)
   }
-  def readRaw(path: Path): List[(Long, ZipLocalHeader, Array[Byte])] = {
+  def readRaw(path: Path): Either[Long, List[(Long, ZipLocalHeader, Array[Byte])]] = {
     val file = path.toFile
     if (!file.exists) {
-      return Nil
+      return Left(0)
     }
     val localHeaders = scala.collection.mutable.Map.empty[Long, ZipLocalHeader]
     val centralHeaders = scala.collection.mutable.Map.empty[Long, Array[Byte]]
@@ -143,7 +143,7 @@ object ZipUtil {
             cont = false
           }
           case _ => {
-            throw new RuntimeException("Invalid zip format: " + path + "\nrequires header signature in offset " + offset)
+            return Left(offset)
           }
         }
       }
@@ -155,9 +155,13 @@ object ZipUtil {
     } yield {
       (key, localHeader, centralHeaders.getOrElse(key, Array.empty))
     }
-    ret.toList
+    Right(ret.toList)
   }
-  def read(path: Path): List[ZipInfo] = {
-    readRaw(path).map { case (o, h, c) => toZipInfo(o, h, c) }
+  def read(path: Path): Either[Long, List[ZipInfo]] = {
+    for {
+      raw <- readRaw(path).right
+    } yield {
+      raw.map { case (o, h, c) => toZipInfo(o, h, c) }
+    }
   }
 }

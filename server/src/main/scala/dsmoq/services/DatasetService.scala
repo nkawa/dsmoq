@@ -99,7 +99,7 @@ object DatasetService {
             filePath = "/" + datasetId + "/" + file.id + "/" + historyId,
             fileSize = f.size,
             isZip = isZip,
-            realSize = if (isZip) { createZipedFiles(path, historyId, timestamp, myself) } else { f.size },
+            realSize = if (isZip) { createZipedFiles(path, historyId, timestamp, myself).right.getOrElse(f.size) } else { f.size },
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
@@ -213,27 +213,31 @@ object DatasetService {
     }
   }
 
-  private def createZipedFiles(path: Path, historyId: String, timestamp: DateTime, myself: persistence.User)(implicit s: DBSession): Long = {
-    val zfs = for {
-      zipInfo <- ZipUtil.read(path).filter(!_.fileName.endsWith("/"))
+  private def createZipedFiles(path: Path, historyId: String, timestamp: DateTime, myself: persistence.User)(implicit s: DBSession): Either[Long, Long] = {
+    for {
+      zipInfos <- ZipUtil.read(path).right
     } yield {
-      persistence.ZipedFiles.create(
-        id = UUID.randomUUID().toString,
-        historyId = historyId,
-        name = zipInfo.fileName,
-        description = "",
-        fileSize = zipInfo.uncompressSize,
-        createdBy = myself.id,
-        createdAt = timestamp,
-        updatedBy = myself.id,
-        updatedAt = timestamp,
-        cenSize = zipInfo.centralHeader.length,
-        dataStart = zipInfo.localHeaderOffset,
-        dataSize = zipInfo.dataSizeWithLocalHeader,
-        cenHeader = zipInfo.centralHeader
-      )
+      val zfs = for {
+        zipInfo <- zipInfos.filter(!_.fileName.endsWith("/"))
+      } yield {
+        persistence.ZipedFiles.create(
+          id = UUID.randomUUID().toString,
+          historyId = historyId,
+          name = zipInfo.fileName,
+          description = "",
+          fileSize = zipInfo.uncompressSize,
+          createdBy = myself.id,
+          createdAt = timestamp,
+          updatedBy = myself.id,
+          updatedAt = timestamp,
+          cenSize = zipInfo.centralHeader.length,
+          dataStart = zipInfo.localHeaderOffset,
+          dataSize = zipInfo.dataSizeWithLocalHeader,
+          cenHeader = zipInfo.centralHeader
+        )
+      }
+      zfs.map(_.fileSize).sum
     }
-    zfs.map(_.fileSize).sum
   }
 
   private def createTask(datasetId: String, commandType: Int, userId: String, timestamp: DateTime, isSave: Boolean)(implicit s: DBSession): String = {
@@ -781,7 +785,7 @@ object DatasetService {
             filePath = "/" + id + "/" + file.id + "/" + historyId,
             fileSize = f.size,
             isZip = isZip,
-            realSize = if (isZip) { createZipedFiles(path, historyId, timestamp, myself) } else { f.size },
+            realSize = if (isZip) { createZipedFiles(path, historyId, timestamp, myself).right.getOrElse(f.size) } else { f.size },
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
@@ -864,7 +868,7 @@ object DatasetService {
           filePath = "/" + datasetId + "/" + fileId + "/" + historyId,
           fileSize = file.size,
           isZip = isZip,
-          realSize = if (isZip) { createZipedFiles(path, historyId, timestamp, myself) } else { file_.size },
+          realSize = if (isZip) { createZipedFiles(path, historyId, timestamp, myself).right.getOrElse(file_.size) } else { file_.size },
           createdBy = myself.id,
           createdAt = timestamp,
           updatedBy = myself.id,
