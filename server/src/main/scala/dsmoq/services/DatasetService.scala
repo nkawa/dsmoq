@@ -220,6 +220,14 @@ object DatasetService {
       val zfs = for {
         zipInfo <- zipInfos.filter(!_.fileName.endsWith("/"))
       } yield {
+        val centralHeader = zipInfo.centralHeader.clone
+        // DL時には単独のZIPファイルとして扱うため、
+        // Central Header内のLocal Headerへの参照を先頭に書き換える必要がある
+        // TODO: ZIP64
+        centralHeader(42) = 0
+        centralHeader(43) = 0
+        centralHeader(44) = 0
+        centralHeader(45) = 0
         persistence.ZipedFiles.create(
           id = UUID.randomUUID().toString,
           historyId = historyId,
@@ -233,7 +241,7 @@ object DatasetService {
           cenSize = zipInfo.centralHeader.length,
           dataStart = zipInfo.localHeaderOffset,
           dataSize = zipInfo.dataSizeWithLocalHeader,
-          cenHeader = zipInfo.centralHeader
+          cenHeader = centralHeader
         )
       }
       zfs.map(_.fileSize).sum
