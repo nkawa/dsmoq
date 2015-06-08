@@ -112,7 +112,7 @@ object Main extends App {
   def countFullSize(from: Option[DateTime])(implicit s: DBSession) = {
     val d = Dataset.d
     withSQL {
-      select[Long](sqls.count(d.filesSize))
+      select[Long](sqls"coalesce(sum(d.files_size), 0) as total")
         .from(Dataset as d)
         .where
           .isNull(d.deletedAt)
@@ -130,15 +130,16 @@ object Main extends App {
             }
           }
 
-    }.map(_.long(1)).single.apply.get
+    }.map(_.long("total")).single.apply.get
   }
 
   def countRealSize(from: Option[DateTime])(implicit s: DBSession) = {
     val d = Dataset.d
     val f = File.f
     val fh = FileHistory.fh
+
     withSQL {
-      select[Long](sqls.count(fh.realSize))
+      select[Long](sqls"coalesce(sum(fh.real_size), 0) as total")
         .from(Dataset as d)
         .innerJoin(File as f).on(f.datasetId, d.id)
         .innerJoin(FileHistory as fh).on(fh.fileId, f.id)
@@ -161,13 +162,13 @@ object Main extends App {
               case None => sql
             }
           }
-    }.map(_.long(1)).single.apply.get
+    }.map(_.long("total")).single.apply.get
   }
 
   def countS3Size(from: Option[DateTime])(implicit s: DBSession) = {
     val d = Dataset.d
     withSQL {
-      select[Long](sqls.count(d.filesSize))
+      select[Long](sqls"coalesce(sum(d.files_size), 0) as total")
         .from(Dataset as d)
         .where
           .isNull(d.deletedAt)
@@ -186,13 +187,13 @@ object Main extends App {
               case None => sql
             }
           }
-    }.map(_.long(1)).single.apply.get
+    }.map(_.long("total")).single.apply.get
   }
 
   def countLocalSize(from: Option[DateTime])(implicit s: DBSession) = {
     val d = Dataset.d
     withSQL {
-      select[Long](sqls.count(d.filesSize))
+      select[Long](sqls"coalesce(sum(d.files_size), 0) as total")
         .from(Dataset as d)
         .where
         .isNull(d.deletedAt)
@@ -211,6 +212,6 @@ object Main extends App {
             case None => sql
           }
         }
-    }.map(_.long(1)).single.apply.get
+    }.map(_.long("total")).single.apply.get
   }
 }
