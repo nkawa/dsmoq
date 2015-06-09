@@ -1,15 +1,18 @@
 package dsmoq.controllers
 
+import scala.language.implicitConversions
+import scala.util.{Try, Success, Failure}
+
 import org.json4s._
 import org.json4s.jackson.JsonMethods
-import org.scalatra.ScalatraServlet
 import org.json4s.{DefaultFormats, Formats}
+import org.scalatra.ScalatraServlet
 import org.scalatra.json.JacksonJsonSupport
-import dsmoq.services._
-import scala.util.{Try, Success, Failure}
 import org.scalatra.servlet.{FileItem, FileUploadSupport}
+
 import dsmoq.controllers.json._
 import dsmoq.exceptions.{InputValidationException, NotFoundException, NotAuthorizedException}
+import dsmoq.services._
 
 class ApiController extends ScalatraServlet
     with JacksonJsonSupport with SessionTrait with FileUploadSupport with UserTrait {

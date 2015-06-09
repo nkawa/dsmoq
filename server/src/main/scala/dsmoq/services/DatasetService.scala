@@ -1,12 +1,15 @@
 package dsmoq.services
 
 import java.io.{ByteArrayInputStream, FileOutputStream, InputStreamReader, RandomAccessFile}
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
 import java.nio.charset.Charset
-import java.nio.file.{StandardCopyOption, Files, Path, Paths}
+import java.nio.file.{Files, Path, Paths, StandardCopyOption, StandardOpenOption}
 import java.util.UUID
 import java.util.zip.{ZipFile, ZipInputStream}
 
 import scala.collection.mutable
+import scala.language.reflectiveCalls
 import scala.util.{Failure, Try, Success}
 
 import com.github.tototoshi.csv.CSVReader
@@ -1805,47 +1808,47 @@ object DatasetService {
       if (fileInfo._1.localState == 1 || (fileInfo._1.s3State == 2 && fileInfo._1.localState == 3)) {
         fileInfo._4 match {
           case Some(zipedFile) => {
-            val f = Paths.get(AppConf.fileDir, fileInfo._2.substring(1)).toFile
-            val ra = new RandomAccessFile(f, "r")
-            val dataArea = try {
-              val dataArea = new Array[Byte](zipedFile.dataSize.toInt)
-              ra.seek(zipedFile.dataStart)
-              ra.readFully(dataArea)
-              dataArea
-            } catch {
-              case e: Exception => {
-                e.printStackTrace()
-                throw e
-              }
-            } finally {
-              ra.close()
-            }
-            val full = Array.concat(
-              dataArea,
-              zipedFile.cenHeader,
-              Array[Byte] (
-                0x50, 0x4b, 0x05, 0x06,
-                0, 0, 0, 0,
-                1, 0, 1, 0
-              ),
-              longToByte4(zipedFile.cenSize),
-              longToByte4(zipedFile.dataSize),
-              Array[Byte](0, 0)
-            )
             val tempDirPath = Paths.get(AppConf.tempDir)
-            val tempZipFile = Files.createTempFile(tempDirPath, "temp_", ".zip")
-            Files.copy(new ByteArrayInputStream(full), tempZipFile, StandardCopyOption.REPLACE_EXISTING)
-            val encoding = if (isSJIS(zipedFile.name)) { Charset.forName("Shift-JIS") } else { Charset.forName("UTF-8") }
-            val tempFile = Files.createTempFile(tempDirPath, "temp_", "")
-            val z = new ZipFile(tempZipFile.toFile, encoding)
+            val tempZipPath = Files.createTempFile(tempDirPath, "temp_", ".zip")
+            val tempZipOut = FileChannel.open(tempZipPath, StandardOpenOption.WRITE)
+            try {
+              val in = FileChannel.open(Paths.get(AppConf.fileDir, fileInfo._2.substring(1)), StandardOpenOption.READ)
+              try {
+                var done = 0L
+                while (done < zipedFile.dataSize) {
+                  val wrote = in.transferTo(zipedFile.dataStart + done, zipedFile.dataSize - done, tempZipOut)
+                  done = done + wrote
+                }
+              } finally {
+                in.close()
+              }
+              tempZipOut.write(
+                Array(
+                  zipedFile.cenHeader,
+                  Array[Byte] (
+                    0x50, 0x4b, 0x05, 0x06,
+                    0, 0, 0, 0,
+                    1, 0, 1, 0
+                  ),
+                  longToByte4(zipedFile.cenSize),
+                  longToByte4(zipedFile.dataSize),
+                  Array[Byte](0, 0)
+                ).map(ByteBuffer.wrap)
+              )
+            } finally {
+              tempZipOut.close()
+            }
+            val tempFilePath = Files.createTempFile(tempDirPath, "temp_", "")
+            val encoding = Charset.forName(if (isSJIS(zipedFile.name)) "Shift-JIS" else "UTF-8")
+            val z = new ZipFile(tempZipPath.toFile, encoding)
             try {
               val entry = z.entries().nextElement()
-              Files.copy(z.getInputStream(entry), tempFile, StandardCopyOption.REPLACE_EXISTING)
+              Files.copy(z.getInputStream(entry), tempFilePath, StandardCopyOption.REPLACE_EXISTING)
             } finally {
               z.close()
             }
-            Files.delete(tempZipFile)
-            Success((true, tempFile.toFile, "", zipedFile.name, None))
+            Files.delete(tempZipPath)
+            Success((true, tempFilePath.toFile, "", zipedFile.name, None))
           }
           case None => {
             val file = FileManager.downloadFromLocal(fileInfo._2.substring(1))

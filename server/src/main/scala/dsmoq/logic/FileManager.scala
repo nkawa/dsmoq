@@ -3,14 +3,17 @@ package dsmoq.logic
 import java.io.{FileOutputStream, File}
 import java.nio.file.Paths
 import java.util.Calendar
+
+import scala.language.reflectiveCalls
+
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model.{ResponseHeaderOverrides, GetObjectRequest, GeneratePresignedUrlRequest}
-import dsmoq.AppConf
 import org.scalatra.servlet.FileItem
+import scalax.io.Resource
 import scalikejdbc._
 
-import scalax.io.Resource
+import dsmoq.AppConf
 
 object FileManager {
 

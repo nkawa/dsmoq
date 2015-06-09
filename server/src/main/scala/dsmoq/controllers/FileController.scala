@@ -1,12 +1,15 @@
 package dsmoq.controllers
 
 import java.util.zip.ZipException
+import java.nio.file.Files
 
 import scala.util.{Failure, Success}
-import dsmoq.exceptions.{AccessDeniedException, NotFoundException}
-import dsmoq.services.DatasetService
+
 import org.scalatra.ScalatraServlet
 import org.scalatra.servlet.FileUploadSupport
+
+import dsmoq.exceptions.{AccessDeniedException, NotFoundException}
+import dsmoq.services.DatasetService
 import dsmoq.services.{AccountService, User}
 
 class FileController extends ScalatraServlet with SessionTrait with UserTrait {
@@ -25,7 +28,8 @@ class FileController extends ScalatraServlet with SessionTrait with UserTrait {
         if (x._1) {
           response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + java.net.URLEncoder.encode(x._4.split(Array[Char]('\\', '/')).last,"UTF-8"))
           response.setHeader("Content-Type", "application/octet-stream;charset=binary")
-          x._2
+          val file = x._2
+          Files.newInputStream(file.toPath)
 //          x._5 match {
 //            case None => x._2
 //            case Some(in) => org.scalatra.util.io.copy(in, response.getOutputStream)
