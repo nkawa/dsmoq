@@ -1822,19 +1822,44 @@ object DatasetService {
               } finally {
                 in.close()
               }
-              tempZipOut.write(
-                Array(
-                  zipedFile.cenHeader,
+              tempZipOut.write(ByteBuffer.wrap(zipedFile.cenHeader))
+              if (zipedFile.dataSize >= 0x00000000FFFFFFFFL) {
+                val zip64EndOfCentralDirectoryRecord = Array.concat(
                   Array[Byte] (
-                    0x50, 0x4b, 0x05, 0x06,
-                    0, 0, 0, 0,
-                    1, 0, 1, 0
+                    0x50, 0x4b, 0x06, 0x06, // sig
+                    44, 0, 0, 0, 0, 0, 0, 0, // size of this record - 12
+                    45, 0, 45, 0, // version
+                    0, 0, 0, 0, 0, 0, 0, 0, // disk
+                    1, 0, 0, 0, 0, 0, 0, 0, // total entity num on this disk
+                    1, 0, 0, 0, 0, 0, 0, 0 // total entity num
                   ),
-                  longToByte4(zipedFile.cenSize),
-                  longToByte4(zipedFile.dataSize),
-                  Array[Byte](0, 0)
-                ).map(ByteBuffer.wrap)
+                  longToByte8(zipedFile.cenSize),
+                  longToByte8(zipedFile.dataSize)
+                )
+                tempZipOut.write(ByteBuffer.wrap(zip64EndOfCentralDirectoryRecord))
+                val zip64EndOfCentralDirectoryLocator = Array.concat(
+                  Array[Byte] (
+                    0x50, 0x4b, 0x06, 0x07, // sig
+                    0, 0, 0, 0 // disk
+                  ),
+                  longToByte8(zipedFile.dataSize + zipedFile.cenSize),
+                  Array[Byte] (
+                    1, 0, 0, 0 // total disk num
+                  )
+                )
+                tempZipOut.write(ByteBuffer.wrap(zip64EndOfCentralDirectoryLocator))
+              }
+              val endOfCentralDirectoryRecord = Array.concat(
+                Array[Byte] (
+                  0x50, 0x4b, 0x05, 0x06,
+                  0, 0, 0, 0,
+                  1, 0, 1, 0
+                ),
+                longToByte4(zipedFile.cenSize),
+                longToByte4(scala.math.min(zipedFile.dataSize, 0x00000000FFFFFFFFL)),
+                Array[Byte](0, 0)
               )
+              tempZipOut.write(ByteBuffer.wrap(endOfCentralDirectoryRecord))
             } finally {
               tempZipOut.close()
             }
@@ -1905,10 +1930,22 @@ object DatasetService {
 
   private def longToByte4(num: Long): Array[Byte] = {
     Array[Long](
-      (num & 0x00000000000000FF),
-      (num & 0x000000000000FF00) >> 8,
-      (num & 0x0000000000FF0000) >> 16,
-      (num & 0x00000000FF000000) >> 24
+      (num & 0x00000000000000FFL),
+      (num & 0x000000000000FF00L) >> 8,
+      (num & 0x0000000000FF0000L) >> 16,
+      (num & 0x00000000FF000000L) >> 24
+    ).map(_.toByte)
+  }
+  private def longToByte8(num: Long): Array[Byte] = {
+    Array[Long](
+      (num & 0x00000000000000FFL),
+      (num & 0x000000000000FF00L) >> 8,
+      (num & 0x0000000000FF0000L) >> 16,
+      (num & 0x00000000FF000000L) >> 24,
+      (num & 0x000000FF00000000L) >> 32,
+      (num & 0x0000FF0000000000L) >> 40,
+      (num & 0x00FF000000000000L) >> 48,
+      (num & 0xFF00000000000000L) >> 56
     ).map(_.toByte)
   }
   private def IntToByte4(num: Int, f: FileOutputStream) = {
