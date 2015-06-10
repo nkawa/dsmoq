@@ -10,6 +10,7 @@ import org.scalatra.servlet.FileUploadSupport
 
 import dsmoq.exceptions.{AccessDeniedException, NotFoundException}
 import dsmoq.services.DatasetService
+import dsmoq.services.DatasetService.{DownloadFileNormal, DownloadFileRedirect}
 import dsmoq.services.{AccountService, User}
 
 class FileController extends ScalatraServlet with SessionTrait with UserTrait {
@@ -24,19 +25,14 @@ class FileController extends ScalatraServlet with SessionTrait with UserTrait {
       fileInfo
     }
     result match {
-      case Success(x) =>
-        if (x._1) {
-          response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + java.net.URLEncoder.encode(x._4.split(Array[Char]('\\', '/')).last,"UTF-8"))
-          response.setHeader("Content-Type", "application/octet-stream;charset=binary")
-          val file = x._2
-          Files.newInputStream(file.toPath)
-//          x._5 match {
-//            case None => x._2
-//            case Some(in) => org.scalatra.util.io.copy(in, response.getOutputStream)
-//          }
-        } else {
-          redirect(x._3)
-        }
+      case Success(DownloadFileNormal(file, name)) => {
+        response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + java.net.URLEncoder.encode(name.split(Array[Char]('\\', '/')).last,"UTF-8"))
+        response.setHeader("Content-Type", "application/octet-stream;charset=binary")
+        Files.newInputStream(file.toPath)
+      }
+      case Success(DownloadFileRedirect(url)) => {
+        redirect(url)
+      }
       case Failure(e) => e match {
         case _:NotFoundException => halt(status = 404, reason = "Not Found", body="Not Found")
         case _:AccessDeniedException => halt(status = 403, reason = "Forbidden", body="Forbidden")

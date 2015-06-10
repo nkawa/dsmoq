@@ -1,6 +1,6 @@
 package dsmoq.logic
 
-import java.io.{FileOutputStream, File}
+import java.io.{File, FileOutputStream, InputStream}
 import java.nio.file.Paths
 import java.util.Calendar
 
@@ -33,15 +33,13 @@ object FileManager {
     new File(fullPath.toString)
   }
 
-  def downloadFromS3Bytes(filePath: String, start: Long, end: Long): Array[Byte] = {
+  def downloadFromS3(filePath: String, start: Long, end: Long): InputStream = {
     val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
     val client = new AmazonS3Client(cre)
     val request = new GetObjectRequest(AppConf.s3UploadRoot, filePath)
     request.setRange(start, end)
     val obj = client.getObject(request)
-    val in = obj.getObjectContent()
-    val st = Resource.fromInputStream(in)
-    st.byteArray
+    obj.getObjectContent()
   }
 
   def downloadFromS3Url(filePath: String, fileName: String): String = {

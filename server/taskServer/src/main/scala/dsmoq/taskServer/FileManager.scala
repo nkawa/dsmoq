@@ -1,7 +1,7 @@
 package dsmoq.taskServer
 
 import java.io.{File, FileInputStream, IOException, InputStream}
-import java.nio.file.Paths
+import java.nio.file.{Files, Paths}
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model.{GetObjectRequest, ObjectMetadata}
 import com.amazonaws.services.s3.transfer.{TransferManager, TransferManagerConfiguration}
@@ -11,33 +11,56 @@ object FileManager {
   private val PART_SIZE = 5 * 1024L * 1024L
 
   def moveFromLocalToS3(filePath: String, client: AmazonS3Client) {
-    val fullPath = Paths.get(AppConf.fileDir, filePath).toFile
-    val file = new File(fullPath.toString)
-
-    loanStream(file)( x => uploadToS3(filePath, x, client) )
+    if (client.listObjects(AppConf.s3UploadRoot).getObjectSummaries.map(_.getKey).contains(filePath)) {
+      return
+    }
+    if (!client.doesBucketExist(AppConf.s3UploadRoot)) {
+      throw new BucketNotFoundException("対象のBucket(%s)が作成されていません。".format(AppConf.s3UploadRoot))
+    }
+    val path = Paths.get(AppConf.fileDir, filePath)
+    val fileSize = Files.size(path)
+    val putMetaData = new ObjectMetadata()
+    putMetaData.setContentLength(fileSize)
+    val c = new TransferManagerConfiguration()
+    c.setMinimumUploadPartSize(PART_SIZE)
+    val manager = new TransferManager(client)
+    manager.setConfiguration(c)
+    val in = Files.newInputStream(path)
+    try {
+      val upload = manager.upload(AppConf.s3UploadRoot, filePath, in, putMetaData)
+      upload.waitForCompletion()
+    } catch {
+      case e: InterruptedException => throw new IOException(e)
+    } finally {
+      in.close()
+    }
+    
+//    val fullPath = Paths.get(AppConf.fileDir, filePath).toFile
+//    val file = new File(fullPath.toString)
+//    loanStream(file)( x => uploadToS3(filePath, x, client) )
   }
 
-  private def loanStream(file: File)(f: InputStream => Unit)
-  {
-    var stream :InputStream = null
-    try
-    {
-      stream = new FileInputStream(file)
-      f(stream)
-    }
-    finally
-    {
-      try {
-        if (stream != null) {
-          stream.close()
-        }
-      }
-      catch
-      {
-        case _:IOException =>
-      }
-    }
-  }
+//  private def loanStream(file: File)(f: InputStream => Unit)
+//  {
+//    var stream :InputStream = null
+//    try
+//    {
+//      stream = new FileInputStream(file)
+//      f(stream)
+//    }
+//    finally
+//    {
+//      try {
+//        if (stream != null) {
+//          stream.close()
+//        }
+//      }
+//      catch
+//      {
+//        case _:IOException =>
+//      }
+//    }
+//  }
 
   def moveFromS3ToLocal(filePath: String)(implicit client: AmazonS3Client) {
     if (Paths.get(AppConf.fileDir, filePath).toFile.exists()) {

@@ -58,8 +58,8 @@ object DsmoqBuild extends Build {
         "org.scalikejdbc" %% "scalikejdbc-interpolation" % "2.2.3",
         "org.scalikejdbc" %% "scalikejdbc-test" % "2.2.3" % "test"
       ),
-      ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) },
       scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
+      ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) },
       fork in Test := true
     )
   )
@@ -93,7 +93,9 @@ object DsmoqBuild extends Build {
         "org.scalatest" % "scalatest_2.11" % "2.2.1" % "test",
         "com.typesafe.akka" % "akka-http-core-experimental_2.11" % "0.11",
         "com.typesafe.akka" % "akka-testkit_2.11" % "2.3.7"
-      )
+      ),
+      scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
+      ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
     )
   ).dependsOn(dsmoq)
 
