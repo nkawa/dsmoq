@@ -1,8 +1,5 @@
 package dsmoq.controllers
 
-import java.util.zip.ZipException
-import java.nio.file.Files
-
 import scala.util.{Failure, Success}
 
 import org.scalatra.ScalatraServlet
@@ -25,10 +22,10 @@ class FileController extends ScalatraServlet with SessionTrait with UserTrait {
       fileInfo
     }
     result match {
-      case Success(DownloadFileNormal(file, name)) => {
+      case Success(DownloadFileNormal(data, name)) => {
         response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + java.net.URLEncoder.encode(name.split(Array[Char]('\\', '/')).last,"UTF-8"))
         response.setHeader("Content-Type", "application/octet-stream;charset=binary")
-        Files.newInputStream(file.toPath)
+        data
       }
       case Success(DownloadFileRedirect(url)) => {
         redirect(url)

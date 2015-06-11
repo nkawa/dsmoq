@@ -1,18 +1,26 @@
 package dsmoq.services
 
-import java.io.{ByteArrayInputStream, FileOutputStream, InputStreamReader, RandomAccessFile}
+import java.io.{
+  ByteArrayInputStream, FileOutputStream,
+  InputStream, InputStreamReader,
+  RandomAccessFile, SequenceInputStream
+}
 import java.nio.ByteBuffer
 import java.nio.channels.{Channels, FileChannel}
 import java.nio.charset.Charset
-import java.nio.file.{Files, Path, Paths, StandardCopyOption, StandardOpenOption}
+import java.nio.file.{
+  Files, Path, Paths,
+  StandardCopyOption, StandardOpenOption
+}
 import java.util.UUID
-import java.util.zip.{ZipFile, ZipInputStream}
+import java.util.zip.ZipInputStream
 
 import scala.collection.mutable
 import scala.language.reflectiveCalls
 import scala.util.{Failure, Try, Success}
 
 import com.github.tototoshi.csv.CSVReader
+import org.apache.commons.io.input.BoundedInputStream
 import org.joda.time.DateTime
 import org.json4s.JsonDSL._
 import org.json4s.jackson.JsonMethods.{compact, render}
@@ -1800,48 +1808,8 @@ object DatasetService {
       case None => Failure(new NotFoundException)
     }
   }
-  def writeCentralHeader(out: FileChannel, zipedFile: persistence.ZipedFiles) {
-    out.write(ByteBuffer.wrap(zipedFile.cenHeader))
-    if (zipedFile.dataSize >= 0x00000000FFFFFFFFL) {
-      val zip64EndOfCentralDirectoryRecord = Array.concat(
-        Array[Byte] (
-          0x50, 0x4b, 0x06, 0x06, // sig
-          44, 0, 0, 0, 0, 0, 0, 0, // size of this record - 12
-          45, 0, 45, 0, // version
-          0, 0, 0, 0, 0, 0, 0, 0, // disk
-          1, 0, 0, 0, 0, 0, 0, 0, // total entity num on this disk
-          1, 0, 0, 0, 0, 0, 0, 0 // total entity num
-        ),
-        longToByte8(zipedFile.cenSize),
-        longToByte8(zipedFile.dataSize)
-      )
-      out.write(ByteBuffer.wrap(zip64EndOfCentralDirectoryRecord))
-      val zip64EndOfCentralDirectoryLocator = Array.concat(
-        Array[Byte] (
-          0x50, 0x4b, 0x06, 0x07, // sig
-          0, 0, 0, 0 // disk
-        ),
-        longToByte8(zipedFile.dataSize + zipedFile.cenSize),
-        Array[Byte] (
-          1, 0, 0, 0 // total disk num
-        )
-      )
-      out.write(ByteBuffer.wrap(zip64EndOfCentralDirectoryLocator))
-    }
-    val endOfCentralDirectoryRecord = Array.concat(
-      Array[Byte] (
-        0x50, 0x4b, 0x05, 0x06,
-        0, 0, 0, 0,
-        1, 0, 1, 0
-      ),
-      longToByte4(zipedFile.cenSize),
-      longToByte4(scala.math.min(zipedFile.dataSize, 0x00000000FFFFFFFFL)),
-      Array[Byte](0, 0)
-    )
-    out.write(ByteBuffer.wrap(endOfCentralDirectoryRecord))
-  }
   sealed trait DownloadFile
-  case class DownloadFileNormal(file: java.io.File, name: String) extends DownloadFile
+  case class DownloadFileNormal(data: InputStream, name: String) extends DownloadFile
   case class DownloadFileRedirect(url: String) extends DownloadFile
   def getDownloadFile(datasetId: String, fileId: String, user: User): Try[DownloadFile] = {
     val findResult = DB readOnly { implicit s =>
@@ -1863,235 +1831,128 @@ object DatasetService {
       (fileInfo, isDownloadFromLocal) match {
         case (FileResultNormal(file, path), true) => {
           val downloadFile = FileManager.downloadFromLocal(path.substring(1))
-          DownloadFileNormal(downloadFile, file.name)
+          val is = Files.newInputStream(downloadFile.toPath)
+          DownloadFileNormal(is, file.name)
         }
         case (FileResultNormal(file, path), false) => {
           val url = FileManager.downloadFromS3Url(path.substring(1), file.name)
           DownloadFileRedirect(url)
         }
         case (FileResultZip(file, path, zipedFile), true) => {
-          val tempDirPath = Paths.get(AppConf.tempDir)
-          val tempZipPath = Files.createTempFile(tempDirPath, "temp_", ".zip")
-          val tempZipOut = FileChannel.open(tempZipPath, StandardOpenOption.WRITE)
+          val is = createRangeInputStream(
+            path = Paths.get(AppConf.fileDir, path.substring(1)),
+            offset = zipedFile.dataStart,
+            limit = zipedFile.dataSize
+          )
+          val encoding = if (isSJIS(zipedFile.name)) { Charset.forName("Shift-JIS") } else { Charset.forName("UTF-8") }
           try {
-            val in = FileChannel.open(Paths.get(AppConf.fileDir, path.substring(1)), StandardOpenOption.READ)
-            try {
-              var done = 0L
-              while (done < zipedFile.dataSize) {
-                val wrote = in.transferTo(zipedFile.dataStart + done, zipedFile.dataSize - done, tempZipOut)
-                done = done + wrote
-              }
-            } finally {
-              in.close()
+            val zis = createUnzipInputStream(
+              data = is,
+              centralHeader = zipedFile.cenHeader,
+              dataSize = zipedFile.dataSize,
+              encoding = encoding
+            )
+            DownloadFileNormal(zis, zipedFile.name)
+          } catch {
+            case e: Exception => {
+              is.close()
+              throw e
             }
-            writeCentralHeader(tempZipOut, zipedFile)
-          } finally {
-            tempZipOut.close()
           }
-          val tempFilePath = Files.createTempFile(tempDirPath, "temp_", "")
-          val encoding = Charset.forName(if (isSJIS(zipedFile.name)) "Shift-JIS" else "UTF-8")
-          val z = new ZipFile(tempZipPath.toFile, encoding)
-          try {
-            val entry = z.entries().nextElement()
-            Files.copy(z.getInputStream(entry), tempFilePath, StandardCopyOption.REPLACE_EXISTING)
-          } finally {
-            z.close()
-          }
-          Files.delete(tempZipPath)
-          DownloadFileNormal(tempFilePath.toFile, zipedFile.name)
         }
         case (FileResultZip(file, path, zipedFile), false) => {
-          val tempDirPath = Paths.get(AppConf.tempDir)
-          val tempZipPath = Files.createTempFile(tempDirPath, "temp_", ".zip")
           val is = FileManager.downloadFromS3(
-            path.substring(1),
-            zipedFile.dataStart,
-            zipedFile.dataStart + zipedFile.dataSize - 1
+            filePath = path.substring(1),
+            start = zipedFile.dataStart,
+            end = zipedFile.dataStart + zipedFile.dataSize - 1
           )
+          val encoding = if (isSJIS(zipedFile.name)) { Charset.forName("Shift-JIS") } else { Charset.forName("UTF-8") }
           try {
-            Files.copy(is, tempZipPath, StandardCopyOption.REPLACE_EXISTING)
-          } finally {
-            is.close()
+            val zis = createUnzipInputStream(
+              data = is,
+              centralHeader = zipedFile.cenHeader,
+              dataSize = zipedFile.dataSize,
+              encoding = encoding
+            )
+            DownloadFileNormal(zis, zipedFile.name)
+          } catch {
+            case e: Exception => {
+              is.close()
+              throw e
+            }
           }
-          val tempZipOut = FileChannel.open(tempZipPath, StandardOpenOption.APPEND)
-          try {
-            writeCentralHeader(tempZipOut, zipedFile)
-          } finally {
-            tempZipOut.close()
-          }
-          val tempFilePath = Files.createTempFile(tempDirPath, "temp_", "")
-          val encoding = Charset.forName(if (isSJIS(zipedFile.name)) "Shift-JIS" else "UTF-8")
-          val z = new ZipFile(tempZipPath.toFile, encoding)
-          try {
-            val entry = z.entries().nextElement()
-            Files.copy(z.getInputStream(entry), tempFilePath, StandardCopyOption.REPLACE_EXISTING)
-          } finally {
-            z.close()
-          }
-          Files.delete(tempZipPath)
-          DownloadFileNormal(tempFilePath.toFile, zipedFile.name)
         }
       }
     }
-//    try {
-//      val fileInfo = DB readOnly { implicit s =>
-//        // 権限によりダウンロード可否の決定
-//        val permission = if (user.isGuest) {
-//          getGuestAccessLevel(datasetId)
-//        } else {
-//          val groups = getJoinedGroups(user)
-//          // FIXME チェック時、user権限はUserAccessLevelクラス, groupの場合はGroupAccessLevelクラスの定数を使用する
-//          // (UserAndGroupAccessDeny, UserAndGroupAllowDownload 定数を削除する)
-//          // 旧仕様ではuser/groupは同じ権限を付与していたが、
-//          // 現仕様はuser/groupによって権限の扱いが異なる(groupには編集権限は付与しない)
-//          // 実装時間の都合と現段階の実装でも問題がない(値が同じ)ため対応していない
-//          getPermission(datasetId, groups).getOrElse(UserAndGroupAccessDeny)
-//        }
-//        if (permission < UserAndGroupAllowDownload) {
-//          throw new AccessDeniedException
-//        }
-//
-//        // datasetが削除されていないか
-//        val dataset = getDataset(datasetId) match {
-//          case Some(x) => x
-//          case None => throw new NotFoundException
-//        }
-//
-//        val file = persistence.File.find(fileId)
-//        file match {
-//          case Some(f) => {
-//            val history = persistence.FileHistory.find(f.historyId).get
-//            (f, history.filePath, dataset, None)
-//          }
-//          case None => {
-//            val zipedFile = persistence.ZipedFiles.find(fileId)
-//            zipedFile match {
-//              case Some(zf) => {
-//                val history = persistence.FileHistory.find(zf.historyId).get
-//                val zipFile = persistence.File.find(history.fileId).get
-//                val zipFilePath = history.filePath
-//                (zipFile, zipFilePath, dataset, Some(zf))
-//              }
-//              case None => throw new NotFoundException
-//            }
-//          }
-//        }
-//      }
-//      val isDownloadFromLocal = fileInfo._1.localState == 1 || (fileInfo._1.s3State == 2 && fileInfo._1.localState == 3) 
-//      if (isDownloadFromLocal) {
-//        fileInfo._4 match {
-//          case Some(zipedFile) => {
-//            val tempDirPath = Paths.get(AppConf.tempDir)
-//            val tempZipPath = Files.createTempFile(tempDirPath, "temp_", ".zip")
-//            val tempZipOut = FileChannel.open(tempZipPath, StandardOpenOption.WRITE)
-//            try {
-//              val in = FileChannel.open(Paths.get(AppConf.fileDir, fileInfo._2.substring(1)), StandardOpenOption.READ)
-//              try {
-//                var done = 0L
-//                while (done < zipedFile.dataSize) {
-//                  val wrote = in.transferTo(zipedFile.dataStart + done, zipedFile.dataSize - done, tempZipOut)
-//                  done = done + wrote
-//                }
-//              } finally {
-//                in.close()
-//              }
-//              tempZipOut.write(ByteBuffer.wrap(zipedFile.cenHeader))
-//              if (zipedFile.dataSize >= 0x00000000FFFFFFFFL) {
-//                val zip64EndOfCentralDirectoryRecord = Array.concat(
-//                  Array[Byte] (
-//                    0x50, 0x4b, 0x06, 0x06, // sig
-//                    44, 0, 0, 0, 0, 0, 0, 0, // size of this record - 12
-//                    45, 0, 45, 0, // version
-//                    0, 0, 0, 0, 0, 0, 0, 0, // disk
-//                    1, 0, 0, 0, 0, 0, 0, 0, // total entity num on this disk
-//                    1, 0, 0, 0, 0, 0, 0, 0 // total entity num
-//                  ),
-//                  longToByte8(zipedFile.cenSize),
-//                  longToByte8(zipedFile.dataSize)
-//                )
-//                tempZipOut.write(ByteBuffer.wrap(zip64EndOfCentralDirectoryRecord))
-//                val zip64EndOfCentralDirectoryLocator = Array.concat(
-//                  Array[Byte] (
-//                    0x50, 0x4b, 0x06, 0x07, // sig
-//                    0, 0, 0, 0 // disk
-//                  ),
-//                  longToByte8(zipedFile.dataSize + zipedFile.cenSize),
-//                  Array[Byte] (
-//                    1, 0, 0, 0 // total disk num
-//                  )
-//                )
-//                tempZipOut.write(ByteBuffer.wrap(zip64EndOfCentralDirectoryLocator))
-//              }
-//              val endOfCentralDirectoryRecord = Array.concat(
-//                Array[Byte] (
-//                  0x50, 0x4b, 0x05, 0x06,
-//                  0, 0, 0, 0,
-//                  1, 0, 1, 0
-//                ),
-//                longToByte4(zipedFile.cenSize),
-//                longToByte4(scala.math.min(zipedFile.dataSize, 0x00000000FFFFFFFFL)),
-//                Array[Byte](0, 0)
-//              )
-//              tempZipOut.write(ByteBuffer.wrap(endOfCentralDirectoryRecord))
-//            } finally {
-//              tempZipOut.close()
-//            }
-//            val tempFilePath = Files.createTempFile(tempDirPath, "temp_", "")
-//            val encoding = Charset.forName(if (isSJIS(zipedFile.name)) "Shift-JIS" else "UTF-8")
-//            val z = new ZipFile(tempZipPath.toFile, encoding)
-//            try {
-//              val entry = z.entries().nextElement()
-//              Files.copy(z.getInputStream(entry), tempFilePath, StandardCopyOption.REPLACE_EXISTING)
-//            } finally {
-//              z.close()
-//            }
-//            Files.delete(tempZipPath)
-//            Success((true, tempFilePath.toFile, "", zipedFile.name, None))
-//          }
-//          case None => {
-//            val file = FileManager.downloadFromLocal(fileInfo._2.substring(1))
-//            Success((true, file, "", fileInfo._1.name, None))
-//          }
-//        }
-//      } else {
-//        fileInfo._4 match {
-//          case Some(zipedFile) => {
-//            val bytes = FileManager.downloadFromS3Bytes(fileInfo._2.substring(1), zipedFile.dataStart, zipedFile.dataStart + zipedFile.dataSize - 1)
-//            val full = bytes ++
-//              zipedFile.cenHeader ++
-//              Array[Byte] (80, 75, 5, 6, 0, 0, 0, 0, 1, 0, 1, 0)
-//            val file = Paths.get(AppConf.tempDir, "temp.zip").toFile
-//            use(new FileOutputStream(file)) { f =>
-//              f.write(full)
-//              IntToByte4(zipedFile.cenSize.toInt, f)
-//              IntToByte4(zipedFile.dataSize.toInt, f)
-//              f.write(Array[Byte] (0, 0))
-//            }
-//
-//            val encoding = if (isSJIS(zipedFile.name)) { Charset.forName("Shift-JIS") } else { Charset.forName("UTF-8") }
-//
-//            val z = new ZipFile(file, encoding)
-//            val entry = z.entries().nextElement()
-//            val outFile = Paths.get(AppConf.tempDir, zipedFile.name.split(Array[Char]('\\', '/')).last).toFile
-//            use(new FileOutputStream(outFile)) { out =>
-//              out.write(Resource.fromInputStream(z.getInputStream(entry)).byteArray)
-//            }
-//            Success((true, outFile, "", zipedFile.name, None))
-//          }
-//          case None => {
-//            val url = FileManager.downloadFromS3Url(fileInfo._2.substring(1), fileInfo._1.name)
-//            Success((false, new java.io.File("."), url, fileInfo._1.name, None))
-//          }
-//        }
-//      }
-//    } catch {
-//      case e: Exception => {
-//        e.printStackTrace()
-//        Failure(e)
-//      }
-//    }
   }
-
+  def createRangeInputStream(path: Path, offset: Long, limit: Long): InputStream = {
+    val is = Files.newInputStream(path)
+    try {
+      is.skip(offset)
+      new BoundedInputStream(is, limit)
+    } catch {
+      case e: Exception => {
+        is.close()
+        throw e
+      }
+    }
+  }
+  def createUnzipInputStream(data: InputStream, centralHeader: Array[Byte], dataSize: Long, encoding: Charset): InputStream = {
+    val footer = createFooter(centralHeader, dataSize)
+    val sis = new SequenceInputStream(data, new ByteArrayInputStream(footer))
+    val zis = new ZipInputStream(sis, encoding)
+    zis.getNextEntry
+    zis
+  }
+  def createFooter(centralHeader: Array[Byte], dataSize: Long): Array[Byte] = {
+    val centralHeaderSize = centralHeader.length
+    val zip64EndOfCentralDirectoryRecord = if (dataSize < 0x00000000FFFFFFFFL) {
+      Array.empty[Byte]
+    } else {
+      Array.concat(
+        Array[Byte] (
+          0x50, 0x4b, 0x06, 0x06, // sig
+          44, 0, 0, 0, 0, 0, 0, 0, // size of this record - 12
+          45, 0, 45, 0, // version
+          0, 0, 0, 0, 0, 0, 0, 0, // disk
+          1, 0, 0, 0, 0, 0, 0, 0, // total entity num on this disk
+          1, 0, 0, 0, 0, 0, 0, 0 // total entity num
+        ),
+        longToByte8(centralHeaderSize),
+        longToByte8(dataSize)
+      )
+    }
+    val zip64EndOfCentralDirectoryLocator = if (dataSize < 0x00000000FFFFFFFFL) {
+      Array.empty[Byte]
+    } else {
+      Array.concat(
+        Array[Byte] (
+          0x50, 0x4b, 0x06, 0x07, // sig
+          0, 0, 0, 0 // disk
+        ),
+        longToByte8(dataSize + centralHeaderSize),
+        Array[Byte] (
+          1, 0, 0, 0 // total disk num
+        )
+      )
+    }
+    val endOfCentralDirectoryRecord = Array.concat(
+      Array[Byte] (
+        0x50, 0x4b, 0x05, 0x06,
+        0, 0, 0, 0,
+        1, 0, 1, 0
+      ),
+      longToByte4(centralHeaderSize),
+      longToByte4(scala.math.min(dataSize, 0x00000000FFFFFFFFL)),
+      Array[Byte](0, 0)
+    )
+    Array.concat(
+      centralHeader,
+      zip64EndOfCentralDirectoryRecord,
+      zip64EndOfCentralDirectoryLocator,
+      endOfCentralDirectoryRecord
+    )
+  }
   private def isSJIS(str: String): Boolean = {
     try {
       val encoded = new String(str.getBytes("SHIFT_JIS"), "SHIFT_JIS")
@@ -2100,8 +1961,7 @@ object DatasetService {
       case e: Exception => false
     }
   }
-
-  private def longToByte4(num: Long): Array[Byte] = {
+  def longToByte4(num: Long): Array[Byte] = {
     Array[Long](
       (num & 0x00000000000000FFL),
       (num & 0x000000000000FF00L) >> 8,
@@ -2109,7 +1969,7 @@ object DatasetService {
       (num & 0x00000000FF000000L) >> 24
     ).map(_.toByte)
   }
-  private def longToByte8(num: Long): Array[Byte] = {
+  def longToByte8(num: Long): Array[Byte] = {
     Array[Long](
       (num & 0x00000000000000FFL),
       (num & 0x000000000000FF00L) >> 8,
@@ -2120,29 +1980,6 @@ object DatasetService {
       (num & 0x00FF000000000000L) >> 48,
       (num & 0xFF00000000000000L) >> 56
     ).map(_.toByte)
-  }
-  private def IntToByte4(num: Int, f: FileOutputStream) = {
-    if (num < (1 << 8)) {
-      f.write(num)
-      f.write(0)
-      f.write(0)
-      f.write(0)
-    } else if (num < (1 << 16)) {
-      f.write(num & 0x000000FF)
-      f.write((num & 0x0000FF00) >> 8)
-      f.write(0)
-      f.write(0)
-    } else if (num < (1 << 24)) {
-      f.write(num & 0x000000FF)
-      f.write((num & 0x0000FF00) >> 8)
-      f.write((num & 0x00FF0000) >> 16)
-      f.write(0)
-    } else {
-      f.write(num & 0x000000FF)
-      f.write((num & 0x0000FF00) >> 8)
-      f.write((num & 0x00FF0000) >> 16)
-      f.write((num & 0xFF000000) >> 24)
-    }
   }
 
   private def getFileHistory(fileId: String)(implicit s: DBSession): Option[String] = {

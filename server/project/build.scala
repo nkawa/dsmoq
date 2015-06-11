@@ -40,6 +40,7 @@ object DsmoqBuild extends Build {
         "com.google.api-client" % "google-api-client" % "1.18.0-rc" excludeAll( ExclusionRule(organization = "org.apache.httpcomponents") ),
         "com.google.apis" % "google-api-services-oauth2" % "v2-rev66-1.18.0-rc" excludeAll( ExclusionRule(organization = "org.apache.httpcomponents") ),
         "com.google.http-client" % "google-http-client-jackson" % "1.18.0-rc" excludeAll( ExclusionRule(organization = "org.apache.httpcomponents") ),
+        "commons-io" % "commons-io" % "2.4",
         "org.eclipse.jetty" % "jetty-webapp" % "9.2.1.v20140609" % "compile;container",
         "org.eclipse.jetty.orbit" % "javax.servlet" % "3.0.0.v201112011016" % "container;provided;test" artifacts (Artifact("javax.servlet", "jar", "jar")),
         "org.postgresql" % "postgresql" % "9.3-1101-jdbc41",
