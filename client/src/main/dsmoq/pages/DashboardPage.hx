@@ -22,25 +22,6 @@ class DashboardPage {
 		var rootBinding = JsViews.observable({ data: dsmoq.Async.Pending });
 		View.getTemplate("dashboard/show").link(html, rootBinding.data());
 
-		//TODO パフォーマンス的に問題がある
-		function ellipseLongDescription() {
-			JQuery._(".description").each(function(i: Int, e: Element) { 
-				var target = JQuery._(e);
-				var html = target.html();
-				var clone = target.clone();
-				clone.css( { display: "none", position: "absolute", overflow: "visible" } ).width(target.width()).height("auto");
-				
-				target.after(clone);
-				
-				while ((html.length > 0) && (clone.height() > target.height())) {
-					html = html.substr(0, html.length - 1);
-					clone.html(html + "...");
-				}
-				target.html(clone.html());
-				clone.remove();
-			} );
-		}
-		
 		Service.instance.getTags().then(function(x) {
 			var data = {
 				isGuest: profile.isGuest,
@@ -54,7 +35,13 @@ class DashboardPage {
 			if (!profile.isGuest) {
 				Service.instance.findDatasets({owners: [profile.name], limit: 12}).then(function (x) {
 					binding.setProperty("myDatasets", Async.Completed(x.results));
-					ellipseLongDescription();
+					JQuery._(".dataset-title").each(function(i, dom) {
+						var el = JQuery._(dom);
+						var s = el.text();
+						if (s.length > 54) {
+							el.text(s.substring(0, 54) + "...");
+						}
+					});
 				});
 			}
 			
