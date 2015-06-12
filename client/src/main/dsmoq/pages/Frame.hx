@@ -37,7 +37,7 @@ class Frame {
                 errors: { name: "" }
             },
             location: getAuthUrl(),
-			statistics: Async.Pending
+            statistics: Async.Pending
         };
 
         var binding = JsViews.observable(data);
@@ -65,22 +65,22 @@ class Frame {
         Service.instance.then(function (e) {
             switch (e) {
                 case SignedIn:
-					js.Browser.location.href = "/dashboard";
+                    js.Browser.location.href = "/dashboard";
                     //updateProfile(Service.instance.profile);
                     //navigation.update(Navigation.Navigate(Page.Dashboard));
-				case SignedOut:
-					js.Browser.location.href = "/";
+                case SignedOut:
+                    js.Browser.location.href = "/";
                     //navigation.update(Navigation.Navigate(Page.Top));
                     //updateProfile(Service.instance.profile);
                 case ProfileUpdated:
                     //updateProfile(Service.instance.profile);
             }
         });
-		
-		Service.instance.getStatistics({ }).then(function(x) {
-			binding.setProperty("statistics", Async.Completed(x));
-		});
-		
+        
+        Service.instance.getStatistics({ }).then(function(x) {
+            binding.setProperty("statistics", Async.Completed(x));
+        });
+        
         header.on("submit", "#signin-form", function (event: Event) {
             event.preventDefault();
 
@@ -96,7 +96,7 @@ class Frame {
                     switch (e.name) {
                         case ServiceErrorType.BadRequest:
                             var detail = cast(e, ServiceError).detail;
-							Notification.show("error", detail[0].message);
+                            Notification.show("error", detail[0].message);
                     }
                 },
                 function () {
@@ -105,10 +105,10 @@ class Frame {
                 }
             );
         });
-		
-		header.on("click", "#submitForm", function(_) { 
-			JQuery._("#signin-form").submit();
-		} );
+        
+        header.on("click", "#submitForm", function(_) { 
+            JQuery._("#signin-form").submit();
+        } );
 
         header.on("click", "#signout-button", function (_) {
             Service.instance.signout();
@@ -117,31 +117,31 @@ class Frame {
         JQuery._("#new-dataset-dialog").on("hide", function (_) {
             JQuery._("#files-row .form-group").remove();
             JQuery._("#files-row").append("<div class=\"form-group\"><input type=\"file\" name=\"file[]\" multiple=\"multiple\"></div>");
-			JQuery._("#dataset-name").val("");
-			JQuery._("#saveLocal").prop("checked", true);
-			JQuery._("#saveS3").prop("checked", false);
-			JQuery._("#new-dataset-dialog-submit").prop("disabled", true);
+            JQuery._("#dataset-name").val("");
+            JQuery._("#saveLocal").prop("checked", true);
+            JQuery._("#saveS3").prop("checked", false);
+            JQuery._("#new-dataset-dialog-submit").prop("disabled", true);
         });
 
-		JQuery._("#dataset-name").on("change", function(event: Event) { 
-			var value = JQuery._(event.target).val();
-			JQuery._("#new-dataset-dialog-submit").prop("disabled", value == "");
-		});
-		
+        JQuery._("#dataset-name").on("change", function(event: Event) { 
+            var value = JQuery._(event.target).val();
+            JQuery._("#new-dataset-dialog-submit").prop("disabled", value == "");
+        });
+        
         JQuery._("#new-dataset-dialog form").on("change", "input[type='file']", function (event: Event) {
-			var input = cast(event.target, InputElement);
-			
-			if (JQuery._("#dataset-name").val() == "") {
-				JQuery._("#dataset-name").val(input.files[0].name);
-			}
-			
+            var input = cast(event.target, InputElement);
+            
+            if (JQuery._("#dataset-name").val() == "") {
+                JQuery._("#dataset-name").val(input.files[0].name);
+            }
+            
             var form = JQuery._("#new-dataset-dialog form");
 
             form.find("input[type='file']")
                 .toArray()
                 .filter(function (x) return JQuery._(x).val() == "")
                 .iter(function (x) JQuery._(x).parent().remove());
-			JQuery._("#new-dataset-dialog-submit").prop("disabled", false);
+            JQuery._("#new-dataset-dialog-submit").prop("disabled", false);
             JQuery._("#files-row").append("<div class=\"form-group\"><input type=\"file\" name=\"file[]\" multiple=\"multiple\"></div>");
         });
 
@@ -149,28 +149,30 @@ class Frame {
             BootstrapButton.setLoading(JQuery._("#new-dataset-dialog-submit"));
             Service.instance.createDataset(JQuery._("#new-dataset-dialog form"), JQuery._("#saveLocal").prop("checked"), JQuery._("#saveS3").prop("checked")).then(function (data) {
                 untyped JQuery._("#new-dataset-dialog").modal("hide");
-				JQuery._("#files-row .form-group").remove();
-				JQuery._("#files-row").append("<div class=\"form-group\"><input type=\"file\" name=\"file[]\" multiple=\"multiple\"></div>");
-				JQuery._("#dataset-name").val("");
-				JQuery._("#saveLocal").prop("checked", true);
-				JQuery._("#saveS3").prop("checked", false);
-				JQuery._("#new-dataset-dialog-submit").prop("disabled", true);
+                JQuery._("#files-row .form-group").remove();
+                JQuery._("#files-row").append("<div class=\"form-group\"><input type=\"file\" name=\"file[]\" multiple=\"multiple\"></div>");
+                JQuery._("#dataset-name").val("");
+                JQuery._("#saveLocal").prop("checked", true);
+                JQuery._("#saveS3").prop("checked", false);
+                JQuery._("#new-dataset-dialog-submit").prop("disabled", true);
                 navigation.update(Navigation.Navigate(DatasetShow(data.id)));
                 Notification.show("success", "create successful");
             }, function (err) {
-				switch (err.name) {
-					case ServiceErrorType.BadRequest:
-						for (x in cast(err, ServiceError).detail) {
-							Notification.show("error", x.message);
-						}								
-					case ServiceErrorType.Unauthorized: 
-						Notification.show("error", "permission denied");
-					default:
-						Notification.show("error", "error happened");
-				}
+                switch (err.name) {
+                    case ServiceErrorType.BadRequest:
+                        for (x in cast(err, ServiceError).detail) {
+                            Notification.show("error", x.message);
+                        }                                
+                    case ServiceErrorType.Unauthorized: 
+                        Notification.show("error", "permission denied");
+                    default:
+                        Notification.show("error", "error happened");
+                }
             }, function () {
                 BootstrapButton.reset(JQuery._("#new-dataset-dialog-submit"));
+                JQuery._("#new-dataset-dialog").find(":input").prop("disabled", false);
             });
+            JQuery._("#new-dataset-dialog").find(":input").prop("disabled", true);
         });
 
         function toggleNewGroupSubmit() {
@@ -217,9 +219,9 @@ class Frame {
                 BootstrapButton.reset(JQuery._("#new-group-dialog-submit"));
             });
         });
-		
-		untyped __js__('$( "a[rel*=leanModal]").leanModal({ top: 50, overlay : 0.5, closeButton: ".modal_close"});');
-		
+        
+        untyped __js__('$( "a[rel*=leanModal]").leanModal({ top: 50, overlay : 0.5, closeButton: ".modal_close"});');
+        
         body.removeClass("loading");
 
         return {
