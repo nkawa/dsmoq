@@ -234,7 +234,6 @@ object DatasetService {
         val centralHeader = zipInfo.centralHeader.clone
         // DL時には単独のZIPファイルとして扱うため、
         // Central Header内のLocal Headerへの参照を先頭に書き換える必要がある
-        // TODO: ZIP64
         centralHeader(42) = 0
         centralHeader(43) = 0
         centralHeader(44) = 0
@@ -1808,6 +1807,21 @@ object DatasetService {
       case None => Failure(new NotFoundException)
     }
   }
+  def hasPassword(zipedFile: persistence.ZipedFiles): Boolean = {
+    (zipedFile.cenHeader(8) & 0x01) == 1
+  }
+  def requireNotWithPassword(file: FileResult): Try[Unit] = {
+    file match {
+      case FileResultNormal(_, _) => Success(())
+      case FileResultZip(_, _, zipedFile) => {
+        if (hasPassword(zipedFile)) {
+          Failure(new NotFoundException)
+        } else {
+          Success(())
+        }
+      }
+    }
+  }
   sealed trait DownloadFile
   case class DownloadFileNormal(data: InputStream, name: String) extends DownloadFile
   case class DownloadFileRedirect(url: String) extends DownloadFile
@@ -1823,6 +1837,7 @@ object DatasetService {
     }
     for {
       fileInfo <- findResult
+      _ <- requireNotWithPassword(fileInfo)
     } yield {
       val isFileExistsOnLocal = fileInfo.file.localState == 1
       val isFileSync = fileInfo.file.localState == 3
@@ -2307,20 +2322,25 @@ object DatasetService {
     )
   }
 
-  def getZipedFiles(datasetId: String, historyId: String)(implicit s: DBSession) = {
+  def getZipedFiles(datasetId: String, historyId: String)(implicit s: DBSession): Seq[DatasetZipedFile] = {
     val zf = persistence.ZipedFiles.zf
-    withSQL {
+    val zipedFiles = withSQL {
       select
       .from(ZipedFiles as zf)
       .where
         .eq(zf.historyId, sqls.uuid(historyId))
-    }.map(persistence.ZipedFiles(zf.resultName)).list.apply.map{x =>
+    }.map(persistence.ZipedFiles(zf.resultName)).list.apply
+    if (zipedFiles.exists(hasPassword)) {
+      return Seq.empty
+    }
+    zipedFiles.map{x =>
       DatasetZipedFile(
         id = x.id,
         name = x.name,
         size = x.fileSize,
         url = AppConf.fileDownloadRoot + datasetId + "/" + x.id
-      )}.toSeq
+      )
+    }.toSeq
   }
 
   private def updateDatasetFileStatus(datasetId: String, userId:String, timestamp: DateTime)(implicit s: DBSession) = {
