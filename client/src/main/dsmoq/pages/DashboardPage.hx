@@ -26,6 +26,7 @@ class DashboardPage {
 			var data = {
 				isGuest: profile.isGuest,
 				myDatasets: Async.Pending,
+				message: Async.Pending,
 				tag: x
 			};
 
@@ -43,8 +44,11 @@ class DashboardPage {
 						}
 					});
 				});
+				
+				Service.instance.getMessage().then(function(x) {
+					binding.setProperty("message", Async.Completed(x));
+				});
 			}
-			
 		});
 		
         return new Promise(function (_) { });

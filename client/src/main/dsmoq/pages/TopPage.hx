@@ -58,9 +58,7 @@ class TopPage {
 					}
 				});
 			});
-			
 		});
-				
         return new Promise(function(_) { });
     }
 }
