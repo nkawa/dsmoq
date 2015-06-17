@@ -1,10 +1,6 @@
 {^{async data ~tag=data.tag}}
 <div style="margin: 40px 20px;">
-{{if !isGuest}}
-	{^{async message}}
-		{{:#data}}
-	{{/async}}
-{{/if}}
+	{{:message}}
 </div>
 <h2 class="ttl"><span>My Datasets</span></h2>
 {{if !isGuest}}
