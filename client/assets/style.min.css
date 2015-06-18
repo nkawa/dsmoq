@@ -67,8 +67,6 @@ h2.ttl span{display:inline-block;width:300px;padding:6px 0 0 0;font-size:20px;fo
 .cell:nth-child(odd){margin-left:10px;margin-right:0px;}
 .cell:nth-child(even){margin-left:0px;margin-right:10px;}
 .cell{float:left;width:575px;height:350px;border:1px solid #7a7a7a;padding:40px;background-color:#fafafa;margin-bottom:20px;}
-.dataset-head{height:460px;overflow:hidden;}
-.dataset-description{width:100%;}
 .cell h3{margin:0px;}
 .middle-bar{height:220px;border:1px solid #7a7a7a;border-right:0px;background-color:#fafafa;}
 .statistics{padding:15px 0px 0px 60px;}
@@ -164,8 +162,8 @@ input[type="checkbox"].on-off:checked+ul{height:230px;}
 #feature ul a{color:#FFF;}
 #feature ul li{margin:0;width:200px;height:150px;}
 ul.dataset-container{padding:0 10px;list-style:none;overflow:hidden;margin:0;text-align:center;}
-ul.dataset-container li{width:270px;margin:20px 10px;padding:0;display:inline-block;text-align:initial;}
-ul.dataset-container li p.thumb{padding:0;margin:0 0 10px 0;position:relative;width:270px;height:270px;overflow:hidden;box-shadow:0 0 3px #CCC;}
+ul.dataset-container li{width:280px;margin:20px 5px;padding:0;display:inline-block;text-align:initial;}
+ul.dataset-container li p.thumb{padding:0;margin:0 0 10px 0;position:relative;width:270px;height:270px;overflow:hidden;box-shadow:0 0 3px 3px #CCC;}
 ul.dataset-container li img{position:absolute;width:auto;height:100%;margin-bottom:10px;}
 ul.dataset-container li a{display:block;margin-bottom:5px;font-weight:bold;}
 ul.dataset-container li .file{padding:5px 10px 5px 30px;background:#eeeeee url(img/common/ico/file.png) no-repeat 10px 50%;color:#003366;font-weight:bold;margin:10px 0;}
@@ -178,6 +176,8 @@ ul.dataset-container li .tag a.tag03{background:#FF9326;}
 ul.dataset-container li .tag a.tag04{background:#85B200;}
 ul.dataset-container li .tag a.tag05{background:#00A3D9;}
 ul.dataset-container li .tag a.tag06{background:#999;}
+.dataset-head{height:460px;overflow:hidden;padding:5px 5px 0 5px;}
+.dataset-description{width:100%;}
 .copyright{background:#003366;color:#FFF;text-align:center;padding:10px;width:100%;position:absolute;bottom:0;}
 #lean_overlay{position:fixed;z-index:10000;top:0px;left:0px;height:100%;width:100%;background:#000;display:none;}
 #modal_window{background:url(img/top/modal.png);box-shadow:0 0 8px rgba(0,0,0,0.7);border:15px solid #FFF;display:none;padding:20px;width:50%;}
