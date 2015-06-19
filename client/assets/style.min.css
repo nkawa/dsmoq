@@ -163,8 +163,9 @@ input[type="checkbox"].on-off:checked+ul{height:230px;}
 #feature ul li{margin:0;width:200px;height:150px;}
 ul.dataset-container{padding:0 10px;list-style:none;overflow:hidden;margin:0;text-align:center;}
 ul.dataset-container li{width:280px;margin:20px 5px;padding:0;display:inline-block;text-align:initial;}
-ul.dataset-container li p.thumb{padding:0;margin:0 0 10px 0;position:relative;width:270px;height:270px;overflow:hidden;box-shadow:0 0 3px 3px #CCC;}
-ul.dataset-container li img{position:absolute;width:auto;height:100%;margin-bottom:10px;}
+ul.dataset-container li p.thumb{padding:0;margin:0 0 10px 0;position:relative;width:270px;height:200px;overflow:hidden;box-shadow:0 0 3px 3px #CCC;}
+ul.dataset-container li p.thumb span.thumb-image{width:270px;height:270px;display:inline-block;margin-top:-35px;}
+ul.dataset-container li img{width:auto;height:100%;margin-bottom:10px;}
 ul.dataset-container li a{display:block;margin-bottom:5px;font-weight:bold;}
 ul.dataset-container li .file{padding:5px 10px 5px 30px;background:#eeeeee url(img/common/ico/file.png) no-repeat 10px 50%;color:#003366;font-weight:bold;margin:10px 0;}
 ul.dataset-container li .tag{overflow:hidden;height:56px;}

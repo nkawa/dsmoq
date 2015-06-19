@@ -880,12 +880,17 @@ ul.dataset-container li p.thumb {
   margin: 0 0 10px 0;
   position: relative;
   width: 270px;
-  height: 270px;
+  height: 200px;
   overflow: hidden;
   box-shadow: 0 0 3px 3px #CCC;
 }
+ul.dataset-container li p.thumb span.thumb-image {
+  width: 270px;
+  height: 270px;
+  display: inline-block;
+  margin-top: -35px;
+}
 ul.dataset-container li img {
-  position: absolute;
   width: auto;
   height: 100%;
   margin-bottom: 10px;

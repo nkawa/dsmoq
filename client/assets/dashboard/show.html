@@ -11,7 +11,11 @@
 	<li>
 		<div class="dataset-head">
 			<a href="/datasets/{{>id}}">
-				<p class="thumb"><img src="{{>image+'/128'}}" srcset="{{>image+'/128'}} 1x, {{>image+'/256'}} 2x" alt="{{>name}}"></p>
+				<p class="thumb">
+					<span class="thumb-image">
+						<img src="{{>image+'/128'}}" srcset="{{>image+'/128'}} 1x, {{>image+'/256'}} 2x" alt="{{>name}}">
+					</span>
+				</p>
 					<span class="dataset-title">{{>name}}</span>
 			</a>
 			<div class="dataset-description">
