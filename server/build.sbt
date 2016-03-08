@@ -2,6 +2,12 @@
 import AssemblyKeys._
 import DsmoqBuild._
 
+libraryDependencies ++= Seq(
+  "com.typesafe.scala-logging" % "scala-logging_2.11" % "3.1.0" % "compile",
+  "org.slf4j" % "slf4j-api" % "1.7.12" % "compile",
+  "ch.qos.logback" % "logback-classic" % "1.1.3" % "compile"
+)
+
 scalikejdbcSettings
 
 assemblySettings

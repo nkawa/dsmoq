@@ -50,6 +50,7 @@ oauth  {
     callback_url = "enter your callback_url"
     scopes = ["https://www.googleapis.com/auth/plus.me", "profile", "email"]
     application_name = "COI Data Store"
+    allowed_mailaddrs = [".*@.*.nagoya-u.ac.jp"]
 }
 
 #Amazon S3 settings

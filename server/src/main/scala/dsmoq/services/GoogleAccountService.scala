@@ -12,8 +12,19 @@ import scalikejdbc._
 import com.google.api.services.oauth2.model.Userinfoplus
 import scala.util.{Failure, Success}
 import dsmoq.persistence.PostgresqlHelper._
+import dsmoq.exceptions.AccessDeniedException
+import scala.collection.JavaConversions._
 
-object GoogleAccountService {
+import com.typesafe.scalalogging.LazyLogging
+import org.slf4j.MarkerFactory
+
+object GoogleAccountService extends LazyLogging {
+
+  /**
+    * ログマーカー
+    */
+  val LOG_MARKER = MarkerFactory.getMarker("AUTH_LOG")
+
   def getOAuthUrl(location: String) = {
     new GoogleAuthorizationCodeRequestUrl(AppConf.clientId, AppConf.callbackUrl, AppConf.scopes)
       .setState(location).toURL.toString
@@ -22,9 +33,29 @@ object GoogleAccountService {
   def loginWithGoogle(authenticationCode: String) = {
     try {
       val googleAccount = getGoogleAccount(authenticationCode)
+      val accountMailaddr = googleAccount.getEmail()
+
+      logger.info(LOG_MARKER, "Login request... : [id] = {}, [email] = {}", googleAccount.getId, googleAccount.getEmail)
+
+      // 設定された正規表現とメールアドレスがマッチするか
+      var matched = AppConf.allowedMailaddrs.exists(accountMailaddr.matches(_))
+      if (! matched) {
+        // 設定された正規表現とメールアドレスがマッチしない場合
+        logger.error(LOG_MARKER, "Login failed: access denied. [id] = {}, [email] = {}", googleAccount.getId, googleAccount.getEmail)
+        throw new AccessDeniedException
+      }
+
+      logger.info(LOG_MARKER, "Allowed address: [id] = {}, [email] = {}", googleAccount.getId, googleAccount.getEmail)
       getUser(googleAccount)
     } catch {
-      case e: Throwable => Failure(e)
+      case e: AccessDeniedException => {
+        logger.error(LOG_MARKER, "Login failed: error occurred.", e)
+        Failure(e)
+      }
+      case t: Throwable => {
+        logger.error(LOG_MARKER, "Login failed: error occurred.", t)
+        Failure(t)
+      }
     }
   }
 
@@ -69,6 +100,9 @@ object GoogleAccountService {
               case None => createUser(googleAccount)
             }
         }
+
+        logger.info(LOG_MARKER, "Login successed: [id] = {}, [email] = {}", googleAccount.getId, googleAccount.getEmail)
+
         Success(user)
       }
     } catch {

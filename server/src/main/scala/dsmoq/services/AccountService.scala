@@ -18,15 +18,25 @@ import scala.util.Failure
 import scala.util.Success
 import scala.collection.mutable
 
-object AccountService {
+import com.typesafe.scalalogging.LazyLogging
+import org.slf4j.MarkerFactory
+
+object AccountService extends LazyLogging {
+
+  val LOG_MARKER = MarkerFactory.getMarker("AUTH_LOG")
+
   /**
    * IDとパスワードを指定してユーザを検索します。
-   * @param id アカウント名 or メールアドレス
+    *
+    * @param id アカウント名 or メールアドレス
    * @param password パスワード
    * @return
    */
   def findUserByIdAndPassword(id: String, password: String): Try[User] = {
+    logger.info(LOG_MARKER, "Login request... : [id] = {}", id)
+
     try {
+
       val errors = mutable.LinkedHashMap.empty[String, String]
 
       if (id.isEmpty()) {
@@ -41,12 +51,22 @@ object AccountService {
 
       DB readOnly { implicit s =>
         findUser(id, password) match {
-          case Some(x) => Success(x)
-          case None => throw new InputValidationException(Map("password" -> "wrong password"))
+          case Some(x) => {
+            logger.info(LOG_MARKER, "Login successed: [id] = {}", id)
+            Success(x)
+          }
+          case None => {
+            throw new InputValidationException(Map("password" -> "wrong password"))
+          }
         }
       }
     } catch {
-      case e: Throwable => Failure(e)
+      case e: InputValidationException =>
+        logger.error(LOG_MARKER, "Login failed: input validation error occurred, [id] = {}, [error messages] = {}", id, e.getErrorMessage())
+        Failure(e)
+      case t: Throwable =>
+        logger.error(LOG_MARKER, "Login failed: error occurred. [id] = {}", id, t)
+        Failure(t)
     }
   }
 
@@ -73,7 +93,8 @@ object AccountService {
 
   /**
    * 指定したユーザのメールアドレスを更新します。
-   * @param id ユーザID
+    *
+    * @param id ユーザID
    * @param email
    * @return
    */
@@ -134,7 +155,8 @@ object AccountService {
 
   /**
    * 指定したユーザのパスワードを変更します。
-   * @param id ユーザID
+    *
+    * @param id ユーザID
    * @param currentPassword 現在のパスワード
    * @param newPassword 新しいパスワード
    * @return
@@ -205,7 +227,8 @@ object AccountService {
 
   /**
    * 指定したユーザの基本情報を更新します。
-   * @param id ユーザID
+    *
+    * @param id ユーザID
    * @param name
    * @param fullname
    * @param organization
@@ -290,7 +313,8 @@ object AccountService {
 
   /**
    * 指定したユーザのアイコンを更新します。
-   * @param id
+    *
+    * @param id
    * @param icon
    */
   def changeIcon(id: String, icon: Option[FileItem]) = {

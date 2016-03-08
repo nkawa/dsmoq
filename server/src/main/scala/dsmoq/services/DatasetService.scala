@@ -3,17 +3,17 @@ package dsmoq.services
 import java.io.{
   ByteArrayInputStream, FileOutputStream,
   InputStream, InputStreamReader,
-  RandomAccessFile, SequenceInputStream
+  SequenceInputStream
 }
-import java.nio.ByteBuffer
-import java.nio.channels.{Channels, FileChannel}
 import java.nio.charset.Charset
 import java.nio.file.{
-  Files, Path, Paths,
-  StandardCopyOption, StandardOpenOption
+  Files, Path, Paths
 }
 import java.util.UUID
 import java.util.zip.ZipInputStream
+
+import com.typesafe.scalalogging.LazyLogging
+import org.slf4j.MarkerFactory
 
 import scala.collection.mutable
 import scala.language.reflectiveCalls
@@ -26,7 +26,6 @@ import org.json4s.JsonDSL._
 import org.json4s.jackson.JsonMethods.{compact, render}
 import org.json4s.{JInt, JBool}
 import org.scalatra.servlet.FileItem
-import scalax.io.Resource
 import scalikejdbc._
 
 import dsmoq.AppConf
@@ -45,7 +44,13 @@ import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.services.json.{DatasetData, Image, RangeSlice, RangeSliceSummary}
 import dsmoq.services.json.DatasetData.{DatasetOwnership, DatasetZipedFile, CopiedDataset, DatasetTask}
 
-object DatasetService {
+object DatasetService extends LazyLogging {
+
+  /**
+    * ログマーカー
+    */
+  val LOG_MARKER = MarkerFactory.getMarker("DATASET_LOG")
+
   // FIXME 暫定パラメータのため、将来的には削除する
   private val UserAndGroupAccessDeny = 0
   private val UserAndGroupAllowDownload = 2
@@ -57,6 +62,7 @@ object DatasetService {
 
   /**
    * データセットを新規作成します。
+ *
    * @param files
    * @param user
    * @return
@@ -70,6 +76,7 @@ object DatasetService {
 
       val errors = mutable.LinkedHashMap.empty[String, String]
       if (! saveLocal_ && ! saveS3_) { errors.put("storage", "both check is false. select either") }
+      if (! saveLocal_ && ! saveS3_) { errors.put("storage", "Select COI Storage or Amazon S3") }
       if (name_.isEmpty && files_.isEmpty) { errors.put("name", "name or file is necessary") }
       if (errors.nonEmpty) throw new InputValidationException(errors)
 
@@ -276,6 +283,7 @@ object DatasetService {
 
   /**
    * データセットを検索し、該当するデータセットの一覧を取得します。
+ *
    * @param query
    * @param owners
    * @param groups
@@ -697,6 +705,7 @@ object DatasetService {
 
   /**
    * 指定したデータセットの詳細情報を取得します。
+ *
    * @param id
    * @param user
    * @return
@@ -757,6 +766,7 @@ object DatasetService {
 
   /**
    * 指定したデータセットにファイルを追加します。
+ *
    * @param id データセットID
    * @param files ファイルリスト
    * @param user
@@ -842,6 +852,7 @@ object DatasetService {
 
   /**
    * 指定したファイルを更新します。
+ *
    * @param datasetId
    * @param fileId
    * @param file
@@ -965,6 +976,7 @@ object DatasetService {
 
   /**
    * 指定したファイルのメタデータを更新します。
+ *
    * @param datasetId
    * @param fileId
    * @param filename
@@ -1032,6 +1044,7 @@ object DatasetService {
 
   /**
    * 指定したファイルを削除します。
+ *
    * @param datasetId
    * @param fileId
    * @param user
@@ -1074,6 +1087,7 @@ object DatasetService {
 
   /**
    * データセットの保存先を変更する
+ *
    * @param id
    * @param saveLocal
    * @param saveS3
@@ -1085,7 +1099,7 @@ object DatasetService {
       val saveLocal_ = saveLocal.getOrElse(true)
       val saveS3_ = saveS3.getOrElse(false)
 
-      if (! saveLocal_ && ! saveS3_) throw new InputValidationException(List(("storage" -> "both check is false. select either")))
+      if (! saveLocal_ && ! saveS3_) throw new InputValidationException(List(("storage" -> "Select COI Storage or Amazon S3")))
 
       DB localTx { implicit s =>
         datasetAccessabilityCheck(id, user)
@@ -1154,6 +1168,7 @@ object DatasetService {
 
   /**
    * 指定したデータセットのメタデータを更新します。
+ *
    * @param id
    * @param name
    * @param description
@@ -1330,6 +1345,7 @@ object DatasetService {
 
   /**
    * 指定したデータセットに画像を追加します。
+ *
    * @param datasetId
    * @param images
    * @param user
@@ -1397,6 +1413,7 @@ object DatasetService {
 
   /**
    * 指定したデータセットのプライマリ画像を変更します。
+ *
    * @param datasetId
    * @param imageId
    * @param user
@@ -1454,6 +1471,7 @@ object DatasetService {
 
   /**
    * 指定したデータセットの画像を削除します。
+ *
    * @param datasetId
    * @param imageId
    * @param user
@@ -1558,6 +1576,7 @@ object DatasetService {
 
   /**
    * 指定したデータセットのアクセスコントロールを設定します。
+ *
    * @param datasetId
    * @param acl
    * @param user
@@ -1633,6 +1652,7 @@ object DatasetService {
 
   /**
    * 指定したデータセットのゲストアクセスレベルを設定します。
+ *
    * @param datasetId
    * @param accessLevel
    * @param user
@@ -1693,6 +1713,7 @@ object DatasetService {
 
   /**
    * 指定したデータセットを削除します。
+ *
    * @param datasetId
    * @param user
    * @return
@@ -1822,84 +1843,7 @@ object DatasetService {
       }
     }
   }
-  sealed trait DownloadFile
-  case class DownloadFileNormal(data: InputStream, name: String) extends DownloadFile
-  case class DownloadFileRedirect(url: String) extends DownloadFile
-  def getDownloadFile(datasetId: String, fileId: String, user: User): Try[DownloadFile] = {
-    val findResult = DB readOnly { implicit s =>
-      for {
-        _ <- requireAllowDownload(user, datasetId)
-        _ <- found(getDataset(datasetId))
-        file <- found(findFile(fileId))
-      } yield {
-        file
-      }
-    }
-    for {
-      fileInfo <- findResult
-      _ <- requireNotWithPassword(fileInfo)
-    } yield {
-      val isFileExistsOnLocal = fileInfo.file.localState == 1
-      val isFileSync = fileInfo.file.localState == 3
-      val isFileExistsOnS3 = fileInfo.file.s3State == 2
-      val isDownloadFromLocal = isFileExistsOnLocal || (isFileExistsOnS3 && isFileSync)
-      (fileInfo, isDownloadFromLocal) match {
-        case (FileResultNormal(file, path), true) => {
-          val downloadFile = FileManager.downloadFromLocal(path.substring(1))
-          val is = Files.newInputStream(downloadFile.toPath)
-          DownloadFileNormal(is, file.name)
-        }
-        case (FileResultNormal(file, path), false) => {
-          val url = FileManager.downloadFromS3Url(path.substring(1), file.name)
-          DownloadFileRedirect(url)
-        }
-        case (FileResultZip(file, path, zipedFile), true) => {
-          val is = createRangeInputStream(
-            path = Paths.get(AppConf.fileDir, path.substring(1)),
-            offset = zipedFile.dataStart,
-            limit = zipedFile.dataSize
-          )
-          val encoding = if (isSJIS(zipedFile.name)) { Charset.forName("Shift-JIS") } else { Charset.forName("UTF-8") }
-          try {
-            val zis = createUnzipInputStream(
-              data = is,
-              centralHeader = zipedFile.cenHeader,
-              dataSize = zipedFile.dataSize,
-              encoding = encoding
-            )
-            DownloadFileNormal(zis, zipedFile.name)
-          } catch {
-            case e: Exception => {
-              is.close()
-              throw e
-            }
-          }
-        }
-        case (FileResultZip(file, path, zipedFile), false) => {
-          val is = FileManager.downloadFromS3(
-            filePath = path.substring(1),
-            start = zipedFile.dataStart,
-            end = zipedFile.dataStart + zipedFile.dataSize - 1
-          )
-          val encoding = if (isSJIS(zipedFile.name)) { Charset.forName("Shift-JIS") } else { Charset.forName("UTF-8") }
-          try {
-            val zis = createUnzipInputStream(
-              data = is,
-              centralHeader = zipedFile.cenHeader,
-              dataSize = zipedFile.dataSize,
-              encoding = encoding
-            )
-            DownloadFileNormal(zis, zipedFile.name)
-          } catch {
-            case e: Exception => {
-              is.close()
-              throw e
-            }
-          }
-        }
-      }
-    }
-  }
+
   def createRangeInputStream(path: Path, offset: Long, limit: Long): InputStream = {
     val is = Files.newInputStream(path)
     try {
@@ -2902,4 +2846,238 @@ object DatasetService {
         .isNull(di.deletedAt)
     }.update().apply
   }
+
+  /**
+    * DatasetService内で処理判別するためのケースオブジェクト
+    * ファイル情報を持つ
+    */
+  sealed trait FileInfo
+
+  /**
+    * ファイル情報：ローカルに保持する通常ファイル
+    *
+    * @param file ファイル情報
+    * @param path ファイルパス
+    */
+  case class FileInfoLocalNormal(file: persistence.File, path: String) extends FileInfo
+
+  /**
+    * ファイル情報：S3上に保持する通常ファイル
+    *
+    * @param file ファイル情報
+    * @param path ファイルパス
+    */
+  case class FileInfoS3Normal(file: persistence.File, path: String) extends FileInfo
+
+  /**
+    * ファイル情報：ローカルに保持するZIPファイル内の個別ファイル
+    *
+    * @param file ファイル情報
+    * @param path ファイルパス
+    */
+  case class FileInfoLocalZipped(file: persistence.File, path: String, zippedFile: persistence.ZipedFiles) extends FileInfo
+
+  /**
+    * ファイル情報：S3上に保持するZIPファイル内の個別ファイル
+    *
+    * @param file ファイル情報
+    * @param path ファイルパス
+    */
+  case class FileInfoS3Zipped(file: persistence.File, path: String, zippedFile: persistence.ZipedFiles) extends FileInfo
+
+  /**
+    * 内部処理振り分けのための、ファイル情報を取得する
+    *
+    * @param datasetId データセットID
+    * @param fileId ファイルID
+    * @param user ユーザ情報
+    * @return ファイル情報を保持するケースオブジェクト
+    */
+  private def getFileInfo(datasetId: String, fileId: String, user: User): Try[FileInfo] = {
+    logger.trace(LOG_MARKER, "Called getFileInfo, datasetId={}, fileId={}, user={]", datasetId, fileId, user)
+
+    val findResult = DB readOnly { implicit s =>
+      for {
+        _ <- requireAllowDownload(user, datasetId)
+        _ <- found(getDataset(datasetId))
+        file <- found(findFile(fileId))
+      } yield {
+        file
+      }
+    }
+    for {
+      fileInfo <- findResult
+      _ <- requireNotWithPassword(fileInfo)
+    } yield {
+      val isFileExistsOnLocal = fileInfo.file.localState == 1
+      val isFileSync = fileInfo.file.localState == 3
+      val isFileExistsOnS3 = fileInfo.file.s3State == 2
+      val isDownloadFromLocal = isFileExistsOnLocal || (isFileExistsOnS3 && isFileSync)
+      (fileInfo, isDownloadFromLocal) match {
+        case (FileResultNormal(file, path), true) => {
+          FileInfoLocalNormal(file, path)
+        }
+        case (FileResultNormal(file, path), false) => {
+          FileInfoS3Normal(file, path)
+        }
+        case (FileResultZip(file, path, zippedFile), true) => {
+          FileInfoLocalZipped(file, path, zippedFile)
+        }
+        case (FileResultZip(file, path, zippedFile), false) => {
+          FileInfoS3Zipped(file, path, zippedFile)
+        }
+        case _ => {
+          logger.error(LOG_MARKER, "Unknown file info, fileInfo={}, isDownloadFromLocal={}", fileInfo, isDownloadFromLocal.toString)
+
+          throw new UnsupportedOperationException
+        }
+      }
+    }
+  }
+
+  /**
+    * ファイルダウンロード向けに必要項目を保持するケースオブジェクト
+    */
+  sealed trait DownloadFile
+
+  /**
+    * ファイルダウンロード：ローカルに保持する通常ファイル
+    *
+    * @param fileData ファイル内容を返すストリーム
+    * @param fileName ファイル名
+    * @param fileSize ファイルサイズ
+    */
+  case class DownloadFileLocalNormal(fileData: InputStream, fileName: String, fileSize: Long) extends DownloadFile
+
+  /**
+    * ファイルダウンロード：ローカルに保持するZIPファイル内の個別ファイル
+    *
+    * @param fileData ファイル内容を返すストリーム
+    * @param fileName ファイル名
+    * @param fileSize ファイルサイズ
+    */
+  case class DownloadFileLocalZipped(fileData: InputStream, fileName: String, fileSize: Long) extends DownloadFile
+
+  /**
+    * ファイルダウンロード：S3上に保持する通常ファイル
+    *
+    * @param redirectUrl S3上のファイルへのリダイレクトURL
+    */
+  case class DownloadFileS3Normal(redirectUrl: String) extends DownloadFile
+
+  /**
+    * ファイルダウンロード：S3上に保持するZIPファイル内の個別ファイル
+    *
+    * @param fileData ファイル内容を返すストリーム
+    * @param fileName ファイル名
+    * @param fileSize ファイルサイズ
+    */
+  case class DownloadFileS3Zipped(fileData: InputStream, fileName: String, fileSize: Long) extends DownloadFile
+
+  /**
+    * ファイルダウンロード向けにケースオブジェクトを返す。
+    *
+    * @param fileInfo ファイル情報
+    * @param requireData ファイル内容を返すストリームが必要な場合はtrue
+    * @return ファイルダウンロード向けに必要項目を保持するケースオブジェクト
+    */
+  private def getDownloadFileByFileInfo(fileInfo: FileInfo, requireData: Boolean = true): Try[DownloadFile] = Try {
+    logger.trace(LOG_MARKER, "Called getDownloadFileByFileInfo, fileInfo={}, requireData={}", fileInfo, requireData.toString)
+
+    fileInfo match {
+      case FileInfoLocalNormal(file, path) => {
+        val downloadFile = FileManager.downloadFromLocal(path.substring(1))
+        val is = if (requireData) { Files.newInputStream(downloadFile.toPath) } else { null }
+        DownloadFileLocalNormal(is, file.name, file.fileSize)
+      }
+      case FileInfoS3Normal(file, path) => {
+        val url = FileManager.downloadFromS3Url(path.substring(1), file.name)
+        DownloadFileS3Normal(url)
+      }
+      case FileInfoLocalZipped(file, path, zippedFile) => {
+        val is = if (requireData) {
+          createRangeInputStream(
+            path = Paths.get(AppConf.fileDir, path.substring(1)),
+            offset = zippedFile.dataStart,
+            limit = zippedFile.dataSize)
+        } else { null }
+
+        val encoding = if (isSJIS(zippedFile.name)) { Charset.forName("Shift-JIS") } else { Charset.forName("UTF-8") }
+        try {
+          val zis = if (requireData) {
+            createUnzipInputStream(
+              data = is,
+              centralHeader = zippedFile.cenHeader,
+              dataSize = zippedFile.dataSize,
+              encoding = encoding)
+          } else { null }
+
+          DownloadFileLocalZipped(zis, zippedFile.name, zippedFile.dataSize)
+        } catch {
+          case e: Exception => {
+            logger.error(LOG_MARKER, "Error occurred.", e)
+
+            is.close()
+            throw e
+          }
+        }
+      }
+      case FileInfoS3Zipped(file, path, zippedFile) => {
+        val is = if (requireData) {
+          FileManager.downloadFromS3(
+            filePath = path.substring(1),
+            start = zippedFile.dataStart,
+            end = zippedFile.dataStart + zippedFile.dataSize - 1)
+        } else { null }
+        val encoding = if (isSJIS(zippedFile.name)) { Charset.forName("Shift-JIS") } else { Charset.forName("UTF-8") }
+        try {
+          val zis = if (requireData) {
+            createUnzipInputStream(
+              data = is,
+              centralHeader = zippedFile.cenHeader,
+              dataSize = zippedFile.dataSize,
+              encoding = encoding)
+          } else { null }
+
+          DownloadFileS3Zipped(zis, zippedFile.name, zippedFile.dataSize)
+        } catch {
+          case e: Exception => {
+            logger.error(LOG_MARKER, "Error occurred.", e)
+
+            is.close()
+            throw e
+          }
+        }
+      }
+    }
+  }
+
+  /**
+    * ファイルダウンロード向けにケースオブジェクトを返す。
+    * 返すケースオブジェクトには、ファイル内容のストリームを保持する。
+    *
+    * @param datasetId データセットID
+    * @param fileId ファイルID
+    * @param user ユーザ情報
+    * @return ファイルダウンロード向けに必要項目を保持するケースオブジェクト
+    */
+  def getDownloadFileWithStream(datasetId: String, fileId: String, user: User): Try[DownloadFile] = {
+    val fileInfo = getFileInfo(datasetId, fileId, user)
+    getDownloadFileByFileInfo(fileInfo.get, true)
+  }
+
+  /**
+    * ファイルダウンロード向けにケースオブジェクトを返す。
+    * 返すケースオブジェクトには、ファイル内容のストリームを保持しない。
+    *
+    * @param datasetId データセットID
+    * @param fileId ファイルID
+    * @param user ユーザ情報
+    * @return ファイルダウンロード向けに必要項目を保持するケースオブジェクト
+    */
+  def getDownloadFileWithoutStream(datasetId: String, fileId: String, user: User): Try[DownloadFile] = {
+    val fileInfo = getFileInfo(datasetId, fileId, user)
+    getDownloadFileByFileInfo(fileInfo.get, false)
+  }
+
 }
