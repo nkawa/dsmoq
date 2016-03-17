@@ -12,6 +12,7 @@ object DsmoqBuild extends Build {
   lazy val assemblyAdditionalSettings = Seq(
     mergeStrategy in assembly ~= { (old) => {
       case "application.conf" => MergeStrategy.concat
+      case "application.conf.sample" => MergeStrategy.discard
       case "mime.types" => MergeStrategy.discard
       case x => old(x)
     }
@@ -23,6 +24,27 @@ object DsmoqBuild extends Build {
   val Version = "0.1.0-SNAPSHOT"
   val ScalaVersion = "2.11.4"
   val ScalatraVersion = "2.3.0"
+
+  lazy val common = Project(
+    id = "common",
+    base = file("common"),
+    settings = Defaults.coreDefaultSettings ++ Seq(
+      organization := Organization,
+      name := "common",
+      version := Version,
+      scalaVersion := ScalaVersion,
+      resolvers += Classpaths.typesafeReleases,
+      libraryDependencies ++= Seq(
+        "org.scalatra" %% "scalatra" % ScalatraVersion,
+        "org.postgresql" % "postgresql" % "9.3-1101-jdbc41",
+        "org.scalikejdbc" %% "scalikejdbc" % "2.2.3",
+        "org.scalikejdbc" %% "scalikejdbc-config" % "2.2.3",
+        "org.scalikejdbc" %% "scalikejdbc-interpolation" % "2.2.3",
+        "org.scalikejdbc" %% "scalikejdbc-test" % "2.2.3" % "test"
+      ),
+      ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
+    )
+  )
 
   lazy val dsmoq = Project (
     "dsmoq-server",
@@ -43,7 +65,6 @@ object DsmoqBuild extends Build {
         "commons-io" % "commons-io" % "2.4",
         "org.eclipse.jetty" % "jetty-webapp" % "9.2.1.v20140609" % "compile;container",
         "org.eclipse.jetty.orbit" % "javax.servlet" % "3.0.0.v201112011016" % "container;provided;test" artifacts (Artifact("javax.servlet", "jar", "jar")),
-        "org.postgresql" % "postgresql" % "9.3-1101-jdbc41",
         "com.github.scala-incubator.io" %% "scala-io-core" % "0.4.3",
         "com.github.scala-incubator.io" %% "scala-io-file" % "0.4.3",
         "com.github.tototoshi" %% "scala-csv" % "1.1.2",
@@ -54,16 +75,15 @@ object DsmoqBuild extends Build {
         "org.scalatra" %% "scalatra-json" % ScalatraVersion,
         "org.scalatra" %% "scalatra-scalatest" % ScalatraVersion % "test",
         "org.scalatra" %% "scalatra-specs2" % ScalatraVersion % "test",
-        "org.scalikejdbc" %% "scalikejdbc" % "2.2.3",
-        "org.scalikejdbc" %% "scalikejdbc-config" % "2.2.3",
-        "org.scalikejdbc" %% "scalikejdbc-interpolation" % "2.2.3",
-        "org.scalikejdbc" %% "scalikejdbc-test" % "2.2.3" % "test"
+        "com.typesafe.scala-logging" % "scala-logging_2.11" % "3.1.0" % "compile",
+        "org.slf4j" % "slf4j-api" % "1.7.12" % "compile",
+        "ch.qos.logback" % "logback-classic" % "1.1.3" % "compile"
       ),
       scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
       ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) },
       fork in Test := true
     )
-  )
+  ).dependsOn(common)
   
   lazy val initGroupMember = Project(
     id = "initGroupMember",
@@ -77,9 +97,10 @@ object DsmoqBuild extends Build {
       libraryDependencies ++= Seq(
         "org.scalatest" % "scalatest_2.11" % "2.2.1" % "test",
         "com.github.tototoshi" %% "scala-csv" % "1.1.0"
-      )
+      ),
+      ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
     )
-  ).dependsOn(dsmoq)
+  ).dependsOn(common)
 
   lazy val taskServer = Project(
     id = "taskServer",
@@ -91,6 +112,9 @@ object DsmoqBuild extends Build {
       scalaVersion := ScalaVersion,
       resolvers += Classpaths.typesafeReleases,
       libraryDependencies ++= Seq(
+        "com.amazonaws" % "aws-java-sdk" % "1.9.4",
+        "org.json4s" %% "json4s-jackson" % "3.2.10",
+        "org.slf4j" % "slf4j-nop" % "1.7.7",
         "org.scalatest" % "scalatest_2.11" % "2.2.1" % "test",
         "com.typesafe.akka" % "akka-http-core-experimental_2.11" % "0.11",
         "com.typesafe.akka" % "akka-testkit_2.11" % "2.3.7"
@@ -98,7 +122,7 @@ object DsmoqBuild extends Build {
       scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
       ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
     )
-  ).dependsOn(dsmoq)
+  ).dependsOn(common)
 
   lazy val statisticsBatch = Project(
     id = "statisticsBatch",
@@ -107,9 +131,14 @@ object DsmoqBuild extends Build {
       organization := Organization,
       name := "statisticsBatch",
       version := Version,
-      scalaVersion := ScalaVersion
+      scalaVersion := ScalaVersion,
+      resolvers += Classpaths.typesafeReleases,
+      libraryDependencies ++= Seq(
+        "org.slf4j" % "slf4j-nop" % "1.7.7"
+      ),
+      ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
     )
-  ).dependsOn(dsmoq)
+  ).dependsOn(common)
   
   lazy val apiKeyTool = Project(
     id = "apiKeyTool",
@@ -121,10 +150,12 @@ object DsmoqBuild extends Build {
       scalaVersion := ScalaVersion,
       resolvers += Classpaths.typesafeReleases,
       libraryDependencies ++= Seq(
+        "commons-codec" % "commons-codec" % "1.10",
         "org.slf4j" % "slf4j-nop" % "1.7.7"
-      )
+      ),
+      ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
     )
-  ).dependsOn(dsmoq)
+  ).dependsOn(common)
 
   lazy val tagManager = Project(
     id = "tagManager",
@@ -133,7 +164,12 @@ object DsmoqBuild extends Build {
       organization := Organization,
       name := "tagManager",
       version := Version,
-      scalaVersion := ScalaVersion
+      scalaVersion := ScalaVersion,
+      resolvers += Classpaths.typesafeReleases,
+      libraryDependencies ++= Seq(
+        "org.slf4j" % "slf4j-nop" % "1.7.7"
+      ),
+      ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
     )
-  ).dependsOn(dsmoq)
+  ).dependsOn(common)
 }
