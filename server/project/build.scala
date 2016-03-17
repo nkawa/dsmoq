@@ -25,15 +25,19 @@ object DsmoqBuild extends Build {
   val ScalaVersion = "2.11.4"
   val ScalatraVersion = "2.3.0"
 
-  lazy val common = Project(
-    id = "common",
-    base = file("common"),
-    settings = Defaults.coreDefaultSettings ++ Seq(
+  lazy val dsmoqSettings = Seq(
       organization := Organization,
-      name := "common",
       version := Version,
       scalaVersion := ScalaVersion,
       resolvers += Classpaths.typesafeReleases,
+      ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
+    )
+
+  lazy val common = (project in file("common"))
+    .settings(Defaults.coreDefaultSettings)
+    .settings(dsmoqSettings)
+    .settings(
+      name := "common",
       libraryDependencies ++= Seq(
         "org.scalatra" %% "scalatra" % ScalatraVersion,
         "org.postgresql" % "postgresql" % "9.3-1101-jdbc41",
@@ -41,20 +45,15 @@ object DsmoqBuild extends Build {
         "org.scalikejdbc" %% "scalikejdbc-config" % "2.2.3",
         "org.scalikejdbc" %% "scalikejdbc-interpolation" % "2.2.3",
         "org.scalikejdbc" %% "scalikejdbc-test" % "2.2.3" % "test"
-      ),
-      ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
+      )
     )
-  )
 
-  lazy val dsmoq = Project (
-    "dsmoq-server",
-    file("."),
-    settings = Defaults.coreDefaultSettings ++ ScalatraPlugin.scalatraSettings ++ Seq(
-      organization := Organization,
+  lazy val dsmoq = Project("dsmoq-server", file("."))
+    .settings(Defaults.coreDefaultSettings)
+    .settings(ScalatraPlugin.scalatraSettings)
+    .settings(dsmoqSettings)
+    .settings(
       name := Name,
-      version := Version,
-      scalaVersion := ScalaVersion,
-      resolvers += Classpaths.typesafeReleases,
       //port in container.Configuration := 8080,
       libraryDependencies ++= Seq(
         "ch.qos.logback" % "logback-classic" % "1.0.6" % "runtime",
@@ -80,37 +79,27 @@ object DsmoqBuild extends Build {
         "ch.qos.logback" % "logback-classic" % "1.1.3" % "compile"
       ),
       scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
-      ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) },
       fork in Test := true
     )
-  ).dependsOn(common)
+    .dependsOn(common)
   
-  lazy val initGroupMember = Project(
-    id = "initGroupMember",
-    base = file("initGroupMember"),
-    settings = Defaults.coreDefaultSettings ++ Seq(
-      organization := Organization,
+  lazy val initGroupMember = (project in file("initGroupMember"))
+    .settings(Defaults.coreDefaultSettings)
+    .settings(dsmoqSettings)
+    .settings(
       name := "initGroupMember",
-      version := Version,
-      scalaVersion := ScalaVersion,
-      resolvers += Classpaths.typesafeReleases,
       libraryDependencies ++= Seq(
         "org.scalatest" % "scalatest_2.11" % "2.2.1" % "test",
         "com.github.tototoshi" %% "scala-csv" % "1.1.0"
-      ),
-      ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
+      )
     )
-  ).dependsOn(common)
+    .dependsOn(common)
 
-  lazy val taskServer = Project(
-    id = "taskServer",
-    base = file("taskServer"),
-    settings = Defaults.coreDefaultSettings ++ Seq(
-      organization := Organization,
+  lazy val taskServer = (project in file("taskServer"))
+    .settings(Defaults.coreDefaultSettings)
+    .settings(dsmoqSettings)
+    .settings(
       name := "taskServer",
-      version := Version,
-      scalaVersion := ScalaVersion,
-      resolvers += Classpaths.typesafeReleases,
       libraryDependencies ++= Seq(
         "com.amazonaws" % "aws-java-sdk" % "1.9.4",
         "org.json4s" %% "json4s-jackson" % "3.2.10",
@@ -119,57 +108,41 @@ object DsmoqBuild extends Build {
         "com.typesafe.akka" % "akka-http-core-experimental_2.11" % "0.11",
         "com.typesafe.akka" % "akka-testkit_2.11" % "2.3.7"
       ),
-      scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
-      ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
+      scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature")
     )
-  ).dependsOn(common)
+    .dependsOn(common)
 
-  lazy val statisticsBatch = Project(
-    id = "statisticsBatch",
-    base = file("statisticsBatch"),
-    settings = Defaults.coreDefaultSettings ++ Seq(
-      organization := Organization,
+  lazy val statisticsBatch = (project in file("statisticsBatch"))
+    .settings(Defaults.coreDefaultSettings)
+    .settings(dsmoqSettings)
+    .settings(
       name := "statisticsBatch",
-      version := Version,
-      scalaVersion := ScalaVersion,
-      resolvers += Classpaths.typesafeReleases,
       libraryDependencies ++= Seq(
         "org.slf4j" % "slf4j-nop" % "1.7.7"
-      ),
-      ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
+      )
     )
-  ).dependsOn(common)
+    .dependsOn(common)
   
-  lazy val apiKeyTool = Project(
-    id = "apiKeyTool",
-    base = file("apiKeyTool"),
-    settings = Defaults.coreDefaultSettings ++ Seq(
-      organization := Organization,
+  lazy val apiKeyTool = (project in file("apiKeyTool"))
+    .settings(Defaults.coreDefaultSettings)
+    .settings(dsmoqSettings)
+    .settings(
       name := "apiKeyTool",
-      version := Version,
-      scalaVersion := ScalaVersion,
-      resolvers += Classpaths.typesafeReleases,
       libraryDependencies ++= Seq(
         "commons-codec" % "commons-codec" % "1.10",
         "org.slf4j" % "slf4j-nop" % "1.7.7"
-      ),
-      ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
+      )
     )
-  ).dependsOn(common)
+    .dependsOn(common)
 
-  lazy val tagManager = Project(
-    id = "tagManager",
-    base = file("tagManager"),
-    settings = Defaults.coreDefaultSettings ++ Seq(
-      organization := Organization,
+  lazy val tagManager = (project in file("tagManager"))
+    .settings(Defaults.coreDefaultSettings)
+    .settings(dsmoqSettings)
+    .settings(
       name := "tagManager",
-      version := Version,
-      scalaVersion := ScalaVersion,
-      resolvers += Classpaths.typesafeReleases,
       libraryDependencies ++= Seq(
         "org.slf4j" % "slf4j-nop" % "1.7.7"
-      ),
-      ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
+      )
     )
-  ).dependsOn(common)
+    .dependsOn(common)
 }
