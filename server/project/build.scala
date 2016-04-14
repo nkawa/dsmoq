@@ -7,6 +7,8 @@ import com.earldouglas.xsbtwebplugin.PluginKeys._
 import com.earldouglas.xsbtwebplugin.WebPlugin.container
 import sbtassembly.Plugin.AssemblyKeys._
 import sbtassembly.Plugin.MergeStrategy
+import com.mojolly.scalate.ScalatePlugin._
+import ScalateKeys._
 
 object DsmoqBuild extends Build {
   lazy val assemblyAdditionalSettings = Seq(
@@ -159,7 +161,19 @@ object DsmoqBuild extends Build {
         "org.eclipse.jetty" % "jetty-webapp" % "9.2.15.v20160210" % "container;compile",
         "javax.servlet" % "javax.servlet-api" % "3.1.0" % "provided",
         "com.typesafe" % "config" % "1.3.0"
-      )
+      ),
+      scalateTemplateConfig in Compile <<= (sourceDirectory in Compile) { base =>
+        Seq(
+          TemplateConfig(
+            base / "webapp" / "WEB-INF" / "templates",
+            Seq.empty, /* default imports should be added here */
+            Seq(
+              Binding("context", "_root_.org.scalatra.scalate.ScalatraRenderContext", importMembers = true, isImplicit = true)
+            ), /* add extra bindings here */
+            Some("templates")
+          )
+        )
+      }
     )
     .dependsOn(common)
 }
