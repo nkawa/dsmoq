@@ -1,0 +1,8 @@
+<%@ val body: String %>
+<!DOCTYPE html>
+<html>
+    <head><title>APIキー発行ツール</title></head>
+    <body>
+        <%= unescape(body) %>
+    </body>
+</html>

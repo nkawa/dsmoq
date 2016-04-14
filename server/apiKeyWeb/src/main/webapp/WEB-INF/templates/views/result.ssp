@@ -1,0 +1,21 @@
+<%@ val userName : String %>
+<%@ val consumerKey : String %>
+<%@ val secretKey : String %>
+
+<h1>API発行ツール</h1>
+<table>
+    <tr>
+        <td>ユーザー名</td>
+        <td><%= userName %>></td>
+    </tr>
+    <tr>
+        <td>Consumer key</td>
+        <td><%= consumerKey %>></td>
+    </tr>
+    <tr>
+        <td>Secret key</td>
+        <td><%= secretKey %>></td>
+    </tr>
+</table>
+<hr/>
+<a href="/">Back</a>

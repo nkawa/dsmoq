@@ -1,0 +1,14 @@
+<%@ val userName : String %>
+<%@ val errorMessage : String %>
+
+<h1>API発行ツール</h1>
+<form action="/publish" method="post">
+<p>
+<label>ユーザー名</label>
+<input name="user_name" type="text" value="<%= userName %>" />
+</p>
+<p>
+    <input type="submit" value="発行"/>
+    </p>
+</form>
+<p style="color: red"><%= errorMessage %></p>
