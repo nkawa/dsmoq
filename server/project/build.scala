@@ -145,4 +145,21 @@ object DsmoqBuild extends Build {
       )
     )
     .dependsOn(common)
+
+  lazy val apiKeyWeb = (project in file("apiKeyWeb"))
+    .settings(Defaults.coreDefaultSettings)
+    .settings(ScalatraPlugin.scalatraSettings)
+    .settings(dsmoqSettings)
+    .settings(
+      name := "apiKeyWeb",
+      libraryDependencies ++= Seq(
+        "org.scalatra" %% "scalatra-scalate" % ScalatraVersion,
+        "org.scalatra" %% "scalatra-specs2" % ScalatraVersion % "test",
+        "ch.qos.logback" % "logback-classic" % "1.1.5" % "runtime",
+        "org.eclipse.jetty" % "jetty-webapp" % "9.2.15.v20160210" % "container;compile",
+        "javax.servlet" % "javax.servlet-api" % "3.1.0" % "provided",
+        "com.typesafe" % "config" % "1.3.0"
+      )
+    )
+    .dependsOn(common)
 }
