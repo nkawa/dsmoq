@@ -1,18 +1,11 @@
 package dsmoq.apikeyweb
 
-import java.util.UUID
-
-import dsmoq.persistence.{ApiKey, User}
-import org.apache.commons.codec.digest.DigestUtils
-import org.joda.time.DateTime
-import scalikejdbc._
-
 class MainServlet extends ApiKeyWebToolStack {
   val systemUserId = "dccc110c-c34f-40ed-be2c-7e34a9f1b8f0"
 
   get("/") {
     contentType = "text/html"
-    ssp("/index", "userName" -> "", "errorMessage" -> "")
+    ssp("/index", "userName" -> "", "message" -> "")
   }
 
   get("/error/:username") {
@@ -20,40 +13,34 @@ class MainServlet extends ApiKeyWebToolStack {
     val msg = "ユーザ \"%s\" は存在しません。".format(userName)
 
     contentType = "text/html"
-    ssp("/index", "userName" -> userName, "errorMessage" -> msg)
+    ssp("/index", "userName" -> userName, "message" -> msg)
+  }
+
+  get("/list") {
+    val keyInfoList = ApiKeyManager.listKeys()
+
+    contentType = "text/html"
+    ssp("/list", "keyInfoList" -> keyInfoList)
   }
 
   post("/publish") {
     val userName = params("user_name")
 
-    DB localTx { implicit s =>
-      val u = User.u
-      val userId = withSQL {
-        select(u.result.id).from(User as u).where.eq(u.name, userName)
-      }.map(rs => rs.string(u.resultName.id)).single.apply
-
-      val timestamp = DateTime.now
-      userId match {
-        case Some(uId) =>
-          val apiKey = DigestUtils.sha256Hex(UUID.randomUUID().toString)
-          val secretKey = DigestUtils.sha256Hex(UUID.randomUUID().toString + apiKey)
-          ApiKey.create(
-            id = UUID.randomUUID().toString,
-            userId = uId,
-            apiKey = apiKey,
-            secretKey = secretKey,
-            permission = 3,
-            createdBy = systemUserId,
-            createdAt = timestamp,
-            updatedBy = systemUserId,
-            updatedAt = timestamp
-          )
-          contentType = "text/html"
-          ssp("/result", "userName" -> userName, "consumerKey" -> apiKey, "secretKey" -> secretKey)
-        case _ =>
-          redirect("/error/" + userName)
-      }
+    ApiKeyManager.publish(userName) match {
+      case Some(k) =>
+        contentType = "text/html"
+        ssp("/result", "keyInfo" -> k)
+      case _ =>
+        redirect("/error/" + userName)
     }
+  }
+
+  post("/delete") {
+    val consumerKey = params("consumerKey")
+
+    ApiKeyManager.deleteKey(consumerKey)
+    contentType = "text/html"
+    redirect("/list")
   }
 
 }

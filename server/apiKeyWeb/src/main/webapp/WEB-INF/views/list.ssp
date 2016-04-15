@@ -1,0 +1,21 @@
+<%@ val keyInfoList : List[dsmoq.apikeyweb.KeyInfo] %>
+
+<form action="/delete" method="post">
+<table>
+    <tr>
+        <th></th>
+        <th>User Name</th>
+        <th>Consumer Key</th>
+        <th>Secret Key</th>
+    </tr>
+    #for (keyInfo <- keyInfoList)
+        <tr>
+            <td><input type="radio" name="consumerKey" value="${keyInfo.consumerKey}"></td>
+            <td>${keyInfo.userName}</td>
+            <td>${keyInfo.consumerKey}</td>
+            <td>${keyInfo.secretKey}</td>
+        </tr>
+    #end
+</table>
+<input type="submit" value="削除">
+</form>
