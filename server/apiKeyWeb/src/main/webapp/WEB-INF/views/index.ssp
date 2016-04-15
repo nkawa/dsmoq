@@ -1,7 +1,6 @@
 <%@ val userName : String %>
 <%@ val errorMessage : String %>
 
-<h1>API発行ツール</h1>
 <form action="/publish" method="post">
 <p>
 <label>ユーザー名</label>

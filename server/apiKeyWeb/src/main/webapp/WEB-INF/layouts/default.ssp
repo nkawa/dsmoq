@@ -3,6 +3,7 @@
 <html>
     <head><title>APIキー発行ツール</title></head>
     <body>
+        <h1>APIキー発行ツール</h1>
         <%= unescape(body) %>
     </body>
 </html>

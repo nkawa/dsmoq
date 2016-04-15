@@ -12,7 +12,7 @@ class MainServlet extends ApiKeyWebToolStack {
 
   get("/") {
     contentType = "text/html"
-    layoutTemplate("/WEB-INF/templates/views/index.ssp", "userName" -> "", "errorMessage" -> "")
+    ssp("/index", "userName" -> "", "errorMessage" -> "")
   }
 
   get("/error/:username") {
@@ -20,7 +20,7 @@ class MainServlet extends ApiKeyWebToolStack {
     val msg = "ユーザ \"%s\" は存在しません。".format(userName)
 
     contentType = "text/html"
-    layoutTemplate("/WEB-INF/templates/views/index.ssp", "userName" -> userName, "errorMessage" -> msg)
+    ssp("/index", "userName" -> userName, "errorMessage" -> msg)
   }
 
   post("/publish") {
@@ -49,8 +49,7 @@ class MainServlet extends ApiKeyWebToolStack {
             updatedAt = timestamp
           )
           contentType = "text/html"
-          layoutTemplate("/WEB-INF/templates/views/result.ssp",
-            "userName" -> userName, "consumerKey" -> apiKey, "secretKey" -> secretKey)
+          ssp("/result", "userName" -> userName, "consumerKey" -> apiKey, "secretKey" -> secretKey)
         case _ =>
           redirect("/error/" + userName)
       }
