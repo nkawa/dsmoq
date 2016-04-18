@@ -1,6 +1,6 @@
 <%@ val keyInfo : dsmoq.apikeyweb.KeyInfo %>
 
-<table border="1">
+<table>
     <tr>
         <td>ユーザー名</td>
         <td><%= keyInfo.userName %></td>

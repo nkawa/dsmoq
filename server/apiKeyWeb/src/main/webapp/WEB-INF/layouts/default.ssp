@@ -1,7 +1,22 @@
 <%@ val body: String %>
 <!DOCTYPE html>
 <html>
-    <head><title>APIキー発行ツール</title></head>
+    <head>
+        <title>APIキー発行ツール</title>
+        <style>
+            table, td, th {
+                border: 2px #808080 solid;
+                border-collapse: collapse;
+            }
+            table {
+                margin-bottom: 0.5em;
+                margin-bottom: 0.5em;
+            }
+            th, td {
+                padding: 5px;
+            }
+        </style>
+    </head>
     <body>
         <h1>APIキー発行ツール</h1>
         <%= unescape(body) %>

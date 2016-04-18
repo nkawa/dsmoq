@@ -19,3 +19,5 @@
 </table>
 <input type="submit" value="削除">
 </form>
+<hr/>
+<a href="/">Back</a>
