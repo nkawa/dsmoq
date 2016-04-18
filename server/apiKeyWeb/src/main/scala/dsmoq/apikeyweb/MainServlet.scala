@@ -1,8 +1,6 @@
 package dsmoq.apikeyweb
 
 class MainServlet extends ApiKeyWebToolStack {
-  val systemUserId = "dccc110c-c34f-40ed-be2c-7e34a9f1b8f0"
-
   get("/") {
     contentType = "text/html"
     ssp("/index", "userName" -> "", "message" -> "")
