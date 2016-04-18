@@ -62,6 +62,15 @@ object ApiKeyManager {
     }
   }
 
+  def searchUserId(userName: String): Option[String] = {
+    DB readOnly { implicit s =>
+      val u = User.u
+      withSQL {
+        select(u.result.id).from(User as u).where.eq(u.name, userName)
+      }.map(rs => rs.string(u.resultName.id)).single.apply
+    }
+  }
+
   def searchKeyFromName(loginName: String): List[KeyInfo] = {
     DB readOnly { implicit s =>
       val ak = ApiKey.ak

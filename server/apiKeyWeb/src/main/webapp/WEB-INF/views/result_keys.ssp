@@ -1,0 +1,18 @@
+<%@ val userName : String %>
+<%@ val keyInfoList : List[dsmoq.apikeyweb.KeyInfo] %>
+
+<h2>ユーザー名：${userName}</h2>
+<table>
+    <tr>
+        <th>Consumer Key</th>
+        <th>Secret Key</th>
+    </tr>
+    #for (keyInfo <- keyInfoList)
+        <tr>
+        <td>${keyInfo.consumerKey}</td>
+        <td>${keyInfo.secretKey}</td>
+        </tr>
+    #end
+</table>
+<hr/>
+<a href="/">Back</a>

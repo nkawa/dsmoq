@@ -8,9 +8,13 @@ class MainServlet extends ApiKeyWebToolStack {
     ssp("/index", "userName" -> "", "message" -> "")
   }
 
+  get("/error") {
+    redirect("/")
+  }
+
   get("/error/:username") {
     val userName = params("username")
-    val msg = "ユーザ \"%s\" は存在しません。".format(userName)
+    val msg = s"ユーザ $userName は存在しません。"
 
     contentType = "text/html"
     ssp("/index", "userName" -> userName, "message" -> msg)
@@ -23,6 +27,22 @@ class MainServlet extends ApiKeyWebToolStack {
     ssp("/list", "keyInfoList" -> keyInfoList)
   }
 
+  get("/search_keys") {
+    val userName = params("user_name")
+    if (userName.isEmpty) {
+      redirect("/")
+    } else {
+      ApiKeyManager.searchUserId(userName) match {
+        case Some(u) =>
+          val keyInfoList = ApiKeyManager.searchKeyFromName(userName)
+          contentType = "text/html"
+          ssp("/result_keys", "userName" -> userName, "keyInfoList" -> keyInfoList)
+        case None =>
+          redirect(s"/error/$userName")
+      }
+    }
+  }
+
   post("/publish") {
     val userName = params("user_name")
 
@@ -31,7 +51,7 @@ class MainServlet extends ApiKeyWebToolStack {
         contentType = "text/html"
         ssp("/result", "keyInfo" -> k)
       case _ =>
-        redirect("/error/" + userName)
+        redirect(s"/error/$userName")
     }
   }
 

@@ -6,6 +6,7 @@
         <label>ユーザー名</label>
         <input name="user_name" type="text" value="<%= userName %>" />
         <input type="submit" value="発行" />
+        <input type="submit" value="検索" formaction="/search_keys" formmethod="get" />
     </p>
 </form>
 <p>
