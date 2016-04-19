@@ -114,7 +114,7 @@ object ZipUtil extends LazyLogging {
     val extraLength = read(ra, 2).toInt
     val fileNameByte = new Array[Byte](fileNameLength)
     ra.read(fileNameByte)
-    val fileName = new String(fileNameByte,  "Shift-JIS")
+    val fileName = StringUtil.convertByte2String(fileNameByte)
     val extra = new Array[Byte](extraLength)
     ra.read(extra)
     val List(uncompressSize64, compressSize64) = fromExtra(
@@ -285,6 +285,5 @@ object ZipUtil extends LazyLogging {
       case None =>  bytes.map("%02x".format(_)).mkString
       case _ =>  bytes.map("%02x".format(_)).mkString(sep.get)
     }
-    // bytes.foreach(println)
   }
 }
