@@ -117,8 +117,8 @@ object ZipUtil extends LazyLogging {
     val fileName = new String(fileNameByte,  "Shift-JIS")
     val extra = new Array[Byte](extraLength)
     ra.read(extra)
-    val List(compressSize64, uncompressSize64) = fromExtra(
-      List((compressSize, 8), (uncompressSize, 8)),
+    val List(uncompressSize64, compressSize64) = fromExtra(
+      List((uncompressSize, 8), (compressSize, 8)),
       splitExtra(extra).find(_._1 == 0x0001).map(_._2).getOrElse(Array.empty)
     )
 
@@ -155,17 +155,14 @@ object ZipUtil extends LazyLogging {
     val offset = read(head, 38, 4)
     val fileNameByte = new Array[Byte](fileNameLength)
     ra.read(fileNameByte)
-// del 1 line aaa
-    val fileName = new String(fileNameByte,  "Shift-JIS")
     val extra = new Array[Byte](extraLength)
     ra.read(extra)
     val comment = new Array[Byte](commentLength)
     ra.read(comment)
     val zip64ex = splitExtra(extra).find(_._1 == 0x0001)
-//    val List(_, _, _, offset64) = fromExtra(
-    val List(compressSize64, uncompressSize64, _, offset64) = fromExtra(
-      List((compressSize, 8), (uncompressSize, 8), (diskStart, 4), (offset, 8)),
-      splitExtra(extra).find(_._1 == 0x0001).map(_._2).getOrElse(Array.empty)
+    val List(uncompressSize64, compressSize64, offset64, _) = fromExtra(
+      List((uncompressSize, 8), (compressSize, 8), (offset, 8), (diskStart, 4)),
+      zip64ex.map(_._2).getOrElse(Array.empty)
     )
     val bs = Array.concat(
       Array[Byte](0x50, 0x4b, 0x01, 0x02),
@@ -177,6 +174,7 @@ object ZipUtil extends LazyLogging {
     logger.debug(LOG_MARKER, "  - central header. header = 0x{}", bytes2hex(bs))
     logger.debug(LOG_MARKER, "  - central header. extra = 0x{}", bytes2hex(extra))
     logger.info(LOG_MARKER, "  - compress size = {}. uncompress size = {}. [in header: compress size = {}, uncompress size = {}]", compressSize64.toString, uncompressSize64.toString, compressSize.toString, uncompressSize.toString)
+
     (offset64, bs)
   }
   def readRaw(path: Path): Either[Long, List[(Long, ZipLocalHeader, Array[Byte])]] = {
@@ -224,6 +222,26 @@ object ZipUtil extends LazyLogging {
             logger.debug(LOG_MARKER, "Found Signature: Zip64 end of central dir. (0x06064b50)")
 
             cont = false
+          }
+          case Array(0x50, 0x4b, 0x06, 0x07) => {
+            // zip64 end of central directory locator signature   4 bytes  (0x07064b50)
+            logger.debug(LOG_MARKER, "Found Signature: Zip64 end of central directory locator. (0x07064b50)")
+
+            cont = false
+          }
+          case Array(0x50, 0x4b, 0x05, 0x05) => {
+            // digital signature signature   4 bytes  (0x05054b50)
+            logger.debug(LOG_MARKER, "Found Signature: Digital signature. (0x05054b50)")
+
+            cont = false
+          }
+          case Array(0x50, 0x4b, 0x06, 0x08) => {
+            // archive extra data record signature   4 bytes  (0x08064b50)
+            logger.debug(LOG_MARKER, "Found Signature: Archive extra data record. (0x08064b50)")
+          }
+          case Array(0x50, 0x4b, 0x07, 0x08) => {
+            // data descriptor signature   4 bytes  (0x08074b50)
+            logger.debug(LOG_MARKER, "Found Signature: Data descriptor. (0x08074b50)")
           }
           case _ => {
             logger.info(LOG_MARKER, "signature not found. header = 0x{}, pointer = {}", bytes2hex(header), ra.getFilePointer.toString)
