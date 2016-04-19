@@ -26,6 +26,28 @@
     </encoder>
   </appender>
 
+  <appender name="FILE_ZIP" class="ch.qos.logback.core.FileAppender">
+    <!-- the filter element -->
+    <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
+      <evaluator class="ch.qos.logback.classic.boolex.OnMarkerEvaluator">
+        <marker>ZIP_LOG</marker>
+      </evaluator>
+      <onMatch>ACCEPT</onMatch>
+      <onMismatch>DENY</onMismatch>
+    </filter>
+
+    <File>zip.log</File>
+    <Append>true</Append>
+
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} [%thread] %marker %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <logger name="dsmoq.logic.ZipUtil" level="DEBUG">
+    <appender-ref ref="FILE_ZIP" />
+  </logger>
+
   <root level="info">
     <appender-ref ref="STDOUT" />
     <appender-ref ref="FILE" />
