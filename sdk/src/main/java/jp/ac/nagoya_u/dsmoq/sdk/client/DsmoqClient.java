@@ -10,6 +10,7 @@ import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.conn.HttpHostConnectException;
+import org.apache.http.entity.ContentType;
 import org.apache.http.entity.mime.HttpMultipartMode;
 import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.message.BasicNameValuePair;
@@ -36,6 +37,8 @@ public class DsmoqClient {
     private String _baseUrl;
     private String _apiKey;
     private String _secretKey;
+
+    private static final ContentType TEXT_PLAIN_UTF8 = ContentType.create("text/plain", StandardCharsets.UTF_8);
 
     /**
      * APIキー、シークレットキーを使用するクライアントオブジェクトを生成する。
@@ -121,7 +124,7 @@ public class DsmoqClient {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/datasets"))) {
             addAuthorizationHeader(request);
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
-            builder.addTextBody("name", name);
+            builder.addTextBody("name", name, TEXT_PLAIN_UTF8);
             builder.addTextBody("saveLocal", saveLocal ? "true" : "false");
             builder.addTextBody("saveS3", saveS3 ? "true" : "false");
             request.setEntity(builder.build());
@@ -144,7 +147,7 @@ public class DsmoqClient {
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
             builder.setCharset(StandardCharsets.UTF_8);
-            builder.addTextBody("name", name);
+            builder.addTextBody("name", name, TEXT_PLAIN_UTF8);
             Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("file[]", file));
             builder.addTextBody("saveLocal", saveLocal ? "true" : "false");
             builder.addTextBody("saveS3", saveS3 ? "true" : "false");
@@ -223,7 +226,7 @@ public class DsmoqClient {
     }
 
     /**
-     * データセットの情報を更新する。(PUT /api/datasets.${dataset_id}/metadata相当)
+     * データセットの情報を更新する。(PUT /api/datasets/${dataset_id}/metadata相当)
      * @param datasetId DatasetID
      * @param param データセット更新情報
      */
