@@ -268,19 +268,18 @@ class DatasetEditPage {
             });
 
             // files
-            root.find("#dataset-file-add-form").on("change", "input[type=file]", function (e) {
+            function updateFileAddButton(id, e : Dynamic) {
                 if (new JqHtml(e.target).val() != "") {
-                    root.find("#dataset-file-add-submit").show();
+                    root.find(id).show();
                 } else {
-                    root.find("#dataset-file-add-submit").hide();
+                    root.find(id).hide();
                 }
+            }
+            root.find("#dataset-file-add-form").on("change", "input[type=file]", function (e) {
+                updateFileAddButton("#dataset-file-add-submit", e);
             });
             root.find("#dataset-file-add-form-top").on("change", "input[type=file]", function (e) {
-                if (new JqHtml(e.target).val() != "") {
-                    root.find("#dataset-file-add-submit-top").show();
-                } else {
-                    root.find("#dataset-file-add-submit-top").hide();
-                }
+                updateFileAddButton("#dataset-file-add-submit-top", e);
             });
             root.find("#dataset-file-add-submit").on("click", function (_) {
                 BootstrapButton.setLoading(root.find("#dataset-file-add-submit"));
