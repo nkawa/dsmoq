@@ -186,9 +186,9 @@ object ZipUtil extends LazyLogging {
     val localHeaders = scala.collection.mutable.Map.empty[Long, ZipLocalHeader]
     val centralHeaders = scala.collection.mutable.Map.empty[Long, Array[Byte]]
     val ra = new RandomAccessFile(file, "r")
-    var cont = true
+    var isLoop = true
     try {
-      while (ra.getFilePointer < ra.length && cont) {
+      while (ra.getFilePointer < ra.length && isLoop) {
         val offset = ra.getFilePointer
         val header = Array.fill[Byte](4)(0)
         ra.read(header)
@@ -215,25 +215,25 @@ object ZipUtil extends LazyLogging {
             // end of central dir signature    4 bytes  (0x06054b50)
             logger.debug(LOG_MARKER, "Found Signature: End of central dir. (0x06054b50)")
 
-            cont = false
+            isLoop = false
           }
           case Array(0x50, 0x4b, 0x06, 0x06) => {
             // zip64 end of central dir signature   4 bytes  (0x06064b50)
             logger.debug(LOG_MARKER, "Found Signature: Zip64 end of central dir. (0x06064b50)")
 
-            cont = false
+            isLoop = false
           }
           case Array(0x50, 0x4b, 0x06, 0x07) => {
             // zip64 end of central directory locator signature   4 bytes  (0x07064b50)
             logger.debug(LOG_MARKER, "Found Signature: Zip64 end of central directory locator. (0x07064b50)")
 
-            cont = false
+            isLoop = false
           }
           case Array(0x50, 0x4b, 0x05, 0x05) => {
             // digital signature signature   4 bytes  (0x05054b50)
             logger.debug(LOG_MARKER, "Found Signature: Digital signature. (0x05054b50)")
 
-            cont = false
+            isLoop = false
           }
           case Array(0x50, 0x4b, 0x06, 0x08) => {
             // archive extra data record signature   4 bytes  (0x08064b50)
@@ -251,7 +251,7 @@ object ZipUtil extends LazyLogging {
         }
 
         logger.debug(LOG_MARKER, "Check: ra.getFilePointer={}, ra.length={}", ra.getFilePointer.toString, ra.length.toString )
-        logger.info(LOG_MARKER, "Check: continue?={}", cont.toString)
+        logger.info(LOG_MARKER, "Check: continue?={}", isLoop.toString)
 
       }
     } catch {
