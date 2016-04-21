@@ -1,9 +1,7 @@
 package jp.ac.nagoya_u.dsmoq.sdk.sample;
 
 import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient;
-import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateProfileParam;
 import jp.ac.nagoya_u.dsmoq.sdk.response.Dataset;
-import jp.ac.nagoya_u.dsmoq.sdk.response.User;
 
 import java.io.File;
 
@@ -15,10 +13,16 @@ public class Main {
         // APIキー、シークレットキーの組み合わせでログインするクライアントを作成する
         DsmoqClient client = DsmoqClient.create("http://localhost:8080", CONSUMER_KEY, SECRET_KEY);
         // データセットを作成する
-        Dataset dataset = client.createDataset(true, false, new File("テスト.txt"), new File("test.csv"));
+//        Dataset dataset = client.createDataset(true, false, new File("テスト.txt"), new File("test.csv"));
+        Dataset dataset = client.createDataset("サンプル", true, false);
         final String dataSetId = dataset.getId();
-        File image = new File("test.png");
+
+        // データセットにファイルを追加
+        client.addFiles(dataSetId, new File("test.csv"));
+        client.addFiles(dataSetId, new File("テスト.txt"));
+
         // データセットに画像を追加し、メイン画像に設定する
+        File image = new File("test.png");
         client.setPrimaryImageToDataset(dataSetId, image);
     }
 
