@@ -275,6 +275,13 @@ class DatasetEditPage {
                     root.find("#dataset-file-add-submit").hide();
                 }
             });
+            root.find("#dataset-file-add-form-top").on("change", "input[type=file]", function (e) {
+                if (new JqHtml(e.target).val() != "") {
+                    root.find("#dataset-file-add-submit-top").show();
+                } else {
+                    root.find("#dataset-file-add-submit-top").hide();
+                }
+            });
             root.find("#dataset-file-add-submit").on("click", function (_) {
                 BootstrapButton.setLoading(root.find("#dataset-file-add-submit"));
                 Service.instance.addDatasetFiles(id, root.find("#dataset-file-add-form")).then(
