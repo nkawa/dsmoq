@@ -138,6 +138,16 @@
       </div>
 
       <div class="tab-pane" id="dataset-files">
+        {^{if dataset.files.length > 0}}
+          <form role="form" id="dataset-file-add-form-top">
+            <div class="form-group">
+              <label class="control-label">Add file</label><br>
+              <input type="file" style="display: inline" name="files[]" multiple="multiple">
+              <a href="javascript:void 0;" class="btn btn-primary btn-sm" data-loading-text="Saving..." style="display: none;" id="dataset-file-add-submit-top">Upload</a>
+            </div>
+          </form>
+        {{/if}}
+
         {^{for dataset.files}}
           <div class="well well-sm dataset-file">
             <div class="dataset-file-view">
