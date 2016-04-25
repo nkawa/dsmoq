@@ -45,9 +45,9 @@ dsmoq {
 
 # Google OAuth settings
 oauth  {
-  client_id = "198073332933-mdftjfgg385pvjibe62v9ertladh2hlq.apps.googleusercontent.com"
-  client_secret = "o34w6Ah1-1Rtn5og79OggKKU"
-  callback_url = "http://localhost:8080/google_oauth/oauth2callback"
+  client_id = "enter your client_id"
+  client_secret = "enter your client_secret"
+  callback_url = "enter your callback_url"
   scopes = ["https://www.googleapis.com/auth/plus.me", "profile", "email"]
   application_name = "COI Data Store"
   allowed_mailaddrs = [".*@.*.nagoya-u.ac.jp", ".*@gmail.com"]
