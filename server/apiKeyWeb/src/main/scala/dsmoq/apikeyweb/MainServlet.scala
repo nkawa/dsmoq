@@ -3,19 +3,19 @@ package dsmoq.apikeyweb
 class MainServlet extends ApiKeyWebToolStack {
   get("/") {
     contentType = "text/html"
-    ssp("/index", "title" -> "APIキー発行ツール", "userName" -> "", "message" -> "")
+    ssp("/index", "title" -> "APIキー発行ツール", "userID" -> "", "message" -> "")
   }
 
   get("/error") {
     redirect("/")
   }
 
-  get("/error/:username") {
-    val userName = params("username")
-    val msg = s"ユーザ $userName は存在しません。"
+  get("/error/:userid") {
+    val userID = params("userid")
+    val msg = s"ユーザ $userID は存在しません。"
 
     contentType = "text/html"
-    ssp("/index", "title" -> "APIキー発行ツール", "userName" -> userName, "message" -> msg)
+    ssp("/index", "title" -> "APIキー発行ツール", "userID" -> userID, "message" -> msg)
   }
 
   get("/list") {
@@ -26,30 +26,30 @@ class MainServlet extends ApiKeyWebToolStack {
   }
 
   get("/search_keys") {
-    val userName = params("user_name")
-    if (userName.isEmpty) {
+    val userID = params("user_id")
+    if (userID.isEmpty) {
       redirect("/")
     } else {
-      ApiKeyManager.searchUserId(userName) match {
+      ApiKeyManager.searchUserId(userID) match {
         case Some(u) =>
-          val keyInfoList = ApiKeyManager.searchKeyFromName(userName)
+          val keyInfoList = ApiKeyManager.searchKeyFromName(userID)
           contentType = "text/html"
-          ssp("/result_keys", "title" -> "検索結果", "userName" -> userName, "keyInfoList" -> keyInfoList)
+          ssp("/result_keys", "title" -> "検索結果", "userID" -> userID, "keyInfoList" -> keyInfoList)
         case None =>
-          redirect(s"/error/$userName")
+          redirect(s"/error/$userID")
       }
     }
   }
 
   post("/publish") {
-    val userName = params("user_name")
+    val userID = params("user_id")
 
-    ApiKeyManager.publish(userName) match {
+    ApiKeyManager.publish(userID) match {
       case Some(k) =>
         contentType = "text/html"
         ssp("/result", "title" -> "発行済みAPIキー", "keyInfo" -> k)
       case _ =>
-        redirect(s"/error/$userName")
+        redirect(s"/error/$userID")
     }
   }
 

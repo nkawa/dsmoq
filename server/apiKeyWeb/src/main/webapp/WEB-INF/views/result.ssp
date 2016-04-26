@@ -2,8 +2,8 @@
 
 <table>
     <tr>
-        <td>ユーザー名</td>
-        <td><%= keyInfo.userName %></td>
+        <td>ユーザーID</td>
+        <td><%= keyInfo.userID %></td>
     </tr>
     <tr>
         <td>Consumer key</td>

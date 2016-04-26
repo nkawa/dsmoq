@@ -1,10 +1,10 @@
-<%@ val userName : String %>
+<%@ val userID : String %>
 <%@ val message : String %>
 
 <form action="/publish" method="post">
     <p>
-        <label>ユーザー名</label>
-        <input name="user_name" type="text" value="<%= userName %>" />
+        <label>ユーザーID</label>
+        <input name="user_id" type="text" value="<%= userID %>" />
         <input type="submit" value="発行" />
         <input type="submit" value="検索" formaction="/search_keys" formmethod="get" />
     </p>

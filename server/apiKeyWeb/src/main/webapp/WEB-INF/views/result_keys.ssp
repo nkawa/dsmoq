@@ -1,7 +1,7 @@
-<%@ val userName : String %>
+<%@ val userID : String %>
 <%@ val keyInfoList : List[dsmoq.apikeyweb.KeyInfo] %>
 
-<h2>ユーザー名：${userName}</h2>
+<h2>ユーザーID：${userID}</h2>
 <table>
     <tr>
         <th>Consumer Key</th>

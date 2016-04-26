@@ -4,20 +4,20 @@
 <table>
     <tr>
         <th></th>
-        <th>User Name</th>
+        <th>ユーザーID</th>
         <th>Consumer Key</th>
         <th>Secret Key</th>
     </tr>
     #for (keyInfo <- keyInfoList)
         <tr>
             <td><input type="radio" name="consumerKey" value="${keyInfo.consumerKey}"></td>
-            <td>${keyInfo.userName}</td>
+            <td>${keyInfo.userID}</td>
             <td>${keyInfo.consumerKey}</td>
             <td>${keyInfo.secretKey}</td>
         </tr>
     #end
 </table>
-<input type="submit" value="削除">
+<input type="submit" value="無効化">
 </form>
 <hr/>
 <a href="/">Back</a>

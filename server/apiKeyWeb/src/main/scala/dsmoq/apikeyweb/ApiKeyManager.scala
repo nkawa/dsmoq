@@ -120,4 +120,4 @@ object ApiKeyManager {
 /**
   * APIキー情報
   */
-case class KeyInfo(userName: String, consumerKey: String, secretKey: String)
+case class KeyInfo(userID: String, consumerKey: String, secretKey: String)
