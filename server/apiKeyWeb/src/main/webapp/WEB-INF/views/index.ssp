@@ -1,0 +1,15 @@
+<%@ val userID : String %>
+<%@ val message : String %>
+
+<form action="/publish" method="post">
+    <p>
+        <label>ユーザーID</label>
+        <input name="user_id" type="text" value="<%= userID %>" />
+        <input type="submit" value="発行" />
+        <input type="submit" value="検索" formaction="/search_keys" formmethod="get" />
+    </p>
+</form>
+<p>
+    <a href="/list">一覧表示</a>
+</p>
+<p style="color: red"><%= message %></p>

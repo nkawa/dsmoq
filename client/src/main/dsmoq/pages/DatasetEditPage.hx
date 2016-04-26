@@ -268,22 +268,29 @@ class DatasetEditPage {
             });
 
             // files
-            root.find("#dataset-file-add-form").on("change", "input[type=file]", function (e) {
+            function updateAddFileButton(formId, e : Dynamic) {
                 if (new JqHtml(e.target).val() != "") {
-                    root.find("#dataset-file-add-submit").show();
+                    root.find(formId).show();
                 } else {
-                    root.find("#dataset-file-add-submit").hide();
+                    root.find(formId).hide();
                 }
+            }
+            root.find("#dataset-file-add-form").on("change", "input[type=file]", function (e) {
+                updateAddFileButton("#dataset-file-add-submit", e);
             });
-            root.find("#dataset-file-add-submit").on("click", function (_) {
-                BootstrapButton.setLoading(root.find("#dataset-file-add-submit"));
-                Service.instance.addDatasetFiles(id, root.find("#dataset-file-add-form")).then(
+            root.find("#dataset-file-add-form-top").on("change", "input[type=file]", function (e) {
+                updateAddFileButton("#dataset-file-add-submit-top", e);
+            });
+            function uploadFiles(submitId, formId) {
+                var fileButtonPath : String = formId + " input";
+                BootstrapButton.setLoading(root.find(submitId));
+                Service.instance.addDatasetFiles(id, root.find(formId)).then(
                     function (res) {
-                        root.find("#dataset-file-add-submit").hide();
+                        root.find(submitId).hide();
 						for (i in 0...res.length) {
 							JsViews.observable(data.dataset.files).insert(res[i]);
 						}
-                        root.find("#dataset-file-add-form input").val("");
+                        root.find(fileButtonPath).val("");
                         Notification.show("success", "save successful");
                     },
                     function (e) {
@@ -299,13 +306,19 @@ class DatasetEditPage {
 						}
                     },
                     function () {
-                        BootstrapButton.reset(root.find("#dataset-file-add-submit"));
-                        root.find("#dataset-file-add-form input").removeAttr("disabled");
+                        BootstrapButton.reset(root.find(submitId));
+                        root.find(fileButtonPath).removeAttr("disabled");
                     }
                 );
-                root.find("#dataset-file-add-form input").attr("disabled", true);
+                root.find(fileButtonPath).attr("disabled", true);
+            }
+            root.find("#dataset-file-add-submit").on("click", function (_) {
+                uploadFiles("#dataset-file-add-submit", "#dataset-file-add-form");
             });
-			
+            root.find("#dataset-file-add-submit-top").on("click", function (_) {
+                uploadFiles("#dataset-file-add-submit-top", "#dataset-file-add-form-top");
+            });
+
             root.on("click", ".dataset-file-edit-start", function (e) {
                 var fid: String = new JqHtml(e.target).data("value");
                 var file = data.dataset.files.filter(function (x) return x.id == fid)[0];

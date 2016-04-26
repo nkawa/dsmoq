@@ -15,3 +15,5 @@ addSbtPlugin("org.scalikejdbc" %% "scalikejdbc-mapper-generator" % "2.1.1")
 // addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.7.0-SNAPSHOT")
 
 addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.11.2")
+
+addSbtPlugin("com.mojolly.scalate" % "xsbt-scalate-generator" % "0.5.0")

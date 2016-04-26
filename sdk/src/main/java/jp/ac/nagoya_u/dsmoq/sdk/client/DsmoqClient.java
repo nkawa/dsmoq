@@ -4,34 +4,29 @@ import jp.ac.nagoya_u.dsmoq.sdk.http.*;
 import jp.ac.nagoya_u.dsmoq.sdk.request.*;
 import jp.ac.nagoya_u.dsmoq.sdk.response.*;
 import jp.ac.nagoya_u.dsmoq.sdk.util.*;
-import jp.ac.nagoya_u.dsmoq.sdk.http.AutoCloseHttpClient;
-import jp.ac.nagoya_u.dsmoq.sdk.http.AutoHttpDelete;
-import jp.ac.nagoya_u.dsmoq.sdk.http.AutoHttpGet;
-import jp.ac.nagoya_u.dsmoq.sdk.http.AutoHttpPut;
-import jp.ac.nagoya_u.dsmoq.sdk.util.ConnectionLostException;
-import jp.ac.nagoya_u.dsmoq.sdk.util.NotFoundException;
-import jp.ac.nagoya_u.dsmoq.sdk.util.TimeoutException;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.conn.HttpHostConnectException;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.mime.HttpMultipartMode;
 import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
-import org.apache.http.conn.HttpHostConnectException;
 
-import javax.crypto.*;
+import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.SocketTimeoutException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.*;
-import java.nio.charset.StandardCharsets;
-import java.net.URLEncoder;
 import java.util.stream.Collectors;
 
 /**
@@ -42,6 +37,8 @@ public class DsmoqClient {
     private String _baseUrl;
     private String _apiKey;
     private String _secretKey;
+
+    private static final ContentType TEXT_PLAIN_UTF8 = ContentType.create("text/plain", StandardCharsets.UTF_8);
 
     /**
      * APIキー、シークレットキーを使用するクライアントオブジェクトを生成する。
@@ -105,6 +102,8 @@ public class DsmoqClient {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/datasets"))) {
             addAuthorizationHeader(request);
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+            builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
+            builder.setCharset(StandardCharsets.UTF_8);
             Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("file[]", file));
             builder.addTextBody("saveLocal", saveLocal ? "true" : "false");
             builder.addTextBody("saveS3", saveS3 ? "true" : "false");
@@ -125,7 +124,7 @@ public class DsmoqClient {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/datasets"))) {
             addAuthorizationHeader(request);
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
-            builder.addTextBody("name", name);
+            builder.addTextBody("name", name, TEXT_PLAIN_UTF8);
             builder.addTextBody("saveLocal", saveLocal ? "true" : "false");
             builder.addTextBody("saveS3", saveS3 ? "true" : "false");
             request.setEntity(builder.build());
@@ -146,7 +145,9 @@ public class DsmoqClient {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/datasets"))) {
             addAuthorizationHeader(request);
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
-            builder.addTextBody("name", name);
+            builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
+            builder.setCharset(StandardCharsets.UTF_8);
+            builder.addTextBody("name", name, TEXT_PLAIN_UTF8);
             Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("file[]", file));
             builder.addTextBody("saveLocal", saveLocal ? "true" : "false");
             builder.addTextBody("saveS3", saveS3 ? "true" : "false");
@@ -166,6 +167,8 @@ public class DsmoqClient {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/files", datasetId)))) {
             addAuthorizationHeader(request);
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+            builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
+            builder.setCharset(StandardCharsets.UTF_8);
             Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("files", file));
             request.setEntity(builder.build());
             String json = execute(request);
@@ -223,7 +226,7 @@ public class DsmoqClient {
     }
 
     /**
-     * データセットの情報を更新する。(PUT /api/datasets.${dataset_id}/metadata相当)
+     * データセットの情報を更新する。(PUT /api/datasets/${dataset_id}/metadata相当)
      * @param datasetId DatasetID
      * @param param データセット更新情報
      */

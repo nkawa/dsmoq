@@ -1,0 +1,20 @@
+<%@ val keyInfo : dsmoq.apikeyweb.KeyInfo %>
+
+<table>
+    <tr>
+        <td>ユーザーID</td>
+        <td><%= keyInfo.userID %></td>
+    </tr>
+    <tr>
+        <td>Consumer key</td>
+        <td><%= keyInfo.consumerKey %></td>
+    </tr>
+    <tr>
+        <td>Secret key</td>
+        <td><%= keyInfo.secretKey %></td>
+    </tr>
+</table>
+<hr/>
+<p>
+<a href="/">Back</a>
+<p>

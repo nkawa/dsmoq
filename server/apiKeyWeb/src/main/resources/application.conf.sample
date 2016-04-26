@@ -1,0 +1,29 @@
+# JDBC settings
+db.default.driver="org.postgresql.Driver"
+db.default.url="jdbc:postgresql://127.0.0.1:5432/dsmoq"
+db.default.user="postgres"
+db.default.password="postgres"
+# Connection Pool settings
+db.default.poolInitialSize=10
+db.default.poolMaxSize=20
+db.default.connectionTimeoutMillis=1000
+
+# JDBC setting for test
+test {
+  db.default.driver="org.postgresql.Driver"
+  db.default.url="jdbc:postgresql://127.0.0.1:5432/dsmoq_test"
+  db.default.user="postgres"
+  db.default.password="postgres"
+  # Connection Pool settings
+  db.default.poolInitialSize=10
+  db.default.poolMaxSize=20
+  db.default.connectionTimeoutMillis=1000
+}
+
+# ApiKeyWeb settings
+apikey {
+  port = 8091
+
+  user = "coi"
+  password = "coicoi"
+}
