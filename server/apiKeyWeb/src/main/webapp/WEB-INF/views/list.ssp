@@ -1,5 +1,8 @@
 <%@ val keyInfoList : List[dsmoq.apikeyweb.KeyInfo] %>
 
+<p>
+<a href="/">Back</a>
+<p>
 <form action="/delete" method="post">
 <table>
     <tr>
@@ -20,4 +23,6 @@
 <input type="submit" value="無効化">
 </form>
 <hr/>
+<p>
 <a href="/">Back</a>
+<p>
