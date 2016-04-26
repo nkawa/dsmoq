@@ -6,16 +6,19 @@ class MainServlet extends ApiKeyWebToolStack {
     ssp("/index", "title" -> "APIキー発行ツール", "userID" -> "", "message" -> "")
   }
 
-  get("/error") {
-    redirect("/")
-  }
-
   get("/error/:userid") {
     val userID = params("userid")
-    val msg = s"ユーザ $userID は存在しません。"
+    val msg = s"ユーザー $userID は存在しません。"
 
     contentType = "text/html"
     ssp("/index", "title" -> "APIキー発行ツール", "userID" -> userID, "message" -> msg)
+  }
+
+  get("/error/no_name") {
+    val msg = "ユーザーIDが指定されていません。"
+
+    contentType = "text/html"
+    ssp("/index", "title" -> "APIキー発行ツール", "userID" -> "", "message" -> msg)
   }
 
   get("/list") {
@@ -28,7 +31,7 @@ class MainServlet extends ApiKeyWebToolStack {
   get("/search_keys") {
     val userID = params("user_id")
     if (userID.isEmpty) {
-      redirect("/")
+      redirect("/error/no_name")
     } else {
       ApiKeyManager.searchUserId(userID) match {
         case Some(u) =>
@@ -43,13 +46,16 @@ class MainServlet extends ApiKeyWebToolStack {
 
   post("/publish") {
     val userID = params("user_id")
-
-    ApiKeyManager.publish(userID) match {
-      case Some(k) =>
-        contentType = "text/html"
-        ssp("/result", "title" -> "発行済みAPIキー", "keyInfo" -> k)
-      case _ =>
-        redirect(s"/error/$userID")
+    if (userID.isEmpty) {
+      redirect("/error/no_name")
+    } else {
+      ApiKeyManager.publish(userID) match {
+        case Some(k) =>
+          contentType = "text/html"
+          ssp("/result", "title" -> "発行済みAPIキー", "keyInfo" -> k)
+        case _ =>
+          redirect(s"/error/$userID")
+      }
     }
   }
 
