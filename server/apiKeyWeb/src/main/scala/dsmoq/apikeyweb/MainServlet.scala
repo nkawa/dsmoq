@@ -3,7 +3,7 @@ package dsmoq.apikeyweb
 class MainServlet extends ApiKeyWebToolStack {
   get("/") {
     contentType = "text/html"
-    ssp("/index", "userName" -> "", "message" -> "")
+    ssp("/index", "title" -> "APIキー発行ツール", "userName" -> "", "message" -> "")
   }
 
   get("/error") {
@@ -15,14 +15,14 @@ class MainServlet extends ApiKeyWebToolStack {
     val msg = s"ユーザ $userName は存在しません。"
 
     contentType = "text/html"
-    ssp("/index", "userName" -> userName, "message" -> msg)
+    ssp("/index", "title" -> "APIキー発行ツール", "userName" -> userName, "message" -> msg)
   }
 
   get("/list") {
     val keyInfoList = ApiKeyManager.listKeys()
 
     contentType = "text/html"
-    ssp("/list", "keyInfoList" -> keyInfoList)
+    ssp("/list", "title" -> "発行済みAPIキー一覧表示", "keyInfoList" -> keyInfoList)
   }
 
   get("/search_keys") {
@@ -34,7 +34,7 @@ class MainServlet extends ApiKeyWebToolStack {
         case Some(u) =>
           val keyInfoList = ApiKeyManager.searchKeyFromName(userName)
           contentType = "text/html"
-          ssp("/result_keys", "userName" -> userName, "keyInfoList" -> keyInfoList)
+          ssp("/result_keys", "title" -> "検索結果", "userName" -> userName, "keyInfoList" -> keyInfoList)
         case None =>
           redirect(s"/error/$userName")
       }
@@ -47,7 +47,7 @@ class MainServlet extends ApiKeyWebToolStack {
     ApiKeyManager.publish(userName) match {
       case Some(k) =>
         contentType = "text/html"
-        ssp("/result", "keyInfo" -> k)
+        ssp("/result", "title" -> "発行済みAPIキー", "keyInfo" -> k)
       case _ =>
         redirect(s"/error/$userName")
     }

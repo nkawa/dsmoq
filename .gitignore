@@ -16,3 +16,5 @@ sdk/.idea/
 sdk/.idea/*
 .idea/
 .idea/*
+
+application.conf

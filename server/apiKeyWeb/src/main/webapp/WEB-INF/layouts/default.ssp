@@ -1,8 +1,9 @@
+<%@ val title: String %>
 <%@ val body: String %>
 <!DOCTYPE html>
 <html>
     <head>
-        <title>APIキー発行ツール</title>
+        <title><%= title %></title>
         <style>
             table, td, th {
                 border: 2px #808080 solid;
@@ -18,7 +19,7 @@
         </style>
     </head>
     <body>
-        <h1>APIキー発行ツール</h1>
+        <h1><%= title %></h1>
         <%= unescape(body) %>
     </body>
 </html>
