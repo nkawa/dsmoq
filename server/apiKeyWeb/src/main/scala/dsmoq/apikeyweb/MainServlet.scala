@@ -25,7 +25,15 @@ class MainServlet extends ApiKeyWebToolStack {
     val keyInfoList = ApiKeyManager.listKeys()
 
     contentType = "text/html"
-    ssp("/list", "title" -> "発行済みAPIキー一覧表示", "keyInfoList" -> keyInfoList)
+    ssp("/list", "title" -> "発行済みAPIキー一覧表示", "keyInfoList" -> keyInfoList, "message" -> "")
+  }
+
+  get("/list/no_select") {
+    val keyInfoList = ApiKeyManager.listKeys()
+    val msg = "キーが未選択です。"
+
+    contentType = "text/html"
+    ssp("/list", "title" -> "発行済みAPIキー一覧表示", "keyInfoList" -> keyInfoList, "message" -> msg)
   }
 
   get("/search_keys") {
@@ -60,11 +68,15 @@ class MainServlet extends ApiKeyWebToolStack {
   }
 
   post("/delete") {
-    val consumerKey = params("consumerKey")
+    try {
+      val consumerKey = params("consumerKey")
 
-    ApiKeyManager.deleteKey(consumerKey)
-    contentType = "text/html"
-    redirect("/list")
+      ApiKeyManager.deleteKey(consumerKey)
+      contentType = "text/html"
+      redirect("/list")
+    } catch {
+      case e: NoSuchElementException => redirect("/list/no_select")
+    }
   }
 
 }
