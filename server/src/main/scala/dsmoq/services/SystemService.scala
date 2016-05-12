@@ -62,15 +62,18 @@ object SystemService {
   def getUsers(query: Option[String], limit: Option[Int], offset: Option[Int]) = {
     DB readOnly { implicit s =>
       val u = persistence.User.u
+      val ma = persistence.MailAddress.ma
       withSQL {
         select.all[persistence.User](u)
           .from(persistence.User as u)
+          .leftJoin(persistence.MailAddress as ma)
+            .on(u.id, ma.userId)
           .where
           .isNull(u.deletedAt)
           .map{sql =>
             query match {
               case Some(x) =>
-                sql.and.like(u.name, x + "%").or.like(u.fullname, x + "%")
+                sql.and.like(u.name, x + "%").or.like(u.fullname, x + "%").or.like(ma.address, x + "%")
               case None =>
                 sql
             }
@@ -138,12 +141,15 @@ object SystemService {
 
     DB readOnly { implicit s =>
       val u = persistence.User.u
+      val ma = persistence.MailAddress.ma
       val g = persistence.Group.g
       val gi = persistence.GroupImage.gi
 
       withSQL {
         select(u.id, u.name, u.imageId, u.fullname, u.organization, sqls"'1' as type")
           .from(persistence.User as u)
+          .leftJoin(persistence.MailAddress as ma)
+            .on(u.id, ma.userId)
           .where
             .notIn(u.id, excludeIds.map(sqls.uuid))
             .and
@@ -151,6 +157,8 @@ object SystemService {
               .like(u.name, query)
               .or
               .like(u.fullname, query)
+              .or
+              .like(ma.address, query)
             .append(sqls")")
             .and
             .isNull(u.deletedAt)
