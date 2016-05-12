@@ -80,7 +80,7 @@
           </div>
           <div class="media-body">
             <h4 class="media-heading"><a href="/datasets/{{>id}}" data-navigation>{{>name}}</a></h4>
-            <p>{{if ~trimTags(description)}}{{:~trimTags(description)}}{{else}}<span class="text-muted">(No description)</span>{{/if}}</p>
+            <p class="dataset-description-list">{{if ~trimTags(description)}}{{:~trimTags(description)}}{{else}}<span class="text-muted">(No description)</span>{{/if}}</p>
             <div>
               {{for ownerships ~length=ownerships.length}}
                 <span class="label label-success">

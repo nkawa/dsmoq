@@ -191,4 +191,5 @@ ul.dataset-container li .tag a.tag06{background:#999;}
 #modal_window .inner ul.license{font-size:12px;list-style:none;}
 .modal_close{position:absolute;top:12px;right:12px;width:14px;height:14px;display:block;background:url(img/common/ico/close.png) no-repeat;background-size:14px;z-index:100;}
 #dataset-edit .glyphicon{vertical-align:top;}
+.dataset-description-list{max-height:60px;overflow:hidden;}
 
