@@ -29,7 +29,7 @@ class DatasetShowPage {
                 name: res.meta.name,
                 description: res.meta.description,
                 primaryImage: res.primaryImage,
-				featuredImage: res.featuredImage,
+                featuredImage: res.featuredImage,
                 ownerships: res.ownerships.filter(function (x) return Type.enumEq(x.accessLevel, DatasetPermission.Write)),
                 files: res.files,
                 attributes: res.meta.attributes,
@@ -55,14 +55,14 @@ class DatasetShowPage {
                 // TODO 削除対象データセット閲覧履歴（このページ）をHistoryから消す
                 navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, "", new Array<{type: String, item: Dynamic}>())));
             });
-			
-			html.find("#dataset-copy").createEventStream("click").flatMap(function (_) {
+            
+            html.find("#dataset-copy").createEventStream("click").flatMap(function (_) {
                 return JsTools.confirm("Are you sure you want to copy this dataset?");
             }).flatMap(function (_) {
-				return Service.instance.copyDataset(id);
-			}).then(function(x) {
-				navigation.fulfill(Navigation.Navigate(Page.DatasetShow(x.datasetId)));
-			});
+                return Service.instance.copyDataset(id);
+            }).then(function(x) {
+                navigation.fulfill(Navigation.Navigate(Page.DatasetShow(x.datasetId)));
+            });
         }, function (err) {
             switch (err.name) {
                 case ServiceErrorType.Unauthorized:

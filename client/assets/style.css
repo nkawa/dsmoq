@@ -71,7 +71,7 @@ input::-ms-clear {
 }
 .dataset-item {
   list-style: none outside none;
-  border-bottom: 1px dashed #808080;
+  border-bottom: 1px dashed gray;
 }
 .panel li p,
 .panel li h4 {
@@ -1026,4 +1026,7 @@ ul.dataset-container li .tag a.tag06 {
   background: url(img/common/ico/close.png) no-repeat;
   background-size: 14px;
   z-index: 100;
+}
+#dataset-edit .glyphicon {
+  vertical-align: top;
 }
