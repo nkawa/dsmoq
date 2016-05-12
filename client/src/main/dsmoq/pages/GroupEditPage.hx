@@ -295,6 +295,7 @@ class GroupEditPage {
                             b.refresh(ids);
                         }
                     }
+                    html.find("#add-member-selected-count").text(data.selectedIds.length);
                 }
             });
 
