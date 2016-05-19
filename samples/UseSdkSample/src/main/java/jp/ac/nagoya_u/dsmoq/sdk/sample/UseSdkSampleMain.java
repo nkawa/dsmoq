@@ -6,10 +6,9 @@ import jp.ac.nagoya_u.dsmoq.sdk.response.*;
 
 import java.io.File;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class UseSdkSampleMain {
     private static final String CONSUMER_KEY = "enter your client_id";
@@ -65,17 +64,16 @@ public class UseSdkSampleMain {
         printout("",
                 "=== importAttribute [post:/api/datasets/:datasetId/attributes/import] ===",
                 "  dataset     : " + dataset.toString());
-        dataset.getMeta().getAttributes().forEach(keyPair ->
-            printout("  attr        : name = " + keyPair.getName() + ", value = " + keyPair.getValue()));
+        printout(dataset.getMeta().getAttributes().stream().map(keyPair ->
+                        "  attr        : name = " + keyPair.getName() + ", value = " + keyPair.getValue()));
 
         // データセットの情報を更新 [put:/api/datasets/:datasetId/metadata]
         UpdateDatasetMetaParam param = new UpdateDatasetMetaParam();
         param.setName(dataset.getMeta().getName());
         param.setDescription("SDKからDescriptionを更新。更新日時： " + ZonedDateTime.now().toString());
         param.setLicense(dataset.getMeta().getLicense());
-        List<Attribute> attrs = new ArrayList<Attribute>();
-        dataset.getMeta().getAttributes().forEach(keyPair ->
-            attrs.add (new Attribute(keyPair.getName(), keyPair.getValue())));
+        List<Attribute> attrs = dataset.getMeta().getAttributes().stream().map(keyPair ->
+                new Attribute(keyPair.getName(), keyPair.getValue())).collect(Collectors.toList());
         attrs.add(new Attribute("追加属性", ZonedDateTime.now().toString()));
         param.setAttributes(attrs);
 
@@ -88,11 +86,11 @@ public class UseSdkSampleMain {
                 "  name        : " + dataset.getMeta().getName(),
                 "  description : " + dataset.getMeta().getDescription()
         );
-        dataset.getMeta().getAttributes().forEach(keyPair -> {
-            printout("  attr       : name = " + keyPair.getName() + ", value = " + keyPair.getValue() +
-                    (keyPair.getName().equals("追加属性") ?
-                            "  (SDK(DsmoqClient#updateDatasetMetaInfo)で追加した属性)" : ""));
-        });
+        printout(dataset.getMeta().getAttributes().stream().map(keyPair ->
+                "  attr       : name = " + keyPair.getName() + ", value = " + keyPair.getValue() +
+                        (keyPair.getName().equals("追加属性") ?
+                                "  (SDK(DsmoqClient#updateDatasetMetaInfo)で追加した属性)" : ""))
+        );
 
     }
 
@@ -149,9 +147,9 @@ public class UseSdkSampleMain {
         );
 
         // グループのメンバー一覧を取得 [get://api/groups/:groupId/members]
-        GetMembersParam membersParam = new GetMembersParam();
-        membersParam.setLimit(Optional.of(100));
-        membersParam.setOffset(Optional.of(0));
+        GetMembersParam membersParam = new GetMembersParam(
+                Optional.of(100),
+                Optional.of(0));
 
         RangeSlice<MemberSummary> memberSummary = client.getMembers(sdkGroupId, membersParam);
 
@@ -173,7 +171,11 @@ public class UseSdkSampleMain {
     }
 
     private static void printout(String... strs) {
-        Arrays.stream(strs).forEach(x -> System.out.println(x));
+        printout(Arrays.stream(strs));
+    }
+
+    private static void printout(Stream stream) {
+        stream.forEach(x -> System.out.println(x));
     }
 
 }
