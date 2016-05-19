@@ -12,11 +12,11 @@ import java.util.List;
 import java.util.Optional;
 
 public class UseSdkSampleMain {
-    private static final String CONSUMER_KEY = "f58dbce47825c3514dc62f0923a7e2215808d220c0865cb4e99070f1bf9ab8f6";
-    private static final String SECRET_KEY = "808c71ae2fb9a0409224d40c13aca967dd11ce52966c23934a713022a2bdb07b";
+    private static final String CONSUMER_KEY = "enter your client_id";
+    private static final String SECRET_KEY = "enter your client_secret";
 
     // 参照するデータセットのID
-    private static final String TEST_DATASET_ID = "551889d0-f2aa-4e2d-8da0-500ca78ff0c0";
+    private static final String TEST_DATASET_ID = "enter test Dataset ID";
 
     // 作成するグループ名
     private  static final String TEST_CREATE_GROUP_NAME = "SDK Group";
