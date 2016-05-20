@@ -1,12 +1,24 @@
 package jp.ac.nagoya_u.dsmoq.sdk.sample;
 
 import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient;
-import jp.ac.nagoya_u.dsmoq.sdk.request.*;
-import jp.ac.nagoya_u.dsmoq.sdk.response.*;
+import jp.ac.nagoya_u.dsmoq.sdk.request.Attribute;
+import jp.ac.nagoya_u.dsmoq.sdk.request.CreateGroupParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.GetGroupsParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateDatasetMetaParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.GetMembersParam;
+import jp.ac.nagoya_u.dsmoq.sdk.response.Dataset;
+import jp.ac.nagoya_u.dsmoq.sdk.response.Group;
+import jp.ac.nagoya_u.dsmoq.sdk.response.GroupsSummary;
+import jp.ac.nagoya_u.dsmoq.sdk.response.RangeSlice;
+import jp.ac.nagoya_u.dsmoq.sdk.response.MemberSummary;
+import jp.ac.nagoya_u.dsmoq.sdk.util.NotAuthorizedException;
+import jp.ac.nagoya_u.dsmoq.sdk.util.NotFoundException;
 
 import java.io.File;
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -27,25 +39,21 @@ public class UseSdkSampleMain {
         DsmoqClient client =  DsmoqClient.create("http://localhost:8080", CONSUMER_KEY, SECRET_KEY);
 
         try {
-            client.getDataset(TEST_DATASET_ID);
+            // データセットの操作
+            useDatasetApi(client);
+
+            // グループの操作
+            useGroupApi(client);
         } catch (jp.ac.nagoya_u.dsmoq.sdk.util.NotAuthorizedException e) {
             System.err.println("check CONSUMER_KEY and SECRET_KEY value");
-            return;
         } catch (jp.ac.nagoya_u.dsmoq.sdk.util.NotFoundException e) {
             System.err.println("check TEST_DATASET_ID value");
-            return;
         }
-
-        // データセットの操作
-        useDatasetApi(client);
-
-        // グループの操作
-        useGroupApi(client);
 
         System.out.println("finish.");
     }
 
-    private static void useDatasetApi(DsmoqClient client) {
+    private static void useDatasetApi(DsmoqClient client) throws NotAuthorizedException, NotFoundException {
         // Dataset の取得 [get:/api/datasets/:datasetId]
         Dataset dataset = dataset = client.getDataset(TEST_DATASET_ID);
         printout("",
@@ -60,6 +68,7 @@ public class UseSdkSampleMain {
 
         client.importAttribute(TEST_DATASET_ID, attrFile);
 
+        // importAttribute が正常に行われたか確認するため getDataset で情報を取得
         dataset = client.getDataset(TEST_DATASET_ID);
         printout("",
                 "=== importAttribute [post:/api/datasets/:datasetId/attributes/import] ===",
@@ -72,6 +81,10 @@ public class UseSdkSampleMain {
         param.setName(dataset.getMeta().getName());
         param.setDescription("SDKからDescriptionを更新。更新日時： " + ZonedDateTime.now().toString());
         param.setLicense(dataset.getMeta().getLicense());
+        // Server APIとSDKで Atrtibuteの変数名が違っており
+        // そのまま使用できないため、移し替えを行う
+        //   Server [DatasetAttribute] -> { name: String, value: String }
+        //   SDL [Attribute] -> { id: String, value: String }
         List<Attribute> attrs = dataset.getMeta().getAttributes().stream().map(keyPair ->
                 new Attribute(keyPair.getName(), keyPair.getValue())).collect(Collectors.toList());
         attrs.add(new Attribute("追加属性", ZonedDateTime.now().toString()));
@@ -79,6 +92,7 @@ public class UseSdkSampleMain {
 
         client.updateDatasetMetaInfo(TEST_DATASET_ID,  param);
 
+        // updateDatasetMetaInfo が正常に行われたか確認するため getDataset で情報を取得
         dataset = client.getDataset(TEST_DATASET_ID);
         printout("",
                 "=== updateDatasetMetaInfo [put:/api/datasets/:datasetId/metadata] ===",
@@ -94,11 +108,8 @@ public class UseSdkSampleMain {
 
     }
 
-    private static void useGroupApi(DsmoqClient client) {
-        String sdkGroupId;
-        Group group;
-
-        // グループ一覧取得 [get:/api/group]
+    private static void useGroupApi(DsmoqClient client)  throws NotAuthorizedException, NotFoundException {
+        // グループ一覧取得 [get:/api/groups]
         GetGroupsParam param = new GetGroupsParam();
         param.setQuery(Optional.of(TEST_CREATE_GROUP_NAME));
 
@@ -111,8 +122,11 @@ public class UseSdkSampleMain {
                 "  [count]     : " + groupSummary.getResults().size()
         );
 
+        String sdkGroupId;
+        Group group;
+
         // テスト用のグループ名が存在しなければ作成
-        if (groupSummary.getResults().isEmpty() ||  groupSummary.getResults().size() <= 0) {
+        if (groupSummary.getResults().isEmpty()) {
 
             // グループ作成 [post:/api/groups]
             CreateGroupParam createParam = new CreateGroupParam();
