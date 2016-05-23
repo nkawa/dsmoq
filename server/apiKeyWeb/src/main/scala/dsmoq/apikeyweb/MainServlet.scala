@@ -1,11 +1,18 @@
 package dsmoq.apikeyweb
 
 class MainServlet extends ApiKeyWebToolStack {
+  /**
+    * トップページを表示する。(get: /)
+    */
   get("/") {
     contentType = "text/html"
     ssp("/index", "title" -> "APIキー発行ツール", "userID" -> "", "message" -> "")
   }
 
+  /**
+    * エラー情報付きのトップページを表示する。 (get: /error/:userid)
+    * 存在しないユーザIDで検索した場合に表示。
+    */
   get("/error/:userid") {
     val userID = params("userid")
     val msg = s"ユーザー $userID は存在しません。"
@@ -14,6 +21,10 @@ class MainServlet extends ApiKeyWebToolStack {
     ssp("/index", "title" -> "APIキー発行ツール", "userID" -> userID, "message" -> msg)
   }
 
+  /**
+    *  エラー情報付きのトップページを表示する。(get: /error/no_name)
+    *  ユーザIDを入力せずに検索した場合に表示。
+    */
   get("/error/no_name") {
     val msg = "ユーザーIDが指定されていません。"
 
@@ -21,6 +32,9 @@ class MainServlet extends ApiKeyWebToolStack {
     ssp("/index", "title" -> "APIキー発行ツール", "userID" -> "", "message" -> msg)
   }
 
+  /**
+    * 発行済みAPIキー一覧表示ページを表示する。 (get: /list)
+    */
   get("/list") {
     val keyInfoList = ApiKeyManager.listKeys()
 
@@ -28,6 +42,10 @@ class MainServlet extends ApiKeyWebToolStack {
     ssp("/list", "title" -> "発行済みAPIキー一覧表示", "keyInfoList" -> keyInfoList, "message" -> "")
   }
 
+  /**
+    * エラー情報付きの発行済みAPIキー一覧表示ページを表示する。 (get: /list/no_select)
+    * 削除対象を指定せず無効化ボタンを押下した場合に表示。
+    */
   get("/list/no_select") {
     val keyInfoList = ApiKeyManager.listKeys()
     val msg = "キーが未選択です。"
@@ -36,6 +54,11 @@ class MainServlet extends ApiKeyWebToolStack {
     ssp("/list", "title" -> "発行済みAPIキー一覧表示", "keyInfoList" -> keyInfoList, "message" -> msg)
   }
 
+  /**
+    * 指定したユーザ名の検索結果(APIキー一覧)ページを表示する。 (get: /search_keys)
+    * ユーザ名が指定されていない場合、get: /error/no_name に転送する。
+    * 指定したユーザ名が見つからない場合、get: /error/:userid に転送する。
+    */
   get("/search_keys") {
     val userID = params("user_id")
     if (userID.isEmpty) {
@@ -52,6 +75,12 @@ class MainServlet extends ApiKeyWebToolStack {
     }
   }
 
+  /**
+    * 指定したユーザ名のAPIキーを発行する。 (post: /publish)
+    * 発行後、発行したAPIキー情報を表示する。
+    * ユーザ名が指定されていない場合、get: /error/no_name に転送する。
+    * 指定したユーザ名が存在しない場合、get: /error/:userid に転送する。
+    */
   post("/publish") {
     val userID = params("user_id")
     if (userID.isEmpty) {
@@ -67,6 +96,11 @@ class MainServlet extends ApiKeyWebToolStack {
     }
   }
 
+  /**
+    * 指定したAPIキーを無効にする。 (post: /delete)
+    * 無効にした後、get: /list に転送する。
+    * APIキーが指定されていない場合、get: /list/no_select に転送する。
+    */
   post("/delete") {
     try {
       val consumerKey = params("consumerKey")

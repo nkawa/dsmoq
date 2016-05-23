@@ -63,6 +63,12 @@ object ZipUtil extends LazyLogging {
     }
     ret
   }
+
+  /**
+    * ZipヘッダーのExtra Fieldを解析してExtra Field Header単位のリストにする。
+    * @param extra Extra Fileldのbyte配列
+    * @return Extra Field Header単位のリスト
+    */
   def splitExtra(extra: Array[Byte]): List[(Short, Array[Byte])] = {
     logger.debug(LOG_MARKER, "  called splitExtra function, extra = 0x{}", bytes2hex(extra))
 
@@ -86,6 +92,15 @@ object ZipUtil extends LazyLogging {
     }
     ret
   }
+
+  /**
+    * Zip64拡張情報(Zip64 Extended Information Extra Field)から圧縮前サイズと圧縮後サイズを取得する。
+    * Zip64拡張情報自体がない場合は、圧縮前サイズと圧縮後サイズは引数の情報が返る。
+    * Zip64拡張情報はあるが、Zip64拡張情報に記載対象ではないサイズの場合、引数の情報が返る。
+    * @param xs ヘッダー内の情報と更新情報がExtra Fieldに含まれている場合のデータサイズのリスト
+    * @param extra Extra Filedのヘッダーごとに切り分けたExtra Field
+    * @return xsのヘッダー内情報をExtra Filedの情報で上書きしたリスト
+    */
   def fromExtra(xs: List[(Long, Int)], extra: Array[Byte]): List[Long] = {
     logger.info(LOG_MARKER, "  called fromExtra function, xs = {}, extra = 0x{}", xs, bytes2hex(extra))
 
@@ -99,6 +114,12 @@ object ZipUtil extends LazyLogging {
       } else x
     }
   }
+
+  /**
+    * ローカルヘッダーを解析する。
+    * @param ra ZIPファイルのオブジェクト
+    * @return ローカルヘッダー情報
+    */
   def readLocalHeader(ra: RandomAccessFile): ZipLocalHeader = {
     logger.debug(LOG_MARKER, "  called readLocalHeader function, ra = {}", ra)
 
@@ -141,6 +162,12 @@ object ZipUtil extends LazyLogging {
       extra = extra
     )
   }
+
+  /**
+    * セントラルヘッダーを解析する。
+    * @param ra ZIPファイルのオブジェクト
+    * @return セントラルヘッダー情報と対応するローカルヘッダーの格納位置
+    */
   def readCentralHeader(ra: RandomAccessFile): (Long, Array[Byte]) = {
     logger.debug(LOG_MARKER, "  called readCentralHeader function, ra = {}", ra)
 
@@ -177,6 +204,12 @@ object ZipUtil extends LazyLogging {
 
     (offset64, bs)
   }
+
+  /**
+    * ZIPファイルを読み込みZIPヘッダー解析を行う。
+    * @param path 解析対象のファイルパス
+    * @return 解析結果リスト
+    */
   def readRaw(path: Path): Either[Long, List[(Long, ZipLocalHeader, Array[Byte])]] = {
     logger.debug(LOG_MARKER, "called readRaw function, path = [{}]", path)
     val file = path.toFile
@@ -271,6 +304,12 @@ object ZipUtil extends LazyLogging {
 
     Right(ret.toList)
   }
+
+  /**
+    * ZIPファイルを解析する。
+    * @param path ZIPファイルパス
+    * @return ZIPファイルの解析情報
+    */
   def read(path: Path): Either[Long, List[ZipInfo]] = {
     logger.info(LOG_MARKER, "called read function, path = [{}]", path)
     for {
@@ -280,6 +319,12 @@ object ZipUtil extends LazyLogging {
     }
   }
 
+  /**
+    * byte配列を16進文字列に変換する。
+    * @param bytes 変換対象
+    * @param sep byte間のセパレータ文字 (省略可)
+    * @return 変換後の文字列
+    */
   private def bytes2hex(bytes: Array[Byte], sep: Option[String] = None): String = {
     sep match {
       case None =>  bytes.map("%02x".format(_)).mkString

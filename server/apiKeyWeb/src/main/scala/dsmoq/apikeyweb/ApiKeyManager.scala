@@ -14,6 +14,11 @@ import scalikejdbc._
 object ApiKeyManager {
   val systemUserId = "dccc110c-c34f-40ed-be2c-7e34a9f1b8f0"
 
+  /**
+    * APIキーとSecretキーを生成する。
+    * @param userName 生成対象のユーザ名 (DB:users.name)
+    * @return 生成したKeyInfo。対象のユーザが見つからない場合、None。
+    */
   def publish(userName: String): Option[KeyInfo] = {
     DB localTx { implicit s =>
       val u = User.u
@@ -43,6 +48,10 @@ object ApiKeyManager {
     }
   }
 
+  /**
+    * 有効なAPIキーの一覧を取得する。
+    * @return APIキーの一覧
+    */
   def listKeys(): List[KeyInfo] = {
     DB readOnly { implicit s =>
       val ak = ApiKey.ak
@@ -62,6 +71,11 @@ object ApiKeyManager {
     }
   }
 
+  /**
+    * 指定したユーザ名のidを取得する。
+    * @param userName ユーザ名 (DB:users.name)
+    * @return ユーザのid (DB:users.id)
+    */
   def searchUserId(userName: String): Option[String] = {
     DB readOnly { implicit s =>
       val u = User.u
@@ -71,6 +85,11 @@ object ApiKeyManager {
     }
   }
 
+  /**
+    * 指定したユーザ名の有効なAPIキーの一覧を取得する
+    * @param loginName ユーザ名 (DB:users.name)
+    * @return APIキーの一覧
+    */
   def searchKeyFromName(loginName: String): List[KeyInfo] = {
     DB readOnly { implicit s =>
       val ak = ApiKey.ak
@@ -92,6 +111,11 @@ object ApiKeyManager {
     }
   }
 
+  /**
+    * 指定したAPIキーを削除する。
+    * @param key 削除対象のAPIキー (DB:api_key.api_key)
+    * @return true:削除成功、false:削除対象がみつからない
+    */
   def deleteKey(key: String): Boolean = {
     DB localTx { implicit s =>
       val ak = ApiKey.ak

@@ -10,6 +10,10 @@ import org.eclipse.jetty.webapp.WebAppContext
 import org.scalatra.servlet.ScalatraListener
 
 object JettyLauncher {
+  /**
+    * Jetttyのランチャobjectを作成し、起動する。
+    * @param args
+    */
   def main(args: Array[String]) {
     val server = new Server(AppConfig.port)
     val context = new WebAppContext()

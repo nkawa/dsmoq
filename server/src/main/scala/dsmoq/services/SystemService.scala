@@ -59,6 +59,15 @@ object SystemService {
     }
   }
 
+  /**
+    * ユーザの一覧を取得します。
+    * 条件を指定すれば取得対象を絞り込みます。
+    * (取得順：users.name の昇順。)
+    * @param query 絞り込み条件 (比較対象：DB:users.name, users.full_name, mail_addresses.address)
+    * @param limit 取得件数
+    * @param offset 取得位置
+    * @return (条件に該当する) ユーザ一覧
+    */
   def getUsers(query: Option[String], limit: Option[Int], offset: Option[Int]) = {
     DB readOnly { implicit s =>
       val u = persistence.User.u
@@ -133,6 +142,16 @@ object SystemService {
     }
   }
 
+  /**
+    * ユーザとグループの一覧を取得します。
+    * 条件を指定すれば取得対象を絞り込みます。
+    * (取得順：users.name,groups.name の昇順。)
+    * @param param 絞り込み条件 (比較対象：DB:users.name, users.full_name, mail_addresses.address)
+    * @param limit 取得件数
+    * @param offset 取得位置
+    * @param excludeIds 除外対象のid (除外対象：DB:users.id, groups.id)
+    * @return (条件に該当する) ユーザとグループの一覧
+    */
   def getUsersAndGroups(param: Option[String], limit: Option[Int], offset: Option[Int], excludeIds: Seq[String]) = {
     val query = param match {
       case Some(x) => x.replaceAll("%", "\\\\%").replaceAll("_", "\\\\_") + "%"
