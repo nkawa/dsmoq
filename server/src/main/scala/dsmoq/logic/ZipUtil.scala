@@ -66,6 +66,7 @@ object ZipUtil extends LazyLogging {
 
   /**
     * ZipヘッダーのExtra Fieldを解析してExtra Field Header単位のリストにする。
+    *
     * @param extra Extra Fileldのbyte配列
     * @return Extra Field Header単位のリスト
     */
@@ -94,9 +95,10 @@ object ZipUtil extends LazyLogging {
   }
 
   /**
-    * Zip64拡張情報(Zip64 Extended Information Extra Field)から圧縮前サイズと圧縮後サイズを取得する。
-    * Zip64拡張情報自体がない場合は、圧縮前サイズと圧縮後サイズは引数の情報が返る。
+    * Zip64拡張情報(Zip64 Extended Information Extra Field)の情報を取得する。
+    * Zip64拡張情報自体がない場合は、引数の情報を返す。
     * Zip64拡張情報はあるが、Zip64拡張情報に記載対象ではないサイズの場合、引数の情報が返る。
+    *
     * @param xs ヘッダー内の情報と更新情報がExtra Fieldに含まれている場合のデータサイズのリスト
     * @param extra Extra Filedのヘッダーごとに切り分けたExtra Field
     * @return xsのヘッダー内情報をExtra Filedの情報で上書きしたリスト
@@ -117,6 +119,7 @@ object ZipUtil extends LazyLogging {
 
   /**
     * ローカルヘッダーを解析する。
+    *
     * @param ra ZIPファイルのオブジェクト
     * @return ローカルヘッダー情報
     */
@@ -165,6 +168,7 @@ object ZipUtil extends LazyLogging {
 
   /**
     * セントラルヘッダーを解析する。
+    *
     * @param ra ZIPファイルのオブジェクト
     * @return セントラルヘッダー情報と対応するローカルヘッダーの格納位置
     */
@@ -207,6 +211,7 @@ object ZipUtil extends LazyLogging {
 
   /**
     * ZIPファイルを読み込みZIPヘッダー解析を行う。
+    *
     * @param path 解析対象のファイルパス
     * @return 解析結果リスト
     */
@@ -307,6 +312,7 @@ object ZipUtil extends LazyLogging {
 
   /**
     * ZIPファイルを解析する。
+    *
     * @param path ZIPファイルパス
     * @return ZIPファイルの解析情報
     */
@@ -321,6 +327,7 @@ object ZipUtil extends LazyLogging {
 
   /**
     * byte配列を16進文字列に変換する。
+    *
     * @param bytes 変換対象
     * @param sep byte間のセパレータ文字 (省略可)
     * @return 変換後の文字列

@@ -63,6 +63,7 @@ object SystemService {
     * ユーザの一覧を取得します。
     * 条件を指定すれば取得対象を絞り込みます。
     * (取得順：users.name の昇順。)
+    *
     * @param query 絞り込み条件 (比較対象：DB:users.name, users.full_name, mail_addresses.address)
     * @param limit 取得件数
     * @param offset 取得位置
@@ -146,6 +147,7 @@ object SystemService {
     * ユーザとグループの一覧を取得します。
     * 条件を指定すれば取得対象を絞り込みます。
     * (取得順：users.name,groups.name の昇順。)
+    *
     * @param param 絞り込み条件 (比較対象：DB:users.name, users.full_name, mail_addresses.address)
     * @param limit 取得件数
     * @param offset 取得位置

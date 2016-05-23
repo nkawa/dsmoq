@@ -1,5 +1,8 @@
 package dsmoq.apikeyweb
 
+/**
+  * webアプリケーションのコントローラークラス。
+  */
 class MainServlet extends ApiKeyWebToolStack {
   /**
     * トップページを表示する。(get: /)

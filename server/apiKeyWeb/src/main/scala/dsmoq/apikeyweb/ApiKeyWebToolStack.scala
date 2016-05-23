@@ -7,8 +7,15 @@ import org.fusesource.scalate.layout.DefaultLayoutStrategy
 import javax.servlet.http.HttpServletRequest
 import collection.mutable
 
+/**
+  * ScalatraServletとScalateSupportのラッパークラス。
+  * Scalatraのwebアプリケーションフレームワーク機能を使用できるようにする。
+  */
 trait ApiKeyWebToolStack extends ScalatraServlet with ScalateSupport {
 
+  /**
+    * 404 Not Found時の処理。
+    */
   notFound {
     // remove content type in case it was set through an action
     contentType = null
