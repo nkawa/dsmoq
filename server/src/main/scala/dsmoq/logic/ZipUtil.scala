@@ -67,7 +67,7 @@ object ZipUtil extends LazyLogging {
   /**
     * ZipヘッダーのExtra Fieldを解析してExtra Field Header単位のリストにする。
     *
-    * @param extra Extra Fileldのbyte配列
+    * @param extra Extra Fieldのbyte配列
     * @return Extra Field Header単位のリスト
     */
   def splitExtra(extra: Array[Byte]): List[(Short, Array[Byte])] = {
@@ -100,8 +100,8 @@ object ZipUtil extends LazyLogging {
     * Zip64拡張情報はあるが、Zip64拡張情報に記載対象ではないサイズの場合、引数の情報が返る。
     *
     * @param xs ヘッダー内の情報と更新情報がExtra Fieldに含まれている場合のデータサイズのリスト
-    * @param extra Extra Filedのヘッダーごとに切り分けたExtra Field
-    * @return xsのヘッダー内情報をExtra Filedの情報で上書きしたリスト
+    * @param extra Extra Fieldのヘッダーごとに切り分けたExtra Field
+    * @return xsのヘッダー内情報をExtra Fieldの情報で上書きしたリスト
     */
   def fromExtra(xs: List[(Long, Int)], extra: Array[Byte]): List[Long] = {
     logger.info(LOG_MARKER, "  called fromExtra function, xs = {}, extra = 0x{}", xs, bytes2hex(extra))
@@ -141,6 +141,9 @@ object ZipUtil extends LazyLogging {
     val fileName = StringUtil.convertByte2String(fileNameByte)
     val extra = new Array[Byte](extraLength)
     ra.read(extra)
+    // Extra Fieldの解析
+    //   Local file headerのZip64 Extended Information Extra Fieldには
+    //   圧縮前サイズ、圧縮後サイズの順で記載されている。
     val List(uncompressSize64, compressSize64) = fromExtra(
       List((uncompressSize, 8), (compressSize, 8)),
       splitExtra(extra).find(_._1 == 0x0001).map(_._2).getOrElse(Array.empty)
@@ -191,6 +194,9 @@ object ZipUtil extends LazyLogging {
     val comment = new Array[Byte](commentLength)
     ra.read(comment)
     val zip64ex = splitExtra(extra).find(_._1 == 0x0001)
+    // Extra Fieldの解析
+    //   Central file headerのZip64 Extended Information Extra Fieldには
+    //   圧縮前サイズ、圧縮後サイズ、対応するLocal file headerの位置、ディスク番号の順で記載されている。
     val List(uncompressSize64, compressSize64, offset64, _) = fromExtra(
       List((uncompressSize, 8), (compressSize, 8), (offset, 8), (diskStart, 4)),
       zip64ex.map(_._2).getOrElse(Array.empty)
@@ -224,6 +230,9 @@ object ZipUtil extends LazyLogging {
     val localHeaders = scala.collection.mutable.Map.empty[Long, ZipLocalHeader]
     val centralHeaders = scala.collection.mutable.Map.empty[Long, Array[Byte]]
     val ra = new RandomAccessFile(file, "r")
+    // フラグ：ZIPファイルの解析処理を続行するか
+    // ZIPファイルの解析対象は、Local file header, Central file headerの2つ
+    // ZIPファイルの前方から解析を行い、これらの解析が終わればループを抜けるためのフラグ
     var isLoop = true
     try {
       while (ra.getFilePointer < ra.length && isLoop) {

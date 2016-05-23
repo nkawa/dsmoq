@@ -269,22 +269,31 @@ class DatasetEditPage {
             });
 
             // files
+            // 指定したIDの表示/非表示を切り替える
             function updateAddFileButton(formId, e : Dynamic) {
+                // アップロードするファイルがある場合、表示。ない場合、非表示。
                 if (new JqHtml(e.target).val() != "") {
                     root.find(formId).show();
                 } else {
                     root.find(formId).hide();
                 }
             }
+            // #dataset-file-add-formの状態が変更したときに動作する
             root.find("#dataset-file-add-form").on("change", "input[type=file]", function (e) {
+                // #dataset-file-add-submitの表示/非表示を切り替える
                 updateAddFileButton("#dataset-file-add-submit", e);
             });
+            // #dataset-file-add-form-topの状態が変更したときに動作する
             root.find("#dataset-file-add-form-top").on("change", "input[type=file]", function (e) {
+                // #dataset-file-add-submit-topの表示/非表示を切り替える
                 updateAddFileButton("#dataset-file-add-submit-top", e);
             });
+            // 指定したフォームのID(formId)が保持しているファイルをServerにアップロードする
+            // submitId: Uploadボタン(aタグ)、formId: Add fileフォーム
             function uploadFiles(submitId, formId) {
                 var fileButtonPath : String = formId + " input";
                 BootstrapButton.setLoading(root.find(submitId));
+                // ファイルをアップロードし、Datasetに追加
                 Service.instance.addDatasetFiles(id, root.find(formId)).then(
                     function (res) {
                         root.find(submitId).hide();
@@ -311,11 +320,14 @@ class DatasetEditPage {
                         root.find(fileButtonPath).removeAttr("disabled");
                     }
                 );
+                // フォームのinputタグを無効にする
                 root.find(fileButtonPath).attr("disabled", true);
             }
+            // #dataset-file-add-submitをクリックしたときに動作する (ファイルのアップロード)
             root.find("#dataset-file-add-submit").on("click", function (_) {
                 uploadFiles("#dataset-file-add-submit", "#dataset-file-add-form");
             });
+            // #dataset-file-add-submit-topをクリックしたときに動作する (ファイルのアップロード)
             root.find("#dataset-file-add-submit-top").on("click", function (_) {
                 uploadFiles("#dataset-file-add-submit-top", "#dataset-file-add-form-top");
             });
@@ -677,6 +689,8 @@ class DatasetEditPage {
             selectedIds: new Array<String>(),
             selectedItems: new Array<SuggestedOwner>()
         }
+        // selectedItems -> 選択しているOwnerの情報を保持するリスト
+		//   Applyボタン押下時にこのArrayを使用する
         var binding = JsViews.observable(data);
         var tpl = JsViews.template(Resource.getString("template/dataset/add_owner_dialog"));
         
@@ -699,25 +713,32 @@ class DatasetEditPage {
             }
 
             JsViews.observable(data.items).observeAll(function (e, args) {
+                // Ownerのチェックボックスを選択/解除した時の動作
                 if (args.path == "selected") {
                     var owner: SuggestedOwner = e.target.item;
                     var ids = data.selectedIds.copy();
+                    // 変更用にselectedItemsを一旦コピー
                     var sItems = data.selectedItems.copy();
                     var b = JsViews.observable(data.selectedIds);
+                    // 選択した場合、管理情報にデータを追加
                     if (args.value) {
                         if (ids.indexOf(owner.id) < 0) {
                             ids.push(owner.id);
                             b.refresh(ids);
+                            // 選択したOwnerの情報をArrayに追加し、反映
                             sItems.push(owner);
                             JsViews.observable(data.selectedItems).refresh(sItems);
                         }
+                    // 解除した場合、管理情報からデータを削除
                     } else {
                         if (ids.remove(owner.id)) {
                             b.refresh(ids);
                         }
+                        // 選択を解除したOwner情報をArrayから削除し、反映
                         sItems = sItems.filter(function (x) return ids.indexOf(x.id) >= 0);
                         JsViews.observable(data.selectedItems).refresh(sItems);
                     }
+                    // 選択しているOwnerの数を表示(更新)
                     html.find("#add-owner-selected-count").text(data.selectedIds.length);
                 }
             });
@@ -743,7 +764,9 @@ class DatasetEditPage {
                 searchOwnerCandidate(query, offset);
             });
 
+            // Apply」ボタンを押下したときの処理
             html.on("click", "#add-owner-dialog-submit", function (e) {
+                // 選択しているOwnerの情報をServerに送信
                 ctx.fulfill(data.selectedItems);
             });
         });

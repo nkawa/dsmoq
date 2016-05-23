@@ -64,15 +64,33 @@ object SystemService {
     * 条件を指定すれば取得対象を絞り込みます。
     * (取得順：users.name の昇順。)
     *
-    * @param query 絞り込み条件 (比較対象：DB:users.name, users.full_name, mail_addresses.address)
+    * @param query 絞り込み条件 (比較対象：DB:users.name, users.fullname, mail_addresses.address)
     * @param limit 取得件数
     * @param offset 取得位置
     * @return (条件に該当する) ユーザ一覧
     */
   def getUsers(query: Option[String], limit: Option[Int], offset: Option[Int]) = {
     DB readOnly { implicit s =>
-      val u = persistence.User.u
-      val ma = persistence.MailAddress.ma
+      val u = persistence.User.u              // TB: users
+      val ma = persistence.MailAddress.ma     // TB: mail_addresses
+
+      /* - if query == None
+       *  select u.id, u.name, u.fullname, u.organization, u.title, u.description
+       *  from users as u
+       *  left join mail_addresses as ma on u.id = ma.user_id
+       *  where u.deleted_at is null
+       *  order by u.name offset "offset" limit "limit";
+       * - else
+       *  select u.id, u.name, u.fullname, u.organization, u.title, u.description
+       *  from users as u
+       *  left join mail_addresses as ma on u.id = ma.user_id
+       *  where u.deleted_at is null
+       *    and ( u.name like '"query"%' or u.fullname like '"query"%' or ma.address like '"query"%' )
+       *  order by u.name offset "offset" limit "limit";
+       *
+       * - if offset == None offset = 0
+       * - if limit == None limit = 100
+       */
       withSQL {
         select.all[persistence.User](u)
           .from(persistence.User as u)
@@ -148,7 +166,7 @@ object SystemService {
     * 条件を指定すれば取得対象を絞り込みます。
     * (取得順：users.name,groups.name の昇順。)
     *
-    * @param param 絞り込み条件 (比較対象：DB:users.name, users.full_name, mail_addresses.address)
+    * @param param 絞り込み条件 (比較対象：DB:users.name, users.fullname, mail_addresses.address)
     * @param limit 取得件数
     * @param offset 取得位置
     * @param excludeIds 除外対象のid (除外対象：DB:users.id, groups.id)
@@ -161,11 +179,30 @@ object SystemService {
     }
 
     DB readOnly { implicit s =>
-      val u = persistence.User.u
-      val ma = persistence.MailAddress.ma
-      val g = persistence.Group.g
-      val gi = persistence.GroupImage.gi
+      val u = persistence.User.u              // TB: users
+      val ma = persistence.MailAddress.ma     // TB: mail_addresses
+      val g = persistence.Group.g             // TB: groups
+      val gi = persistence.GroupImage.gi      // TB: group_images
 
+      /* select u.id, u.name, u.image_id, u.fullname, u.organization, 1 as type
+       * from users as u
+       * left join mail_addresses as ma on u.id = ma.user_id
+       * where u.id not in ( "excludeIds" )
+       *   and ( u.name like "query" or u.fullname like "query" or ma.address like "query" )
+       *   and u.deleted_at is null
+       * union ( select g.id, g.name, gi.image_id, null, null, 2 as type
+       *   from groups as g
+       *   inner join group_images as gi on g.id = gi.group_id and gi.is_primary = true and g.deleted_at is null
+       *   where g.id not in ( "excludeIds" )
+       *     and g.name like '"query"%'
+       *     and g.group_type = 0
+       *     and g.deleted_at is null )
+       * order by name offset "offset" limit "limit";
+       *
+       * - if offset == None offset = 0
+       * - if limit == None limit = 100
+       * - GroupType.Public = 0
+       */
       withSQL {
         select(u.id, u.name, u.imageId, u.fullname, u.organization, sqls"'1' as type")
           .from(persistence.User as u)

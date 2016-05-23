@@ -38,6 +38,7 @@ public class DsmoqClient {
     private String _apiKey;
     private String _secretKey;
 
+    // ContentType="text/html; charset=utf-8"の定義
     private static final ContentType TEXT_PLAIN_UTF8 = ContentType.create("text/plain", StandardCharsets.UTF_8);
 
     /**
@@ -102,7 +103,9 @@ public class DsmoqClient {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/datasets"))) {
             addAuthorizationHeader(request);
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+            // MultipartEntityBuilderのモード互換モードを設定
             builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
+            // MultipartEntityBuilderの文字コードにutf-8を設定
             builder.setCharset(StandardCharsets.UTF_8);
             Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("file[]", file));
             builder.addTextBody("saveLocal", saveLocal ? "true" : "false");
@@ -145,8 +148,11 @@ public class DsmoqClient {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/datasets"))) {
             addAuthorizationHeader(request);
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+            // MultipartEntityBuilderのモード互換モードを設定
             builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
+            // MultipartEntityBuilderの文字コードにutf-8を設定
             builder.setCharset(StandardCharsets.UTF_8);
+            // 送信データに"name"(データセットの名前)を追加(文字コードはutf-8と明示)
             builder.addTextBody("name", name, TEXT_PLAIN_UTF8);
             Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("file[]", file));
             builder.addTextBody("saveLocal", saveLocal ? "true" : "false");
@@ -167,7 +173,9 @@ public class DsmoqClient {
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/files", datasetId)))) {
             addAuthorizationHeader(request);
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+            // MultipartEntityBuilderのモード互換モードを設定
             builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
+            // MultipartEntityBuilderの文字コードにutf-8を設定
             builder.setCharset(StandardCharsets.UTF_8);
             Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("files", file));
             request.setEntity(builder.build());
