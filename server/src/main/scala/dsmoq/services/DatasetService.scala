@@ -723,7 +723,6 @@ object DatasetService extends LazyLogging {
           permission <- getPermission(id, groups)
           guestAccessLevel <- Some(getGuestAccessLevel(id))
           owners <- Some(getAllOwnerships(id, user))
-          files <- Some(getFiles(id))
           attributes <- Some(getAttributes(id))
           images <- Some(getImages(id))
           primaryImage <- getPrimaryImageId(id)
@@ -737,7 +736,7 @@ object DatasetService extends LazyLogging {
           }
           DatasetData.Dataset(
             id = dataset.id,
-            files = files,
+            files = Seq.empty,
             filesCount = dataset.filesCount,
             filesSize = dataset.filesSize,
             meta = DatasetData.DatasetMetaData(
