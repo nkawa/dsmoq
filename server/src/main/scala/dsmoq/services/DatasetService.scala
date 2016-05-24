@@ -38,7 +38,7 @@ import dsmoq.persistence.{
   OwnerType, Ownership,
   PresetType, UserAccessLevel, ZipedFiles
 }
-import dsmoq.exceptions.{AccessDeniedException, InputValidationException, NotAuthorizedException, NotFoundException}
+import dsmoq.exceptions.{AccessDeniedException, BadRequestException, InputValidationException, NotAuthorizedException, NotFoundException}
 import dsmoq.logic.{FileManager, StringUtil, ImageSaveLogic, ZipUtil}
 import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.services.json.{DatasetData, Image, RangeSlice, RangeSliceSummary}
@@ -3108,7 +3108,7 @@ object DatasetService extends LazyLogging {
    * @param limit 検索上限
    * @param offset 検索の開始位置
    * @param user ユーザー情報
-   * @return
+   * @return データセットが保持するファイル情報の一覧(総件数、limit、offset付き)
    */
   def getDatasetFiles(datasetId: String, limit: Option[Int], offset: Option[Int], user: User): Try[RangeSlice[DatasetData.DatasetFile]] = {
     try {
@@ -3128,11 +3128,11 @@ object DatasetService extends LazyLogging {
             if(x < 0) { 0 } else if (AppConf.fileLimit < x) { AppConf.fileLimit } else { x }
           }.getOrElse(AppConf.fileLimit)
           val offset_ = offset.getOrElse(0)
+          val (count, files) = getFiles(datasetId, limit_, if (offset_ < 0) 0 else offset_)
           // offsetが0未満は空リストを返却する
           if (offset_ < 0) {
-            RangeSlice(RangeSliceSummary(0, limit_, 0), Seq.empty[DatasetData.DatasetFile])
+            RangeSlice(RangeSliceSummary(count, limit_, offset_), Seq.empty[DatasetData.DatasetFile])
           } else {
-            val (count, files) = getFiles(datasetId, limit_, offset_)
             RangeSlice(RangeSliceSummary(count, limit_, offset_), files)
           }
         })
@@ -3141,6 +3141,84 @@ object DatasetService extends LazyLogging {
     } catch {
       case e: Throwable => Failure(e)
     }
+  }
+
+  /**
+   * 指定したデータセットのZipファイルが内部に保持するファイル情報の一覧を返す。
+   * 
+   * @param datasetId データセットID
+   * @param fileId (zipファイルの)ファイルID
+   * @param limit 検索上限
+   * @param offset 検索の開始位置
+   * @param user ユーザー情報
+   * @return Zipファイルが内部に保持するファイル情報の一覧(総件数、limit、offset付き)
+   */
+  def getDatasetZippedFiles(datasetId: String, fileId: String, limit: Option[Int], offset: Option[Int], user: User): Try[RangeSlice[DatasetData.DatasetZipedFile]] = {
+    try {
+      DB readOnly { implicit s =>
+        val dataset = getDataset(datasetId) match {
+          case Some(x) => x
+          case None => throw new NotFoundException
+        }
+        val history = persistence.File.find(fileId).flatMap(file => persistence.FileHistory.find(file.historyId)) match {
+          case Some(x) => 
+            if (x.isZip) { x }
+            else { throw new BadRequestException("対象のファイルはZipファイルではないため、中身を取り出すことができません") }
+          case None => throw new BadRequestException("対象のファイルは存在しません")
+        }
+        val groups = getJoinedGroups(user)
+        (for {
+          permission <- getPermission(datasetId, groups)
+        } yield {
+          if (permission == UserAndGroupAccessDeny) {
+            throw new NotAuthorizedException
+          }
+          val limit_ = limit.map{ x =>
+            if(x < 0) { 0 } else if (AppConf.fileLimit < x) { AppConf.fileLimit } else { x }
+          }.getOrElse(AppConf.fileLimit)
+          val offset_ = offset.getOrElse(0)
+          val (count, files) = getZippedFiles(datasetId, history.id, limit_, if (offset_ < 0) 0 else offset_)
+          // offsetが0未満は空リストを返却する
+          if (offset_ < 0) {
+            RangeSlice(RangeSliceSummary(count, limit_, offset_), Seq.empty[DatasetData.DatasetZipedFile])
+          } else {
+            RangeSlice(RangeSliceSummary(count, limit_, offset_), files)
+          }
+        })
+        .map(x => Success(x)).getOrElse(Failure(new NotAuthorizedException()))
+      }
+    } catch {
+      case e: Throwable => Failure(e)
+    }
+  }
+
+  private def getZippedFiles(datasetId: String, historyId: String, limit: Int, offset: Int)(implicit s: DBSession): (Int, Seq[DatasetZipedFile]) = {
+    val zf = persistence.ZipedFiles.zf
+    val count = withSQL {
+      select(sqls.count)
+      .from(ZipedFiles as zf)
+      .where
+        .eq(zf.historyId, sqls.uuid(historyId))
+    }.map(_.int(1)).single.apply.getOrElse(0)
+    val zipedFiles = withSQL {
+      select
+      .from(ZipedFiles as zf)
+      .where
+        .eq(zf.historyId, sqls.uuid(historyId))
+        .offset(offset)
+        .limit(limit)
+    }.map(persistence.ZipedFiles(zf.resultName)).list.apply
+    if (zipedFiles.exists(hasPassword)) {
+      return (0, Seq.empty)
+    }
+    (count, zipedFiles.map{x =>
+      DatasetZipedFile(
+        id = x.id,
+        name = x.name,
+        size = x.fileSize,
+        url = AppConf.fileDownloadRoot + datasetId + "/" + x.id
+      )
+    }.toSeq)
   }
 
 }

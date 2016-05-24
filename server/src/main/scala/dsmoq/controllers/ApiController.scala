@@ -11,7 +11,7 @@ import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet.{FileItem, FileUploadSupport}
 
 import dsmoq.controllers.json._
-import dsmoq.exceptions.{InputValidationException, NotFoundException, NotAuthorizedException}
+import dsmoq.exceptions.{BadRequestException, InputValidationException, NotFoundException, NotAuthorizedException}
 import dsmoq.services._
 
 class ApiController extends ScalatraServlet
@@ -323,12 +323,22 @@ class ApiController extends ScalatraServlet
     } yield {}) |> toAjaxResponse
   }
 
-  get("/api/datasets/:datasetId/files") {
+  get("/datasets/:datasetId/files") {
     val datasetId = params("datasetId")
     val json = getJsonValue[SearchRangeParams].getOrElse(SearchRangeParams(Some(dsmoq.AppConf.fileLimit), Some(0)))
     (for {
       user <- getUser
       result <- DatasetService.getDatasetFiles(datasetId, json.limit, json.offset, user)
+    } yield result) |> toAjaxResponse
+  }
+
+  get("/datasets/:datasetId/files/:fileId/zippedfiles") {
+    val datasetId = params("datasetId")
+    val fileId = params("fileId")
+    val json = getJsonValue[SearchRangeParams].getOrElse(SearchRangeParams(Some(dsmoq.AppConf.fileLimit), Some(0)))
+    (for {
+      user <- getUser
+      result <- DatasetService.getDatasetZippedFiles(datasetId, fileId, json.limit, json.offset, user)
     } yield result) |> toAjaxResponse
   }
 
@@ -524,6 +534,7 @@ class ApiController extends ScalatraServlet
       case e: NotAuthorizedException => AjaxResponse("Unauthorized")
       case e: NotFoundException => AjaxResponse("NotFound")
       case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
+      case e: BadRequestException => AjaxResponse("BadRequest", e.getMessage)
       case _ =>
         log(e.getMessage, e)
         AjaxResponse("NG")
