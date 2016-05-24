@@ -323,6 +323,15 @@ class ApiController extends ScalatraServlet
     } yield {}) |> toAjaxResponse
   }
 
+  get("/api/datasets/:datasetId/files") {
+    val datasetId = params("datasetId")
+    val json = getJsonValue[SearchRangeParams].getOrElse(SearchRangeParams(Some(dsmoq.AppConf.fileLimit), Some(0)))
+    (for {
+      user <- getUser
+      result <- DatasetService.getDatasetFiles(datasetId, json.limit, json.offset, user)
+    } yield result) |> toAjaxResponse
+  }
+
   // --------------------------------------------------------------------------
   // group api
   // --------------------------------------------------------------------------

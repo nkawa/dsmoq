@@ -200,7 +200,8 @@ object DatasetService extends LazyLogging {
             updatedBy = user,
             updatedAt = timestamp.toString(),
             isZip = x._2.isZip,
-            zipedFiles = if (x._2.isZip) { getZipedFiles(datasetId, x._2.id) } else { Seq.empty }
+            zipedFiles = if (x._2.isZip) { getZipedFiles(datasetId, x._2.id) } else { Seq.empty },
+            zipCount = 0
           )),
           images = Seq(Image(
             id = AppConf.defaultDatasetImageId,
@@ -840,7 +841,8 @@ object DatasetService extends LazyLogging {
             updatedBy = user,
             updatedAt = timestamp.toString(),
             isZip = x._2.isZip,
-            zipedFiles = if (x._2.isZip) { getZipedFiles(id, x._2.id) } else { Seq.empty }
+            zipedFiles = if (x._2.isZip) { getZipedFiles(id, x._2.id) } else { Seq.empty },
+            zipCount = 0
           ))
         ))
       }
@@ -932,7 +934,8 @@ object DatasetService extends LazyLogging {
           updatedBy = user,
           updatedAt = timestamp.toString(),
           isZip = history.isZip,
-          zipedFiles = if (history.isZip) { getZipedFiles(datasetId, history.id) } else { Seq.empty }
+          zipedFiles = if (history.isZip) { getZipedFiles(datasetId, history.id) } else { Seq.empty },
+          zipCount = 0
         ))
       }
     } catch {
@@ -1018,7 +1021,8 @@ object DatasetService extends LazyLogging {
           updatedBy = user,
           updatedAt = timestamp.toString(),
           isZip = history.isZip,
-          zipedFiles = if (history.isZip) { getZipedFiles(datasetId, history.id) } else { Seq.empty }
+          zipedFiles = if (history.isZip) { getZipedFiles(datasetId, history.id) } else { Seq.empty },
+          zipCount = 0
         ))
       }
     } catch {
@@ -2220,13 +2224,26 @@ object DatasetService extends LazyLogging {
       )
   }
 
-  private def getFiles(datasetId: String)(implicit s: DBSession) = {
+  private def getFiles(datasetId: String, limit: Int, offset: Int)(implicit s: DBSession) = {
     val f = persistence.File.f
     val u1 = persistence.User.syntax("u1")
     val u2 = persistence.User.syntax("u2")
     val ma1 = persistence.MailAddress.syntax("ma1")
     val ma2 = persistence.MailAddress.syntax("ma2")
-    withSQL {
+
+    val count = withSQL {
+      select(sqls.count)
+        .from(persistence.File as f)
+        .innerJoin(persistence.User as u1).on(f.createdBy, u1.id)
+        .innerJoin(persistence.User as u2).on(f.updatedBy, u2.id)
+        .innerJoin(persistence.MailAddress as ma1).on(u1.id, ma1.userId)
+        .innerJoin(persistence.MailAddress as ma2).on(u2.id, ma2.userId)
+        .where
+          .eq(f.datasetId, sqls.uuid(datasetId))
+          .and
+          .isNull(f.deletedAt)
+    }.map(_.int(1)).single.apply.getOrElse(0)
+    val files = withSQL {
       select(f.result.*, u1.result.*, u2.result.*, ma1.result.address, ma2.result.address)
         .from(persistence.File as f)
         .innerJoin(persistence.User as u1).on(f.createdBy, u1.id)
@@ -2238,6 +2255,8 @@ object DatasetService extends LazyLogging {
           .and
           .isNull(f.deletedAt)
         .orderBy(f.name, f.createdAt)
+        .offset(offset)
+        .limit(limit)
     }.map(rs =>
       (
         persistence.File(f.resultName)(rs),
@@ -2248,6 +2267,7 @@ object DatasetService extends LazyLogging {
       )
     ).list.apply.map(x =>{
       val history = persistence.FileHistory.find(x._1.historyId).get
+      val zipCount = if (history.isZip) { getZipedFiles(datasetId, history.id).size } else { 0 }
       DatasetData.DatasetFile(
         id = x._1.id,
         name = x._1.name,
@@ -2259,10 +2279,12 @@ object DatasetService extends LazyLogging {
         updatedBy = User(x._3, x._5),
         updatedAt = x._1.updatedAt.toString(),
         isZip = history.isZip,
-        zipedFiles = if (history.isZip) { getZipedFiles(datasetId, history.id) } else { Seq.empty[DatasetZipedFile] }
+        zipedFiles = Seq.empty,
+        zipCount = zipCount
       )
     }
     )
+    (count, files)
   }
 
   def getZipedFiles(datasetId: String, historyId: String)(implicit s: DBSession): Seq[DatasetZipedFile] = {
@@ -3077,6 +3099,48 @@ object DatasetService extends LazyLogging {
   def getDownloadFileWithoutStream(datasetId: String, fileId: String, user: User): Try[DownloadFile] = {
     val fileInfo = getFileInfo(datasetId, fileId, user)
     getDownloadFileByFileInfo(fileInfo.get, false)
+  }
+
+  /**
+   * 指定したデータセットが保持するファイル情報の一覧を返す。
+   * 
+   * @param datasetId データセットID
+   * @param limit 検索上限
+   * @param offset 検索の開始位置
+   * @param user ユーザー情報
+   * @return
+   */
+  def getDatasetFiles(datasetId: String, limit: Option[Int], offset: Option[Int], user: User): Try[RangeSlice[DatasetData.DatasetFile]] = {
+    try {
+      DB readOnly { implicit s =>
+        val dataset = getDataset(datasetId) match {
+          case Some(x) => x
+          case None => throw new NotFoundException
+        }
+        val groups = getJoinedGroups(user)
+        (for {
+          permission <- getPermission(datasetId, groups)
+        } yield {
+          if (permission == UserAndGroupAccessDeny) {
+            throw new NotAuthorizedException
+          }
+          val limit_ = limit.map{ x =>
+            if(x < 0) { 0 } else if (AppConf.fileLimit < x) { AppConf.fileLimit } else { x }
+          }.getOrElse(AppConf.fileLimit)
+          val offset_ = offset.getOrElse(0)
+          // offsetが0未満は空リストを返却する
+          if (offset_ < 0) {
+            RangeSlice(RangeSliceSummary(0, limit_, 0), Seq.empty[DatasetData.DatasetFile])
+          } else {
+            val (count, files) = getFiles(datasetId, limit_, offset_)
+            RangeSlice(RangeSliceSummary(count, limit_, offset_), files)
+          }
+        })
+        .map(x => Success(x)).getOrElse(Failure(new NotAuthorizedException()))
+      }
+    } catch {
+      case e: Throwable => Failure(e)
+    }
   }
 
 }

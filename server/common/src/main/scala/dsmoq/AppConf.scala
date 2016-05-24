@@ -41,4 +41,6 @@ object AppConf {
   val s3AccessKey = conf.getString("s3.access_key")
   val s3SecretKey = conf.getString("s3.secret_key")
   val s3UploadRoot = dsmoq.getString("upload_bucket")
+
+  val fileLimit = if (dsmoq.hasPath("file_limit")) dsmoq.getInt("file_limit") else 100
 }

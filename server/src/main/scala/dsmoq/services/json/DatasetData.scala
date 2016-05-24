@@ -83,7 +83,8 @@ object DatasetData {
     updatedBy: User,
     updatedAt: String,
     isZip: Boolean,
-    zipedFiles: Seq[DatasetZipedFile]
+    zipedFiles: Seq[DatasetZipedFile],
+    zipCount: Int
   )
 
   case class DatasetZipedFile (
