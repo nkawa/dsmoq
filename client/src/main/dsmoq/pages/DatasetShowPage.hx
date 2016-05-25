@@ -20,18 +20,21 @@ using dsmoq.JQueryTools;
 class DatasetShowPage {
     public static function render(html: Html, onClose: Promise<Unit>, id: String): Promise<Navigation<Page>> {
         var navigation = new PromiseBroker();
-        var data = { data: Async.Pending };
-        var binding = JsViews.observable(data);
-        View.getTemplate("dataset/show").link(html, data);
+        var binding = JsViews.observable({ data: Async.Pending });
+        View.getTemplate("dataset/show").link(html, binding.data());
 
         Service.instance.getDataset(id).then(function (res) {
-            binding.setProperty("data", Async.Completed({
+            var data = {
                 name: res.meta.name,
                 description: res.meta.description,
                 primaryImage: res.primaryImage,
                 featuredImage: res.featuredImage,
                 ownerships: res.ownerships.filter(function (x) return Type.enumEq(x.accessLevel, DatasetPermission.Write)),
-                files: res.files,
+                item: {
+                    name: res.filesCount + " files",
+                    items: [],
+                    opened: false
+                },
                 attributes: res.meta.attributes,
                 license: res.meta.license,
                 isPrivate: Type.enumEq(res.defaultAccessLevel, DatasetGuestAccessLevel.Deny),
@@ -40,8 +43,10 @@ class DatasetShowPage {
                     case DatasetPermission.Write, DatasetPermission.Read: true;
                     case _: false;
                 },
-                accessCount: res.accessCount
-            }));
+                accessCount: res.accessCount,
+                filesCount: res.filesCount
+            };
+            binding.setProperty("data", data);
 
             html.find("#dataset-edit").on("click", function (_) {
                 navigation.fulfill(Navigation.Navigate(Page.DatasetEdit(id)));
@@ -63,6 +68,18 @@ class DatasetShowPage {
             }).then(function(x) {
                 navigation.fulfill(Navigation.Navigate(Page.DatasetShow(x.datasetId)));
             });
+            
+            html.find(".accordion-head-item").on("click", function (_) {
+                binding.setProperty("data.item.opened", !data.item.opened);
+                if (data.item.opened && data.item.items.length == 0) {
+                    getDatasetFiles(html, data, id, 5, 0);
+                }
+                html.find(".more-head-item").on("click", function (_) {
+                    trace("hoge");
+                    getDatasetFiles(html, data, id, 5, data.item.items.length);
+                });
+            });
+            
         }, function (err) {
             switch (err.name) {
                 case ServiceErrorType.Unauthorized:
@@ -75,5 +92,28 @@ class DatasetShowPage {
         });
 
         return navigation.promise;
+    }
+    
+    static function getDatasetFiles(html: Html, data: Dynamic, datasetId: String, limit: Int, offset: Int): Void {
+        Service.instance.getDatasetFiles(datasetId, { limit: limit, offset: offset }).then(function (res) {
+            for (file in res.results) {
+                var item = {
+                    opened: false,
+                    file: file,
+                    items: []
+                };
+                JsViews.observable(data.item.items).insert(item);
+            }
+        }, function (err) {
+            switch (err.name) {
+                case ServiceErrorType.Unauthorized:
+                    html.html("Permission denied");
+                case ServiceErrorType.NotFound:
+                    html.html("Not found");
+                default:
+                    trace(err);
+                    html.html("Network error");
+            }
+        });
     }
 }

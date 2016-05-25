@@ -53,40 +53,46 @@
           <div class="form-group">
             <label class="col-sm-1 control-label">Files</label>
             <div class="col-sm-11">
-                <ul class="list-group">
-              {^{for files ~canDownload=canDownload}}
+              <ul class="list-group">
                 <li class="list-group-item">
-                    <div>
-                      <span class="glyphicon glyphicon-file"></span>
-                      {{if ~canDownload}}
-                        <a data-link="href{>url}">{{>name}}</a> ({{datasize size /}})
-                      {{else}}
-                        <span>{{>name}}</span>
-                      {{/if}}
-                      uploaded by <strong>{{img src=updatedBy.image+"/16" class="icon"/}}{{>updatedBy.fullname}}</strong>
-                    </div>
-                    {^{if description.length > 0}}
-                    <div class="form-control-static">{{>description}}</div>
+                  {^{if filesCount > 0}}
+                  <a class="accordion-head-item">
+                    {^{if item.opened}}
+                    <span class="glyphicon glyphicon-chevron-down"></span>
+                    <span>{^{>item.name}}</span>
+                    {{else}}
+                    <span class="glyphicon glyphicon-chevron-right"></span>
+                    <span>{^{>item.name}}</span>
                     {{/if}}
-                    {^{if zipedFiles.length > 0}}
-                    <div class="zipedfile-area">
-                        <ul class="list-group zipedfiles">
-                            {^{for zipedFiles ~updatedBy=updatedBy}}
-                            <li class="list-group-item">
-                                <span class="glyphicon glyphicon-file"></span>
-                                {{if ~canDownload}}
-                                  <a data-link="href{>url}">{{>name}}</a> ({{datasize size /}})
-                                {{else}}
-                                  <span>{{>name}}</span>
-                                {{/if}}
-                            </li>
-                            {{/for}}
-                        </ul>
-                    </div>
+                  </a>
+                  {^{if item.opened}}
+                  <ul class="list-group">
+                    {^{for item.items ~canDownload=canDownload}}
+                    <li class="list-group-item">
+                      <div>
+                        <span class="glyphicon glyphicon-file"></span>
+                        {{if ~canDownload}}
+                        <a data-link="href{>file.url}">{{>file.name}}</a> ({{datasize file.size /}})
+                        {{else}}
+                        <span>{{>file.name}}</span>
+                        {{/if}}
+                        uploaded by <strong>{{img src=file.updatedBy.image+"/16" class="icon"/}}{{>file.updatedBy.fullname}}</strong>
+                      </div>
+                    </li>
+                    {{/for}}
+                    {^{if item.items.length != filesCount}}
+                      <li class="list-group-item more-head-item">
+                        <span>more files...</span>
+                      </li>
                     {{/if}}
-                  </li>
-              {{/for}}
-               </ul>
+                  </ul>
+                  {{/if}}
+                  {{else}}
+                  <span class="glyphicon glyphicon-chevron-right"></span>
+                  <span>{^{>item.name}}</span>
+                  {{/if}}
+                </li>
+              </ul>
             </div>
           </div>
           <div class="form-group">

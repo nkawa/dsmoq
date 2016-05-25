@@ -113,7 +113,8 @@ class Service extends Stream<ServiceEvent> {
                 permission: cast a.permission,
                 accessCount: a.accessCount,
 				localState: a.localState,
-				s3State: a.s3State
+				s3State: a.s3State,
+				filesCount: a.filesCount
             };
         });
     }
@@ -320,6 +321,11 @@ class Service extends Stream<ServiceEvent> {
 	public function getMessage() : Promise<String> {
 		return send(Get, '/api/message');
 	}
+
+    public function getDatasetFiles(datasetId: String, ?params: { ?limit: Int, ?offset: Int } ) : Promise<RangeSlice<DatasetFile>>
+    {
+        return send(Get, '/api/datasets/$datasetId/files', params);
+    }
 
     inline function guest(): Profile {
         return {

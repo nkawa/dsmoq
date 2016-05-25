@@ -13,4 +13,5 @@ typedef Dataset = {
     var accessCount(default, null): Int;
 	var localState(default, null): Int;
 	var s3State(default, null): Int;
+	var filesCount(default, null): Int;
 }

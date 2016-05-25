@@ -31,7 +31,7 @@ dsmoq {
     image_url_root = "http://localhost:8080/images/"
     file_url_root = "http://localhost:8080/files/"
     upload_bucket = "fileroot1"
-	file_limit = 20
+    file_limit = 20
   }
   test {
     image_dir = "../test_storage/image"
@@ -41,7 +41,7 @@ dsmoq {
     image_url_root = "http://localhost:8080/images/"
     file_url_root = "http://localhost:8080/files/"
     upload_bucket = "fileroot2"
-	file_limit = 20
+    file_limit = 20
   }
 }
 
