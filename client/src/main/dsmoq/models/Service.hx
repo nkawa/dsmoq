@@ -327,6 +327,11 @@ class Service extends Stream<ServiceEvent> {
         return send(Get, '/api/datasets/$datasetId/files', params);
     }
 
+    public function getDatasetZippedFiles(datasetId: String, fileId: String, ?params: { ?limit: Int, ?offset: Int } ) : Promise<RangeSlice<DatasetZipedFile>>
+    {
+        return send(Get, '/api/datasets/$datasetId/files/$fileId/zippedfiles', params);
+    }
+
     inline function guest(): Profile {
         return {
             id: "",

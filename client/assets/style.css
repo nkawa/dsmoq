@@ -261,7 +261,7 @@ h2.ttl span {
   color: white;
 }
 .tt-hint {
-  color: #999999;
+  color: #999;
 }
 .tt-dropdown-menu {
   width: 422px;
@@ -546,7 +546,7 @@ a:hover img {
   border-top: #CCDEF0 solid 5px;
 }
 #innerHeader ul li.about a:hover {
-  background: #ccdef0 url(img/common/head/about.png) no-repeat 50% 45%;
+  background: #CCDEF0 url(img/common/head/about.png) no-repeat 50% 45%;
   background-size: 52px;
   border-top: #CCDEF0 solid 5px;
 }
@@ -556,7 +556,7 @@ a:hover img {
   border-top: #7FACD8 solid 5px;
 }
 #innerHeader ul li.dataset a:hover {
-  background: #7facd8 url(img/common/head/dataset.png) no-repeat 50% 45%;
+  background: #7FACD8 url(img/common/head/dataset.png) no-repeat 50% 45%;
   background-size: 65px;
   border-top: #7FACD8 solid 5px;
 }
@@ -566,7 +566,7 @@ a:hover img {
   border-top: #4C8AC9 solid 5px;
 }
 #innerHeader ul li.group a:hover {
-  background: #4c8ac9 url(img/common/head/group.png) no-repeat 50% 45%;
+  background: #4C8AC9 url(img/common/head/group.png) no-repeat 50% 45%;
   background-size: 63px;
   border-top: #4C8AC9 solid 5px;
 }
@@ -577,7 +577,7 @@ a:hover img {
   border-top: #266CB8 solid 5px;
 }
 #innerHeader ul li.create-dataset a:hover {
-  background: #266cb8 url(img/common/head/create.png) no-repeat 50% 45%;
+  background: #266CB8 url(img/common/head/create.png) no-repeat 50% 45%;
   background-size: 120px;
   border-top: #266BC8 solid 5px;
 }
@@ -620,7 +620,7 @@ a:hover img {
 .signin label.login-btn {
   width: 150px;
   display: block;
-  background: #0059b2 url(img/common/head/login.png) no-repeat 50% 55%;
+  background: #0059B2 url(img/common/head/login.png) no-repeat 50% 55%;
   background-size: 80px;
   border-bottom: #004DA8 solid 5px;
   height: 75px;
@@ -630,7 +630,7 @@ a:hover img {
   position: relative;
 }
 .signin label.login-btn:hover {
-  background: #004da8 url(img/common/head/login.png) no-repeat 50% 55%;
+  background: #004DA8 url(img/common/head/login.png) no-repeat 50% 55%;
   background-size: 80px;
   border-bottom: #004DA8 solid 5px;
 }
@@ -663,7 +663,7 @@ input[type="checkbox"].on-off {
 }
 .signin ul.signin_area li div a {
   display: block;
-  background: #0059b2 url(img/common/login/arrow_right.png) no-repeat 98% 50%;
+  background: #0059B2 url(img/common/login/arrow_right.png) no-repeat 98% 50%;
   background-size: 10px;
   border: 1px solid #FFFCBB;
   color: #FFFCBB;
@@ -677,7 +677,7 @@ input[type="checkbox"].on-off {
   text-decoration: none;
 }
 .signin ul.signin_area li div a:hover {
-  background: #ffffff url(img/common/login/arrow_right_bl.png) no-repeat 98% 50%;
+  background: #FFF url(img/common/login/arrow_right_bl.png) no-repeat 98% 50%;
   background-size: 10px;
   border: 1px solid #FFF;
   color: #3078C1 ;
@@ -902,7 +902,7 @@ ul.dataset-container li a {
 }
 ul.dataset-container li .file {
   padding: 5px 10px 5px 30px;
-  background: #eeeeee url(img/common/ico/file.png) no-repeat 10px 50%;
+  background: #EEE url(img/common/ico/file.png) no-repeat 10px 50%;
   color: #003366;
   font-weight: bold;
   margin: 10px 0;
@@ -1033,4 +1033,7 @@ ul.dataset-container li .tag a.tag06 {
 .dataset-description-list {
   max-height: 60px;
   overflow: hidden;
+}
+.more {
+  text-align: center;
 }

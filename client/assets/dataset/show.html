@@ -69,7 +69,18 @@
                   <ul class="list-group">
                     {^{for item.items ~canDownload=canDownload}}
                     <li class="list-group-item">
+                      {^{if file.zipCount > 0 && file.isZip}}
+                      <div class="accordion-zip-item">
+                      {{else}}
                       <div>
+                      {{/if}}
+                        {^{if file.isZip}}
+                        {^{if opened}}
+                        <span class="glyphicon glyphicon-chevron-down"></span>
+                        {{else}}
+                        <span class="glyphicon glyphicon-chevron-right"></span>
+                        {{/if}}
+                        {{/if}}
                         <span class="glyphicon glyphicon-file"></span>
                         {{if ~canDownload}}
                         <a data-link="href{>file.url}">{{>file.name}}</a> ({{datasize file.size /}})
@@ -77,12 +88,42 @@
                         <span>{{>file.name}}</span>
                         {{/if}}
                         uploaded by <strong>{{img src=file.updatedBy.image+"/16" class="icon"/}}{{>file.updatedBy.fullname}}</strong>
+                        <input type="hidden" class="index" value="{{>index}}" />
                       </div>
+                      {^{if file.zipCount > 0 && opened}}
+                      <div>
+                        <ul class="list-group">
+                          {^{for items}}
+                          <li class="list-group-item">
+                            <span class="glyphicon glyphicon-file"></span>
+                            {{if ~canDownload}}
+                              <a data-link="href{>url}">{{>name}}</a> ({{datasize size /}})
+                            {{else}}
+                              <span>{{>name}}</span>
+                            {{/if}}
+                          </li>
+                          {{/for}}
+                          {^{if items.length < file.zipCount}}
+                          <li class="list-group-item more more-zip-item">
+                            {^{if useProgress}}
+                            <div class='loading'></div>
+                            {{else}}
+                            <span>more files...</span>
+                            {{/if}}
+                          </li>
+                          {{/if}}
+                        </ul>
+                      </div>
+                      {{/if}}
                     </li>
                     {{/for}}
-                    {^{if item.items.length != filesCount}}
-                      <li class="list-group-item more-head-item">
+                    {^{if item.items.length < filesCount}}
+                      <li class="list-group-item more more-head-item">
+                        {^{if item.useProgress}}
+                        <div class='loading'></div>
+                        {{else}}
                         <span>more files...</span>
+                        {{/if}}
                       </li>
                     {{/if}}
                   </ul>
