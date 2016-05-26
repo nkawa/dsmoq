@@ -120,7 +120,8 @@ case class DatasetFile(
   private val updatedBy: User,
   private val updatedAt: String,
   val isZip: Boolean,
-  private val zipedFiles: Seq[DatasetZipedFile]
+  private val zipedFiles: Seq[DatasetZipedFile],
+  private val zipCount: Int
 ) {
   def getId = id
   def getName = name
@@ -132,6 +133,7 @@ case class DatasetFile(
   def getUpdatedBy = updatedBy
   def getUpdatedAt = updatedAt
   def getZipedFiles = zipedFiles.asJava
+  def getZipCount = zipCount
 }
 
 case class DatasetZipedFile (
