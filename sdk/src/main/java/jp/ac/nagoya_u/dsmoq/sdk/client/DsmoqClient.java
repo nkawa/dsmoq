@@ -564,6 +564,39 @@ public class DsmoqClient {
     }
 
     /**
+     * データセットのファイル一覧を取得する。（GET /api/datasets/${dataset_id}/files相当）
+     * @param datasetId DatasetID
+     * @param param 一覧取得情報
+     * @return データセットのファイル一覧
+     */
+    public RangeSlice<DatasetFile> getDatasetFiles(String datasetId, GetRangeParam param) {
+        try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/datasets/%s/files?d=", datasetId) + URLEncoder.encode(param.toJsonString(), "UTF-8"))){
+            addAuthorizationHeader(request);
+            String json = execute(request);
+            return JsonUtil.toDatasetFiles(json);
+        } catch(UnsupportedEncodingException e) {
+            throw new ApiFailedException(e.getMessage(), e);
+        }
+    }
+
+    /**
+     * データセットのZIPファイルに含まれるファイル一覧を取得する。（GET /api/datasets/${dataset_id}/files/${fileId}/zippedfiles相当）
+     * @param datasetId DatasetID
+     * @param fileId FileID
+     * @param param 一覧取得情報
+     * @return ZIPファイル中のファイル一覧
+     */
+    public RangeSlice<DatasetZipedFile> getDatasetZippedFiles(String datasetId, String fileId, GetRangeParam param) {
+        try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/datasets/%s/files/%s/zippedfiles?d=", datasetId, fileId) + URLEncoder.encode(param.toJsonString(), "UTF-8"))){
+            addAuthorizationHeader(request);
+            String json = execute(request);
+            return JsonUtil.toDatasetZippedFiles(json);
+        } catch(UnsupportedEncodingException e) {
+            throw new ApiFailedException(e.getMessage(), e);
+        }
+    }
+
+    /**
      * グループ一覧を取得する。（GET /api/groups相当）
      * @param param グループ一覧取得情報
      * @return グループ一覧情報

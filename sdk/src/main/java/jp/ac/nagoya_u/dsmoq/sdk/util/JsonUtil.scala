@@ -17,6 +17,14 @@ object JsonUtil {
     statusCheck(obj)
     toObject[Response[RangeSlice[DatasetOwnership]]](obj).getData
   }
+  def toDatasetFiles(obj: String): RangeSlice[DatasetFile] = {
+    statusCheck(obj)
+    toObject[Response[RangeSlice[DatasetFile]]](obj).getData
+  }
+  def toDatasetZippedFiles(obj: String): RangeSlice[DatasetZipedFile] = {
+    statusCheck(obj)
+    toObject[Response[RangeSlice[DatasetZipedFile]]](obj).getData
+  }
   def toDatasetGetImage(obj: String): RangeSlice[DatasetGetImage] = {
     statusCheck(obj)
     toObject[Response[RangeSlice[DatasetGetImage]]](obj).getData

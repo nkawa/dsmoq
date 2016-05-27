@@ -14,7 +14,7 @@
             <div>
               <span>{^{>name}}</span> {^{if isPrivate}}<span class="status text-danger">(private)</span>{{/if}}
             </div>
-			{{if ownerships.length > 0}}
+            {{if ownerships.length > 0}}
             <p class="title-owners text-muted">
               Owner:
               {^{for ownerships}}
@@ -25,15 +25,24 @@
                 {{/if}}
               {{/for}}
             </p>
-			{{/if}}
+            {{/if}}
           </h1>
         </div>
         <div class="col-sm-2 text-right">
           {^{if canEdit}}
-          <div class="btn-group-vertical">
-            <button type="button" class="btn btn-default btn-lg" id="dataset-edit"><span class="glyphicon glyphicon-edit"></span> Edit</button>
-            <button type="button" class="btn btn-default btn-lg" id="dataset-delete"><span class="glyphicon glyphicon-trash"></span> Delete</button>
-            <button type="button" class="btn btn-default btn-lg" id="dataset-copy"><span class="glyphicon glyphicon-share"></span> Copy</button>
+          <div class="btn-group">
+            <button type="button" class="btn btn-default btn-lg" id="dataset-edit">
+              <span class="glyphicon glyphicon-edit"></span>
+              <span> Edit</span>
+            </button>
+            <button type="button" class="btn btn-default btn-lg dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <span>…</span>
+              <span class="sr-only">Toggle Dropdown</span>
+            </button>
+            <ul class="dropdown-menu">
+              <li><a href="#" id="dataset-copy"><span class="glyphicon glyphicon-share"></span> Copy</a></li>
+              <li><a href="#" id="dataset-delete"><span class="glyphicon glyphicon-trash"></span> Delete</a></li>
+            </ul>
           </div>
           {{/if}}
         </div>
@@ -44,46 +53,93 @@
           <div class="form-group">
             <label class="col-sm-1 control-label">Files</label>
             <div class="col-sm-11">
-				<ul class="list-group">
-              {^{for files ~canDownload=canDownload}}
-				<li class="list-group-item">
-					<div>
-                      <span class="glyphicon glyphicon-file"></span>
-                      {{if ~canDownload}}
-                        <a data-link="href{>url}">{{>name}}</a> ({{datasize size /}})
+              <ul class="list-group">
+                <li class="list-group-item">
+                  {^{if filesCount > 0}}
+                  <a class="accordion-head-item">
+                    {^{if root.opened}}
+                    <span class="glyphicon glyphicon-chevron-down"></span>
+                    <span>{^{>root.name}}</span>
+                    {{else}}
+                    <span class="glyphicon glyphicon-chevron-right"></span>
+                    <span>{^{>root.name}}</span>
+                    {{/if}}
+                  </a>
+                  {^{if root.opened}}
+                  <ul class="list-group">
+                    {^{for root.files ~canDownload=canDownload}}
+                    <li class="list-group-item">
+                      {^{if file.zipCount > 0 && file.isZip}}
+                      <div class="accordion-zip-item">
                       {{else}}
-                        <span>{{>name}}</span>
+                      <div>
                       {{/if}}
-                      uploaded by <strong>{{img src=updatedBy.image+"/16" class="icon"/}}{{>updatedBy.fullname}}</strong>
-					</div>
-					{^{if description.length > 0}}
-					<div class="form-control-static">{{>description}}</div>
-					{{/if}}
-					{^{if zipedFiles.length > 0}}
-					<div class="zipedfile-area">
-						<ul class="list-group zipedfiles">
-							{^{for zipedFiles ~updatedBy=updatedBy}}
-							<li class="list-group-item">
-								<span class="glyphicon glyphicon-file"></span>
-								{{if ~canDownload}}
-								  <a data-link="href{>url}">{{>name}}</a> ({{datasize size /}})
-								{{else}}
-								  <span>{{>name}}</span>
-								{{/if}}
-							</li>
-							{{/for}}
-						</ul>
-					</div>
-					{{/if}}
-				  </li>
-              {{/for}}
-			   </ul>
+                        {^{if file.isZip}}
+                        {^{if opened}}
+                        <span class="glyphicon glyphicon-chevron-down"></span>
+                        {{else}}
+                        <span class="glyphicon glyphicon-chevron-right"></span>
+                        {{/if}}
+                        {{/if}}
+                        <span class="glyphicon glyphicon-file"></span>
+                        {{if ~canDownload}}
+                        <a data-link="href{>file.url}">{{>file.name}}</a> ({{datasize file.size /}})
+                        {{else}}
+                        <span>{{>file.name}}</span>
+                        {{/if}}
+                        uploaded by <strong>{{img src=file.updatedBy.image+"/16" class="icon"/}}{{>file.updatedBy.fullname}}</strong>
+                        <input type="hidden" class="index" value="{{>index}}" />
+                      </div>
+                      {^{if file.zipCount > 0 && opened}}
+                      <div>
+                        <ul class="list-group">
+                          {^{for zippedFiles}}
+                          <li class="list-group-item">
+                            <span class="glyphicon glyphicon-file"></span>
+                            {{if ~canDownload}}
+                              <a data-link="href{>url}">{{>name}}</a> ({{datasize size /}})
+                            {{else}}
+                              <span>{{>name}}</span>
+                            {{/if}}
+                          </li>
+                          {{/for}}
+                          {^{if zippedFiles.length < file.zipCount}}
+                          <li class="list-group-item more more-zip-item">
+                            {^{if useProgress}}
+                            <div class='loading'></div>
+                            {{else}}
+                            <span>more files...</span>
+                            {{/if}}
+                          </li>
+                          {{/if}}
+                        </ul>
+                      </div>
+                      {{/if}}
+                    </li>
+                    {{/for}}
+                    {^{if root.files.length < filesCount}}
+                      <li class="list-group-item more more-head-item">
+                        {^{if root.useProgress}}
+                        <div class='loading'></div>
+                        {{else}}
+                        <span>more files...</span>
+                        {{/if}}
+                      </li>
+                    {{/if}}
+                  </ul>
+                  {{/if}}
+                  {{else}}
+                  <span class="glyphicon glyphicon-chevron-right"></span>
+                  <span>{^{>root.name}}</span>
+                  {{/if}}
+                </li>
+              </ul>
             </div>
           </div>
           <div class="form-group">
             <label class="col-sm-1 control-label">Attributes</label>
             <div class="col-sm-6">
-			   {^{if attributes.length > 0}}
+               {^{if attributes.length > 0}}
               <table class="table table-bordered table-condensed table-striped attribute-table">
                 <thead>
                   <tr><td>name</td><td>value</td></tr>
@@ -97,9 +153,9 @@
                   {{/for}}
                 </tbody>
               </table>
-			  {{else}}
-			  <div class="form-control-static">(no attributes)</div>
-			  {{/if}}
+              {{else}}
+              <div class="form-control-static">(no attributes)</div>
+              {{/if}}
             </div>
           </div>
           <div class="form-group">
