@@ -36,7 +36,8 @@ object DatasetData {
     permission: Int,
     accessCount: Long,
     localState: Int,
-    s3State: Int
+    s3State: Int,
+    fileLimit: Int
   )
 
   case class DatasetMetaData(

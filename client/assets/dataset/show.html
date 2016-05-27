@@ -57,17 +57,17 @@
                 <li class="list-group-item">
                   {^{if filesCount > 0}}
                   <a class="accordion-head-item">
-                    {^{if item.opened}}
+                    {^{if root.opened}}
                     <span class="glyphicon glyphicon-chevron-down"></span>
-                    <span>{^{>item.name}}</span>
+                    <span>{^{>root.name}}</span>
                     {{else}}
                     <span class="glyphicon glyphicon-chevron-right"></span>
-                    <span>{^{>item.name}}</span>
+                    <span>{^{>root.name}}</span>
                     {{/if}}
                   </a>
-                  {^{if item.opened}}
+                  {^{if root.opened}}
                   <ul class="list-group">
-                    {^{for item.items ~canDownload=canDownload}}
+                    {^{for root.files ~canDownload=canDownload}}
                     <li class="list-group-item">
                       {^{if file.zipCount > 0 && file.isZip}}
                       <div class="accordion-zip-item">
@@ -93,7 +93,7 @@
                       {^{if file.zipCount > 0 && opened}}
                       <div>
                         <ul class="list-group">
-                          {^{for items}}
+                          {^{for zippedFiles}}
                           <li class="list-group-item">
                             <span class="glyphicon glyphicon-file"></span>
                             {{if ~canDownload}}
@@ -103,7 +103,7 @@
                             {{/if}}
                           </li>
                           {{/for}}
-                          {^{if items.length < file.zipCount}}
+                          {^{if zippedFiles.length < file.zipCount}}
                           <li class="list-group-item more more-zip-item">
                             {^{if useProgress}}
                             <div class='loading'></div>
@@ -117,9 +117,9 @@
                       {{/if}}
                     </li>
                     {{/for}}
-                    {^{if item.items.length < filesCount}}
+                    {^{if root.files.length < filesCount}}
                       <li class="list-group-item more more-head-item">
-                        {^{if item.useProgress}}
+                        {^{if root.useProgress}}
                         <div class='loading'></div>
                         {{else}}
                         <span>more files...</span>
@@ -130,7 +130,7 @@
                   {{/if}}
                   {{else}}
                   <span class="glyphicon glyphicon-chevron-right"></span>
-                  <span>{^{>item.name}}</span>
+                  <span>{^{>root.name}}</span>
                   {{/if}}
                 </li>
               </ul>

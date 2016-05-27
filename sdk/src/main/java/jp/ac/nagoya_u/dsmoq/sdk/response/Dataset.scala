@@ -51,7 +51,8 @@ case class Dataset(
   private val permission: Int,
   private val accessCount: Long,
   private val localState: Int,
-  private val s3State: Int
+  private val s3State: Int,
+  private val fileLimit: Int
 ) {
   def getId = id
   def getFilesSize = filesSize
@@ -67,6 +68,7 @@ case class Dataset(
   def getAccessCount = accessCount
   def getLocalState = localState
   def getS3State = s3State
+  def getFileLimit = fileLimit
 }
 
 case class DatasetMetaData(

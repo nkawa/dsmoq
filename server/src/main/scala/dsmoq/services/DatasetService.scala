@@ -227,7 +227,8 @@ object DatasetService extends LazyLogging {
           permission = ownership.accessLevel,
           accessCount = 0,
           localState = dataset.localState,
-          s3State = dataset.s3State
+          s3State = dataset.s3State,
+          fileLimit = AppConf.fileLimit
         ))
       }
     } catch {
@@ -757,7 +758,8 @@ object DatasetService extends LazyLogging {
             permission = permission,
             accessCount = count,
             localState = dataset.localState,
-            s3State = dataset.s3State
+            s3State = dataset.s3State,
+            fileLimit = AppConf.fileLimit
           )
         })
         .map(x => Success(x)).getOrElse(Failure(new NotAuthorizedException()))

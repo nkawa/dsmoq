@@ -23,7 +23,6 @@ import haxe.ds.Option;
 using dsmoq.JQueryTools;
 
 class DatasetShowPage {
-    static inline var FILE_LIMIT = 20;
     public static function render(html: Html, onClose: Promise<Unit>, id: String): Promise<Navigation<Page>> {
         var navigation = new PromiseBroker();
         var binding = JsViews.observable({ data: Async.Pending });
@@ -36,9 +35,9 @@ class DatasetShowPage {
                 primaryImage: res.primaryImage,
                 featuredImage: res.featuredImage,
                 ownerships: res.ownerships.filter(function (x) return Type.enumEq(x.accessLevel, DatasetPermission.Write)),
-                item: {
+                root: {
                     name: res.filesCount + " files",
-                    items: new Array<FileItem>(),
+                    files: new Array<FileItem>(),
                     opened: false,
                     useProgress: false
                 },
@@ -51,7 +50,8 @@ class DatasetShowPage {
                     case _: false;
                 },
                 accessCount: res.accessCount,
-                filesCount: res.filesCount
+                filesCount: res.filesCount,
+                fileLimit: res.fileLimit
             };
             binding.setProperty("data", data);
 
@@ -77,15 +77,15 @@ class DatasetShowPage {
             });
             
             html.find(".accordion-head-item").on("click", function (_) {
-                binding.setProperty("data.item.opened", !data.item.opened);
-                if (!data.item.opened || data.item.items.length > 0) {
-                    if (data.item.opened) {
+                binding.setProperty("data.root.opened", !data.root.opened);
+                if (!data.root.opened || data.root.files.length > 0) {
+                    if (data.root.opened) {
                         setTopMoreClickEvent(html, navigation, binding, data, id);
                         setZipClickEvent(html, navigation, data, id);
                     }
                     return;
                 }
-                setDatasetFiles(data, id, FILE_LIMIT, 0).then(function (_) {
+                setDatasetFiles(data, id, data.fileLimit, 0).then(function (_) {
                     setZipClickEvent(html, navigation, data, id);
                 }, function (err) {
                     switch (err.name) {
@@ -122,19 +122,19 @@ class DatasetShowPage {
                 var item = {
                     opened: false,
                     file: file,
-                    items: new Array<DatasetZipedFile>(),
+                    zippedFiles: new Array<DatasetZipedFile>(),
                     index: offset + i,
                     useProgress: false
                 };
-                JsViews.observable(data.item.items).insert(item);
+                JsViews.observable(data.root.files).insert(item);
             }
         });
     }
 
     static function setDatasetZippedFiles(data: Dynamic, datasetId: String, index: Int, limit: Int, offset: Int): Promise<RangeSlice<DatasetZipedFile>> {
-        return Service.instance.getDatasetZippedFiles(datasetId, data.item.items[index].file.id, { limit: limit, offset: offset }).then(function (res) {
+        return Service.instance.getDatasetZippedFiles(datasetId, data.root.files[index].file.id, { limit: limit, offset: offset }).then(function (res) {
             for (file in res.results) {
-                JsViews.observable(data.item.items[index].items).insert(file);
+                JsViews.observable(data.root.files[index].zippedFiles).insert(file);
             }
         });
     }
@@ -150,15 +150,15 @@ class DatasetShowPage {
     static function setZipClickEvent(html: Html, navigation: PromiseBroker<Navigation<Page>>, data: Dynamic, datasetId: String): Void {
         html.find(".accordion-zip-item").on("click", function (e) {
             var index: Int = getIndex(e.target);
-            JsViews.observable(data.item.items[index]).setProperty("opened", !data.item.items[index].opened);
-            var fileitem = data.item.items[index];
-            if (!fileitem.opened || fileitem.items.length > 0) {
+            JsViews.observable(data.root.files[index]).setProperty("opened", !data.root.files[index].opened);
+            var fileitem = data.root.files[index];
+            if (!fileitem.opened || fileitem.zippedFiles.length > 0) {
                 if (fileitem.opened) {
                     setZipMoreClickEvent(html, navigation, data, datasetId, index);
                 }
                 return;
             }
-            setDatasetZippedFiles(data, datasetId, index, FILE_LIMIT, 0).then(function(_) {
+            setDatasetZippedFiles(data, datasetId, index, data.fileLimit, 0).then(function(_) {
                 setZipMoreClickEvent(html, navigation, data, datasetId, index);
             }, function(err) {
                 switch (err.name) {
@@ -178,9 +178,9 @@ class DatasetShowPage {
     }
     static function setTopMoreClickEvent(html: Html, navigation: PromiseBroker<Navigation<Page>>, binding: Observable, data: Dynamic, datasetId: String): Void {
         html.find(".more-head-item").on("click", function (_) {
-            binding.setProperty("data.item.useProgress", true);
-            setDatasetFiles(data, datasetId, FILE_LIMIT, data.item.items.length).then(function (_){
-                binding.setProperty("data.item.useProgress", false);
+            binding.setProperty("data.root.useProgress", true);
+            setDatasetFiles(data, datasetId, data.fileLimit, data.root.files.length).then(function (_){
+                binding.setProperty("data.root.useProgress", false);
                 setZipClickEvent(html, navigation, data, datasetId);
             }, function (err) {
                 switch (err.name) {
@@ -198,9 +198,9 @@ class DatasetShowPage {
 
     static function setZipMoreClickEvent(html: Html, navigation: PromiseBroker<Navigation<Page>>, data: Dynamic, datasetId: String, index: Int): Void {
         html.find(".more-zip-item").on("click", function (_) {
-            JsViews.observable(data.item.items[index]).setProperty("useProgress", true);
-            setDatasetZippedFiles(data, datasetId, index, FILE_LIMIT, data.item.items[index].items.length).then(function (_) {
-                JsViews.observable(data.item.items[index]).setProperty("useProgress", false);
+            JsViews.observable(data.root.files[index]).setProperty("useProgress", true);
+            setDatasetZippedFiles(data, datasetId, index, data.fileLimit, data.root.files[index].zippedFiles.length).then(function (_) {
+                JsViews.observable(data.root.files[index]).setProperty("useProgress", false);
             }, function (err) {
                 switch (err.name) {
                     case ServiceErrorType.Unauthorized:
@@ -221,7 +221,7 @@ class DatasetShowPage {
 
 typedef FileItem = {
     var opened: Bool;
-    var items: Array<DatasetZipedFile>;
+    var zippedFiles: Array<DatasetZipedFile>;
     var file: DatasetFile;
     var index: Int;
 };
