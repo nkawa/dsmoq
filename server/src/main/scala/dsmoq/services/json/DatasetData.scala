@@ -36,7 +36,8 @@ object DatasetData {
     permission: Int,
     accessCount: Long,
     localState: Int,
-    s3State: Int
+    s3State: Int,
+    fileLimit: Int
   )
 
   case class DatasetMetaData(
@@ -83,7 +84,8 @@ object DatasetData {
     updatedBy: User,
     updatedAt: String,
     isZip: Boolean,
-    zipedFiles: Seq[DatasetZipedFile]
+    zipedFiles: Seq[DatasetZipedFile],
+    zipCount: Int
   )
 
   case class DatasetZipedFile (

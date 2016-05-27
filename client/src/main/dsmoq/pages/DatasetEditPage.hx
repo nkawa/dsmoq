@@ -13,6 +13,7 @@ import dsmoq.View;
 import dsmoq.views.ViewTools;
 import haxe.ds.Option;
 import haxe.Resource;
+import hxgnd.ArrayTools;
 import hxgnd.js.Html;
 import hxgnd.js.JqHtml;
 import hxgnd.js.JQuery;
@@ -673,7 +674,8 @@ class DatasetEditPage {
             hasPrev: false,
             hasNext: false,
             items: new Array<{selected: Bool, item: SuggestedOwner}>(),
-            selectedIds: new Array<String>()
+            selectedIds: new Array<String>(),
+            selectedItems: new Array<SuggestedOwner>()
         }
         var binding = JsViews.observable(data);
         var tpl = JsViews.template(Resource.getString("template/dataset/add_owner_dialog"));
@@ -695,28 +697,28 @@ class DatasetEditPage {
                     JsViews.observable(data.items).refresh(list);
                 });
             }
-			
-            function filterSelectedOwner() {
-                return data.items
-                            .filter(function (x) return x.selected)
-                            .map(function (x) return x.item);
-            }
 
             JsViews.observable(data.items).observeAll(function (e, args) {
                 if (args.path == "selected") {
                     var owner: SuggestedOwner = e.target.item;
                     var ids = data.selectedIds.copy();
+                    var sItems = data.selectedItems.copy();
                     var b = JsViews.observable(data.selectedIds);
                     if (args.value) {
                         if (ids.indexOf(owner.id) < 0) {
                             ids.push(owner.id);
                             b.refresh(ids);
+                            sItems.push(owner);
+                            JsViews.observable(data.selectedItems).refresh(sItems);
                         }
                     } else {
                         if (ids.remove(owner.id)) {
                             b.refresh(ids);
                         }
+                        sItems = sItems.filter(function (x) return ids.indexOf(x.id) >= 0);
+                        JsViews.observable(data.selectedItems).refresh(sItems);
                     }
+                    html.find("#add-owner-selected-count").text(data.selectedIds.length);
                 }
             });
 
@@ -742,7 +744,7 @@ class DatasetEditPage {
             });
 
             html.on("click", "#add-owner-dialog-submit", function (e) {
-                ctx.fulfill(filterSelectedOwner());
+                ctx.fulfill(data.selectedItems);
             });
         });
     }

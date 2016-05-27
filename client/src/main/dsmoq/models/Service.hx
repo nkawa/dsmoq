@@ -94,8 +94,8 @@ class Service extends Stream<ServiceEvent> {
                                            ?attributes: Array<DatasetAttribute>,
                                            ?offset: Int,
                                            ?limit: Int,
-										   ?orderby: String
-										   }): Promise<RangeSlice<DatasetSummary>> {
+                                           ?orderby: String
+                                           }): Promise<RangeSlice<DatasetSummary>> {
         return send(Get, "/api/datasets", params);
     }
 
@@ -107,13 +107,15 @@ class Service extends Stream<ServiceEvent> {
                 meta: cast a.meta,
                 images: cast a.images,
                 primaryImage: cast Lambda.find(a.images, function (x) return x.id == a.primaryImage),
-				featuredImage: cast Lambda.find(a.images, function (x) return x.id == a.featuredImage),
+                featuredImage: cast Lambda.find(a.images, function (x) return x.id == a.featuredImage),
                 ownerships: cast a.ownerships,
                 defaultAccessLevel: cast a.defaultAccessLevel,
                 permission: cast a.permission,
                 accessCount: a.accessCount,
-				localState: a.localState,
-				s3State: a.s3State
+                localState: a.localState,
+                s3State: a.s3State,
+                filesCount: a.filesCount,
+                fileLimit: a.fileLimit
             };
         });
     }
@@ -156,14 +158,14 @@ class Service extends Stream<ServiceEvent> {
             });
         });
     }
-	
-	public function setDatasetImagePrimary(datasetId: String, imageId: String): Promise<Unit> {
-		return send(Put, '/api/datasets/$datasetId/images/primary', { imageId: imageId } );
-	}
-	
-	public function addDatasetImage(datasetId: String, form: JqHtml): Promise<{images: Array<Image>, primaryImage: String}> {
-		return sendForm('/api/datasets/$datasetId/images', form);
-	}
+    
+    public function setDatasetImagePrimary(datasetId: String, imageId: String): Promise<Unit> {
+        return send(Put, '/api/datasets/$datasetId/images/primary', { imageId: imageId } );
+    }
+    
+    public function addDatasetImage(datasetId: String, form: JqHtml): Promise<{images: Array<Image>, primaryImage: String}> {
+        return sendForm('/api/datasets/$datasetId/images', form);
+    }
 
     public function getDatasetImage(datasetId: String, ?params: { ?limit: Int, ?offset: Int } ): Promise<RangeSlice<DatasetImage>> {
         return send(Get, '/api/datasets/$datasetId/images', params);
@@ -195,10 +197,10 @@ class Service extends Stream<ServiceEvent> {
     public function deleteDeataset(datasetId: String): Promise<Unit> {
         return send(Delete, '/api/datasets/$datasetId');
     }
-	
-	public function changeDatasetStorage(datasetId: String, saveLocal: Bool, saveS3: Bool): Promise<Unit> {
+    
+    public function changeDatasetStorage(datasetId: String, saveLocal: Bool, saveS3: Bool): Promise<Unit> {
         return send(Put, '/api/datasets/$datasetId/storage', { saveLocal: saveLocal, saveS3: saveS3 });
-	}
+    }
 
     // ---
     public function createGroup(name: String): Promise<Group> {
@@ -223,7 +225,7 @@ class Service extends Stream<ServiceEvent> {
                 primaryImage: cast Lambda.find(a.images, function (x) return x.id == a.primaryImage),
                 isMember: cast a.isMember,
                 role: cast a.role,
-				providedDatasetCount: cast a.providedDatasetCount
+                providedDatasetCount: cast a.providedDatasetCount
             };
         });
     }
@@ -249,10 +251,10 @@ class Service extends Stream<ServiceEvent> {
 
     }
 
-	public function getGroupImage(groupId: String, ?params: { ?limit: Int, ?offset: Int } ): Promise<RangeSlice<GroupImage>> {
+    public function getGroupImage(groupId: String, ?params: { ?limit: Int, ?offset: Int } ): Promise<RangeSlice<GroupImage>> {
         return send(Get, '/api/groups/$groupId/images', params);
     }
-	
+    
     public function addGroupImages(groupId: String, form: JqHtml): Promise<Unit> {
         return sendForm('/api/groups/$groupId/images', form);
     }
@@ -290,36 +292,46 @@ class Service extends Stream<ServiceEvent> {
             : Promise<Array<User>> {
         return send(Get, "/api/suggests/users", params);
     }
-	
-	public function getStatistics(?params :{ ?from: Date, ?to: Date } ) : Promise<Array<StatisticsDetail>> {
-		return send(Get, "/api/statistics", params);
-	}
-	
-	public function copyDataset(datasetId: String): Promise<DatasetCopyId> {
-		return send(Post, '/api/datasets/$datasetId/copy');
-	}
-	
-	public function findUsersAndGroups(?params: { ?query: String, ?limit: Int, ?offset: Int, ?excludeIds: Array<String> } ) : Promise<Array<SuggestedOwner>>
-	{
-		return send(Get, "/api/suggests/users_and_groups", params);
-	}
-	
-	public function getOwnerships(datasetId: String, ?params: { ?limit: Int, ?offset: Int } ) : Promise<RangeSlice<DatasetOwnership>>
-	{
-		return send(Get, '/api/datasets/$datasetId/acl', params);
-	}
-	
-	public function setDatasetImageFeatured(datasetId: String, imageId: String): Promise<Unit> {
-		return send(Put, '/api/datasets/$datasetId/images/$imageId/featured');
-	}
-	
-	public function getTags() : Promise<Array<TagDetail>> {
-		return send(Get, '/api/tags');
-	}
-	
-	public function getMessage() : Promise<String> {
-		return send(Get, '/api/message');
-	}
+    
+    public function getStatistics(?params :{ ?from: Date, ?to: Date } ) : Promise<Array<StatisticsDetail>> {
+        return send(Get, "/api/statistics", params);
+    }
+    
+    public function copyDataset(datasetId: String): Promise<DatasetCopyId> {
+        return send(Post, '/api/datasets/$datasetId/copy');
+    }
+    
+    public function findUsersAndGroups(?params: { ?query: String, ?limit: Int, ?offset: Int, ?excludeIds: Array<String> } ) : Promise<Array<SuggestedOwner>>
+    {
+        return send(Get, "/api/suggests/users_and_groups", params);
+    }
+    
+    public function getOwnerships(datasetId: String, ?params: { ?limit: Int, ?offset: Int } ) : Promise<RangeSlice<DatasetOwnership>>
+    {
+        return send(Get, '/api/datasets/$datasetId/acl', params);
+    }
+    
+    public function setDatasetImageFeatured(datasetId: String, imageId: String): Promise<Unit> {
+        return send(Put, '/api/datasets/$datasetId/images/$imageId/featured');
+    }
+    
+    public function getTags() : Promise<Array<TagDetail>> {
+        return send(Get, '/api/tags');
+    }
+    
+    public function getMessage() : Promise<String> {
+        return send(Get, '/api/message');
+    }
+
+    public function getDatasetFiles(datasetId: String, ?params: { ?limit: Int, ?offset: Int } ) : Promise<RangeSlice<DatasetFile>>
+    {
+        return send(Get, '/api/datasets/$datasetId/files', params);
+    }
+
+    public function getDatasetZippedFiles(datasetId: String, fileId: String, ?params: { ?limit: Int, ?offset: Int } ) : Promise<RangeSlice<DatasetZipedFile>>
+    {
+        return send(Get, '/api/datasets/$datasetId/files/$fileId/zippedfiles', params);
+    }
 
     inline function guest(): Profile {
         return {

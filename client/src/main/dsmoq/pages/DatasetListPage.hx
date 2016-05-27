@@ -126,17 +126,13 @@ class DatasetListPage {
                     }
                 }
             });
-            JQuery._("#filter-owner-input").on("autocomplete:complated", function (_) {
-                JQuery._("#filter-owner-apply").removeAttr("disabled");
-            });
-            JQuery._("#filter-owner-input").on("autocomplete:uncomplated", function (_) {
-                JQuery._("#filter-owner-apply").attr("disabled", true);
-            });
             JQuery._("#filter-owner-apply").on("click", function (_) {
                 var item = AutoComplete.getCompletedItem("#filter-owner-input");
+				var name = JQuery._("#filter-owner-input").val();
+				var filter = if(item == null) { name: name, fullname: name, dataType: 1 } else item;
                 JsViews.observable(binding.data().condition.filters).insert({
                     type: 'owner',
-                    item: item
+                    item: filter
                 });
                 AutoComplete.clear("#filter-owner-input");
                 BootstrapPopover.hide("#add-filter-button");
@@ -163,14 +159,9 @@ class DatasetListPage {
                     }
                 }
             });
-            JQuery._("#filter-attribute-name-input").on("autocomplete:complated", function (_) {
-                JQuery._("#filter-attribute-apply").removeAttr("disabled");
-            });
-            JQuery._("#filter-attribute-name-input").on("autocomplete:uncomplated", function (_) {
-                JQuery._("#filter-attribute-apply").attr("disabled", true);
-            });
             JQuery._("#filter-attribute-apply").on("click", function (_) {
-                var name = AutoComplete.getCompletedItem("#filter-attribute-name-input");
+                var item = AutoComplete.getCompletedItem("#filter-attribute-name-input");
+				var name = if(item == null) JQuery._("#filter-attribute-name-input").val() else item;
                 JsViews.observable(binding.data().condition.filters).insert({
                     type: "attribute",
                     item: { name: StringTools.urlEncode(name), value: StringTools.urlEncode(JQuery._("#filter-attribute-value-input").val()) }

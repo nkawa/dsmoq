@@ -51,7 +51,8 @@ case class Dataset(
   private val permission: Int,
   private val accessCount: Long,
   private val localState: Int,
-  private val s3State: Int
+  private val s3State: Int,
+  private val fileLimit: Int
 ) {
   def getId = id
   def getFilesSize = filesSize
@@ -67,6 +68,7 @@ case class Dataset(
   def getAccessCount = accessCount
   def getLocalState = localState
   def getS3State = s3State
+  def getFileLimit = fileLimit
 }
 
 case class DatasetMetaData(
@@ -120,7 +122,8 @@ case class DatasetFile(
   private val updatedBy: User,
   private val updatedAt: String,
   val isZip: Boolean,
-  private val zipedFiles: Seq[DatasetZipedFile]
+  private val zipedFiles: Seq[DatasetZipedFile],
+  private val zipCount: Int
 ) {
   def getId = id
   def getName = name
@@ -132,6 +135,7 @@ case class DatasetFile(
   def getUpdatedBy = updatedBy
   def getUpdatedAt = updatedAt
   def getZipedFiles = zipedFiles.asJava
+  def getZipCount = zipCount
 }
 
 case class DatasetZipedFile (
