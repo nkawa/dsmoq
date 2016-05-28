@@ -18,4 +18,5 @@ dependencies {
     compile 'joda-time:joda-time:2.7'
     compile 'org.scala-lang:scala-library:2.11.4'
     compile 'org.scala-lang:scalap:2.11.4'
+    compile 'org.slf4j:slf4j-log4j12:1.6.0'
 }

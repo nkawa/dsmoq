@@ -39,7 +39,9 @@ object DsmoqSdkBuild extends Build {
         "org.json4s" %% "json4s-jackson" % "3.2.10",
         "com.fasterxml.jackson.core" % "jackson-databind" % "2.4.4",
         "junit" % "junit" % "4.12",
-        "joda-time" % "joda-time" % "2.7"
+        "joda-time" % "joda-time" % "2.7",
+        "com.typesafe" % "config" % "1.3.0",
+        "com.typesafe.scala-logging" % "scala-logging_2.11" % "3.1.0" % "compile"
       )
     )
   )

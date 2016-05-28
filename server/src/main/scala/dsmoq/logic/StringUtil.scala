@@ -22,8 +22,9 @@ object StringUtil {
   /**
     * UTF-8の文字列に変換可能か判定する。
     * (文字コードを判定するのではなく、文字化けしないかを判定)
-    * @param bytes
-    * @return
+    *
+    * @param bytes 判定対象
+    * @return true: UTF-8に変換可能、false: 変換不可。
     */
   def isUTF8Byte(bytes: Array[Byte]): Boolean = {
     try {
@@ -36,9 +37,9 @@ object StringUtil {
   /**
     * Byte配列を文字列に変換する。
     * (UTF-8 に変換できるものはUTF-8にそれ以外はShift_JIS)
-    * 
-    * @param bytes
-    * @return
+    *
+    * @param bytes 変換対象
+    * @return 文字列
     */
   def convertByte2String(bytes: Array[Byte]): String = {
     if (isUTF8Byte(bytes)) {
