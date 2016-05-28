@@ -1,9 +1,28 @@
 package dsmoq.apikeyweb
 
+import com.typesafe.scalalogging.LazyLogging
+import org.slf4j.MarkerFactory
+
 /**
   * webアプリケーションのコントローラークラス。
   */
-class MainServlet extends ApiKeyWebToolStack {
+class MainServlet extends ApiKeyWebToolStack with LazyLogging {
+  private val LOG_MARKER = MarkerFactory.getMarker("APIKEY_LOG")
+
+  /**
+    * 各パスを処理する前に実行する。
+    */
+  before() {
+    logger.info(LOG_MARKER, "access: method = {}, path = {}", request.getMethod, request.getRequestURI)
+  }
+
+  /**
+    * 各パスの処理後に実行する。
+    */
+  after() {
+    logger.debug(LOG_MARKER, "access end: method = {}, path = {}", request.getMethod, request.getRequestURI)
+  }
+
   /**
     * トップページを表示する。(get: /)
     */
@@ -19,6 +38,7 @@ class MainServlet extends ApiKeyWebToolStack {
   get("/error/:userid") {
     val userID = params("userid")
     val msg = s"ユーザー $userID は存在しません。"
+    logger.warn(LOG_MARKER, "{}", msg)
 
     contentType = "text/html"
     ssp("/index", "title" -> "APIキー発行ツール", "userID" -> userID, "message" -> msg)
@@ -30,6 +50,7 @@ class MainServlet extends ApiKeyWebToolStack {
     */
   get("/error/no_name") {
     val msg = "ユーザーIDが指定されていません。"
+    logger.warn(LOG_MARKER, "{}", msg)
 
     contentType = "text/html"
     ssp("/index", "title" -> "APIキー発行ツール", "userID" -> "", "message" -> msg)
@@ -52,6 +73,7 @@ class MainServlet extends ApiKeyWebToolStack {
   get("/list/no_select") {
     val keyInfoList = ApiKeyManager.listKeys()
     val msg = "キーが未選択です。"
+    logger.warn(LOG_MARKER, "{}", msg)
 
     contentType = "text/html"
     ssp("/list", "title" -> "発行済みAPIキー一覧表示", "keyInfoList" -> keyInfoList, "message" -> msg)
@@ -65,6 +87,7 @@ class MainServlet extends ApiKeyWebToolStack {
   get("/search_keys") {
     val userID = params("user_id")
     if (userID.isEmpty) {
+      logger.warn(LOG_MARKER, "not found user_id parameter.")
       redirect("/error/no_name")
     } else {
       ApiKeyManager.searchUserId(userID) match {
@@ -73,6 +96,7 @@ class MainServlet extends ApiKeyWebToolStack {
           contentType = "text/html"
           ssp("/result_keys", "title" -> "検索結果", "userID" -> userID, "keyInfoList" -> keyInfoList)
         case None =>
+          logger.warn(LOG_MARKER, "{} is not found.", userID)
           redirect(s"/error/$userID")
       }
     }
@@ -87,6 +111,7 @@ class MainServlet extends ApiKeyWebToolStack {
   post("/publish") {
     val userID = params("user_id")
     if (userID.isEmpty) {
+      logger.warn(LOG_MARKER, "not found user_id parameter.")
       redirect("/error/no_name")
     } else {
       ApiKeyManager.publish(userID) match {
@@ -94,6 +119,7 @@ class MainServlet extends ApiKeyWebToolStack {
           contentType = "text/html"
           ssp("/result", "title" -> "発行済みAPIキー", "keyInfo" -> k)
         case _ =>
+          logger.warn(LOG_MARKER, "{} is not found.", userID)
           redirect(s"/error/$userID")
       }
     }
@@ -112,7 +138,9 @@ class MainServlet extends ApiKeyWebToolStack {
       contentType = "text/html"
       redirect("/list")
     } catch {
-      case e: NoSuchElementException => redirect("/list/no_select")
+      case e: NoSuchElementException => 
+        logger.warn(LOG_MARKER, "not selected target.")
+        redirect("/list/no_select")
     }
   }
 

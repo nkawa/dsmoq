@@ -161,7 +161,8 @@ object DsmoqBuild extends Build {
         "org.eclipse.jetty" % "jetty-webapp" % "9.2.15.v20160210" % "container;compile",
         "javax.servlet" % "javax.servlet-api" % "3.1.0" % "provided",
         "commons-codec" % "commons-codec" % "1.10",
-        "com.typesafe" % "config" % "1.3.0"
+        "com.typesafe" % "config" % "1.3.0",
+        "com.typesafe.scala-logging" % "scala-logging_2.11" % "3.1.0" % "compile"
       ),
       scalateTemplateConfig in Compile <<= (sourceDirectory in Compile) { base =>
         Seq(

@@ -12,10 +12,14 @@ import scalikejdbc._
 import scala.util.{Failure, Success, Try}
 import PostgresqlHelper._
 import scalax.io.Resource
+import com.typesafe.scalalogging.LazyLogging
+import org.slf4j.MarkerFactory
 
-object SystemService {
+object SystemService extends LazyLogging {
   private val userImageDownloadRoot = AppConf.imageDownloadRoot + "user/"
   private val groupImageDownloadRoot = AppConf.imageDownloadRoot + "groups/"
+
+  private val LOG_MARKER_USER_GROUP = MarkerFactory.getMarker("USER_GROUP")
 
   def writeDatasetAccessLog(datasetId: String, user: User): Try[Unit] = {
     try {
@@ -70,6 +74,7 @@ object SystemService {
     * @return (条件に該当する) ユーザ一覧
     */
   def getUsers(query: Option[String], limit: Option[Int], offset: Option[Int]) = {
+    logger.debug(LOG_MARKER_USER_GROUP, "getUsers: start : [query] = {}, [offset] = {}, [limit] = {}", query, offset, limit)
     DB readOnly { implicit s =>
       val u = persistence.User.u              // TB: users
       val ma = persistence.MailAddress.ma     // TB: mail_addresses
@@ -91,7 +96,7 @@ object SystemService {
        * - if offset == None offset = 0
        * - if limit == None limit = 100
        */
-      withSQL {
+      val result = withSQL {
         select.all[persistence.User](u)
           .from(persistence.User as u)
           .leftJoin(persistence.MailAddress as ma)
@@ -120,6 +125,10 @@ object SystemService {
             image = userImageDownloadRoot + x.id + "/" + x.imageId
           )
       }
+      logger.info(LOG_MARKER_USER_GROUP, "getUsers: [result size] = {} : [query] = {}, [offset] = {}, [limit] = {}",
+          result.size.toString, query, offset.getOrElse(0).toString, limit.getOrElse(0).toString)
+      logger.debug(LOG_MARKER_USER_GROUP, "getUsers: end : [result] = {}", result)
+      result
     }
   }
 
@@ -173,6 +182,8 @@ object SystemService {
     * @return (条件に該当する) ユーザとグループの一覧
     */
   def getUsersAndGroups(param: Option[String], limit: Option[Int], offset: Option[Int], excludeIds: Seq[String]) = {
+    logger.debug(LOG_MARKER_USER_GROUP, "getUsersAndGroups: start : [param] = {}, [offset] = {}, [limit] = {}, [excludeIds] = {}",
+        param, offset, limit, excludeIds)
     val query = param match {
       case Some(x) => x.replaceAll("%", "\\\\%").replaceAll("_", "\\\\_") + "%"
       case None => "%"
@@ -203,7 +214,7 @@ object SystemService {
        * - if limit == None limit = 100
        * - GroupType.Public = 0
        */
-      withSQL {
+      val result = withSQL {
         select(u.id, u.name, u.imageId, u.fullname, u.organization, sqls"'1' as type")
           .from(persistence.User as u)
           .leftJoin(persistence.MailAddress as ma)
@@ -260,6 +271,10 @@ object SystemService {
           )
         }
       }
+      logger.info(LOG_MARKER_USER_GROUP, "getUsersAndGroups: [result size] = {} : [param] = {}, [offset] = {}, [limit] = {}, [excludeIds] = {}",
+          result.size.toString, param, offset.getOrElse(0).toString, limit.getOrElse(0).toString, excludeIds)
+      logger.debug(LOG_MARKER_USER_GROUP, "getUsersAndGroups: end : [result] = {}", result)
+      result
     }
   }
 
