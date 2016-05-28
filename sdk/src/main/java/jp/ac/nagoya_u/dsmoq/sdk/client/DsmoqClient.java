@@ -15,6 +15,10 @@ import org.apache.http.entity.mime.HttpMultipartMode;
 import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Marker;
+import org.slf4j.MarkerFactory;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -34,10 +38,14 @@ import java.util.stream.Collectors;
  * 個々のAPIとの対比はJavaDocとAPIのドキュメントを比較してみてください。
  */
 public class DsmoqClient {
+    private Marker LOG_MARKER = MarkerFactory.getMarker("SDK");
+    private Logger logger = LoggerFactory.getLogger(LOG_MARKER.toString());
+
     private String _baseUrl;
     private String _apiKey;
     private String _secretKey;
 
+    // ContentType="text/html; charset=utf-8"の定義
     private static final ContentType TEXT_PLAIN_UTF8 = ContentType.create("text/plain", StandardCharsets.UTF_8);
 
     /**
@@ -99,16 +107,21 @@ public class DsmoqClient {
      * @return 作成したDataset
      */
     public Dataset createDataset(boolean saveLocal, boolean saveS3, File... files) {
+        logger.debug(LOG_MARKER, "createDataset start : [saveLocal] = {}, [saveS3] = {}, [files size] = {}",
+                saveLocal, saveS3, (files != null) ? files.length : "null");
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/datasets"))) {
             addAuthorizationHeader(request);
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+            // MultipartEntityBuilderのモード互換モードを設定
             builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
+            // MultipartEntityBuilderの文字コードにutf-8を設定
             builder.setCharset(StandardCharsets.UTF_8);
             Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("file[]", file));
             builder.addTextBody("saveLocal", saveLocal ? "true" : "false");
             builder.addTextBody("saveS3", saveS3 ? "true" : "false");
             request.setEntity(builder.build());
             String json = execute(request);
+            logger.debug(LOG_MARKER, "createDataset end : receive json = {}", json);
             return JsonUtil.toDataset(json);
         }
     }
@@ -121,6 +134,8 @@ public class DsmoqClient {
      * @return 作成したDataset
      */
     public Dataset createDataset(String name, boolean saveLocal, boolean saveS3) {
+        logger.debug(LOG_MARKER, "createDataset start : [name] = {}, [saveLocal] = {}, [saveS3] = {}",
+                name, saveLocal, saveS3);
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/datasets"))) {
             addAuthorizationHeader(request);
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
@@ -129,6 +144,7 @@ public class DsmoqClient {
             builder.addTextBody("saveS3", saveS3 ? "true" : "false");
             request.setEntity(builder.build());
             String json = execute(request);
+            logger.debug(LOG_MARKER, "createDataset end : receive json = {}", json);
             return JsonUtil.toDataset(json);
         }
     }
@@ -142,17 +158,23 @@ public class DsmoqClient {
      * @return 作成したDataset
      */
     public Dataset createDataset(String name, boolean saveLocal, boolean saveS3, File... files) {
+        logger.debug(LOG_MARKER, "createDataset start : [name] = {}, [saveLocal] = {}, [saveS3] = {}, [files size] = {}",
+                name, saveLocal, saveS3, (files != null) ? files.length : "null");
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/datasets"))) {
             addAuthorizationHeader(request);
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+            // MultipartEntityBuilderのモード互換モードを設定
             builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
+            // MultipartEntityBuilderの文字コードにutf-8を設定
             builder.setCharset(StandardCharsets.UTF_8);
+            // 送信データに"name"(データセットの名前)を追加(文字コードはutf-8と明示)
             builder.addTextBody("name", name, TEXT_PLAIN_UTF8);
             Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("file[]", file));
             builder.addTextBody("saveLocal", saveLocal ? "true" : "false");
             builder.addTextBody("saveS3", saveS3 ? "true" : "false");
             request.setEntity(builder.build());
             String json = execute(request);
+            logger.debug(LOG_MARKER, "createDataset end : receive json = {}", json);
             return JsonUtil.toDataset(json);
         }
     }
@@ -164,14 +186,19 @@ public class DsmoqClient {
      * @return 追加したファイルの情報
      */
     public DatasetAddFiles addFiles(String datasetId, File... files) {
+        logger.debug(LOG_MARKER, "addFiles start : [datasetId] = {}, [files size] = {}",
+                datasetId, (files != null) ? files.length : "null");
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/files", datasetId)))) {
             addAuthorizationHeader(request);
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+            // MultipartEntityBuilderのモード互換モードを設定
             builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
+            // MultipartEntityBuilderの文字コードにutf-8を設定
             builder.setCharset(StandardCharsets.UTF_8);
             Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("files", file));
             request.setEntity(builder.build());
             String json = execute(request);
+            logger.debug(LOG_MARKER, "addFiles end : receive json = {}", json);
             return JsonUtil.toDatasetAddFiles(json);
         }
     }

@@ -281,20 +281,24 @@ class GroupEditPage {
             }
 
             JsViews.observable(data.items).observeAll(function (e, args) {
+                // Memberのチェックボックスを選択/解除した時の動作
                 if (args.path == "selected") {
                     var user: User = e.target.item;
                     var ids = data.selectedIds.copy();
                     var b = JsViews.observable(data.selectedIds);
+					// 選択した場合、管理情報にデータを追加
                     if (args.value) {
                         if (ids.indexOf(user.id) < 0) {
                             ids.push(user.id);
                             b.refresh(ids);
                         }
+                    // 解除した場合、管理情報からデータを削除
                     } else {
                         if (ids.remove(user.id)) {
                             b.refresh(ids);
                         }
                     }
+                    // 選択しているMemberの数を表示(更新)
                     html.find("#add-member-selected-count").text(data.selectedIds.length);
                 }
             });

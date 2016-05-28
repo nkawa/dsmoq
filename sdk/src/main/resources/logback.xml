@@ -1,26 +1,26 @@
 <configuration>
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <!-- encoders are assigned the type
+         ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
 
-  <appender name="APIKEY_WEB" class="ch.qos.logback.core.FileAppender">
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <appender name="SDK" class="ch.qos.logback.core.FileAppender">
     <!-- the filter element -->
     <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
       <evaluator class="ch.qos.logback.classic.boolex.OnMarkerEvaluator">
-        <marker>APIKEY_LOG</marker>
+        <marker>SDK</marker>
       </evaluator>
       <onMatch>ACCEPT</onMatch>
       <onMismatch>DENY</onMismatch>
     </filter>
 
-    <File>apikeyweb.log</File>
+    <File>sdk.log</File>
     <Append>true</Append>
 
-    <encoder>
-      <pattern>%d{HH:mm:ss.SSS} [%thread] %marker %-5level %logger{36} - %msg%n</pattern>
-    </encoder>
-  </appender>
-
-  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-    <!-- encoders are assigned the type
-         ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
     <encoder>
       <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
     </encoder>
@@ -28,6 +28,6 @@
 
   <root level="info">
     <appender-ref ref="STDOUT" />
-    <appender-ref ref="APIKEY_WEB" />
+    <appender-ref ref="SDK" />
   </root>
 </configuration>
