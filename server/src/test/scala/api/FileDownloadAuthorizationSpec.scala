@@ -6,8 +6,9 @@ import java.util.UUID
 import _root_.api.api.logic.SpecCommonLogic
 import dsmoq.controllers.{FileController, ApiController, AjaxResponse}
 import dsmoq.persistence._
-import dsmoq.services.json.DatasetData.Dataset
+import dsmoq.services.json.DatasetData.{Dataset, DatasetFile}
 import dsmoq.services.json.GroupData.Group
+import dsmoq.services.json.RangeSlice
 import org.eclipse.jetty.server.Connector
 import org.json4s.{DefaultFormats, Formats}
 import org.json4s.jackson.JsonMethods._
@@ -56,104 +57,1157 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
   }
 
   "Authorization Test" - {
-    "設定した権限にあわせてファイルをダウンロードできるか" in {
-      session {
-        signIn()
-
-        // データセットを作成
-        val userAccessLevels = List(UserAccessLevel.Deny, UserAccessLevel.LimitedRead, UserAccessLevel.FullPublic, UserAccessLevel.Owner)
-        val groupAccessLevels = List(GroupAccessLevel.Deny, GroupAccessLevel.LimitedPublic, GroupAccessLevel.FullPublic, GroupAccessLevel.Provider)
-        val guestAccessLevels = List(DefaultAccessLevel.Deny, DefaultAccessLevel.LimitedPublic, DefaultAccessLevel.FullPublic)
-        val files = Map("file[]" -> dummyFile)
-        val datasetParams = userAccessLevels.map { userAccessLevel =>
-          groupAccessLevels.map { groupAccessLevel =>
-            guestAccessLevels.map { guestAccessLevel =>
-              // グループ作成/メンバー追加
-              val groupId = createGroup()
-              val memberParams = Map("d" -> compact(render(List(("userId" -> dummyUserId) ~ ("role" -> GroupMemberRole.Member)))))
-              post("/api/groups/" + groupId + "/members", memberParams) { checkStatus() }
-
-              post("/api/datasets", Map.empty, files) {
-                checkStatus()
-                val datasetId = parse(body).extract[AjaxResponse[Dataset]].data.id
-                val fileUrl = parse(body).extract[AjaxResponse[Dataset]].data.files(0).url
-
-                // アクセスレベル設定(ユーザー/グループ)
-                val accessLevelParams = Map("d" -> compact(render(List(
-                    ("id" -> dummyUserId) ~ ("ownerType" -> JInt(OwnerType.User)) ~ ("accessLevel" -> JInt(userAccessLevel)),
-                    ("id" -> groupId) ~ ("ownerType" -> JInt(OwnerType.Group)) ~ ("accessLevel" -> JInt(groupAccessLevel))
-                  )))
-                )
-                post("/api/datasets/" + datasetId + "/acl", accessLevelParams) { checkStatus() }
-
-                // ゲストアクセスレベル設定
-                val guestAccessLevelParams = Map("d" -> compact(render(("accessLevel" -> guestAccessLevel))))
-                put("/api/datasets/" + datasetId + "/guest_access", guestAccessLevelParams) { checkStatus() }
-
-                (datasetId, fileUrl, userAccessLevel, groupAccessLevel, guestAccessLevel)
-              }
-            }
+    "設定した権限にあわせてファイルをダウンロードできるか" - {
+      "Deny*Deny*Deny" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.Deny, GroupAccessLevel.Deny, DefaultAccessLevel.Deny)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
           }
-        }.flatten.flatten
-
-        // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
-        post("/api/signout") { checkStatus() }
-        post("/api/signin", dummyUserLoginParams) { checkStatus() }
-        datasetParams.foreach { params =>
-          // for debug
-          println("debug params(user):" + params)
-
-          val uri = new java.net.URI(params._2)
-          if (params._3 >= UserAccessLevel.FullPublic || params._4 >= GroupAccessLevel.FullPublic || params._5 >= DefaultAccessLevel.FullPublic) {
-            get(uri.getPath) {
-              status should be(200)
-            }
-          } else {
-            get(uri.getPath) {
-              // forbidden
-              status should be(403)
-            }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
           }
-        }
-
-        // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
-        post("/api/signout") { checkStatus() }
-        datasetParams.foreach { params =>
-          // for debug
-          println("debug params(guest):" + params)
-
-          val uri = new java.net.URI(params._2)
-          if (params._5 >= DefaultAccessLevel.FullPublic) {
-            get(uri.getPath) {
-              status should be(200)
-            }
-          } else {
-            get(uri.getPath) {
-              // forbidden
-              status should be(403)
-            }
-          }
-        }
-
-        // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
-        post("/api/signin", anotherUserLoginParams) { checkStatus() }
-        datasetParams.foreach { params =>
-          // for debug
-          println("debug params(not authorization user):" + params)
-
-          val uri = new java.net.URI(params._2)
-          if (params._5 >= DefaultAccessLevel.FullPublic) {
-            get(uri.getPath) {
-              status should be(200)
-            }
-          } else {
-            get(uri.getPath) {
-              // forbidden
-              status should be(403)
-            }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
           }
         }
       }
+      "Limited*Deny*Deny" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.LimitedRead, GroupAccessLevel.Deny, DefaultAccessLevel.Deny)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Full*Deny*Deny" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.FullPublic, GroupAccessLevel.Deny, DefaultAccessLevel.Deny)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Owner*Deny*Deny" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.Owner, GroupAccessLevel.Deny, DefaultAccessLevel.Deny)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Deny*Limited*Deny" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.Deny, GroupAccessLevel.LimitedPublic, DefaultAccessLevel.Deny)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Limited*Limited*Deny" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.LimitedRead, GroupAccessLevel.LimitedPublic, DefaultAccessLevel.Deny)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Full*Limited*Deny" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.FullPublic, GroupAccessLevel.LimitedPublic, DefaultAccessLevel.Deny)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Owner*Limited*Deny" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.Owner, GroupAccessLevel.LimitedPublic, DefaultAccessLevel.Deny)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Deny*Full*Deny" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.Deny, GroupAccessLevel.FullPublic, DefaultAccessLevel.Deny)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Limited*Full*Deny" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.LimitedRead, GroupAccessLevel.FullPublic, DefaultAccessLevel.Deny)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Full*Full*Deny" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.FullPublic, GroupAccessLevel.FullPublic, DefaultAccessLevel.Deny)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Owner*Full*Deny" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.Owner, GroupAccessLevel.FullPublic, DefaultAccessLevel.Deny)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Deny*Provider*Deny" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.Deny, GroupAccessLevel.Provider, DefaultAccessLevel.Deny)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Limited*Provider*Deny" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.LimitedRead, GroupAccessLevel.Provider, DefaultAccessLevel.Deny)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Full*Provider*Deny" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.FullPublic, GroupAccessLevel.Provider, DefaultAccessLevel.Deny)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Owner*Provider*Deny" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.Owner, GroupAccessLevel.Provider, DefaultAccessLevel.Deny)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Deny*Deny*Limited" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.Deny, GroupAccessLevel.Deny, DefaultAccessLevel.LimitedPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Limited*Deny*Limited" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.LimitedRead, GroupAccessLevel.Deny, DefaultAccessLevel.LimitedPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Full*Deny*Limited" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.FullPublic, GroupAccessLevel.Deny, DefaultAccessLevel.LimitedPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Owner*Deny*Limited" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.Owner, GroupAccessLevel.Deny, DefaultAccessLevel.LimitedPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Deny*Limited*Limited" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.Deny, GroupAccessLevel.LimitedPublic, DefaultAccessLevel.LimitedPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Limited*Limited*Limited" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.LimitedRead, GroupAccessLevel.LimitedPublic, DefaultAccessLevel.LimitedPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Full*Limited*Limited" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.FullPublic, GroupAccessLevel.LimitedPublic, DefaultAccessLevel.LimitedPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Owner*Limited*Limited" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.Owner, GroupAccessLevel.LimitedPublic, DefaultAccessLevel.LimitedPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Deny*Full*Limited" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.Deny, GroupAccessLevel.FullPublic, DefaultAccessLevel.LimitedPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Limited*Full*Limited" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.LimitedRead, GroupAccessLevel.FullPublic, DefaultAccessLevel.LimitedPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Full*Full*Limited" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.FullPublic, GroupAccessLevel.FullPublic, DefaultAccessLevel.LimitedPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Owner*Full*Limited" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.Owner, GroupAccessLevel.FullPublic, DefaultAccessLevel.LimitedPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Deny*Provider*Limited" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.Deny, GroupAccessLevel.Provider, DefaultAccessLevel.LimitedPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Limited*Provider*Limited" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.LimitedRead, GroupAccessLevel.Provider, DefaultAccessLevel.LimitedPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Full*Provider*Limited" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.FullPublic, GroupAccessLevel.Provider, DefaultAccessLevel.LimitedPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Owner*Provider*Limited" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.Owner, GroupAccessLevel.Provider, DefaultAccessLevel.LimitedPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(403)
+          }
+        }
+      }
+      "Deny*Deny*Full" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.Deny, GroupAccessLevel.Deny, DefaultAccessLevel.FullPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+        }
+      }
+      "Limited*Deny*Full" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.LimitedRead, GroupAccessLevel.Deny, DefaultAccessLevel.FullPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+        }
+      }
+      "Full*Deny*Full" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.FullPublic, GroupAccessLevel.Deny, DefaultAccessLevel.FullPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+        }
+      }
+      "Owner*Deny*Full" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.Owner, GroupAccessLevel.Deny, DefaultAccessLevel.FullPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+        }
+      }
+      "Deny*Limited*Full" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.Deny, GroupAccessLevel.LimitedPublic, DefaultAccessLevel.FullPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+        }
+      }
+      "Limited*Limited*Full" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.LimitedRead, GroupAccessLevel.LimitedPublic, DefaultAccessLevel.FullPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+        }
+      }
+      "Full*Limited*Full" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.FullPublic, GroupAccessLevel.LimitedPublic, DefaultAccessLevel.FullPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+        }
+      }
+      "Owner*Limited*Full" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.Owner, GroupAccessLevel.LimitedPublic, DefaultAccessLevel.FullPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+        }
+      }
+      "Deny*Full*Full" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.Deny, GroupAccessLevel.FullPublic, DefaultAccessLevel.FullPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+        }
+      }
+      "Limited*Full*Full" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.LimitedRead, GroupAccessLevel.FullPublic, DefaultAccessLevel.FullPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+        }
+      }
+      "Full*Full*Full" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.FullPublic, GroupAccessLevel.FullPublic, DefaultAccessLevel.FullPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+        }
+      }
+      "Owner*Full*Full" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.Owner, GroupAccessLevel.FullPublic, DefaultAccessLevel.FullPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+        }
+      }
+      "Deny*Provider*Full" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.Deny, GroupAccessLevel.Provider, DefaultAccessLevel.FullPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+        }
+      }
+      "Limited*Provider*Full" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.LimitedRead, GroupAccessLevel.Provider, DefaultAccessLevel.FullPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+        }
+      }
+      "Full*Provider*Full" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.FullPublic, GroupAccessLevel.Provider, DefaultAccessLevel.FullPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+        }
+      }
+      "Owner*Provider*Full" in {
+        session {
+          signIn()
+          val datasetId = createPermissionedDataset(UserAccessLevel.Owner, GroupAccessLevel.Provider, DefaultAccessLevel.FullPublic)
+          val uri = new java.net.URI(getFileUrl(datasetId))
+          // ダミーユーザー時のダウンロードチェック AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // ゲストアクセス時のダウンロードチェック  AllowRead以上でダウンロード可
+          post("/api/signout") { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+          // 何も権限を付与していないユーザーのダウンロードチェック ゲストと同じアクセス制限となる
+          post("/api/signin", anotherUserLoginParams) { checkStatus() }
+          get(uri.getPath) {
+            status should be(200)
+          }
+        }
+      }
+    }
+  }
+
+  private def createPermissionedDataset(
+    userAccessLevel: Int,
+    groupAccessLevel: Int,
+    guestAccessLevel: Int
+  ): String = {
+    // グループ作成
+    val groupId = createGroup()
+    val memberParams = Map("d" -> compact(render(List(("userId" -> dummyUserId) ~ ("role" -> GroupMemberRole.Member)))))
+    post("/api/groups/" + groupId + "/members", memberParams) { checkStatus() }
+    // データセット作成
+    val datasetId = createDataset()
+    setPermission(datasetId, groupId, userAccessLevel, groupAccessLevel, guestAccessLevel)
+    datasetId
+  }
+
+  private def setPermission(
+    datasetId: String,
+    groupId: String,
+    userAccessLevel: Int,
+    groupAccessLevel: Int,
+    guestAccessLevel: Int
+  ): Unit = {
+    // アクセスレベル設定(ユーザー/グループ)
+    val accessLevelParams = Map("d" ->
+      compact(
+        render(
+          List(
+            ("id" -> dummyUserId) ~ ("ownerType" -> JInt(OwnerType.User)) ~ ("accessLevel" -> JInt(userAccessLevel)),
+            ("id" -> groupId) ~ ("ownerType" -> JInt(OwnerType.Group)) ~ ("accessLevel" -> JInt(groupAccessLevel))
+          )
+        )
+      )
+    )
+    post("/api/datasets/" + datasetId + "/acl", accessLevelParams) { checkStatus() }
+    // ゲストアクセスレベル設定
+    val guestAccessLevelParams = Map("d" -> compact(render(("accessLevel" -> guestAccessLevel))))
+    put("/api/datasets/" + datasetId + "/guest_access", guestAccessLevelParams) { checkStatus() }
+  }
+
+  private def getFileUrl(datasetId: String): String = {
+    get(s"/api/datasets/${datasetId}/files") {
+      val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+      result.data.results(0).url
     }
   }
 

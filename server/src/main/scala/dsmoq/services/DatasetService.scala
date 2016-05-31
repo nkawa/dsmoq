@@ -2942,6 +2942,7 @@ object DatasetService extends LazyLogging {
         file
       }
     }
+
     for {
       fileInfo <- findResult
       _ <- requireNotWithPassword(fileInfo)
@@ -3100,7 +3101,7 @@ object DatasetService extends LazyLogging {
     */
   def getDownloadFileWithStream(datasetId: String, fileId: String, user: User): Try[DownloadFile] = {
     val fileInfo = getFileInfo(datasetId, fileId, user)
-    getDownloadFileByFileInfo(fileInfo.get, true)
+    fileInfo.flatMap(getDownloadFileByFileInfo(_, true))
   }
 
   /**
@@ -3114,7 +3115,7 @@ object DatasetService extends LazyLogging {
     */
   def getDownloadFileWithoutStream(datasetId: String, fileId: String, user: User): Try[DownloadFile] = {
     val fileInfo = getFileInfo(datasetId, fileId, user)
-    getDownloadFileByFileInfo(fileInfo.get, false)
+    fileInfo.flatMap(getDownloadFileByFileInfo(_, false))
   }
 
   /**

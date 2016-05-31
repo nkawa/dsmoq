@@ -209,7 +209,10 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Dataset]]
             result.data.filesCount should be(2)
-            assert(result.data.files.map(_.id).contains(fileId))
+            get(s"/api/datasets/${datasetId}/files") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              assert(result.data.results.map(_.id).contains(fileId))
+            }
           }
         }
       }
@@ -229,8 +232,12 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Dataset]]
             result.data.filesCount should be(3)
-            fileIds.map {x =>
-              assert(result.data.files.map(_.id).contains(x))
+
+            get(s"/api/datasets/${datasetId}/files") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              fileIds.map { x =>
+                assert(result.data.results.map(x => x.id).contains(x))
+              }
             }
           }
         }
@@ -266,7 +273,10 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             val result = parse(body).extract[AjaxResponse[Dataset]]
             result.data.filesCount should be(2)
             // IDの有無をチェック後、付随するデータのチェック
-            assert(result.data.files.map(_.id).contains(fileId))
+            get(s"/api/datasets/${datasetId}/files") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              assert(result.data.results.map(_.id).contains(fileId))
+            }
             result.data.files.foreach { x =>
               if (x.id == fileId) {
                 x.size should be (anotherFile.length)
@@ -298,7 +308,10 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Dataset]]
             // IDの有無をチェック後、付随するデータのチェック
-            assert(result.data.files.map(_.id).contains(fileId))
+            get(s"/api/datasets/${datasetId}/files") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              assert(result.data.results.map(_.id).contains(fileId))
+            }
             result.data.files.foreach { x =>
               if (x.id == fileId) {
                 x.name should be ("testtest.txt")
@@ -2257,6 +2270,76 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
                 case Some(attr) => attr.value should be(sortedTuple(i)._2)
                 case None => fail("attribute 'featured' not found.")
               }
+            }
+          }
+        }
+      }
+      "ファイル情報取得API" - {
+        "datasetId無効" in {
+          session {
+            signIn()
+            val files = List(("file[]", dummyFile))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            get(s"/api/datasets/${datasetId.reverse}/files") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.status should be("NotFound")
+            }
+          }
+        }
+        "GuestUser+アクセス権なし" in {
+          session {
+            signIn()
+            val files = List(("file[]", dummyFile))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            post("/api/signout") { checkStatus() }
+            get(s"/api/datasets/${datasetId}/files") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.status should be("Unauthorized")
+            }
+          }
+        }
+        "LoginUser+アクセス権なし" in {
+          session {
+            signIn()
+            val files = List(("file[]", dummyFile))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            post("/api/signout") { checkStatus() }
+            post("/api/signin", dummyUserLoginParams) { checkStatus() }
+            get(s"/api/datasets/${datasetId}/files") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.status should be("Unauthorized")
+            }
+          }
+        }
+        "GuestUser+アクセス権あり" in {
+          val datasetId = session {
+            signIn()
+            val files = List(("file[]", dummyFile))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val params = Map("d" -> compact(render(("accessLevel" -> JInt(DefaultAccessLevel.FullPublic)))))
+            put(s"/api/datasets/${datasetId}/guest_access", params) { checkStatus() }
+            post("/api/signout") { checkStatus() }
+            get(s"/api/datasets/${datasetId}/files") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.summary.count should be(1)
+              result.data.results.size should be(1)
             }
           }
         }
