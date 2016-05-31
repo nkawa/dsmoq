@@ -41,7 +41,8 @@ object DsmoqSdkBuild extends Build {
         "junit" % "junit" % "4.12",
         "joda-time" % "joda-time" % "2.7",
         "com.typesafe" % "config" % "1.3.0",
-        "com.typesafe.scala-logging" % "scala-logging_2.11" % "3.1.0" % "compile"
+        "com.typesafe.scala-logging" % "scala-logging_2.11" % "3.1.0" % "compile",
+        "com.novocode" % "junit-interface" % "0.11"
       )
     )
   )

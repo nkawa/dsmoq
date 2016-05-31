@@ -336,6 +336,27 @@ public class AsyncDsmoqClient {
     }
 
     /**
+     * データセットのファイル一覧を取得する。（GET /api/datasets/${dataset_id}/files相当）
+     * @param datasetId DatasetID
+     * @param param 一覧取得情報
+     * @return データセットのファイル一覧のFuture
+     */
+    public CompletableFuture<RangeSlice<DatasetFile>> getDatasetFiles(String datasetId, GetRangeParam param) {
+        return CompletableFuture.supplyAsync(() -> client.getDatasetFiles(datasetId, param));
+    }
+
+    /**
+     * データセットのZIPファイルに含まれるファイル一覧を取得する。（GET /api/datasets/${dataset_id}/files/${fileId}/zippedfiles相当）
+     * @param datasetId DatasetID
+     * @param fileId FileID
+     * @param param 一覧取得情報
+     * @return ZIPファイル中のファイル一覧のFuture
+     */
+    public CompletableFuture<RangeSlice<DatasetZipedFile>> getDatasetZippedFiles(String datasetId, String fileId, GetRangeParam param) {
+        return CompletableFuture.supplyAsync(() -> client.getDatasetZippedFiles(datasetId, fileId, param));
+    }
+
+    /**
      * グループ詳細を取得する。（GET /api/groups/${group_id}相当）
      * @param groupId グループID
      * @return グループ詳細情報のFuture
