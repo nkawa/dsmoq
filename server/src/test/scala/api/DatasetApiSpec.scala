@@ -39,6 +39,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
   private val dummyFile = new File("README.md")
   private val dummyImage = new File("../client/www/dummy/images/nagoya.jpg")
+  private val dummyZipFile = new File("testdata/test1.zip")
   private val testUserName = "dummy1"
   private val dummyUserName = "dummy4"
   private val testUserId = "023bfa40-e897-4dad-96db-9fd3cf001e79" // dummy1
@@ -111,21 +112,26 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val files = List(("file[]", dummyFile), ("file[]", dummyFile))
-          val datasetDatas = post("/api/datasets", Map.empty, files) {
+          val (datasetId, fileIds) = post("/api/datasets", Map.empty, files) {
             checkStatus()
-//            parse(body).extract[AjaxResponse[Dataset]].data.id
             val result = parse(body).extract[AjaxResponse[Dataset]]
             val datasetId = result.data.id
             val fileIds = result.data.files.map(_.id).sorted
             (datasetId, fileIds)
           }
 
-          get("/api/datasets/" + datasetDatas._1) {
+          get("/api/datasets/" + datasetId) {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Dataset]]
-            result.data.id should be (datasetDatas._1)
+            result.data.id should be (datasetId)
             result.data.filesCount should be(2)
-            result.data.files.map(_.id).sorted.sameElements(datasetDatas._2)
+            result.data.files.size should be(0)
+            get(s"/api/datasets/${datasetId}/files") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              fileIds.map { fileId =>
+                assert(result.data.results.map(_.id).contains(fileId))
+              }
+            }
           }
         }
       }
@@ -209,6 +215,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Dataset]]
             result.data.filesCount should be(2)
+            result.data.files.size should be(0)
             get(s"/api/datasets/${datasetId}/files") {
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
               assert(result.data.results.map(_.id).contains(fileId))
@@ -232,7 +239,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Dataset]]
             result.data.filesCount should be(3)
-
+            result.data.files.size should be(0)
             get(s"/api/datasets/${datasetId}/files") {
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
               fileIds.map { x =>
@@ -276,10 +283,10 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             get(s"/api/datasets/${datasetId}/files") {
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
               assert(result.data.results.map(_.id).contains(fileId))
-            }
-            result.data.files.foreach { x =>
-              if (x.id == fileId) {
-                x.size should be (anotherFile.length)
+              result.data.results.foreach { x =>
+                if (x.id == fileId) {
+                  x.size should be (anotherFile.length)
+                }
               }
             }
           }
@@ -342,7 +349,10 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Dataset]]
             result.data.filesCount should be(3)
-            assert(!result.data.files.map(_.id).contains(fileId))
+            get(s"/api/datasets/${datasetId}/files") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              assert(!result.data.results.map(_.id).contains(fileId))
+            }
           }
         }
       }
@@ -2324,7 +2334,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           }
         }
         "GuestUser+アクセス権あり" in {
-          val datasetId = session {
+          session {
             signIn()
             val files = List(("file[]", dummyFile))
             val datasetId = post("/api/datasets", Map.empty, files) {
@@ -2340,6 +2350,199 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
               result.data.summary.count should be(1)
               result.data.results.size should be(1)
+            }
+          }
+        }
+        "LoginUser+アクセス権あり" in {
+          session {
+            signIn()
+            val files = List(("file[]", dummyFile))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val params = Map("d" ->
+              compact(render(List(
+                ("id" -> dummyUserId) ~
+                ("ownerType" -> JInt(OwnerType.User)) ~
+                ("accessLevel" -> JInt(UserAccessLevel.FullPublic))
+              )))
+            )
+            post(s"/api/datasets/${datasetId}/acl", params) {
+              checkStatus()
+            }
+            post("/api/signout") { checkStatus() }
+            post("/api/signin", dummyUserLoginParams) { checkStatus() }
+            get(s"/api/datasets/${datasetId}/files") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.summary.count should be(1)
+              result.data.results.size should be(1)
+            }
+          }
+        }
+      }
+      "ZIPファイル情報取得API" - {
+        "datasetId無効" in {
+          session {
+            signIn()
+            val files = List(("file[]", dummyZipFile))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val fileId = get(s"/api/datasets/${datasetId}/files") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.results(0).id
+            }
+            get(s"/api/datasets/${datasetId.reverse}/files/${fileId}/zippedfiles") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
+              result.status should be("NotFound")
+            }
+          }
+        }
+        "fileId無効" in {
+          session {
+            signIn()
+            val files = List(("file[]", dummyZipFile))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val fileId = get(s"/api/datasets/${datasetId}/files") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.results(0).id
+            }
+            get(s"/api/datasets/${datasetId}/files/${fileId.reverse}/zippedfiles") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
+              result.status should be("BadRequest")
+            }
+          }
+        }
+        "fileId無効(zipでない)" in {
+          session {
+            signIn()
+            val files = List(("file[]", dummyFile))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val fileId = get(s"/api/datasets/${datasetId}/files") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.results(0).id
+            }
+            get(s"/api/datasets/${datasetId}/files/${fileId.reverse}/zippedfiles") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
+              result.status should be("BadRequest")
+            }
+          }
+        }
+        "GuestUser+アクセス権なし" in {
+          session {
+            signIn()
+            val files = List(("file[]", dummyZipFile))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val fileId = get(s"/api/datasets/${datasetId}/files") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.results(0).id
+            }
+            post("/api/signout") { checkStatus() }
+            get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
+              result.status should be("Unauthorized")
+            }
+          }
+        }
+        "LoginUser+アクセス権なし" in {
+          session {
+            signIn()
+            val files = List(("file[]", dummyZipFile))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val fileId = get(s"/api/datasets/${datasetId}/files") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.results(0).id
+            }
+            post("/api/signout") { checkStatus() }
+            post("/api/signin", dummyUserLoginParams) { checkStatus() }
+            get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
+              result.status should be("Unauthorized")
+            }
+          }
+        }
+        "GuestUser+アクセス権あり" in {
+          session {
+            signIn()
+            val files = List(("file[]", dummyZipFile))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val params = Map("d" -> compact(render(("accessLevel" -> JInt(DefaultAccessLevel.FullPublic)))))
+            put(s"/api/datasets/${datasetId}/guest_access", params) { checkStatus() }
+            val fileId = get(s"/api/datasets/${datasetId}/files") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.results(0).id
+            }
+            post("/api/signout") { checkStatus() }
+            get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
+              result.data.summary.count should be(2)
+              result.data.results.size should be(2)
+            }
+          }
+        }
+        "LoginUser+アクセス権あり" in {
+          session {
+            signIn()
+            val files = List(("file[]", dummyZipFile))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val params = Map("d" ->
+              compact(render(List(
+                ("id" -> dummyUserId) ~
+                ("ownerType" -> JInt(OwnerType.User)) ~
+                ("accessLevel" -> JInt(UserAccessLevel.FullPublic))
+              )))
+            )
+            post(s"/api/datasets/${datasetId}/acl", params) {
+              checkStatus()
+            }
+            val fileId = get(s"/api/datasets/${datasetId}/files") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.results(0).id
+            }
+            post("/api/signout") { checkStatus() }
+            post("/api/signin", dummyUserLoginParams) { checkStatus() }
+            get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
+              result.data.summary.count should be(2)
+              result.data.results.size should be(2)
             }
           }
         }

@@ -2014,7 +2014,13 @@ object DatasetService extends LazyLogging {
     val guestPermission = (getGuestAccessLevel(id), GroupType.Personal)
     // Provider権限のGroupはWriteできない
     (guestPermission :: permissions) match {
-      case x :: xs => Some((guestPermission :: permissions).map(x => if (x._1 == GroupAccessLevel.Provider && x._2 == GroupType.Public) { 2 } else { x._1 }).max)
+      case x :: xs => Some((guestPermission :: permissions).map{ case (accessLevel, groupType) =>
+        if (accessLevel == GroupAccessLevel.Provider && groupType == GroupType.Public) {
+          UserAndGroupAllowDownload
+        } else {
+          accessLevel
+        }
+      }.max)
       case Nil => None
     }
   }
@@ -3148,10 +3154,10 @@ object DatasetService extends LazyLogging {
           val count = getFileAmount(datasetId)
           // offsetが0未満は空リストを返却する
           if (validatedOffset < 0) {
-            RangeSlice(RangeSliceSummary(count, validatedLimit, validatedOffset), Seq.empty[DatasetData.DatasetFile])
+            RangeSlice(RangeSliceSummary(count, 0, validatedOffset), Seq.empty[DatasetData.DatasetFile])
           } else {
             val files = getFiles(datasetId, validatedLimit, validatedOffset)
-            RangeSlice(RangeSliceSummary(count, validatedLimit, validatedOffset), files)
+            RangeSlice(RangeSliceSummary(count, files.size, validatedOffset), files)
           }
         })
         .map(x => Success(x)).getOrElse(Failure(new NotAuthorizedException()))
@@ -3198,10 +3204,10 @@ object DatasetService extends LazyLogging {
           val count = getZippedFileAmount(datasetId, history.id)
           // offsetが0未満は空リストを返却する
           if (validatedOffset < 0) {
-            RangeSlice(RangeSliceSummary(count, validatedLimit, validatedOffset), Seq.empty[DatasetData.DatasetZipedFile])
+            RangeSlice(RangeSliceSummary(count, 0, validatedOffset), Seq.empty[DatasetData.DatasetZipedFile])
           } else {
             val files = getZippedFiles(datasetId, history.id, validatedLimit, validatedOffset)
-            RangeSlice(RangeSliceSummary(count, validatedLimit, validatedOffset), files)
+            RangeSlice(RangeSliceSummary(count, files.size, validatedOffset), files)
           }
         })
         .map(x => Success(x)).getOrElse(Failure(new NotAuthorizedException()))
