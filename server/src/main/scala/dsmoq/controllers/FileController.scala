@@ -1,14 +1,14 @@
 package dsmoq.controllers
 
 import com.typesafe.scalalogging.LazyLogging
-import dsmoq.exceptions.{AccessDeniedException, NotFoundException}
+import dsmoq.exceptions.{AccessDeniedException, NotAuthorizedException, NotFoundException}
 import dsmoq.services.DatasetService._
 import dsmoq.services.{DatasetService, User}
 import org.apache.commons.io.input.BoundedInputStream
 import org.scalatra.ScalatraServlet
 import org.slf4j.MarkerFactory
 
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 class FileController extends ScalatraServlet with SessionTrait with UserTrait with LazyLogging {
 
@@ -33,7 +33,8 @@ class FileController extends ScalatraServlet with SessionTrait with UserTrait wi
     // HEADリクエストではボディ要素として、バイナリは返さない。
     // このため、ストリームが設定されていない形でDownloadFileを取得する。
     val result = for {
-      fileInfo <- DatasetService.getDownloadFileWithoutStream(datasetId, id, userFromHeader.getOrElse(currentUser))
+      user <- getUserAllowGuest
+      fileInfo <- DatasetService.getDownloadFileWithoutStream(datasetId, id, user)
     } yield {
       fileInfo
     }
@@ -92,7 +93,8 @@ class FileController extends ScalatraServlet with SessionTrait with UserTrait wi
     logger.info(LOG_MARKER, "Receive get request, datasetId={}, id={}", datasetId, id)
 
     val result = for {
-      fileInfo <- DatasetService.getDownloadFileWithStream(datasetId, id, userFromHeader.getOrElse(currentUser))
+      user <- getUserAllowGuest
+      fileInfo <- DatasetService.getDownloadFileWithStream(datasetId, id, user)
     } yield {
       fileInfo
     }
@@ -225,7 +227,22 @@ class FileController extends ScalatraServlet with SessionTrait with UserTrait wi
     }
   }
 
-  private def userFromHeader: Option[User] = userFromHeader(request.getHeader("Authorization"))
+  private def userFromHeader: Option[Option[User]] = userFromHeader(request.getHeader("Authorization"))
+
+  private def getUser(sessionUser: => Try[User]): Try[User] = {
+    userFromHeader match {
+      // APIキーによるユーザー取得が成功した場合、対象のユーザーをログインユーザーとして返却する
+      case Some(Some(user)) => Success(user)
+      // APIキーによるユーザー取得が失敗した場合、Unauthorizedとして扱う
+      case Some(None) => Failure(new NotAuthorizedException)
+      // APIキーが設定されなかった場合のみ、セッションからログインユーザーを取得する
+      case None => sessionUser
+    }
+  }
+
+  private def getUserAllowGuest: Try[User] = {
+    getUser(Success(currentUser))
+  }
 
   /**
     * Rangeヘッダが適切かどうか判定する。

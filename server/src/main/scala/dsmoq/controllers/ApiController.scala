@@ -55,8 +55,11 @@ class ApiController extends ScalatraServlet
   // profile api
   // --------------------------------------------------------------------------
   get("/profile") {
-    val user = userFromHeader.getOrElse(currentUser)
-    AjaxResponse("OK", AccountService.getUserProfile(user));
+    (for {
+      user <- getUserAllowGuest
+    } yield {
+      AccountService.getUserProfile(user)
+    }) |> toAjaxResponse
   }
 
   put("/profile") {
@@ -136,15 +139,18 @@ class ApiController extends ScalatraServlet
   get("/datasets") {
     val json = params.get("d").map(JsonMethods.parse(_).extract[SearchDatasetsParams])
                                .getOrElse(SearchDatasetsParams())
-    DatasetService.search(json.query, json.owners, json.groups, json.attributes,
-                          json.limit, json.offset, json.orderby, userFromHeader.getOrElse(currentUser)) |> toAjaxResponse
+    (for {
+      user <- getUserAllowGuest
+      dataset <- DatasetService.search(json.query, json.owners, json.groups, json.attributes, json.limit, json.offset, json.orderby, user)
+    } yield dataset) |> toAjaxResponse
   }
 
   get("/datasets/:datasetId") {
     val id = params("datasetId")
     (for {
-      dataset <- DatasetService.get(id, userFromHeader.getOrElse(currentUser))
-      _ <- SystemService.writeDatasetAccessLog(dataset.id, userFromHeader.getOrElse(currentUser))
+      user <- getUserAllowGuest
+      dataset <- DatasetService.get(id, user)
+      _ <- SystemService.writeDatasetAccessLog(dataset.id, user)
     } yield dataset) |> toAjaxResponse
   }
 
@@ -327,7 +333,7 @@ class ApiController extends ScalatraServlet
     val datasetId = params("datasetId")
     val json = getJsonValue[SearchRangeParams].getOrElse(SearchRangeParams(Some(dsmoq.AppConf.fileLimit), Some(0)))
     (for {
-      user <- getUser
+      user <- getUserAllowGuest
       result <- DatasetService.getDatasetFiles(datasetId, json.limit, json.offset, user)
     } yield result) |> toAjaxResponse
   }
@@ -337,7 +343,7 @@ class ApiController extends ScalatraServlet
     val fileId = params("fileId")
     val json = getJsonValue[SearchRangeParams].getOrElse(SearchRangeParams(Some(dsmoq.AppConf.fileLimit), Some(0)))
     (for {
-      user <- getUser
+      user <- getUserAllowGuest
       result <- DatasetService.getDatasetZippedFiles(datasetId, fileId, json.limit, json.offset, user)
     } yield result) |> toAjaxResponse
   }
@@ -347,18 +353,27 @@ class ApiController extends ScalatraServlet
   // --------------------------------------------------------------------------
   get("/groups") {
     val json = getJsonValue[SearchGroupsParams].getOrElse(SearchGroupsParams())
-    GroupService.search(json.query, json.user, json.limit, json.offset, userFromHeader.getOrElse(currentUser)) |> toAjaxResponse
+    (for {
+      user <- getUserAllowGuest
+      groups <- GroupService.search(json.query, json.user, json.limit, json.offset, user)
+    } yield groups) |> toAjaxResponse
   }
 
   get("/groups/:groupId") {
     val groupId = params("groupId")
-    GroupService.get(groupId, userFromHeader.getOrElse(currentUser)) |> toAjaxResponse
+    (for {
+      user <- getUserAllowGuest
+      group <- GroupService.get(groupId, user)
+    } yield group) |> toAjaxResponse
   }
 
   get("/groups/:groupId/members") {
     val groupId = params("groupId")
     val json = getJsonValue[GetGroupMembersParams].getOrElse(GetGroupMembersParams())
-    GroupService.getGroupMembers(groupId, json.limit, json.offset, userFromHeader.getOrElse(currentUser)) |> toAjaxResponse
+    (for {
+      user <- getUserAllowGuest
+      members <- GroupService.getGroupMembers(groupId, json.limit, json.offset, user)
+    } yield members) |> toAjaxResponse
   }
 
   post("/groups") {
@@ -516,15 +531,27 @@ class ApiController extends ScalatraServlet
     val message = SystemService.getMessage()
     AjaxResponse("OK", message)
   }
+  
+  private def userFromHeader :Option[Option[User]] = userFromHeader(request.getHeader("Authorization"))
 
-  private def getUser: Try[User] = {
+  private def getUser(sessionUser: => Try[User]): Try[User] = {
     userFromHeader match {
-      case Some(user) => Success(user)
-      case None => signedInUser
+      // APIキーによるユーザー取得が成功した場合、対象のユーザーをログインユーザーとして返却する
+      case Some(Some(user)) => Success(user)
+      // APIキーによるユーザー取得が失敗した場合、Unauthorizedとして扱う
+      case Some(None) => Failure(new NotAuthorizedException)
+      // APIキーが設定されなかった場合のみ、セッションからログインユーザーを取得する
+      case None => sessionUser
     }
   }
 
-  private def userFromHeader :Option[User] = userFromHeader(request.getHeader("Authorization"))
+  private def getUser: Try[User] = {
+    getUser(signedInUser)
+  }
+
+  private def getUserAllowGuest: Try[User] = {
+    getUser(Success(currentUser))
+  }
 
   private def toAjaxResponse[A](result: Try[A]) = result match {
     case Success(Unit) => AjaxResponse("OK")
