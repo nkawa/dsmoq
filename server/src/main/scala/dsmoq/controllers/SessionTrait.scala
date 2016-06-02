@@ -1,10 +1,12 @@
 package dsmoq.controllers
 
 import dsmoq.AppConf
-import dsmoq.exceptions.NotAuthorizedException
 import dsmoq.services.User
 import org.scalatra.ScalatraServlet
-import scala.util.{Try, Failure, Success}
+
+sealed trait SessionUser
+case class SignedInUser(user: User) extends SessionUser
+case class GuestUser(user: User) extends SessionUser
 
 trait SessionTrait extends ScalatraServlet {
   private val SessionKey = "user"
@@ -15,25 +17,13 @@ trait SessionTrait extends ScalatraServlet {
       .getOrElse(cookies.get(sessionId).map(_ => true).getOrElse(false))
   }
 
-  def currentUser: User = {
-    signedInUser match {
-      case Success(x) => x
-      case Failure(_) => guestUser
-    }
-  }
-
-  def signedInUser: Try[User] = {
+  def signedInUser: SessionUser = {
     sessionOption match {
       case Some(_) => session.get(SessionKey) match {
-        case Some(x) =>
-          Success(x.asInstanceOf[User])
-        case None =>
-          clearSession()
-          Failure(new NotAuthorizedException())
+        case Some(x) => SignedInUser(x.asInstanceOf[User])
+        case None => GuestUser(guestUser)
       }
-      case None =>
-        clearSession()
-        Failure(new NotAuthorizedException())
+      case None => GuestUser(guestUser)
     }
   }
 
