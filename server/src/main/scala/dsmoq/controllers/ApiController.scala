@@ -576,7 +576,7 @@ class ApiController extends ScalatraServlet
     }
   }
 
-  private def getJsonValue[T](implicit m: Manifest[T]) = params.get("d").map(x => JsonMethods.parse(x).extract[T])
+  private def getJsonValue[T](implicit m: Manifest[T]) = params.get("d").flatMap{ x => JsonMethods.parse(x).extractOpt[T] }
 }
 
 case class AjaxResponse[A](status: String, data: A = {})

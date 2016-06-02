@@ -2382,6 +2382,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             }
           }
         }
+        ""
       }
       "ZIPファイル情報取得API" - {
         "datasetId無効" in {
@@ -2543,6 +2544,686 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
               result.data.summary.count should be(2)
               result.data.results.size should be(2)
+            }
+          }
+        }
+      }
+      "ファイル情報取得API(リクエスト)" - {
+        "JSONなし" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List.fill(151)(("file[]", dummyFile))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            get(s"/api/datasets/${datasetId}/files") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.summary.total should be(151)
+              result.data.summary.count should be(150)
+              result.data.summary.offset should be(0)
+              result.data.results.size should be(150)
+            }
+          }
+        }
+        "JSONとして不正な文字列" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List.fill(151)(("file[]", dummyFile))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val params = Map("d" -> "null")
+            get(s"/api/datasets/${datasetId}/files", params) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.summary.total should be(151)
+              result.data.summary.count should be(150)
+              result.data.summary.offset should be(0)
+              result.data.results.size should be(150)
+            }
+          }
+        }
+        "空JSON" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List.fill(151)(("file[]", dummyFile))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val params = Map("d" -> "{}")
+            get(s"/api/datasets/${datasetId}/files", params) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.summary.total should be(151)
+              result.data.summary.count should be(150)
+              result.data.summary.offset should be(0)
+              result.data.results.size should be(150)
+            }
+          }
+        }
+        "limit=-1" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List.fill(151)(("file[]", dummyFile))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val params = Map("d" ->
+              compact(render(List(
+                ("limit" -> JInt(-1))
+              )))
+            )
+            get(s"/api/datasets/${datasetId}/files", params) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.summary.total should be(151)
+              result.data.summary.count should be(0)
+              result.data.summary.offset should be(0)
+              result.data.results.size should be(0)
+            }
+          }
+        }
+        "limit=0" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List.fill(151)(("file[]", dummyFile))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val params = Map("d" ->
+              compact(render(List(
+                ("limit" -> JInt(0))
+              )))
+            )
+            get(s"/api/datasets/${datasetId}/files", params) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.summary.total should be(151)
+              result.data.summary.count should be(0)
+              result.data.summary.offset should be(0)
+              result.data.results.size should be(0)
+            }
+          }
+        }
+        "limit=1" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List.fill(151)(("file[]", dummyFile))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val params = Map("d" ->
+              compact(render(List(
+                ("limit" -> JInt(1))
+              )))
+            )
+            get(s"/api/datasets/${datasetId}/files", params) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.summary.total should be(151)
+              result.data.summary.count should be(1)
+              result.data.summary.offset should be(0)
+              result.data.results.size should be(1)
+            }
+          }
+        }
+        "limit=152" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List.fill(151)(("file[]", dummyFile))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val params = Map("d" ->
+              compact(render(List(
+                ("limit" -> JInt(152))
+              )))
+            )
+            get(s"/api/datasets/${datasetId}/files", params) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.summary.total should be(151)
+              result.data.summary.count should be(150)
+              result.data.summary.offset should be(0)
+              result.data.results.size should be(150)
+            }
+          }
+        }
+        "limit=数値以外" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List.fill(151)(("file[]", dummyFile))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val params = Map("d" ->
+              compact(render(List(
+                ("limit" -> "hoge")
+              )))
+            )
+            get(s"/api/datasets/${datasetId}/files", params) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.summary.total should be(151)
+              result.data.summary.count should be(150)
+              result.data.summary.offset should be(0)
+              result.data.results.size should be(150)
+            }
+          }
+        }
+        "offset=-1" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List.fill(20)(("file[]", dummyFile))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val params = Map("d" ->
+              compact(render(List(
+                ("offset" -> JInt(-1))
+              )))
+            )
+            get(s"/api/datasets/${datasetId}/files", params) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.summary.total should be(20)
+              result.data.summary.count should be(0)
+              result.data.summary.offset should be(-1)
+              result.data.results.size should be(0)
+            }
+          }
+        }
+        "offset=0" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List.fill(20)(("file[]", dummyFile))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val params = Map("d" ->
+              compact(render(List(
+                ("offset" -> JInt(0))
+              )))
+            )
+            get(s"/api/datasets/${datasetId}/files", params) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.summary.total should be(20)
+              result.data.summary.count should be(20)
+              result.data.summary.offset should be(0)
+              result.data.results.size should be(20)
+            }
+          }
+        }
+        "offset=20" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List.fill(20)(("file[]", dummyFile))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val params = Map("d" ->
+              compact(render(List(
+                ("offset" -> JInt(20))
+              )))
+            )
+            get(s"/api/datasets/${datasetId}/files", params) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.summary.total should be(20)
+              result.data.summary.count should be(0)
+              result.data.summary.offset should be(20)
+              result.data.results.size should be(0)
+            }
+          }
+        }
+        "offset=21" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List.fill(20)(("file[]", dummyFile))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val params = Map("d" ->
+              compact(render(List(
+                ("offset" -> JInt(21))
+              )))
+            )
+            get(s"/api/datasets/${datasetId}/files", params) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.summary.total should be(20)
+              result.data.summary.count should be(0)
+              result.data.summary.offset should be(21)
+              result.data.results.size should be(0)
+            }
+          }
+        }
+        "offset=数値以外" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List.fill(20)(("file[]", dummyFile))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val params = Map("d" ->
+              compact(render(List(
+                ("offset" -> "hoge")
+              )))
+            )
+            get(s"/api/datasets/${datasetId}/files", params) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.summary.total should be(20)
+              result.data.summary.count should be(20)
+              result.data.summary.offset should be(0)
+              result.data.results.size should be(20)
+            }
+          }
+        }
+      }
+      "ZIPファイル内情報取得API(リクエスト)" - {
+        "JSONなし" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List(("file[]", new File("testdata/test3.zip")))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val fileId = get(s"/api/datasets/${datasetId}/files") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.results(0).id
+            }
+            get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
+              result.data.summary.total should be(151)
+              result.data.summary.count should be(150)
+              result.data.summary.offset should be(0)
+              result.data.results.size should be(150)
+            }
+          }
+        }
+        "JSONとして不正な文字列" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List(("file[]", new File("testdata/test3.zip")))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val fileId = get(s"/api/datasets/${datasetId}/files") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.results(0).id
+            }
+            val params = Map("d" -> "null")
+            get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles", params) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
+              result.data.summary.total should be(151)
+              result.data.summary.count should be(150)
+              result.data.summary.offset should be(0)
+              result.data.results.size should be(150)
+            }
+          }
+        }
+        "空JSON" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List(("file[]", new File("testdata/test3.zip")))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val fileId = get(s"/api/datasets/${datasetId}/files") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.results(0).id
+            }
+            val params = Map("d" -> "{}")
+            get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles", params) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
+              result.data.summary.total should be(151)
+              result.data.summary.count should be(150)
+              result.data.summary.offset should be(0)
+              result.data.results.size should be(150)
+            }
+          }
+        }
+        "limit=-1" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List(("file[]", new File("testdata/test3.zip")))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val fileId = get(s"/api/datasets/${datasetId}/files") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.results(0).id
+            }
+            val params = Map("d" ->
+              compact(render(List(
+                ("limit" -> JInt(-1))
+              )))
+            )
+            get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles", params) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
+              result.data.summary.total should be(151)
+              result.data.summary.count should be(0)
+              result.data.summary.offset should be(0)
+              result.data.results.size should be(0)
+            }
+          }
+        }
+        "limit=0" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List(("file[]", new File("testdata/test3.zip")))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val fileId = get(s"/api/datasets/${datasetId}/files") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.results(0).id
+            }
+            val params = Map("d" ->
+              compact(render(List(
+                ("limit" -> JInt(0))
+              )))
+            )
+            get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles", params) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
+              result.data.summary.total should be(151)
+              result.data.summary.count should be(0)
+              result.data.summary.offset should be(0)
+              result.data.results.size should be(0)
+            }
+          }
+        }
+        "limit=1" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List(("file[]", new File("testdata/test3.zip")))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val fileId = get(s"/api/datasets/${datasetId}/files") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.results(0).id
+            }
+            val params = Map("d" ->
+              compact(render(List(
+                ("limit" -> JInt(1))
+              )))
+            )
+            get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles", params) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
+              result.data.summary.total should be(151)
+              result.data.summary.count should be(1)
+              result.data.summary.offset should be(0)
+              result.data.results.size should be(1)
+            }
+          }
+        }
+        "limit=152" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List(("file[]", new File("testdata/test3.zip")))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val fileId = get(s"/api/datasets/${datasetId}/files") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.results(0).id
+            }
+            val params = Map("d" ->
+              compact(render(List(
+                ("limit" -> JInt(152))
+              )))
+            )
+            get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles", params) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
+              result.data.summary.total should be(151)
+              result.data.summary.count should be(150)
+              result.data.summary.offset should be(0)
+              result.data.results.size should be(150)
+            }
+          }
+        }
+        "limit=数値以外" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List(("file[]", new File("testdata/test3.zip")))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val fileId = get(s"/api/datasets/${datasetId}/files") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.results(0).id
+            }
+            val params = Map("d" ->
+              compact(render(List(
+                ("limit" -> "hoge")
+              )))
+            )
+            get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles", params) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
+              result.data.summary.total should be(151)
+              result.data.summary.count should be(150)
+              result.data.summary.offset should be(0)
+              result.data.results.size should be(150)
+            }
+          }
+        }
+        "offset=-1" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List(("file[]", new File("testdata/test4.zip")))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val fileId = get(s"/api/datasets/${datasetId}/files") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.results(0).id
+            }
+            val params = Map("d" ->
+              compact(render(List(
+                ("offset" -> JInt(-1))
+              )))
+            )
+            get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles", params) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
+              result.data.summary.total should be(20)
+              result.data.summary.count should be(0)
+              result.data.summary.offset should be(-1)
+              result.data.results.size should be(0)
+            }
+          }
+        }
+        "offset=0" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List(("file[]", new File("testdata/test4.zip")))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val fileId = get(s"/api/datasets/${datasetId}/files") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.results(0).id
+            }
+            val params = Map("d" ->
+              compact(render(List(
+                ("offset" -> JInt(0))
+              )))
+            )
+            get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles", params) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
+              result.data.summary.total should be(20)
+              result.data.summary.count should be(20)
+              result.data.summary.offset should be(0)
+              result.data.results.size should be(20)
+            }
+          }
+        }
+        "offset=20" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List(("file[]", new File("testdata/test4.zip")))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val fileId = get(s"/api/datasets/${datasetId}/files") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.results(0).id
+            }
+            val params = Map("d" ->
+              compact(render(List(
+                ("offset" -> JInt(20))
+              )))
+            )
+            get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles", params) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
+              result.data.summary.total should be(20)
+              result.data.summary.count should be(0)
+              result.data.summary.offset should be(20)
+              result.data.results.size should be(0)
+            }
+          }
+        }
+        "offset=21" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List(("file[]", new File("testdata/test4.zip")))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val fileId = get(s"/api/datasets/${datasetId}/files") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.results(0).id
+            }
+            val params = Map("d" ->
+              compact(render(List(
+                ("offset" -> JInt(21))
+              )))
+            )
+            get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles", params) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
+              result.data.summary.total should be(20)
+              result.data.summary.count should be(0)
+              result.data.summary.offset should be(21)
+              result.data.results.size should be(0)
+            }
+          }
+        }
+        "offset=数値以外" in {
+          // このテストはapplication.conf file_limit=150が前提です
+          session {
+            signIn()
+            val files = List(("file[]", new File("testdata/test4.zip")))
+            val datasetId = post("/api/datasets", Map.empty, files) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.id
+            }
+            val fileId = get(s"/api/datasets/${datasetId}/files") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.results(0).id
+            }
+            val params = Map("d" ->
+              compact(render(List(
+                ("offset" -> "hoge")
+              )))
+            )
+            get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles", params) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
+              result.data.summary.total should be(20)
+              result.data.summary.count should be(20)
+              result.data.summary.offset should be(0)
+              result.data.results.size should be(20)
             }
           }
         }
