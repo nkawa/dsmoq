@@ -1,6 +1,7 @@
 package dsmoq.pages;
 
 import conduitbox.Navigation;
+import dsmoq.models.DatasetFile;
 import dsmoq.models.DatasetImage;
 import dsmoq.models.DatasetPermission;
 import dsmoq.models.Profile;
@@ -96,13 +97,14 @@ class DatasetEditPage {
                 dataset: {
                     id: x.id,
                     meta: x.meta,
-                    files: x.files,
+                    files: new Array<{ isAppend: Bool, file: DatasetFile }>(),
                     ownerships: x.ownerships,
                     defaultAccessLevel: x.defaultAccessLevel,
                     primaryImage: x.primaryImage,
-					featuredImage: x.featuredImage,
-					localState: x.localState,
-					s3State: x.s3State,
+                    featuredImage: x.featuredImage,
+                    localState: x.localState,
+                    s3State: x.s3State,
+                    filesCount: x.filesCount,
                     errors: {
                         meta: {
                             name: "",
@@ -117,33 +119,36 @@ class DatasetEditPage {
                         ownerships: { },
                     }
                 },
-				owners: Async.Pending
+                owners: Async.Pending,
+                fileLimit: x.fileLimit
             };
+            var fileOffset = 0;
+            var isZeroFileFirst = x.filesCount == 0;
             rootBinding.setProperty("data", data);
 
             var binding = JsViews.observable(rootBinding.data().data);
-			
-			// CKEditor setting
-			var editor = CKEditor.replace("description");
-			editor.setData(data.dataset.meta.description);
-			editor.on("change", function(evt) {
-				var text = editor.getData(false);
-				binding.setProperty('dataset.meta.description', text);
-			});
-			
-			onClose.then(function(_) { 
-				editor.destroy();
-			} );
+            
+            // CKEditor setting
+            var editor = CKEditor.replace("description");
+            editor.setData(data.dataset.meta.description);
+            editor.on("change", function(evt) {
+                var text = editor.getData(false);
+                binding.setProperty('dataset.meta.description', text);
+            });
+            
+            onClose.then(function(_) { 
+                editor.destroy();
+            } );
 
-			editor.on("on-click-dialog-button", function(evt) {
-				JQuery._(".cke_dialog_background_cover").css("z-index", "1000");
-				JQuery._(".cke_dialog ").css("z-index", "1010");
-				showSelectImageDialog(id, binding).then(function(image) {
-					JQuery._('.url-text input[type="text"]').val(image.url);
-					editor.fireOnce("on-close-dialog", image);
-				});
-			} );
-			
+            editor.on("on-click-dialog-button", function(evt) {
+                JQuery._(".cke_dialog_background_cover").css("z-index", "1000");
+                JQuery._(".cke_dialog ").css("z-index", "1010");
+                showSelectImageDialog(id, binding).then(function(image) {
+                    JQuery._('.url-text input[type="text"]').val(image.url);
+                    editor.fireOnce("on-close-dialog", image);
+                });
+            } );
+            
             setAttributeTypeahead(root);
             AutoComplete.initialize(root.find("#dataset-owner-typeahead"), {
                 url: function (query: String) {
@@ -178,21 +183,21 @@ class DatasetEditPage {
             root.on("click", ".dataset-attribute-remove", function (e) {
                 removeAttributeTypeahead(root);
                 var index = new JqHtml(e.target).data("value");
-				// undefined が取れてくる場合、e.targetはspanになっている。
-				if (index == null) {
-					index = new JqHtml(e.target).parent().data("value");
-				}
+                // undefined が取れてくる場合、e.targetはspanになっている。
+                if (index == null) {
+                    index = new JqHtml(e.target).parent().data("value");
+                }
                 var attrs = JsViews.observable(data.dataset.meta.attributes);
                 attrs.remove(index);
-				// 削除ボタンのインデクスを振りなおすために、refreshしている
-				attrs.refresh(data.dataset.meta.attributes);
+                // 削除ボタンのインデクスを振りなおすために、refreshしている
+                attrs.refresh(data.dataset.meta.attributes);
                 setAttributeTypeahead(root);
             });
             root.find("#dataset-basics-submit").on("click", function (_) {
                 BootstrapButton.setLoading(root.find("#dataset-basics-submit"));
                 root.find("#dataset-basics").find("input,textarea,select,a.btn").attr("disabled", true);
                 root.find("#dataset-basics").find("input.tt-input").css("background-color", "");
-				
+                
                 Service.instance.updateDatasetMetadata(id, data.dataset.meta).then(
                     function (_) {
                         binding.setProperty('dataset.errors.meta.name', "");
@@ -221,51 +226,51 @@ class DatasetEditPage {
                     }
                 );
             });
-			root.find("#csv-file").on("change", function(_) {
-				var element = Browser.document.getElementById("csv-file");
-				var files = cast(element, InputElement).files;
-				if (files.length == 0) {
-					return;
-				}
-				var file = files.item(0);
-				var fileReader = new FileReader();
-				fileReader.onload = function(evt) {
-					var fileString = evt.target.result;
-					removeAttributeTypeahead(root);
-					var attrs = JsViews.observable(data.dataset.meta.attributes);
-					new CSV(fileString).forEach(function(result) {
-						var name = result[0];
-						var value = result[1];
-						attrs.insert({ name: name, value: value });
-					});
-					setAttributeTypeahead(root);
-					root.find("#csv-file").val("");
-				};
-				fileReader.readAsText(file, "UTF-8");
-			});
-			
+            root.find("#csv-file").on("change", function(_) {
+                var element = Browser.document.getElementById("csv-file");
+                var files = cast(element, InputElement).files;
+                if (files.length == 0) {
+                    return;
+                }
+                var file = files.item(0);
+                var fileReader = new FileReader();
+                fileReader.onload = function(evt) {
+                    var fileString = evt.target.result;
+                    removeAttributeTypeahead(root);
+                    var attrs = JsViews.observable(data.dataset.meta.attributes);
+                    new CSV(fileString).forEach(function(result) {
+                        var name = result[0];
+                        var value = result[1];
+                        attrs.insert({ name: name, value: value });
+                    });
+                    setAttributeTypeahead(root);
+                    root.find("#csv-file").val("");
+                };
+                fileReader.readAsText(file, "UTF-8");
+            });
+            
             // icon
             root.find("#dataset-icon-select").on("click", function (_) {
-				showSelectImageDialog(id, binding).then(function(image) {
-					Service.instance.setDatasetImagePrimary(id, image.id).then(
-					    function (_) {
-							binding.setProperty("dataset.primaryImage.id", image.id);
-							binding.setProperty("dataset.primaryImage.url", image.url);
-							binding.setProperty('dataset.errors.icon', "");
-							Notification.show("success", "save successful");
-						},
-						function (e) {
-							switch (e.name) {
-								case ServiceErrorType.BadRequest:
-									binding.setProperty('dataset.errors.icon', "");
-									for (x in cast(e, ServiceError).detail) {
-										if (x.name == "file") binding.setProperty('dataset.errors.icon', x.message);
-									}
-							}
-							Notification.show("error", "error happened");
-						}
-					);
-				});				
+                showSelectImageDialog(id, binding).then(function(image) {
+                    Service.instance.setDatasetImagePrimary(id, image.id).then(
+                        function (_) {
+                            binding.setProperty("dataset.primaryImage.id", image.id);
+                            binding.setProperty("dataset.primaryImage.url", image.url);
+                            binding.setProperty('dataset.errors.icon', "");
+                            Notification.show("success", "save successful");
+                        },
+                        function (e) {
+                            switch (e.name) {
+                                case ServiceErrorType.BadRequest:
+                                    binding.setProperty('dataset.errors.icon', "");
+                                    for (x in cast(e, ServiceError).detail) {
+                                        if (x.name == "file") binding.setProperty('dataset.errors.icon', x.message);
+                                    }
+                            }
+                            Notification.show("error", "error happened");
+                        }
+                    );
+                });                
             });
 
             // files
@@ -278,16 +283,197 @@ class DatasetEditPage {
                     root.find(formId).hide();
                 }
             }
-            // #dataset-file-add-formの状態が変更したときに動作する
-            root.find("#dataset-file-add-form").on("change", "input[type=file]", function (e) {
-                // #dataset-file-add-submitの表示/非表示を切り替える
-                updateAddFileButton("#dataset-file-add-submit", e);
-            });
-            // #dataset-file-add-form-topの状態が変更したときに動作する
-            root.find("#dataset-file-add-form-top").on("change", "input[type=file]", function (e) {
-                // #dataset-file-add-submit-topの表示/非表示を切り替える
-                updateAddFileButton("#dataset-file-add-submit-top", e);
-            });
+            function setFileEditEvents() {
+                root.find(".more").off();
+                root.find(".dataset-file-edit-start").off();
+                root.find(".dataset-file-edit-submit").off();
+                root.find(".dataset-file-edit-cancel").off();
+                root.find(".dataset-file-replace-start").off();
+                root.find(".dataset-file-replace-submit").off();
+                root.find(".dataset-file-replace-cancel").off();
+                root.find(".dataset-file-delete").off();
+                root.find(".more").on("click", function (e) {
+                    Service.instance.getDatasetFiles(id, { limit: data.fileLimit, offset: fileOffset }).then(function (res) {
+                        for (file in res.results) {
+                            if (data.dataset.files.map(function(x) { return x.file.id; }).indexOf(file.id) == -1) {
+                                JsViews.observable(data.dataset.files).insert({ isAppend: false, file: file });
+                            }
+                        }
+                        fileOffset += res.summary.count;
+                        setFileEditEvents();
+                    }, function (err) {
+                        switch (err.name) {
+                            case ServiceErrorType.Unauthorized:
+                                navigation.fulfill(Navigation.Navigate(Page.Top));
+                            case ServiceErrorType.NotFound:
+                                navigation.fulfill(Navigation.Navigate(Page.Top));
+                            default:
+                                trace(err);
+                                root.html("Network error");
+                        }
+                    });
+                });
+                root.on("click", ".dataset-file-edit-start", function (e) {
+                    var fid: String = new JqHtml(e.target).data("value");
+                    var file = data.dataset.files.filter(function (x) return x.file.id == fid)[0].file;
+                    var data = {
+                        name: file.name,
+                        description: file.description,
+                        errors: { name: "" }
+                    };
+                    var binding = JsViews.observable(data);
+
+                    var target = new JqHtml(e.target).parents(".dataset-file").find(".dataset-file-edit");
+                    var menu = new JqHtml(e.target).parents(".dataset-file").find(".dataset-file-menu");
+                    var btns = new JqHtml(e.target).parents(".dataset-file").find(".btn");
+
+                    var tpl = JsViews.template(Resource.getString("share/dataset/file/edit"));
+                    tpl.link(target, data);
+                    menu.hide();
+
+                    function close() {
+                        target.empty();
+                        menu.show();
+                        tpl.unlink(target);
+                        target.off();
+                    }
+
+                    target.on("click", ".dataset-file-edit-submit", function (_) {
+                        btns.attr("disabled", true);
+                        Service.instance.updateDatatetFileMetadata(id, fid, data.name, data.description).then(
+                            function (res) {
+                                var fb = JsViews.observable(file);
+                                fb.setProperty("name", res.name);
+                                fb.setProperty("description", res.description);
+                                fb.setProperty("url", res.url);
+                                fb.setProperty("size", res.size);
+                                fb.setProperty("createdAt", res.createdAt);
+                                fb.setProperty("createdBy", res.createdBy);
+                                fb.setProperty("updatedAt", res.updatedAt);
+                                fb.setProperty("updatedBy", res.updatedBy);
+                                close();
+                                Notification.show("success", "save successful");
+                            },
+                            function (e) {
+                                switch (e.name) {
+                                    case ServiceErrorType.BadRequest:
+                                        for (x in cast(e, ServiceError).detail) {
+                                            binding.setProperty('errors.${x.name}', x.message);
+                                        }
+                                }
+                                Notification.show("error", "error happened");
+                            },
+                            function () {
+                                btns.removeAttr("disabled");
+                            }
+                        );
+                    });
+
+                    target.on("click", ".dataset-file-edit-cancel", function (_) {
+                        close();
+                    });
+                });
+                root.on("click", ".dataset-file-replace-start", function (e) {
+                    var fid: String = new JqHtml(e.target).data("value");
+                    var file = data.dataset.files.filter(function (x) return x.file.id == fid)[0];
+
+                    var target = new JqHtml(e.target).parents(".dataset-file").find(".dataset-file-replace");
+                    var menu = new JqHtml(e.target).parents(".dataset-file").find(".dataset-file-menu");
+                    var btns = new JqHtml(e.target).parents(".dataset-file").find(".btn");
+
+                    target.html(Resource.getString("share/dataset/file/replace"));
+                    menu.hide();
+
+                    function close() {
+                        target.empty();
+                        menu.show();
+                        target.off();
+                    }
+
+                    target.find("input[type=file]").on("change", function (e) {
+                        if (new JqHtml(e.target).val() != "") {
+                            target.find(".dataset-file-replace-submit").attr("disabled", false);
+                        } else {
+                            target.find(".dataset-file-replace-submit").attr("disabled", true);
+                        }
+                    });
+
+                    target.on("click", ".dataset-file-replace-submit", function (_) {
+                        btns.attr("disabled", true);
+                        Service.instance.replaceDatasetFile(id, fid, target.find("form")).then(
+                            function (res) {
+                                var fb = JsViews.observable(file);
+                                fb.setProperty("name", res.name);
+                                fb.setProperty("description", res.description);
+                                fb.setProperty("url", res.url);
+                                fb.setProperty("size", res.size);
+                                fb.setProperty("createdAt", res.createdAt);
+                                fb.setProperty("createdBy", res.createdBy);
+                                fb.setProperty("updatedAt", res.updatedAt);
+                                fb.setProperty("updatedBy", res.updatedBy);
+                                close();
+                                Notification.show("success", "save successful");
+                            },
+                            function (e) {
+                                switch (e.name) {
+                                    case ServiceErrorType.BadRequest:
+                                        Notification.show("error", "file is empty");
+                                    case ServiceErrorType.NotFound:
+                                        Notification.show("error", "dataset not found");
+                                    case ServiceErrorType.Unauthorized: 
+                                        Notification.show("error", "permission denied");
+                                    default:
+                                        Notification.show("error", "error happened");
+                                }
+                            },
+                            function () {
+                                btns.removeAttr("disabled");
+                            }
+                        );
+                    });
+
+                    target.on("click", ".dataset-file-replace-cancel", function (_) {
+                        close();
+                    });
+                });
+
+                root.find(".dataset-file-delete").on("click", function (e) {
+                    var fid: String = new JqHtml(e.target).data("value");
+                    var btns = new JqHtml(e.target).parents(".dataset-file").find(".btn");
+                    btns.attr("disabled", true);
+                    JsTools.confirm("Are you sure you want to delete this file?").flatMap(function (_) {
+                        return Service.instance.removeDatasetFile(id, fid);
+                    }).then(
+                        function (_) {
+                            JsViews.observable(data.dataset).setProperty("filesCount", data.dataset.filesCount - 1);
+                            var target = data.dataset.files.filter(function (x) return x.file.id == fid)[0];
+                            if (!target.isAppend) {
+                                fileOffset--;
+                            }
+                            var files = data.dataset.files.filter(function (x) return x.file.id != fid);
+                            JsViews.observable(data.dataset.files).refresh(files);
+                            setFileEditEvents();
+                            Notification.show("success", "delete successful");
+                        },
+                        function (e) {
+                            if (e.message != "Canceled") {
+                                switch (e.name) {
+                                    case ServiceErrorType.NotFound:
+                                        Notification.show("error", "dataset not found");
+                                    case ServiceErrorType.Unauthorized: 
+                                        Notification.show("error", "permission denied");
+                                    default:
+                                        Notification.show("error", "error happened");
+                                }
+                            }
+                        },
+                        function () {
+                            btns.removeAttr("disabled");
+                        }
+                    );
+                });
+            }
+
             // 指定したフォームのID(formId)が保持しているファイルをServerにアップロードする
             // submitId: Uploadボタン(aタグ)、formId: Add fileフォーム
             function uploadFiles(submitId, formId) {
@@ -297,23 +483,38 @@ class DatasetEditPage {
                 Service.instance.addDatasetFiles(id, root.find(formId)).then(
                     function (res) {
                         root.find(submitId).hide();
-						for (i in 0...res.length) {
-							JsViews.observable(data.dataset.files).insert(res[i]);
-						}
+                        for (i in 0...res.length) {
+                            JsViews.observable(data.dataset.files).insert({ isAppend: true, file: res[i] });
+                        }
                         root.find(fileButtonPath).val("");
+
+                        JsViews.observable(data.dataset).setProperty("filesCount", data.dataset.filesCount + res.length);
+                        setFileEditEvents();
+                        if (isZeroFileFirst) { 
+                            // #dataset-file-add-formの状態が変更したときに動作する
+                            root.find("#dataset-file-add-form").on("change", "input[type=file]", function (e) {
+                                // #dataset-file-add-submitの表示/非表示を切り替える
+                                updateAddFileButton("#dataset-file-add-submit", e);
+                            });
+                            // #dataset-file-add-submitをクリックしたときに動作する (ファイルのアップロード)
+                            root.find("#dataset-file-add-submit").on("click", function (_) {
+                                uploadFiles("#dataset-file-add-submit", "#dataset-file-add-form");
+                            });
+                            isZeroFileFirst = false;
+                        }
                         Notification.show("success", "save successful");
                     },
                     function (e) {
-						switch (e.name) {
-							case ServiceErrorType.BadRequest:
-								Notification.show("error", "file is empty");
-							case ServiceErrorType.NotFound:
-								Notification.show("error", "dataset not found");
-							case ServiceErrorType.Unauthorized: 
-								Notification.show("error", "permission denied");
-							default:
-								Notification.show("error", "error happened");
-						}
+                        switch (e.name) {
+                            case ServiceErrorType.BadRequest:
+                                Notification.show("error", "file is empty");
+                            case ServiceErrorType.NotFound:
+                                Notification.show("error", "dataset not found");
+                            case ServiceErrorType.Unauthorized: 
+                                Notification.show("error", "permission denied");
+                            default:
+                                Notification.show("error", "error happened");
+                        }
                     },
                     function () {
                         BootstrapButton.reset(root.find(submitId));
@@ -323,196 +524,71 @@ class DatasetEditPage {
                 // フォームのinputタグを無効にする
                 root.find(fileButtonPath).attr("disabled", true);
             }
-            // #dataset-file-add-submitをクリックしたときに動作する (ファイルのアップロード)
-            root.find("#dataset-file-add-submit").on("click", function (_) {
-                uploadFiles("#dataset-file-add-submit", "#dataset-file-add-form");
-            });
-            // #dataset-file-add-submit-topをクリックしたときに動作する (ファイルのアップロード)
-            root.find("#dataset-file-add-submit-top").on("click", function (_) {
-                uploadFiles("#dataset-file-add-submit-top", "#dataset-file-add-form-top");
-            });
-
-            root.on("click", ".dataset-file-edit-start", function (e) {
-                var fid: String = new JqHtml(e.target).data("value");
-                var file = data.dataset.files.filter(function (x) return x.id == fid)[0];
-                var data = {
-                    name: file.name,
-                    description: file.description,
-                    errors: { name: "" }
-                };
-                var binding = JsViews.observable(data);
-
-                var target = new JqHtml(e.target).parents(".dataset-file").find(".dataset-file-edit");
-                var menu = new JqHtml(e.target).parents(".dataset-file").find(".dataset-file-menu");
-                var btns = new JqHtml(e.target).parents(".dataset-file").find(".btn");
-
-                var tpl = JsViews.template(Resource.getString("share/dataset/file/edit"));
-                tpl.link(target, data);
-                menu.hide();
-
-                function close() {
-                    target.empty();
-                    menu.show();
-                    tpl.unlink(target);
-                    target.off();
+            
+            Service.instance.getDatasetFiles(id, { limit: data.fileLimit, offset: 0 }).then(function (res) {
+                for (file in res.results) {
+                    JsViews.observable(data.dataset.files).insert({ isAppend: false, file: file });
                 }
-
-                target.on("click", ".dataset-file-edit-submit", function (_) {
-                    btns.attr("disabled", true);
-                    Service.instance.updateDatatetFileMetadata(id, fid, data.name, data.description).then(
-                        function (res) {
-                            var fb = JsViews.observable(file);
-                            fb.setProperty("name", res.name);
-                            fb.setProperty("description", res.description);
-                            fb.setProperty("url", res.url);
-                            fb.setProperty("size", res.size);
-                            fb.setProperty("createdAt", res.createdAt);
-                            fb.setProperty("createdBy", res.createdBy);
-                            fb.setProperty("updatedAt", res.updatedAt);
-                            fb.setProperty("updatedBy", res.updatedBy);
-                            close();
-                            Notification.show("success", "save successful");
-                        },
-                        function (e) {
-                            switch (e.name) {
-                                case ServiceErrorType.BadRequest:
-                                    for (x in cast(e, ServiceError).detail) {
-                                        binding.setProperty('errors.${x.name}', x.message);
-                                    }
-                            }
-                            Notification.show("error", "error happened");
-                        },
-                        function () {
-                            btns.removeAttr("disabled");
-                        }
-                    );
+                fileOffset += res.summary.count;
+                setFileEditEvents();
+                // #dataset-file-add-formの状態が変更したときに動作する
+                root.find("#dataset-file-add-form").on("change", "input[type=file]", function (e) {
+                    // #dataset-file-add-submitの表示/非表示を切り替える
+                    updateAddFileButton("#dataset-file-add-submit", e);
+                });
+                // #dataset-file-add-submitをクリックしたときに動作する (ファイルのアップロード)
+                root.find("#dataset-file-add-submit").on("click", function (_) {
+                    uploadFiles("#dataset-file-add-submit", "#dataset-file-add-form");
+                });
+                // #dataset-file-add-form-topの状態が変更したときに動作する
+                root.find("#dataset-file-add-form-top").on("change", "input[type=file]", function (e) {
+                    // #dataset-file-add-submit-topの表示/非表示を切り替える
+                    updateAddFileButton("#dataset-file-add-submit-top", e);
+                });
+                // #dataset-file-add-submit-topをクリックしたときに動作する (ファイルのアップロード)
+                root.find("#dataset-file-add-submit-top").on("click", function (_) {
+                    uploadFiles("#dataset-file-add-submit-top", "#dataset-file-add-form-top");
                 });
 
-                target.on("click", ".dataset-file-edit-cancel", function (_) {
-                    close();
-                });
-            });
-            root.on("click", ".dataset-file-replace-start", function (e) {
-                var fid: String = new JqHtml(e.target).data("value");
-                var file = data.dataset.files.filter(function (x) return x.id == fid)[0];
-
-                var target = new JqHtml(e.target).parents(".dataset-file").find(".dataset-file-replace");
-                var menu = new JqHtml(e.target).parents(".dataset-file").find(".dataset-file-menu");
-                var btns = new JqHtml(e.target).parents(".dataset-file").find(".btn");
-
-                target.html(Resource.getString("share/dataset/file/replace"));
-                menu.hide();
-
-                function close() {
-                    target.empty();
-                    menu.show();
-                    target.off();
+            }, function (err) {
+                switch (err.name) {
+                    case ServiceErrorType.Unauthorized:
+                        navigation.fulfill(Navigation.Navigate(Page.Top));
+                    case ServiceErrorType.NotFound:
+                        navigation.fulfill(Navigation.Navigate(Page.Top));
+                    default:
+                        trace(err);
+                        root.html("Network error");
                 }
-
-                target.find("input[type=file]").on("change", function (e) {
-                    if (new JqHtml(e.target).val() != "") {
-                        target.find(".dataset-file-replace-submit").attr("disabled", false);
-                    } else {
-                        target.find(".dataset-file-replace-submit").attr("disabled", true);
-                    }
-                });
-
-                target.on("click", ".dataset-file-replace-submit", function (_) {
-                    btns.attr("disabled", true);
-                    Service.instance.replaceDatasetFile(id, fid, target.find("form")).then(
-                        function (res) {
-                            var fb = JsViews.observable(file);
-                            fb.setProperty("name", res.name);
-                            fb.setProperty("description", res.description);
-                            fb.setProperty("url", res.url);
-                            fb.setProperty("size", res.size);
-                            fb.setProperty("createdAt", res.createdAt);
-                            fb.setProperty("createdBy", res.createdBy);
-                            fb.setProperty("updatedAt", res.updatedAt);
-                            fb.setProperty("updatedBy", res.updatedBy);
-                            close();
-                            Notification.show("success", "save successful");
-                        },
-                        function (e) {
-							switch (e.name) {
-								case ServiceErrorType.BadRequest:
-									Notification.show("error", "file is empty");
-								case ServiceErrorType.NotFound:
-									Notification.show("error", "dataset not found");
-								case ServiceErrorType.Unauthorized: 
-									Notification.show("error", "permission denied");
-								default:
-									Notification.show("error", "error happened");
-							}
-                        },
-                        function () {
-                            btns.removeAttr("disabled");
-                        }
-                    );
-                });
-
-                target.on("click", ".dataset-file-replace-cancel", function (_) {
-                    close();
-                });
-            });
-
-            root.on("click", ".dataset-file-delete", function (e) {
-                var fid: String = new JqHtml(e.target).data("value");
-                var btns = new JqHtml(e.target).parents(".dataset-file").find(".btn");
-                btns.attr("disabled", true);
-                JsTools.confirm("Are you sure you want to delete this file?").flatMap(function (_) {
-                    return Service.instance.removeDatasetFile(id, fid);
-                }).then(
-                    function (_) {
-                        var files = data.dataset.files.filter(function (x) return x.id != fid);
-                        JsViews.observable(data.dataset.files).refresh(files);
-                        Notification.show("success", "delete successful");
-                    },
-                    function (e) {
-						if (e.message != "Canceled") {
-							switch (e.name) {
-								case ServiceErrorType.NotFound:
-									Notification.show("error", "dataset not found");
-								case ServiceErrorType.Unauthorized: 
-									Notification.show("error", "permission denied");
-								default:
-									Notification.show("error", "error happened");
-							}
-						}
-                    },
-                    function () {
-                        btns.removeAttr("disabled");
-                    }
-                );
             });
 
             // Access Control
-			function loadOwnerships() {
+            function loadOwnerships() {
                 Service.instance.getOwnerships(id).then(function (x) {
-					var owners = {
-						index: Math.ceil(x.summary.offset / 20),
-						total: x.summary.total,
-						items: x.results,
-						pages: Math.ceil(x.summary.total / 20)
-					};	
-					binding.setProperty("owners", Async.Completed(owners));
-					JsViews.observe(owners, "index", function (_, _) {
-						var i = owners.index;
-						Service.instance.getOwnerships(id, { offset: 20 * i, limit: 20 } ).then(function (x) {
-							var b = JsViews.observable(owners);
-							b.setProperty("index", i);
-							b.setProperty("total", x.summary.total);
-							b.setProperty("items", x.results);
-							b.setProperty("pages", Math.ceil(x.summary.total / 20));
-						}, function (e) {
-							Notification.show("error", "error happened");
-						});
-					});
+                    var owners = {
+                        index: Math.ceil(x.summary.offset / 20),
+                        total: x.summary.total,
+                        items: x.results,
+                        pages: Math.ceil(x.summary.total / 20)
+                    };    
+                    binding.setProperty("owners", Async.Completed(owners));
+                    JsViews.observe(owners, "index", function (_, _) {
+                        var i = owners.index;
+                        Service.instance.getOwnerships(id, { offset: 20 * i, limit: 20 } ).then(function (x) {
+                            var b = JsViews.observable(owners);
+                            b.setProperty("index", i);
+                            b.setProperty("total", x.summary.total);
+                            b.setProperty("items", x.results);
+                            b.setProperty("pages", Math.ceil(x.summary.total / 20));
+                        }, function (e) {
+                            Notification.show("error", "error happened");
+                        });
+                    });
                 });
             }
-			
-			loadOwnerships();
-			
+            
+            loadOwnerships();
+            
             function getOwnershipByElement(target: EventTarget): Option<dsmoq.models.DatasetOwnership> {
                 var node = JQuery._(target);
                 var index = node.parents("tr[data-index]").data("index");
@@ -521,32 +597,32 @@ class DatasetEditPage {
                         OptionTools.toOption(owners.items[index]);
                     case _:
                         Option.None;
-				}
+                }
             }
-			
-			root.find("#dataset-acl").on("click", "#add-owner-item", function (_) {
+            
+            root.find("#dataset-acl").on("click", "#add-owner-item", function (_) {
                 showAddOwnerDialog(data.myself).then(function (owners) {
                     ViewTools.showLoading("body");
-					Service.instance.updateDatasetACL(id, owners.map(function (x) {
-						return {
-							id: x.id,
-							ownerType: x.dataType,
-							accessLevel: DatasetPermission.LimitedRead
-						}
-					})).then(function (x) {
+                    Service.instance.updateDatasetACL(id, owners.map(function (x) {
+                        return {
+                            id: x.id,
+                            ownerType: x.dataType,
+                            accessLevel: DatasetPermission.LimitedRead
+                        }
+                    })).then(function (x) {
                         ViewTools.hideLoading("body");
                         loadOwnerships();
                         Notification.show("success", "save successful");
                     }, function (err) {
                         ViewTools.hideLoading("body");
-						switch (err.name) {
-							case ServiceErrorType.NotFound:
-								Notification.show("error", "dataset not found");
-							case ServiceErrorType.Unauthorized: 
-								Notification.show("error", "permission denied");
-							default:
-								Notification.show("error", "error happened");
-						}
+                        switch (err.name) {
+                            case ServiceErrorType.NotFound:
+                                Notification.show("error", "dataset not found");
+                            case ServiceErrorType.Unauthorized: 
+                                Notification.show("error", "permission denied");
+                            default:
+                                Notification.show("error", "error happened");
+                        }
                     });
                 });
             });
@@ -556,59 +632,59 @@ class DatasetEditPage {
                 JsTools.setImmediate(function () {
                     getOwnershipByElement(e.currentTarget).iter(function (owner) {
                         Service.instance.updateDatasetACL(id, 
-							[{
-								id: owner.id, 
-								ownerType: owner.ownerType,
-								accessLevel: owner.accessLevel
-							}]
-						).then(function (_) {
+                            [{
+                                id: owner.id, 
+                                ownerType: owner.ownerType,
+                                accessLevel: owner.accessLevel
+                            }]
+                        ).then(function (_) {
                             Notification.show("success", "save successful");
-							loadOwnerships();
+                            loadOwnerships();
                         }, function (e) {
-							switch (e.name) {
-								case ServiceErrorType.NotFound:
-									Notification.show("error", "dataset not found");
-								case ServiceErrorType.Unauthorized: 
-									Notification.show("error", "permission denied");
-								default:
-									Notification.show("error", "error happened");
-							}
+                            switch (e.name) {
+                                case ServiceErrorType.NotFound:
+                                    Notification.show("error", "dataset not found");
+                                case ServiceErrorType.Unauthorized: 
+                                    Notification.show("error", "permission denied");
+                                default:
+                                    Notification.show("error", "error happened");
+                            }
                         });
                     });
                 });
             });
-			
-			root.find("#dataset-acl").on("click", ".dsmoq-remove-button", function (e) {
+            
+            root.find("#dataset-acl").on("click", ".dsmoq-remove-button", function (e) {
                 getOwnershipByElement(e.currentTarget).iter(function (owner) {
                     ViewTools.showConfirm("Are you sure you want to remove?").then(function (isOk) {
                         if (isOk) {
                             ViewTools.showLoading("body");
                             Service.instance.updateDatasetACL(id, [{
-									id: owner.id,
-									ownerType: owner.ownerType,
-									accessLevel :DatasetPermission.Deny
-								}]
-								).then(function (x) {
-									loadOwnerships();
+                                    id: owner.id,
+                                    ownerType: owner.ownerType,
+                                    accessLevel :DatasetPermission.Deny
+                                }]
+                                ).then(function (x) {
+                                    loadOwnerships();
                                     ViewTools.hideLoading("body");
                                     Notification.show("success", "remove successful");
                                 }, function (err) {
                                     ViewTools.hideLoading("body");
-									switch (err.name) {
-										case ServiceErrorType.NotFound:
-											Notification.show("error", "dataset not found");
-										case ServiceErrorType.Unauthorized: 
-											Notification.show("error", "permission denied");
-										default:
-											Notification.show("error", "error happened");
-									}
-								}
-							);
+                                    switch (err.name) {
+                                        case ServiceErrorType.NotFound:
+                                            Notification.show("error", "dataset not found");
+                                        case ServiceErrorType.Unauthorized: 
+                                            Notification.show("error", "permission denied");
+                                        default:
+                                            Notification.show("error", "error happened");
+                                    }
+                                }
+                            );
                         }
                     });
                 });
             });
-			
+            
             root.find("#dataset-guest-access-submit").on("click", function (_) {
                 BootstrapButton.setLoading(root.find("#dataset-guest-access-submit"));
                 root.find("#dataset-guest-access-form input").attr("disabled", true);
@@ -617,14 +693,14 @@ class DatasetEditPage {
                         Notification.show("success", "save successful");
                     },
                     function (e) {
-						switch (e.name) {
-							case ServiceErrorType.NotFound:
-								Notification.show("error", "dataset not found");
-							case ServiceErrorType.Unauthorized: 
-								Notification.show("error", "permission denied");
-							default:
-								Notification.show("error", "error happened");
-						}
+                        switch (e.name) {
+                            case ServiceErrorType.NotFound:
+                                Notification.show("error", "dataset not found");
+                            case ServiceErrorType.Unauthorized: 
+                                Notification.show("error", "permission denied");
+                            default:
+                                Notification.show("error", "error happened");
+                        }
                     },
                     function () {
                         BootstrapButton.reset(root.find("#dataset-guest-access-submit"));
@@ -632,8 +708,8 @@ class DatasetEditPage {
                     }
                 );
             });
-			
-			root.find("#dataset-storage-submit").on("click", function (_) {
+            
+            root.find("#dataset-storage-submit").on("click", function (_) {
                 BootstrapButton.setLoading(root.find("#dataset-storage-submit"));
                 root.find("#dataset-storage-form input").attr("disabled", true);
                 Service.instance.changeDatasetStorage(id, JQuery._("#saveLocalStorage").prop("checked"), JQuery._("#saveS3Storage").prop("checked")).then(
@@ -641,16 +717,16 @@ class DatasetEditPage {
                         Notification.show("success", "save successful");
                     },
                     function (e) {
-						switch (e.name) {
-							case ServiceErrorType.BadRequest:
-								Notification.show("error", "select check box");
-							case ServiceErrorType.NotFound:
-								Notification.show("error", "dataset not found");
-							case ServiceErrorType.Unauthorized: 
-								Notification.show("error", "permission denied");
-							default:
-								Notification.show("error", "error happened");
-						}
+                        switch (e.name) {
+                            case ServiceErrorType.BadRequest:
+                                Notification.show("error", "select check box");
+                            case ServiceErrorType.NotFound:
+                                Notification.show("error", "dataset not found");
+                            case ServiceErrorType.Unauthorized: 
+                                Notification.show("error", "permission denied");
+                            default:
+                                Notification.show("error", "error happened");
+                        }
                     },
                     function () {
                         BootstrapButton.reset(root.find("#dataset-storage-submit"));
@@ -658,24 +734,24 @@ class DatasetEditPage {
                     }
                 );
             });
-			
-			// featured
+            
+            // featured
             root.find("#dataset-featured-select").on("click", function (_) {
-				showSelectImageDialog(id, binding).then(function(image) {
-					Service.instance.setDatasetImageFeatured(id, image.id).then(
-					    function (_) {
-							binding.setProperty("dataset.featuredImage.id", image.id);
-							binding.setProperty("dataset.featuredImage.url", image.url);
-							Notification.show("success", "save successful");
-						},
-						function (e) {
-							Notification.show("error", "error happened");
-						}
-					);
-				});				
+                showSelectImageDialog(id, binding).then(function(image) {
+                    Service.instance.setDatasetImageFeatured(id, image.id).then(
+                        function (_) {
+                            binding.setProperty("dataset.featuredImage.id", image.id);
+                            binding.setProperty("dataset.featuredImage.url", image.url);
+                            Notification.show("success", "save successful");
+                        },
+                        function (e) {
+                            Notification.show("error", "error happened");
+                        }
+                    );
+                });                
             });
         });
-		
+        
         return navigation.promise;
     }
 
@@ -690,7 +766,7 @@ class DatasetEditPage {
             selectedItems: new Array<SuggestedOwner>()
         }
         // selectedItems -> 選択しているOwnerの情報を保持するリスト
-		//   Applyボタン押下時にこのArrayを使用する
+        //   Applyボタン押下時にこのArrayを使用する
         var binding = JsViews.observable(data);
         var tpl = JsViews.template(Resource.getString("template/dataset/add_owner_dialog"));
         
@@ -771,8 +847,8 @@ class DatasetEditPage {
             });
         });
     }
-	
-	static function showSelectImageDialog(id: String, rootBinding: Observable) {
+    
+    static function showSelectImageDialog(id: String, rootBinding: Observable) {
         var data = {
             offset: 0,
             hasPrev: false,
@@ -800,18 +876,18 @@ class DatasetEditPage {
                     JsViews.observable(data.items).refresh(list);
                 });
             }
-			
+            
             function filterSelectedOwner() {
                 return data.items
                             .filter(function (x) return x.selected)
                             .map(function (x) return x.item);
             }
-			
-			function getUrl(id: String) {
-				return data.items.filter(function(x) {
-					return x.item.id == id;
-				}).map(function(x) return x.item.url)[0];
-			}
+            
+            function getUrl(id: String) {
+                return data.items.filter(function(x) {
+                    return x.item.id == id;
+                }).map(function(x) return x.item.url)[0];
+            }
 
             JsViews.observable(data.items).observeAll(function (e, args) {
                 if (args.path == "selected") {
@@ -833,107 +909,107 @@ class DatasetEditPage {
 
             var binding = JsViews.observable(data.selectedIds).refresh([]);
             searchImageCandidate();
-			
-			html.find("#image-form input").on("change", function(_) {
+            
+            html.find("#image-form input").on("change", function(_) {
 
-				var isPrevEnabled = html.find("#image-list-prev").attr("disabled") != "disabled";
-				var isNextEnabled = html.find("#image-list-next").attr("disabled") != "disabled";
-				
-				// ApplyとDeleteをDisableにするために必要
-				var b = JsViews.observable(data.selectedIds);
-				b.refresh([]);
-				html.find("#image-list-prev").attr("disabled", "disabled");
-				html.find("#image-list-next").attr("disabled", "disabled");
-				html.find("#select-image-dialog-cancel").attr("disabled", "disabled");
-				html.find("#upload-image").attr("disabled", "disabled");
-				// 直接Loadingを指定すると、内部のinput要素までloading-textで置き換わるため、模倣している。
-				// メッセージは内部のdivに担当させ、disableのみを#upload-imageボタンに設定する
-				BootstrapButton.setLoading(html.find("#upload-image > div"));
-				Service.instance.addDatasetImage(id, html.find("#image-form")).then(
-				    function (_) {
+                var isPrevEnabled = html.find("#image-list-prev").attr("disabled") != "disabled";
+                var isNextEnabled = html.find("#image-list-next").attr("disabled") != "disabled";
+                
+                // ApplyとDeleteをDisableにするために必要
+                var b = JsViews.observable(data.selectedIds);
+                b.refresh([]);
+                html.find("#image-list-prev").attr("disabled", "disabled");
+                html.find("#image-list-next").attr("disabled", "disabled");
+                html.find("#select-image-dialog-cancel").attr("disabled", "disabled");
+                html.find("#upload-image").attr("disabled", "disabled");
+                // 直接Loadingを指定すると、内部のinput要素までloading-textで置き換わるため、模倣している。
+                // メッセージは内部のdivに担当させ、disableのみを#upload-imageボタンに設定する
+                BootstrapButton.setLoading(html.find("#upload-image > div"));
+                Service.instance.addDatasetImage(id, html.find("#image-form")).then(
+                    function (_) {
                         Notification.show("success", "save successful");
-						searchImageCandidate();
-						// TODO IE11で要検証
-						html.find("#image-form input").val("");
+                        searchImageCandidate();
+                        // TODO IE11で要検証
+                        html.find("#image-form input").val("");
 
                     },
                     function (e) {
-						switch (e.name) {
-							case ServiceErrorType.NotFound:
-								Notification.show("error", "not found");
-							case ServiceErrorType.Unauthorized: 
-								Notification.show("error", "permission denied");
-							default:
-								Notification.show("error", "error happened");
-						}
+                        switch (e.name) {
+                            case ServiceErrorType.NotFound:
+                                Notification.show("error", "not found");
+                            case ServiceErrorType.Unauthorized: 
+                                Notification.show("error", "permission denied");
+                            default:
+                                Notification.show("error", "error happened");
+                        }
                     },
-					function () {
-						BootstrapButton.reset(html.find("#upload-image > div"));
-						html.find("#upload-image").removeAttr("disabled");
+                    function () {
+                        BootstrapButton.reset(html.find("#upload-image > div"));
+                        html.find("#upload-image").removeAttr("disabled");
 
-						if (isPrevEnabled) {
-							html.find("#image-list-prev").removeAttr("disabled");
-						}
-						if (isNextEnabled) {
-							html.find("#image-list-next").removeAttr("disabled");
-						}
-						html.find("#select-image-dialog-cancel").removeAttr("disabled");
-					});
-			});
-			
-			html.find("#delete-image").on("click", function(_) {
-				var isPrevEnabled = html.find("#image-list-prev").attr("disabled") != "disabled";
-				var isNextEnabled = html.find("#image-list-next").attr("disabled") != "disabled";
+                        if (isPrevEnabled) {
+                            html.find("#image-list-prev").removeAttr("disabled");
+                        }
+                        if (isNextEnabled) {
+                            html.find("#image-list-next").removeAttr("disabled");
+                        }
+                        html.find("#select-image-dialog-cancel").removeAttr("disabled");
+                    });
+            });
+            
+            html.find("#delete-image").on("click", function(_) {
+                var isPrevEnabled = html.find("#image-list-prev").attr("disabled") != "disabled";
+                var isNextEnabled = html.find("#image-list-next").attr("disabled") != "disabled";
 
-				html.find("#upload-image").attr("disabled", "disabled");
-				html.find("#image-list-prev").attr("disabled", "disabled");
-				html.find("#image-list-next").attr("disabled", "disabled");
-				html.find("#select-image-dialog-cancel").attr("disabled", "disabled");
-				var selected = html.find("input:checked").val();
-				// 直接Loadingを指定すると、完了後に#delete-imageがアクティブになってしまうため、模倣している。
-				// メッセージは内部のdivに担当させ、disableのみを#delete-imageボタンに設定する
-				html.find("#delete-image").attr("disabled", "disabled");
-				BootstrapButton.setLoading(html.find("#delete-image > div"));
-				// ApplyをDisableにするために必要
-				var b = JsViews.observable(data.selectedIds);
-				b.refresh([]);
-				Service.instance.removeDatasetImage(id, selected).then(
-				    function (ids) {
+                html.find("#upload-image").attr("disabled", "disabled");
+                html.find("#image-list-prev").attr("disabled", "disabled");
+                html.find("#image-list-next").attr("disabled", "disabled");
+                html.find("#select-image-dialog-cancel").attr("disabled", "disabled");
+                var selected = html.find("input:checked").val();
+                // 直接Loadingを指定すると、完了後に#delete-imageがアクティブになってしまうため、模倣している。
+                // メッセージは内部のdivに担当させ、disableのみを#delete-imageボタンに設定する
+                html.find("#delete-image").attr("disabled", "disabled");
+                BootstrapButton.setLoading(html.find("#delete-image > div"));
+                // ApplyをDisableにするために必要
+                var b = JsViews.observable(data.selectedIds);
+                b.refresh([]);
+                Service.instance.removeDatasetImage(id, selected).then(
+                    function (ids) {
                         Notification.show("success", "delete successful");
-						searchImageCandidate();
-						binding.refresh([]);
-						rootBinding.setProperty("dataset.primaryImage.id", ids.primaryImage);
-						rootBinding.setProperty("dataset.primaryImage.url", getUrl(ids.primaryImage));
-						rootBinding.setProperty("dataset.featuredImage.id", ids.featuredImage);
-						rootBinding.setProperty("dataset.featuredImage.url", getUrl(ids.featuredImage));
+                        searchImageCandidate();
+                        binding.refresh([]);
+                        rootBinding.setProperty("dataset.primaryImage.id", ids.primaryImage);
+                        rootBinding.setProperty("dataset.primaryImage.url", getUrl(ids.primaryImage));
+                        rootBinding.setProperty("dataset.featuredImage.id", ids.featuredImage);
+                        rootBinding.setProperty("dataset.featuredImage.url", getUrl(ids.featuredImage));
                     },
                     function (e) {
-						switch (e.name) {
-							case ServiceErrorType.BadRequest:
-								for (x in cast(e, ServiceError).detail) {
-									Notification.show("error", x.message);
-								}
-							case ServiceErrorType.NotFound:
-								Notification.show("error", "not found");
-							case ServiceErrorType.Unauthorized: 
-								Notification.show("error", "permission denied");
-							default:
-								Notification.show("error", "error happened");
-						}
+                        switch (e.name) {
+                            case ServiceErrorType.BadRequest:
+                                for (x in cast(e, ServiceError).detail) {
+                                    Notification.show("error", x.message);
+                                }
+                            case ServiceErrorType.NotFound:
+                                Notification.show("error", "not found");
+                            case ServiceErrorType.Unauthorized: 
+                                Notification.show("error", "permission denied");
+                            default:
+                                Notification.show("error", "error happened");
+                        }
                     },
-					function() {
-						BootstrapButton.reset(html.find("#delete-image > div"));
-						html.find("#upload-image").removeAttr("disabled");
-						if (isPrevEnabled) {
-							html.find("#image-list-prev").removeAttr("disabled");
-						}
-						if (isNextEnabled) {
-							html.find("#image-list-next").removeAttr("disabled");
-						}
-						html.find("#select-image-dialog-cancel").removeAttr("disabled");
-					});
-			} );
-			
+                    function() {
+                        BootstrapButton.reset(html.find("#delete-image > div"));
+                        html.find("#upload-image").removeAttr("disabled");
+                        if (isPrevEnabled) {
+                            html.find("#image-list-prev").removeAttr("disabled");
+                        }
+                        if (isNextEnabled) {
+                            html.find("#image-list-next").removeAttr("disabled");
+                        }
+                        html.find("#select-image-dialog-cancel").removeAttr("disabled");
+                    });
+            } );
+            
             html.find("#image-list-prev").on("click", function (_) {
                 var offset = data.offset - ImageCandicateSize;
                 searchImageCandidate(offset);

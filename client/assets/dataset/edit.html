@@ -12,8 +12,8 @@
       <li><a href="#dataset-icon" data-toggle="tab">Icon</a></li>
       <li><a href="#dataset-files" data-toggle="tab">Files</a></li>
       <li><a href="#dataset-acl" data-toggle="tab">Accesss Control</a></li>
-	  <li><a href="#dataset-storage" data-toggle="tab">Storage</a></li>
-	  <li><a href="#dataset-featured-image" data-toggle="tab">Featured Image</a></li>
+      <li><a href="#dataset-storage" data-toggle="tab">Storage</a></li>
+      <li><a href="#dataset-featured-image" data-toggle="tab">Featured Image</a></li>
     </ul>
 
     <div class="tab-content">
@@ -76,10 +76,10 @@
             </div>
             <p class="text-danger" data-link="dataset.errors.meta.license"></p>
           {{/if}}
-			<div class="btn btn-success btn-sm" id="dataset-attribute-import">import
-				<input type="file" id="csv-file" accept=".csv" name="file" style="display:inline;">
-			</div>
-			<a class="btn btn-success btn-sm" id="dataset-attribute-export" href="/api/datasets/{{>dataset.id}}/attributes/export">export</a>
+            <div class="btn btn-success btn-sm" id="dataset-attribute-import">import
+                <input type="file" id="csv-file" accept=".csv" name="file" style="display:inline;">
+            </div>
+            <a class="btn btn-success btn-sm" id="dataset-attribute-export" href="/api/datasets/{{>dataset.id}}/attributes/export">export</a>
           <div class="form-group">
             <table class="table table-bordered table-condensed no-border" style="width: 600px; border: 0px;">
               <thead>
@@ -95,10 +95,10 @@
                 {{/for}}
                 <tr style="border: 0px">
                   <td style="border: 0px"></td>
-				  <td style="border: 0px"></td>
-				  <td style="border: 0px">
-						<a class="btn btn-default btn-sm" id="dataset-attribute-add"><span class="glyphicon glyphicon-plus"></span></a>
-				  </td>
+                  <td style="border: 0px"></td>
+                  <td style="border: 0px">
+                        <a class="btn btn-default btn-sm" id="dataset-attribute-add"><span class="glyphicon glyphicon-plus"></span></a>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -152,15 +152,15 @@
               <div class="row">
                 <div class="col-sm-12">
                     <span class="glyphicon glyphicon-file"></span>
-                    {^{>name}} ({^{datasize size/}})
+                    {^{>file.name}} ({^{datasize file.size/}})
                     uploaded by
-                    <img data-link="src{>createdBy.image}" class="icon">
-                    <strong>{^{>createdBy.fullname}}</strong>
+                    <img data-link="src{>file.createdBy.image}" class="icon">
+                    <strong>{^{>file.createdBy.fullname}}</strong>
                 </div>
               </div>
               <div class="row">
                 <div class="col-sm-12" style="margin-left: 16px;">
-                  {^{if !~isEmpty(description)}}
+                  {^{if !~isEmpty(file.description)}}
                     <span data-link="description"></span>
                   {{else}}
                     <span>(This file does not have description.)</span>
@@ -170,16 +170,21 @@
             </div>
             <div class="row dataset-file-menu" style="margin-top: 4px;">
               <div class="col-sm-12">
-                <button type="button" class="btn btn-xs dataset-file-edit-start" data-value="{{>id}}">edit</button>
-                <button type="button" class="btn btn-xs dataset-file-replace-start" data-value="{{>id}}">replace</button>
-                <button type="button" class="btn btn-xs dataset-file-delete" data-value="{{>id}}">delete</button>
+                <button type="button" class="btn btn-xs dataset-file-edit-start" data-value="{{>file.id}}">edit</button>
+                <button type="button" class="btn btn-xs dataset-file-replace-start" data-value="{{>file.id}}">replace</button>
+                <button type="button" class="btn btn-xs dataset-file-delete" data-value="{{>file.id}}">delete</button>
               </div>
             </div>
             <div class="dataset-file-edit"></div>
             <div class="dataset-file-replace"></div>
           </div>
         {{/for}}
-
+        {^{if dataset.filesCount > dataset.files.length}}
+        <div class="well well-sm dataset-file more">
+          <span>more files...</span>
+        </div>
+        {{/if}}
+        {^{if dataset.files.length > 0}}
         <form role="form" id="dataset-file-add-form">
           <div class="form-group">
             <label class="control-label">Add file</label><br>
@@ -187,6 +192,7 @@
             <a href="javascript:void 0;" class="btn btn-primary btn-sm" data-loading-text="Saving..." style="display: none;" id="dataset-file-add-submit">Upload</a>
           </div>
         </form>
+        {{/if}}
       </div>
 
       <div class="tab-pane" id="dataset-acl">
@@ -194,7 +200,7 @@
           <div style="margin-bottom: 10px">
             <button class="btn btn-default" type="button" id="add-owner-item"><span class="glyphicon glyphicon-plus"></span></button>
           </div>
-		  {^{async owners}}
+          {^{async owners}}
           <table class="table table-striped">
             <tbody>
               {^{for items ~myself=#parent.data.myself}}
@@ -205,37 +211,37 @@
                         <img src="{{>image}}/48" srcset="{{>image}}/48 1x, {{>image}}/96 2x" />
                       </div>
                       <div class="media-body">
-						{{if ownerType == 1}}
+                        {{if ownerType == 1}}
                         <h4 class="media-heading"><strong>{{>fullname}}</strong> <small>{{>name}} &raquo; {{>organization}} {{>title}}</small></h4>
-						{{else ownerType == 2}}
-						<h4 class="media-heading"><strong>{{>name}}</strong></h4>
-						{{/if}}
+                        {{else ownerType == 2}}
+                        <h4 class="media-heading"><strong>{{>name}}</strong></h4>
+                        {{/if}}
                         <p>{{: ~trimTags(description)}}</p>
                       </div>
                     </div>
                   </td>
                   <td>
-					  <div class="form-group">
-						{{if ownerType == 1}}
-						  {{if ~myself.id == id}}
-							Owner
-						  {{else}}
-							<select class="form-control dsmoq-acl-select" style="width:auto;" data-link="{:accessLevel:toInt}">
-							  <option value="3">Owner</option>
-							  <option value="2">Full Read</option>
-							  <option value="1">Limited Read</option>
-							</select>
-						  {{/if}}
-						{{else ownerType == 2}}
-						  <select class="form-control dsmoq-acl-select" style="width:auto;" data-link="{:accessLevel:toInt}">
-							<option value="3">Provider</option>
-							<option value="2">Full Read</option>
-							<option value="1">Limited Read</option>
-						  </select>
-						{{else}}
-						  invalid ownerType
-						{{/if}}
-					  </div>
+                      <div class="form-group">
+                        {{if ownerType == 1}}
+                          {{if ~myself.id == id}}
+                            Owner
+                          {{else}}
+                            <select class="form-control dsmoq-acl-select" style="width:auto;" data-link="{:accessLevel:toInt}">
+                              <option value="3">Owner</option>
+                              <option value="2">Full Read</option>
+                              <option value="1">Limited Read</option>
+                            </select>
+                          {{/if}}
+                        {{else ownerType == 2}}
+                          <select class="form-control dsmoq-acl-select" style="width:auto;" data-link="{:accessLevel:toInt}">
+                            <option value="3">Provider</option>
+                            <option value="2">Full Read</option>
+                            <option value="1">Limited Read</option>
+                          </select>
+                        {{else}}
+                          invalid ownerType
+                        {{/if}}
+                      </div>
                   </td>
                   <td>
                     {{if ~myself.id != id}}
@@ -247,7 +253,7 @@
             </tbody>
           </table>
           {^{pagination index pages id="ownership-pagination" pagedelta=5 /}}
-		{{/async}}
+        {{/async}}
         <h3>Guest Access Control</h3>
         <form role="form" id="dataset-guest-access-form">
           <div class="radio"><label><input type="radio" name="option" value="0" data-link="{:dataset.defaultAccessLevel:toInt}">Deny</label></div>
@@ -260,32 +266,32 @@
           </div>
         </div>
       </div>
-	  
-	  <div class="tab-pane" id="dataset-storage">
-		<form role="form" id="dataset-storage-form">
-			<div class="form-group">
-				<div>
-					<input type="checkbox" id="saveLocalStorage" data-link="disabled{:dataset.localState===3} checked{:dataset.localState===1||dataset.localState===2}">
-					{{if dataset.localState === 2}}
-						<label for="saveLocalStorage">ローカルに保存する（同期中）</label>
-					{{else dataset.localState === 3}}
-						<label for="saveLocalStorage">ローカルに保存する（削除中）</label>
-					{{else}}
-						<label for="saveLocalStorage">ローカルに保存する</label>
-					{{/if}}
-				</div>
-				<div>
-					<input type="checkbox" id="saveS3Storage" data-link="disabled{:dataset.s3State===3} checked{:dataset.s3State===1||dataset.s3State===2}">
-					{{if dataset.s3State === 2}}
-						<label for="saveS3Storage">S3に保存する（同期中）</label>
-					{{else dataset.s3State === 3}}
-						<label for="saveS3Storage">S3に保存する（削除中）</label>
-					{{else}}
-						<label for="saveS3Storage">S3に保存する</label>
-					{{/if}}
-				</div>
-			</div>
-		</form>
+      
+      <div class="tab-pane" id="dataset-storage">
+        <form role="form" id="dataset-storage-form">
+            <div class="form-group">
+                <div>
+                    <input type="checkbox" id="saveLocalStorage" data-link="disabled{:dataset.localState===3} checked{:dataset.localState===1||dataset.localState===2}">
+                    {{if dataset.localState === 2}}
+                        <label for="saveLocalStorage">ローカルに保存する（同期中）</label>
+                    {{else dataset.localState === 3}}
+                        <label for="saveLocalStorage">ローカルに保存する（削除中）</label>
+                    {{else}}
+                        <label for="saveLocalStorage">ローカルに保存する</label>
+                    {{/if}}
+                </div>
+                <div>
+                    <input type="checkbox" id="saveS3Storage" data-link="disabled{:dataset.s3State===3} checked{:dataset.s3State===1||dataset.s3State===2}">
+                    {{if dataset.s3State === 2}}
+                        <label for="saveS3Storage">S3に保存する（同期中）</label>
+                    {{else dataset.s3State === 3}}
+                        <label for="saveS3Storage">S3に保存する（削除中）</label>
+                    {{else}}
+                        <label for="saveS3Storage">S3に保存する</label>
+                    {{/if}}
+                </div>
+            </div>
+        </form>
         <div class="row">
           <p class="col-sm-12">
             <a class="btn btn-primary" id="dataset-storage-submit" data-loading-text="Saving...">Save</a>
