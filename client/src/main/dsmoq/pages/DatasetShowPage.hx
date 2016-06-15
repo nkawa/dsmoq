@@ -82,10 +82,17 @@ class DatasetShowPage {
                     if (data.root.opened) {
                         setTopMoreClickEvent(html, navigation, binding, data, id);
                         setZipClickEvent(html, navigation, data, id);
+                        for (i in 0...data.root.files.length) {
+                            var fileitem = data.root.files[i];
+                            if (fileitem.opened && fileitem.zippedFiles.length < fileitem.file.zipCount) {
+                                setZipMoreClickEvent(html, navigation, data, id, i);
+                            }
+                        }
                     }
                     return;
                 }
                 setDatasetFiles(data, id, data.fileLimit, 0).then(function (_) {
+                    setTopMoreClickEvent(html, navigation, binding, data, id);
                     setZipClickEvent(html, navigation, data, id);
                 }, function (err) {
                     switch (err.name) {
@@ -116,7 +123,9 @@ class DatasetShowPage {
     }
     
     static function setDatasetFiles(data: Dynamic, datasetId: String, limit: Int, offset: Int): Promise<RangeSlice<DatasetFile>> {
+        JsViews.observable(data.root).setProperty("useProgress", true);
         return Service.instance.getDatasetFiles(datasetId, { limit: limit, offset: offset }).then(function (res) {
+            JsViews.observable(data.root).setProperty("useProgress", false);
             for (i in 0...res.results.length) {
                 var file = res.results[i];
                 var item = {
@@ -132,7 +141,9 @@ class DatasetShowPage {
     }
 
     static function setDatasetZippedFiles(data: Dynamic, datasetId: String, index: Int, limit: Int, offset: Int): Promise<RangeSlice<DatasetZipedFile>> {
+        JsViews.observable(data.root.files[index]).setProperty("useProgress", true);
         return Service.instance.getDatasetZippedFiles(datasetId, data.root.files[index].file.id, { limit: limit, offset: offset }).then(function (res) {
+            JsViews.observable(data.root.files[index]).setProperty("useProgress", false);
             for (file in res.results) {
                 JsViews.observable(data.root.files[index].zippedFiles).insert(file);
             }
@@ -153,7 +164,7 @@ class DatasetShowPage {
             JsViews.observable(data.root.files[index]).setProperty("opened", !data.root.files[index].opened);
             var fileitem = data.root.files[index];
             if (!fileitem.opened || fileitem.zippedFiles.length > 0) {
-                if (fileitem.opened) {
+                if (fileitem.opened && fileitem.zippedFiles.length < fileitem.file.zipCount) {
                     setZipMoreClickEvent(html, navigation, data, datasetId, index);
                 }
                 return;
@@ -181,6 +192,7 @@ class DatasetShowPage {
             binding.setProperty("data.root.useProgress", true);
             setDatasetFiles(data, datasetId, data.fileLimit, data.root.files.length).then(function (_){
                 binding.setProperty("data.root.useProgress", false);
+                setTopMoreClickEvent(html, navigation, binding, data, datasetId);
                 setZipClickEvent(html, navigation, data, datasetId);
             }, function (err) {
                 switch (err.name) {
@@ -201,6 +213,7 @@ class DatasetShowPage {
             JsViews.observable(data.root.files[index]).setProperty("useProgress", true);
             setDatasetZippedFiles(data, datasetId, index, data.fileLimit, data.root.files[index].zippedFiles.length).then(function (_) {
                 JsViews.observable(data.root.files[index]).setProperty("useProgress", false);
+                setZipMoreClickEvent(html, navigation, data, datasetId, index);
             }, function (err) {
                 switch (err.name) {
                     case ServiceErrorType.Unauthorized:

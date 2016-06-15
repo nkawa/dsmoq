@@ -502,11 +502,14 @@ public class DsmoqClient {
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/files/%s/%s", datasetId, fileId))){
             addAuthorizationHeader(request);
 
-            Dataset dataset = getDataset(datasetId);
-            Optional<String> targetName = dataset.getFiles().stream().filter(x -> x.getId().equals(fileId)).map(x -> x.getName()).findFirst();
+            RangeSlice<DatasetFile> files = getDatasetFiles(datasetId, new GetRangeParam());
+            Optional<String> targetName = files.getResults().stream().filter(x -> x.getId().equals(fileId)).map(x -> x.getName()).findFirst();
 
             if (! targetName.isPresent()) {
-                targetName = dataset.getFiles().stream().flatMap(x -> x.getZipedFiles().stream()).filter(x -> x.getId().equals(fileId)).map(x -> x.getName()).findFirst();
+                targetName = files.getResults().stream().flatMap(x -> {
+                    RangeSlice<DatasetZipedFile> zfiles = getDatasetZippedFiles(datasetId, x.getId(), new GetRangeParam());
+                    return zfiles.getResults().stream();
+                }).filter(x -> x.getId().equals(fileId)).map(x -> x.getName()).findFirst();
                 if (! targetName.isPresent()) {
                     throw new NotFoundException();
                 }

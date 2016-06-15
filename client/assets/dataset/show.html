@@ -55,7 +55,7 @@
             <div class="col-sm-11">
               <ul class="list-group">
                 <li class="list-group-item">
-                  {^{if filesCount > 0}}
+                  {^{if filesCount > 0 && fileLimit > 0}}
                   <a class="accordion-head-item">
                     {^{if root.opened}}
                     <span class="glyphicon glyphicon-chevron-down"></span>
@@ -104,13 +104,13 @@
                           </li>
                           {{/for}}
                           {^{if zippedFiles.length < file.zipCount}}
+                          {^{if useProgress}}
+                          <div class='loading'></div>
+                          {{else}}
                           <li class="list-group-item more more-zip-item">
-                            {^{if useProgress}}
-                            <div class='loading'></div>
-                            {{else}}
                             <span>more files...</span>
-                            {{/if}}
                           </li>
+                          {{/if}}
                           {{/if}}
                         </ul>
                       </div>
@@ -118,13 +118,13 @@
                     </li>
                     {{/for}}
                     {^{if root.files.length < filesCount}}
+                      {^{if root.useProgress}}
+                      <div class='loading'></div>
+                      {{else}}
                       <li class="list-group-item more more-head-item">
-                        {^{if root.useProgress}}
-                        <div class='loading'></div>
-                        {{else}}
                         <span>more files...</span>
-                        {{/if}}
                       </li>
+                      {{/if}}
                     {{/if}}
                   </ul>
                   {{/if}}

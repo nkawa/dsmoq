@@ -1,16 +1,18 @@
 package dsmoq.controllers
 
 import com.typesafe.scalalogging.LazyLogging
-import dsmoq.exceptions.{AccessDeniedException, NotFoundException}
+import dsmoq.exceptions.{AccessDeniedException, NotAuthorizedException, NotFoundException}
 import dsmoq.services.DatasetService._
 import dsmoq.services.{DatasetService, User}
 import org.apache.commons.io.input.BoundedInputStream
 import org.scalatra.ScalatraServlet
 import org.slf4j.MarkerFactory
 
-import scala.util.{Failure, Success}
+import javax.servlet.http.HttpServletRequest
 
-class FileController extends ScalatraServlet with SessionTrait with UserTrait with LazyLogging {
+import scala.util.{Failure, Success, Try}
+
+class FileController extends ScalatraServlet with SessionTrait with ApiKeyAuthorizationTrait with LazyLogging {
 
   /**
     * ログマーカー
@@ -33,7 +35,8 @@ class FileController extends ScalatraServlet with SessionTrait with UserTrait wi
     // HEADリクエストではボディ要素として、バイナリは返さない。
     // このため、ストリームが設定されていない形でDownloadFileを取得する。
     val result = for {
-      fileInfo <- DatasetService.getDownloadFileWithoutStream(datasetId, id, userFromHeader.getOrElse(currentUser))
+      user <- getUser(request)
+      fileInfo <- DatasetService.getDownloadFileWithoutStream(datasetId, id, user)
     } yield {
       fileInfo
     }
@@ -92,7 +95,8 @@ class FileController extends ScalatraServlet with SessionTrait with UserTrait wi
     logger.info(LOG_MARKER, "Receive get request, datasetId={}, id={}", datasetId, id)
 
     val result = for {
-      fileInfo <- DatasetService.getDownloadFileWithStream(datasetId, id, userFromHeader.getOrElse(currentUser))
+      user <- getUser(request)
+      fileInfo <- DatasetService.getDownloadFileWithStream(datasetId, id, user)
     } yield {
       fileInfo
     }
@@ -225,7 +229,16 @@ class FileController extends ScalatraServlet with SessionTrait with UserTrait wi
     }
   }
 
-  private def userFromHeader: Option[User] = userFromHeader(request.getHeader("Authorization"))
+  private def getUser(request: HttpServletRequest): Try[User] = {
+    userFromHeader(request) match {
+      case ApiUser(user) => Success(user)
+      case ApiAuthorizationFailed => Failure(new NotAuthorizedException)
+      case NoAuthorizationHeader => signedInUser match {
+        case SignedInUser(user) => Success(user)
+        case GuestUser(user) => Success(user)
+      }
+    }
+  }
 
   /**
     * Rangeヘッダが適切かどうか判定する。

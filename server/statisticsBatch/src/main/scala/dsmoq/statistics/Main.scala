@@ -2,7 +2,6 @@ package dsmoq.statistics
 
 import java.util.UUID
 
-import dsmoq.AppConf
 import org.joda.time._
 import dsmoq.persistence._
 import scalikejdbc.DB

@@ -20,31 +20,6 @@ test {
   db.default.connectionTimeoutMillis=1000
 }
 
-
-# dsmoq settings
-dsmoq {
-  development {
-    image_dir = "../storage/image"
-    file_dir = "../storage/file"
-    temp_dir = "../storage/temp"
-    message_dir = "../storage"
-    image_url_root = "http://localhost:8080/images/"
-    file_url_root = "http://localhost:8080/files/"
-    upload_bucket = "fileroot1"
-    file_limit = 20
-  }
-  test {
-    image_dir = "../test_storage/image"
-    file_dir = "../test_storage/file"
-    temp_dir = "../test_storage/temp"
-    message_dir = "../test_storage"
-    image_url_root = "http://localhost:8080/images/"
-    file_url_root = "http://localhost:8080/files/"
-    upload_bucket = "fileroot2"
-    file_limit = 20
-  }
-}
-
 # Google OAuth settings
 oauth  {
     client_id = "enter your client_id"
@@ -59,4 +34,6 @@ oauth  {
 s3  {
   access_key = "enter your access key"
   secret_key = "enter your secret key"
+  development.upload_bucket = "fileroot1"
+  test.upload_bucket = "fileroot2"
 }

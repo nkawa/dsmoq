@@ -78,7 +78,8 @@ object DsmoqBuild extends Build {
         "org.scalatra" %% "scalatra-specs2" % ScalatraVersion % "test",
         "com.typesafe.scala-logging" % "scala-logging_2.11" % "3.1.0" % "compile",
         "org.slf4j" % "slf4j-api" % "1.7.12" % "compile",
-        "ch.qos.logback" % "logback-classic" % "1.1.3" % "compile"
+        "ch.qos.logback" % "logback-classic" % "1.1.3" % "compile",
+        "org.scalikejdbc" %% "scalikejdbc-test" % "2.2.3" % "test"
       ),
       scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
       fork in Test := true
