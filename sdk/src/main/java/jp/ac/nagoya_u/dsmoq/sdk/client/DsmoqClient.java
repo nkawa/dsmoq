@@ -29,6 +29,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.SocketTimeoutException;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
@@ -557,9 +558,23 @@ public class DsmoqClient {
 
     private String getFileNameFromHeader(HttpResponse response) {
         Header header = response.getFirstHeader("Content-Disposition");
-        Pattern p = Pattern.compile("attachment; filename\\*=UTF\\-8''(.+)");
+        Pattern p = Pattern.compile("attachment; filename\\*=([^']+)''(.+)");
         Matcher m = p.matcher(header.getValue());
-        return m.find() ? m.group(1) : "";
+        if (m.find()) {
+            String charset = m.group(1);
+            String rawFileName = m.group(2);
+            try {
+                return URLDecoder.decode(rawFileName, charset);
+            } catch(UnsupportedEncodingException e1) {
+                try {
+                    return URLDecoder.decode(rawFileName, "UTF-8");
+                } catch(UnsupportedEncodingException e2) {
+                    return rawFileName;
+                }
+            }
+        } else {
+            return "";
+        }
     }
 
     /**

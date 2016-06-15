@@ -322,6 +322,27 @@ public class SDKTest {
     }
 
     @Test
+    public void マルチバイトのファイル名のファイルをダウンロードできるか() throws IOException {
+        DsmoqClient client = create();
+        File original = Files.createFile(Paths.get("あああああ.txt")).toFile();
+        client.createDataset(true, false, new File("あああああ.txt"));
+        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
+        String datasetId = summaries.stream().findFirst().get().getId();
+        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
+        String fileId = files.getResults().get(0).getId();
+        Path dir = Paths.get("temp");
+        if (! dir.toFile().exists()) {
+            Files.createDirectory(dir);
+        }
+        File file = client.downloadFile(datasetId, fileId, "temp");
+        assertThat(file.getName(), is("あああああ.txt"));
+        assertThat(file.exists(), is(true));
+        original.delete();
+        file.delete();
+        dir.toFile().delete();
+    }
+
+    @Test
     public void 保存先を変更できるか() {
         DsmoqClient client = create();
         client.createDataset(true, false, new File("README.md"));
