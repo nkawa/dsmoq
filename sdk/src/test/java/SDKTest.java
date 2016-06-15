@@ -12,6 +12,10 @@ import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.core.Is.*;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -212,17 +216,109 @@ public class SDKTest {
     }
 
     @Test
-    public void ファイルをダウンロードできるか() {
+    public void ファイルをダウンロードできるか() throws IOException {
         DsmoqClient client = create();
         client.createDataset(true, false, new File("README.md"));
         List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
         String datasetId = summaries.stream().findFirst().get().getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
-        File file = client.downloadFile(datasetId, fileId, ".");
-        assertThat(file.getName(), is(fileId + "_README.md"));
+        Path dir = Paths.get("temp");
+        if (! dir.toFile().exists()) {
+            Files.createDirectory(dir);
+        }
+        File file = client.downloadFile(datasetId, fileId, "temp");
+        assertThat(file.getName(), is("README.md"));
         assertThat(file.exists(), is(true));
         file.delete();
+        dir.toFile().delete();
+    }
+
+    @Test
+    public void 拡張子なしのファイルをダウンロードできるか() throws IOException {
+        DsmoqClient client = create();
+        File original = Files.createFile(Paths.get("hoge")).toFile();
+        client.createDataset(true, false, new File("hoge"));
+        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
+        String datasetId = summaries.stream().findFirst().get().getId();
+        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
+        String fileId = files.getResults().get(0).getId();
+        Path dir = Paths.get("temp");
+        if (! dir.toFile().exists()) {
+            Files.createDirectory(dir);
+        }
+        File file = client.downloadFile(datasetId, fileId, "temp");
+        assertThat(file.getName(), is("hoge"));
+        assertThat(file.exists(), is(true));
+        original.delete();
+        file.delete();
+        dir.toFile().delete();
+    }
+
+    @Test
+    public void ファイル名にドットを含むファイルをダウンロードできるか() throws IOException {
+        DsmoqClient client = create();
+        File original = Files.createFile(Paths.get("a.b.txt")).toFile();
+        client.createDataset(true, false, new File("a.b.txt"));
+        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
+        String datasetId = summaries.stream().findFirst().get().getId();
+        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
+        String fileId = files.getResults().get(0).getId();
+        Path dir = Paths.get("temp");
+        if (! dir.toFile().exists()) {
+            Files.createDirectory(dir);
+        }
+        File file = client.downloadFile(datasetId, fileId, "temp");
+        assertThat(file.getName(), is("a.b.txt"));
+        assertThat(file.exists(), is(true));
+        original.delete();
+        file.delete();
+        dir.toFile().delete();
+    }
+
+    @Test
+    public void 同名ファイルが既に存在している場合にファイルをダウンロードできるか() throws IOException {
+        DsmoqClient client = create();
+        client.createDataset(true, false, new File("README.md"));
+        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
+        String datasetId = summaries.stream().findFirst().get().getId();
+        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
+        String fileId = files.getResults().get(0).getId();
+        Path dir = Paths.get("temp");
+        if (! dir.toFile().exists()) {
+            Files.createDirectory(dir);
+        }
+        Files.createFile(dir.resolve("README.md")).toFile();
+        File file = client.downloadFile(datasetId, fileId, "temp");
+        assertThat(file.getName(), is("README (1).md"));
+        assertThat(file.exists(), is(true));
+        for (File f : dir.toFile().listFiles()) {
+            f.delete();
+        }
+        dir.toFile().delete();
+    }
+
+    @Test
+    public void 同名ファイルが既に存在している場合にファイルをダウンロードできるか2() throws IOException {
+        DsmoqClient client = create();
+        client.createDataset(true, false, new File("README.md"));
+        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
+        String datasetId = summaries.stream().findFirst().get().getId();
+        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
+        String fileId = files.getResults().get(0).getId();
+        Path dir = Paths.get("temp");
+        if (! dir.toFile().exists()) {
+            Files.createDirectory(dir);
+        }
+        Files.createFile(dir.resolve("README.md")).toFile();
+        Files.createFile(dir.resolve("README (1).md")).toFile();
+        File file = client.downloadFile(datasetId, fileId, "temp");
+        assertThat(file.getName(), is("README (2).md"));
+        assertThat(file.exists(), is(true));
+        for (File f : dir.toFile().listFiles()) {
+            f.delete();
+        }
+        dir.toFile().delete();
     }
 
     @Test

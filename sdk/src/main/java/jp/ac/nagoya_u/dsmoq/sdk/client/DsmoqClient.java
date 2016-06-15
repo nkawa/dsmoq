@@ -6,6 +6,8 @@ import jp.ac.nagoya_u.dsmoq.sdk.response.*;
 import jp.ac.nagoya_u.dsmoq.sdk.util.*;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
+import org.apache.http.Header;
+import org.apache.http.HttpResponse;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.methods.HttpUriRequest;
@@ -31,6 +33,8 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -499,90 +503,63 @@ public class DsmoqClient {
      * @return ダウンロードしたファイル情報
      */
     public File downloadFile(String datasetId, String fileId, String downloadDirectory) {
-        try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/files/%s/%s", datasetId, fileId))){
+        String url = _baseUrl + String.format("/files/%s/%s", datasetId, fileId);
+        logger.debug(LOG_MARKER, "downloadFile start : [downloadUrl] = {}, [downloadDirectory] = {}",
+                url, downloadDirectory);
+        try (AutoHttpGet request = new AutoHttpGet(url)){
             addAuthorizationHeader(request);
-
-            RangeSlice<DatasetFile> files = getDatasetFiles(datasetId, new GetRangeParam());
-            Optional<String> targetName = files.getResults().stream().filter(x -> x.getId().equals(fileId)).map(x -> x.getName()).findFirst();
-
-            if (! targetName.isPresent()) {
-                targetName = files.getResults().stream().flatMap(x -> {
-                    RangeSlice<DatasetZipedFile> zfiles = getDatasetZippedFiles(datasetId, x.getId(), new GetRangeParam());
-                    return zfiles.getResults().stream();
-                }).filter(x -> x.getId().equals(fileId)).map(x -> x.getName()).findFirst();
-                if (! targetName.isPresent()) {
-                    throw new NotFoundException();
+            try (AutoCloseHttpClient client = createHttpClient()) {
+                HttpResponse response = client.execute(request);
+                int status = response.getStatusLine().getStatusCode();
+                if (status >= 400) {
+                    throw new HttpStatusException(status);
                 }
+                File file = Paths.get(downloadDirectory, getFileName(response, downloadDirectory)).toFile();
+                try (FileOutputStream fos = new FileOutputStream(file)) {
+                    response.getEntity().writeTo(fos);
+                }
+                return file;
+            } catch (SocketTimeoutException e) {
+                throw new TimeoutException(e.getMessage(), e);
+            } catch (HttpHostConnectException e) {
+                throw new ConnectionLostException(e.getMessage(), e);
+            } catch (IOException e) {
+                throw new ApiFailedException(e.getMessage(), e);
             }
-
-            File file = Paths.get(downloadDirectory, fileId + "_" + targetName.get()).toFile();
-            try (FileOutputStream fos = new FileOutputStream(file)) {
-                executeWrite(request, fos);
-            }
-            return file;
-        } catch(IOException e) {
-            throw new ApiFailedException(e.getMessage(), e);
         }
     }
 
-    /**
-     * データセットから一時ディレクトリにファイルをダウンロードする。
-     * @param datasetId DatasetID
-     * @param fileId ファイルID
-     * @return ダウンロードしたファイル
-     */
-    public File downloadFile(String datasetId, String fileId) {
-        File temp = new File("temp");
-        if (! temp.exists()) temp.mkdir();
-        return downloadFile(datasetId, fileId, "temp");
+    private String getFileName(HttpResponse response, String downloadDirectory) {
+        String fullName = getFileNameFromHeader(response);
+        String[] splitted = fullName.split("\\.");
+        String name = join(splitted, 0, splitted.length > 1 ? splitted.length - 1 : 1);
+        String ext = splitted.length > 1 ? "." + splitted[splitted.length - 1] : "";
+        String fileName = name + ext;
+        File file = Paths.get(downloadDirectory, fileName).toFile();
+        for (int i = 1; file.exists(); i ++) {
+            fileName = name + " (" + i + ")" + ext;
+            file = Paths.get(downloadDirectory, fileName).toFile();
+        }
+        logger.debug(LOG_MARKER, "donwloadFile : [originalFileName] = {}, [fileName] = {}", name + ext, fileName);
+        return fileName;
     }
 
-    /**
-     * データセットからすべてのファイルをダウンロードする。
-     * @param datasetId DatasetID
-     * @param downloadDirectory ダウンロード先のディレクトリ
-     * @return ダウンロードしたファイル
-     */
-    public List<File> downloadAllFiles(String datasetId, String downloadDirectory) {
-        Dataset dataset = getDataset(datasetId);
-        List<DatasetFile> datasetFiles = dataset.getFiles();
-        return datasetFiles.stream().map(file -> downloadFile(datasetId, file.getId(), downloadDirectory)).collect(Collectors.toList());
+    private String join(String[] strs, int start, int end) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = start; i < end; i ++) {
+            sb.append(strs[i]);
+            if (i < end - 1) {
+                sb.append(".");
+            }
+        }
+        return sb.toString();
     }
 
-    /**
-     * データセットから一時ディレクトリにすべてのファイルをダウンロードする。
-     * @param datasetId DatasetID
-     * @return ダウンロードしたファイル
-     */
-    public List<File> downloadAllFiles(String datasetId) {
-        File temp = new File("temp");
-        if (! temp.exists()) temp.mkdir();
-        return downloadAllFiles(datasetId, "temp");
-    }
-
-    /**
-     * データセットからすべてのファイルをダウンロードする。Zipファイルは圧縮されたファイルのみを取得する。
-     * @param datasetId DatasetID
-     * @param downloadDirectory ダウンロード先のディレクトリ
-     * @return ダウンロードしたファイル
-     */
-    public List<File> downloadAllExpandedFiles(String datasetId, String downloadDirectory) {
-        Dataset dataset = getDataset(datasetId);
-        List<String> datasetFiles = dataset.getFiles().stream().filter(f -> ! f.isZip()).map(f -> f.getId()).collect(Collectors.toList());
-        List<String> zipedFiles = dataset.getFiles().stream().flatMap(f -> f.getZipedFiles().stream()).map(f -> f.getId()).collect(Collectors.toList());
-        datasetFiles.addAll(zipedFiles);
-        return datasetFiles.stream().map(id -> downloadFile(datasetId, id, downloadDirectory)).collect(Collectors.toList());
-    }
-
-    /**
-     * データセットから一時ディレクトリにすべてのファイルをダウンロードする。Zipファイルは圧縮されたファイルのみを取得する。
-     * @param datasetId DatasetID
-     * @return ダウンロードしたファイル
-     */
-    public List<File> downloadAllExpandedFiles(String datasetId) {
-        File temp = new File("temp");
-        if (! temp.exists()) temp.mkdir();
-        return downloadAllExpandedFiles(datasetId, "temp");
+    private String getFileNameFromHeader(HttpResponse response) {
+        Header header = response.getFirstHeader("Content-Disposition");
+        Pattern p = Pattern.compile("attachment; filename\\*=UTF\\-8''(.+)");
+        Matcher m = p.matcher(header.getValue());
+        return m.find() ? m.group(1) : "";
     }
 
     /**
@@ -736,6 +713,7 @@ public class DsmoqClient {
     public void setPrimaryImageToGroup(String groupId, SetPrimaryImageParam param) {
         try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/groups/%s/images/primary", groupId))) {
             addAuthorizationHeader(request);
+
             List<NameValuePair> params = new ArrayList<>();
             params.add(new BasicNameValuePair("d", param.toJsonString()));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));

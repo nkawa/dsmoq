@@ -279,54 +279,6 @@ public class AsyncDsmoqClient {
     }
 
     /**
-     * データセットから一時ディレクトリにファイルをダウンロードする。
-     * @param datasetId DatasetID
-     * @param fileId ファイルID
-     * @return ダウンロードしたファイルのFuture
-     */
-    public CompletableFuture<File> downloadFile(String datasetId, String fileId) {
-        return CompletableFuture.supplyAsync(() -> client.downloadFile(datasetId, fileId));
-    }
-
-    /**
-     * データセットからすべてのファイルをダウンロードする。
-     * @param datasetId DatasetID
-     * @param downloadDirectory ダウンロード先のディレクトリ
-     * @return ダウンロードしたファイルのFuture
-     */
-    public CompletableFuture<List<File>> downloadAllFiles(String datasetId, String downloadDirectory) {
-        return CompletableFuture.supplyAsync(() -> client.downloadAllFiles(datasetId, downloadDirectory));
-    }
-
-    /**
-     * データセットから一時ディレクトリにすべてのファイルをダウンロードする。
-     * @param datasetId DatasetID
-     * @return ダウンロードしたファイルのFuture
-     */
-    public CompletableFuture<List<File>> downloadAllFiles(String datasetId) {
-        return CompletableFuture.supplyAsync(() -> client.downloadAllFiles(datasetId));
-    }
-
-    /**
-     * データセットからすべてのファイルをダウンロードする。Zipファイルは圧縮されたファイルのみを取得する。
-     * @param datasetId DatasetID
-     * @param downloadDirectory ダウンロード先のディレクトリ
-     * @return ダウンロードしたファイルのFuture
-     */
-    public CompletableFuture<List<File>> downloadAllExpandedFiles(String datasetId, String downloadDirectory) {
-        return CompletableFuture.supplyAsync(() -> client.downloadAllExpandedFiles(datasetId, downloadDirectory));
-    }
-
-    /**
-     * データセットから一時ディレクトリにすべてのファイルをダウンロードする。Zipファイルは圧縮されたファイルのみを取得する。
-     * @param datasetId DatasetID
-     * @return ダウンロードしたファイルのFuture
-     */
-    public CompletableFuture<List<File>> downloadAllExpandedFiles(String datasetId) {
-        return CompletableFuture.supplyAsync(() -> client.downloadAllExpandedFiles(datasetId));
-    }
-
-    /**
      * グループ一覧を取得する。（GET /api/groups相当）
      * @param param グループ一覧取得情報
      * @return グループ一覧情報のFuture

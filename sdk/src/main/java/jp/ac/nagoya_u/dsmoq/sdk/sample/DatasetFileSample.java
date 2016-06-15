@@ -37,7 +37,7 @@ public class DatasetFileSample {
                     .filter(x -> x.getName().endsWith(".csv"))
                     .map(x -> x.getId()).collect(Collectors.toList());
             // ダウンロードしてくる
-            List<File> fs = ids.stream().map(x -> client.downloadFile(dataset.getId(), x)).collect(Collectors.toList());
+            List<File> fs = ids.stream().map(x -> client.downloadFile(dataset.getId(), x, ".")).collect(Collectors.toList());
             files.addAll(fs);
         }
 
