@@ -606,6 +606,22 @@ public class SDKTest {
         assertThat(zippedFiles.getSummary().getTotal(), is(1));
     }
 
+    @Test
+    public void マルチバイト文字を含むResponseを取り扱えるか() {
+        DsmoqClient client = create();
+        client.createDataset(true, false, new File("README.md"));
+        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
+        String datasetId = summaries.stream().findFirst().get().getId();
+        UpdateDatasetMetaParam param = new UpdateDatasetMetaParam();
+        param.setName("ほげ");
+        param.setDescription("日本語の説明");
+        param.setLicense("1050f556-7fee-4032-81e7-326e5f1b82fb");
+        client.updateDatasetMetaInfo(datasetId, param);
+        Dataset dataset = client.getDataset(datasetId);
+        assertThat(dataset.getMeta().getName(), is("ほげ"));
+        assertThat(dataset.getMeta().getDescription(), is("日本語の説明"));
+    }
+
     public static DsmoqClient create() {
         return DsmoqClient.create("http://localhost:8080", "7d8d8cf12ef0d12d057b01765779c56a5f8a7e1330a41be189114935660ef1ba", "22698424fa67a56cd6d916988fd824c6f999d18a934831de83e15c3490376372");
     }

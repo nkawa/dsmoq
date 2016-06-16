@@ -4,6 +4,7 @@ import jp.ac.nagoya_u.dsmoq.sdk.http.*;
 import jp.ac.nagoya_u.dsmoq.sdk.request.*;
 import jp.ac.nagoya_u.dsmoq.sdk.response.*;
 import jp.ac.nagoya_u.dsmoq.sdk.util.*;
+import org.apache.http.HttpException;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.Header;
@@ -526,6 +527,8 @@ public class DsmoqClient {
                 throw new ConnectionLostException(e.getMessage(), e);
             } catch (IOException e) {
                 throw new ApiFailedException(e.getMessage(), e);
+            } catch (HttpException e) {
+                throw new ApiFailedException(e.getMessage(), e);
             }
         }
     }
@@ -1001,6 +1004,8 @@ public class DsmoqClient {
             throw new ConnectionLostException(e.getMessage(), e);
         } catch (IOException e) {
             throw new ApiFailedException(e.getMessage(), e);
+        } catch (HttpException e) {
+            throw new ApiFailedException(e.getMessage(), e);
         }
     }
 
@@ -1022,6 +1027,8 @@ public class DsmoqClient {
         } catch (HttpHostConnectException e) {
             throw new ConnectionLostException(e.getMessage(), e);
         } catch (IOException e) {
+            throw new ApiFailedException(e.getMessage(), e);
+        } catch (HttpException e) {
             throw new ApiFailedException(e.getMessage(), e);
         }
     }
