@@ -7,6 +7,7 @@ import org.joda.time.DateTime;
 import org.junit.AfterClass;
 import org.junit.After;
 import org.junit.Test;
+import org.junit.Assert;
 
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.core.Is.*;
@@ -149,7 +150,7 @@ public class SDKTest {
         List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
         String datasetId = summaries.stream().findFirst().get().getId();
         assertThat(client.getDataset(datasetId).getImages().size(), is(1));
-        client.addImagesToDataset(datasetId, new File("test.png"));
+        client.addImagesToDataset(datasetId, new File("testdata/test.png"));
         assertThat(client.getDataset(datasetId).getImages().size(), is(2));
     }
 
@@ -160,7 +161,7 @@ public class SDKTest {
         List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
         String datasetId = summaries.stream().findFirst().get().getId();
         String primary = client.getDataset(datasetId).getPrimaryImage();
-        DatasetAddImages images = client.addImagesToDataset(datasetId, new File("test.png"));
+        DatasetAddImages images = client.addImagesToDataset(datasetId, new File("testdata/test.png"));
         Image image = images.getImages().stream().filter(x -> !x.getId().equals(primary)).findFirst().get();
         client.setPrimaryImageToDataset(datasetId, new SetPrimaryImageParam(image.getId()));
         Dataset dataset = client.getDataset(datasetId);
@@ -174,7 +175,7 @@ public class SDKTest {
         List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
         String datasetId = summaries.stream().findFirst().get().getId();
         String featured = client.getDataset(datasetId).getFeaturedImage();
-        DatasetAddImages images = client.addImagesToDataset(datasetId, new File("test.png"));
+        DatasetAddImages images = client.addImagesToDataset(datasetId, new File("testdata/test.png"));
         Image image = images.getImages().stream().filter(x -> !x.getId().equals(featured)).findFirst().get();
         client.setFeaturedImageToDataset(datasetId, image.getId());
         Dataset dataset = client.getDataset(datasetId);
@@ -187,7 +188,7 @@ public class SDKTest {
         client.createDataset(true, false, new File("README.md"));
         List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
         String datasetId = summaries.stream().findFirst().get().getId();
-        DatasetAddImages addImg = client.addImagesToDataset(datasetId, new File("test.png"));
+        DatasetAddImages addImg = client.addImagesToDataset(datasetId, new File("testdata/test.png"));
         assertThat(client.getDataset(datasetId).getImages().size(), is(2));
         client.deleteImageToDataset(datasetId, addImg.getImages().get(0).getId());
         assertThat(client.getDataset(datasetId).getImages().size(), is(1));
@@ -230,6 +231,81 @@ public class SDKTest {
         File file = client.downloadFile(datasetId, fileId, "temp");
         assertThat(file.getName(), is("README.md"));
         assertThat(file.exists(), is(true));
+        file.delete();
+        dir.toFile().delete();
+    }
+
+    @Test
+    public void ダウンロードしたファイルの中身が壊れていないか_ASCII() throws IOException {
+        DsmoqClient client = create();
+        Path original = Paths.get("testdata", "test.csv");
+        client.createDataset(true, false, original.toFile());
+        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
+        String datasetId = summaries.stream().findFirst().get().getId();
+        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
+        String fileId = files.getResults().get(0).getId();
+        Path dir = Paths.get("temp");
+        if (! dir.toFile().exists()) {
+            Files.createDirectory(dir);
+        }
+        File file = client.downloadFile(datasetId, fileId, "temp");
+        assertThat(file.getName(), is("test.csv"));
+        assertThat(file.exists(), is(true));
+        Path downloaded = Paths.get("temp", "test.csv");
+        // ダウンロードしたファイルの中身が壊れていないかを、byte列の比較で確認する
+        Assert.assertTrue(Arrays.equals(Files.readAllBytes(downloaded), Files.readAllBytes(original)));
+        // ダウンロードしたファイルのファイル・タイプの確認
+        assertThat(Files.probeContentType(downloaded), is(Files.probeContentType(original)));
+        file.delete();
+        dir.toFile().delete();
+    }
+
+    @Test
+    public void ダウンロードしたファイルの中身が壊れていないか_マルチバイト() throws IOException {
+        DsmoqClient client = create();
+        Path original = Paths.get("testdata", "multibyte.txt");
+        client.createDataset(true, false, original.toFile());
+        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
+        String datasetId = summaries.stream().findFirst().get().getId();
+        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
+        String fileId = files.getResults().get(0).getId();
+        Path dir = Paths.get("temp");
+        if (! dir.toFile().exists()) {
+            Files.createDirectory(dir);
+        }
+        File file = client.downloadFile(datasetId, fileId, "temp");
+        assertThat(file.getName(), is("multibyte.txt"));
+        assertThat(file.exists(), is(true));
+        Path downloaded = Paths.get("temp", "multibyte.txt");
+        // ダウンロードしたファイルの中身が壊れていないかを、byte列の比較で確認する
+        Assert.assertTrue(Arrays.equals(Files.readAllBytes(downloaded), Files.readAllBytes(original)));
+        // ダウンロードしたファイルのファイル・タイプの確認
+        assertThat(Files.probeContentType(downloaded), is(Files.probeContentType(original)));
+        file.delete();
+        dir.toFile().delete();
+    }
+
+    @Test
+    public void ダウンロードしたファイルの中身が壊れていないか_バイナリ() throws IOException {
+        DsmoqClient client = create();
+        Path original = Paths.get("testdata", "test.png");
+        client.createDataset(true, false, original.toFile());
+        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
+        String datasetId = summaries.stream().findFirst().get().getId();
+        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
+        String fileId = files.getResults().get(0).getId();
+        Path dir = Paths.get("temp");
+        if (! dir.toFile().exists()) {
+            Files.createDirectory(dir);
+        }
+        File file = client.downloadFile(datasetId, fileId, "temp");
+        assertThat(file.getName(), is("test.png"));
+        assertThat(file.exists(), is(true));
+        Path downloaded = Paths.get("temp", "test.png");
+        // ダウンロードしたファイルの中身が壊れていないかを、byte列の比較で確認する
+        Assert.assertTrue(Arrays.equals(Files.readAllBytes(downloaded), Files.readAllBytes(original)));
+        // ダウンロードしたファイルのファイル・タイプの確認
+        assertThat(Files.probeContentType(downloaded), is(Files.probeContentType(original)));
         file.delete();
         dir.toFile().delete();
     }
@@ -324,8 +400,8 @@ public class SDKTest {
     @Test
     public void マルチバイトのファイル名のファイルをダウンロードできるか() throws IOException {
         DsmoqClient client = create();
-        File original = Files.createFile(Paths.get("あああああ.txt")).toFile();
-        client.createDataset(true, false, new File("あああああ.txt"));
+        File original = Files.createFile(Paths.get("表予申能十ソ.txt")).toFile();
+        client.createDataset(true, false, new File("表予申能十ソ.txt"));
         List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
         String datasetId = summaries.stream().findFirst().get().getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
@@ -335,7 +411,7 @@ public class SDKTest {
             Files.createDirectory(dir);
         }
         File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("あああああ.txt"));
+        assertThat(file.getName(), is("表予申能十ソ.txt"));
         assertThat(file.exists(), is(true));
         original.delete();
         file.delete();
@@ -410,7 +486,7 @@ public class SDKTest {
         DsmoqClient client = create();
         Group group = client.createGroup(new CreateGroupParam("hoge", "description"));
         String groupId = group.getId();
-        client.addImagesToGroup(groupId, new File("test.png"));
+        client.addImagesToGroup(groupId, new File("testdata/test.png"));
         assertThat(client.getGroup(groupId).getImages().size(), is(2));
     }
 
@@ -419,7 +495,7 @@ public class SDKTest {
         DsmoqClient client = create();
         Group group = client.createGroup(new CreateGroupParam("hoge", "description"));
         String groupId = group.getId();
-        GroupAddImages image = client.addImagesToGroup(groupId, new File("test.png"));
+        GroupAddImages image = client.addImagesToGroup(groupId, new File("testdata/test.png"));
         String imageId = image.getImages().get(0).getId();
         client.setPrimaryImageToGroup(groupId, new SetPrimaryImageParam(imageId));
         assertThat(client.getGroup(groupId).getPrimaryImage(), is(imageId));
@@ -430,7 +506,7 @@ public class SDKTest {
         DsmoqClient client = create();
         Group group = client.createGroup(new CreateGroupParam("hoge", "description"));
         String groupId = group.getId();
-        GroupAddImages image = client.addImagesToGroup(groupId, new File("test.png"));
+        GroupAddImages image = client.addImagesToGroup(groupId, new File("testdata/test.png"));
         String imageId = image.getImages().get(0).getId();
         client.deleteImageToGroup(groupId, imageId);
         assertThat(client.getGroup(groupId).getImages().size(), is(1));
@@ -485,7 +561,7 @@ public class SDKTest {
     public void プロフィール画像を変更できるか() {
         DsmoqClient client = create();
         User user = client.getProfile();
-        client.updateProfileIcon(new File("test.png"));
+        client.updateProfileIcon(new File("testdata/test.png"));
     }
 
     @Test
@@ -525,7 +601,7 @@ public class SDKTest {
         DsmoqClient client = create();
         Dataset dataset = client.createDataset(true, false, new File("README.md"));
         String datasetId = dataset.getId();
-        client.addImagesToDataset(datasetId, new File("test.png"));
+        client.addImagesToDataset(datasetId, new File("testdata/test.png"));
         RangeSlice<DatasetGetImage> images = client.getDatasetImage(datasetId, new GetRangeParam());
         assertThat(images.getSummary().getTotal(), is(2));
     }
@@ -554,7 +630,7 @@ public class SDKTest {
         DsmoqClient client = create();
         Dataset dataset = client.createDataset(true, false, new File("README.md"));
         String datasetId = dataset.getId();
-        client.importAttribute(datasetId, new File("test.csv"));
+        client.importAttribute(datasetId, new File("testdata/test.csv"));
         Dataset dataset2 = client.getDataset(datasetId);
         assertThat(dataset2.getMeta().getAttributes().size(), is(2));
     }
@@ -564,7 +640,7 @@ public class SDKTest {
         DsmoqClient client = create();
         Dataset dataset = client.createDataset(true, false, new File("README.md"));
         String datasetId = dataset.getId();
-        client.importAttribute(datasetId, new File("test.csv"));
+        client.importAttribute(datasetId, new File("testdata/test.csv"));
         File file = client.exportAttribute(datasetId, ".");
         assertThat(file.exists(), is(true));
         file.delete();
@@ -575,7 +651,7 @@ public class SDKTest {
         DsmoqClient client = create();
         Group group = client.createGroup(new CreateGroupParam("hoge", "description"));
         String groupId = group.getId();
-        client.addImagesToGroup(groupId, new File("test.png"));
+        client.addImagesToGroup(groupId, new File("testdata/test.png"));
         RangeSlice<GroupGetImage> images = client.getGroupImage(groupId, new GetRangeParam());
         assertThat(images.getSummary().getTotal(), is(2));
     }
@@ -599,7 +675,7 @@ public class SDKTest {
     @Test
     public void canGetZippedFiles() {
         DsmoqClient client = create();
-        Dataset dataset = client.createDataset(true, false, new File("test.zip"));
+        Dataset dataset = client.createDataset(true, false, new File("testdata/test.zip"));
         String datasetId = dataset.getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         RangeSlice<DatasetZipedFile> zippedFiles = client.getDatasetZippedFiles(datasetId, files.getResults().get(0).getId(), new GetRangeParam());
