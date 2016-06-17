@@ -38,6 +38,9 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.nio.file.InvalidPathException;
+import java.util.UUID;
+import java.nio.charset.Charset;
 
 /**
  * dsmoq APIを叩くためのクライアントクラス
@@ -512,23 +515,15 @@ public class DsmoqClient {
             addAuthorizationHeader(request);
             try (AutoCloseHttpClient client = createHttpClient()) {
                 HttpResponse response = client.execute(request);
-                int status = response.getStatusLine().getStatusCode();
-                if (status >= 400) {
-                    throw new HttpStatusException(status);
-                }
                 File file = Paths.get(downloadDirectory, getFileName(response, downloadDirectory)).toFile();
                 try (FileOutputStream fos = new FileOutputStream(file)) {
                     response.getEntity().writeTo(fos);
                 }
                 return file;
-            } catch (SocketTimeoutException e) {
-                throw new TimeoutException(e.getMessage(), e);
-            } catch (HttpHostConnectException e) {
-                throw new ConnectionLostException(e.getMessage(), e);
-            } catch (IOException e) {
-                throw new ApiFailedException(e.getMessage(), e);
-            } catch (HttpException e) {
-                throw new ApiFailedException(e.getMessage(), e);
+            } catch (DsmoqHttpException e) {
+                throw e;
+            } catch (Exception e) {
+                throw new DsmoqHttpException(e.getMessage(), e);
             }
         }
     }
@@ -564,19 +559,16 @@ public class DsmoqClient {
         Pattern p = Pattern.compile("attachment; filename\\*=([^']+)''(.+)");
         Matcher m = p.matcher(header.getValue());
         if (m.find()) {
-            String charset = m.group(1);
+            String rawCharset = m.group(1);
             String rawFileName = m.group(2);
+            Charset charset = Charset.forName(rawCharset);
             try {
-                return URLDecoder.decode(rawFileName, charset);
-            } catch(UnsupportedEncodingException e1) {
-                try {
-                    return URLDecoder.decode(rawFileName, "UTF-8");
-                } catch(UnsupportedEncodingException e2) {
-                    return rawFileName;
-                }
+                return URLDecoder.decode(rawFileName, charset.name());
+            } catch(UnsupportedEncodingException e) {
+                throw new DsmoqHttpException("Unsupported Charset(" + rawCharset + ").", e);
             }
         } else {
-            return "";
+            throw new DsmoqHttpException("No FileName in Content-Disposition header.");
         }
     }
 
