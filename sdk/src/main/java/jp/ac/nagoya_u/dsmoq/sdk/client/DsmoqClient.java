@@ -4,6 +4,7 @@ import jp.ac.nagoya_u.dsmoq.sdk.http.*;
 import jp.ac.nagoya_u.dsmoq.sdk.request.*;
 import jp.ac.nagoya_u.dsmoq.sdk.response.*;
 import jp.ac.nagoya_u.dsmoq.sdk.util.*;
+import org.apache.http.HttpException;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.Header;
@@ -29,6 +30,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.SocketTimeoutException;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
@@ -525,6 +527,8 @@ public class DsmoqClient {
                 throw new ConnectionLostException(e.getMessage(), e);
             } catch (IOException e) {
                 throw new ApiFailedException(e.getMessage(), e);
+            } catch (HttpException e) {
+                throw new ApiFailedException(e.getMessage(), e);
             }
         }
     }
@@ -557,9 +561,23 @@ public class DsmoqClient {
 
     private String getFileNameFromHeader(HttpResponse response) {
         Header header = response.getFirstHeader("Content-Disposition");
-        Pattern p = Pattern.compile("attachment; filename\\*=UTF\\-8''(.+)");
+        Pattern p = Pattern.compile("attachment; filename\\*=([^']+)''(.+)");
         Matcher m = p.matcher(header.getValue());
-        return m.find() ? m.group(1) : "";
+        if (m.find()) {
+            String charset = m.group(1);
+            String rawFileName = m.group(2);
+            try {
+                return URLDecoder.decode(rawFileName, charset);
+            } catch(UnsupportedEncodingException e1) {
+                try {
+                    return URLDecoder.decode(rawFileName, "UTF-8");
+                } catch(UnsupportedEncodingException e2) {
+                    return rawFileName;
+                }
+            }
+        } else {
+            return "";
+        }
     }
 
     /**
@@ -986,6 +1004,8 @@ public class DsmoqClient {
             throw new ConnectionLostException(e.getMessage(), e);
         } catch (IOException e) {
             throw new ApiFailedException(e.getMessage(), e);
+        } catch (HttpException e) {
+            throw new ApiFailedException(e.getMessage(), e);
         }
     }
 
@@ -1007,6 +1027,8 @@ public class DsmoqClient {
         } catch (HttpHostConnectException e) {
             throw new ConnectionLostException(e.getMessage(), e);
         } catch (IOException e) {
+            throw new ApiFailedException(e.getMessage(), e);
+        } catch (HttpException e) {
             throw new ApiFailedException(e.getMessage(), e);
         }
     }

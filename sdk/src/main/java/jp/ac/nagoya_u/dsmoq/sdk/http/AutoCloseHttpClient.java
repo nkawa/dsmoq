@@ -7,8 +7,12 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.impl.client.LaxRedirectStrategy;
 import org.apache.http.protocol.HttpContext;
+import org.apache.http.client.RedirectStrategy;
+import org.apache.http.impl.client.DefaultRedirectStrategy;
+import org.apache.http.protocol.HttpContext;
+import org.apache.http.protocol.BasicHttpContext;
+import org.apache.http.HttpException;
 
 import java.io.IOException;
 
@@ -18,8 +22,8 @@ public class AutoCloseHttpClient implements AutoCloseable {
     public AutoCloseHttpClient() {
         RequestConfig requestConfig = RequestConfig.custom().setConnectTimeout(30 * 1000).setSocketTimeout(30 * 1000).build();
         this.client = HttpClientBuilder.create()
+                .disableRedirectHandling()
                 .setDefaultRequestConfig(requestConfig)
-                .setRedirectStrategy(new LaxRedirectStrategy())
                 .addInterceptorFirst(new HttpRequestInterceptor() {
                     public void process(final HttpRequest request, final HttpContext context) throws HttpException, IOException {
                         if (!request.containsHeader("Accept-Encoding")) {
@@ -45,11 +49,18 @@ public class AutoCloseHttpClient implements AutoCloseable {
                     }
                 })
                 .build();
-
     }
 
-    public CloseableHttpResponse execute(HttpUriRequest request) throws IOException {
-        return this.client.execute(request);
+    public CloseableHttpResponse execute(HttpUriRequest request) throws IOException, HttpException {
+        HttpContext context = new BasicHttpContext();
+        CloseableHttpResponse response = this.client.execute(request, context);
+        RedirectStrategy redirectStrategy = DefaultRedirectStrategy.INSTANCE;
+        if (redirectStrategy.isRedirected(request, response, context)) {
+            HttpUriRequest redirect = redirectStrategy.getRedirect(request, response, context);
+            return this.client.execute(redirect, context);
+        } else {
+            return response;
+        }
     }
 
     public void close() {

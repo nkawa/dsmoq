@@ -1,3 +1,13 @@
+# Google OAuth settings
+oauth  {
+    client_id = "enter your client_id"
+    client_secret = "enter your client_secret"
+    callback_url = "enter your callback_url"
+    scopes = ["https://www.googleapis.com/auth/plus.me", "profile", "email"]
+    application_name = "COI Data Store"
+    allowed_mailaddrs = [".*@.*.nagoya-u.ac.jp"]
+}
+
 # dsmoq settings
 dsmoq {
   development {

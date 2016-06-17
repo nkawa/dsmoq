@@ -322,6 +322,27 @@ public class SDKTest {
     }
 
     @Test
+    public void マルチバイトのファイル名のファイルをダウンロードできるか() throws IOException {
+        DsmoqClient client = create();
+        File original = Files.createFile(Paths.get("あああああ.txt")).toFile();
+        client.createDataset(true, false, new File("あああああ.txt"));
+        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
+        String datasetId = summaries.stream().findFirst().get().getId();
+        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
+        String fileId = files.getResults().get(0).getId();
+        Path dir = Paths.get("temp");
+        if (! dir.toFile().exists()) {
+            Files.createDirectory(dir);
+        }
+        File file = client.downloadFile(datasetId, fileId, "temp");
+        assertThat(file.getName(), is("あああああ.txt"));
+        assertThat(file.exists(), is(true));
+        original.delete();
+        file.delete();
+        dir.toFile().delete();
+    }
+
+    @Test
     public void 保存先を変更できるか() {
         DsmoqClient client = create();
         client.createDataset(true, false, new File("README.md"));
@@ -583,6 +604,22 @@ public class SDKTest {
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         RangeSlice<DatasetZipedFile> zippedFiles = client.getDatasetZippedFiles(datasetId, files.getResults().get(0).getId(), new GetRangeParam());
         assertThat(zippedFiles.getSummary().getTotal(), is(1));
+    }
+
+    @Test
+    public void マルチバイト文字を含むResponseを取り扱えるか() {
+        DsmoqClient client = create();
+        client.createDataset(true, false, new File("README.md"));
+        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
+        String datasetId = summaries.stream().findFirst().get().getId();
+        UpdateDatasetMetaParam param = new UpdateDatasetMetaParam();
+        param.setName("ほげ");
+        param.setDescription("日本語の説明");
+        param.setLicense("1050f556-7fee-4032-81e7-326e5f1b82fb");
+        client.updateDatasetMetaInfo(datasetId, param);
+        Dataset dataset = client.getDataset(datasetId);
+        assertThat(dataset.getMeta().getName(), is("ほげ"));
+        assertThat(dataset.getMeta().getDescription(), is("日本語の説明"));
     }
 
     public static DsmoqClient create() {
