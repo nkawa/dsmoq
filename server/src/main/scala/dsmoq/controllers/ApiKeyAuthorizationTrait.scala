@@ -2,6 +2,9 @@ package dsmoq.controllers
 
 import dsmoq.services.{AccountService, User}
 
+import com.typesafe.scalalogging.LazyLogging
+import org.slf4j.MarkerFactory
+
 import javax.servlet.http.HttpServletRequest
 
 sealed trait UserFromHeader
@@ -9,8 +12,13 @@ case class ApiUser(user: User) extends UserFromHeader
 case object ApiAuthorizationFailed extends UserFromHeader
 case object NoAuthorizationHeader extends UserFromHeader
 
-trait ApiKeyAuthorizationTrait {
+trait ApiKeyAuthorizationTrait extends LazyLogging {
   
+  /**
+    * ログマーカー
+    */
+  private val LOG_MARKER = MarkerFactory.getMarker("AUTH_LOG")
+
   /**
    * リクエストヘッダからログインユーザーを取得します。
    * リクエストヘッダにAuthorizationヘッダがある場合、ログインユーザーはヘッダ内の認証情報を元にログインユーザーを取得します。
@@ -19,13 +27,23 @@ trait ApiKeyAuthorizationTrait {
    * @return ログインユーザー
    */
   def userFromHeader(request: HttpServletRequest): UserFromHeader = {
+    logger.info(LOG_MARKER, "Get user from header: request={}", request)
     getAuthorizationInfo(request) match {
       case Some((apiKey, signature)) => 
         AccountService.getUserByKeys(apiKey, signature) match {
-          case Some(user) => ApiUser(user)
-          case None => ApiAuthorizationFailed
+          case Some(user) => {
+            logger.info(LOG_MARKER, "Get user from header: User found. user={}", user)
+            ApiUser(user)
+          }
+          case None => {
+            logger.error(LOG_MARKER, "Get user from header: User not found. api_key={}, signature={}", apiKey, signature)
+            ApiAuthorizationFailed
+          }
         }
-      case None => NoAuthorizationHeader
+      case None => {
+        logger.info(LOG_MARKER, "Get user from header: No Authorization header.")
+        NoAuthorizationHeader
+      }
     }
   }
 
