@@ -253,7 +253,7 @@ public class SDKTest {
         assertThat(file.exists(), is(true));
         Path downloaded = Paths.get("temp", "test.csv");
         // ダウンロードしたファイルの中身が壊れていないかを、byte列の比較で確認する
-        Assert.assertTrue(Arrays.equals(Files.readAllBytes(downloaded), Files.readAllBytes(original)));
+        Assert.assertArrayEquals(Files.readAllBytes(downloaded), Files.readAllBytes(original));
         // ダウンロードしたファイルのファイル・タイプの確認
         assertThat(Files.probeContentType(downloaded), is(Files.probeContentType(original)));
         file.delete();
@@ -261,9 +261,9 @@ public class SDKTest {
     }
 
     @Test
-    public void ダウンロードしたファイルの中身が壊れていないか_マルチバイト() throws IOException {
+    public void ダウンロードしたファイルの中身が壊れていないか_マルチバイト_UTF8_NoBOM() throws IOException {
         DsmoqClient client = create();
-        Path original = Paths.get("testdata", "multibyte.txt");
+        Path original = Paths.get("testdata", "multibyte_utf8_nobom.txt");
         client.createDataset(true, false, original.toFile());
         List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
         String datasetId = summaries.stream().findFirst().get().getId();
@@ -274,11 +274,86 @@ public class SDKTest {
             Files.createDirectory(dir);
         }
         File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("multibyte.txt"));
+        assertThat(file.getName(), is("multibyte_utf8_nobom.txt"));
         assertThat(file.exists(), is(true));
-        Path downloaded = Paths.get("temp", "multibyte.txt");
+        Path downloaded = Paths.get("temp", "multibyte_utf8_nobom.txt");
         // ダウンロードしたファイルの中身が壊れていないかを、byte列の比較で確認する
-        Assert.assertTrue(Arrays.equals(Files.readAllBytes(downloaded), Files.readAllBytes(original)));
+        Assert.assertArrayEquals(Files.readAllBytes(downloaded), Files.readAllBytes(original));
+        // ダウンロードしたファイルのファイル・タイプの確認
+        assertThat(Files.probeContentType(downloaded), is(Files.probeContentType(original)));
+        file.delete();
+        dir.toFile().delete();
+    }
+
+    @Test
+    public void ダウンロードしたファイルの中身が壊れていないか_マルチバイト_UTF8_BOM() throws IOException {
+        DsmoqClient client = create();
+        Path original = Paths.get("testdata", "multibyte_utf8_bom.txt");
+        client.createDataset(true, false, original.toFile());
+        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
+        String datasetId = summaries.stream().findFirst().get().getId();
+        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
+        String fileId = files.getResults().get(0).getId();
+        Path dir = Paths.get("temp");
+        if (! dir.toFile().exists()) {
+            Files.createDirectory(dir);
+        }
+        File file = client.downloadFile(datasetId, fileId, "temp");
+        assertThat(file.getName(), is("multibyte_utf8_bom.txt"));
+        assertThat(file.exists(), is(true));
+        Path downloaded = Paths.get("temp", "multibyte_utf8_bom.txt");
+        // ダウンロードしたファイルの中身が壊れていないかを、byte列の比較で確認する
+        Assert.assertArrayEquals(Files.readAllBytes(downloaded), Files.readAllBytes(original));
+        // ダウンロードしたファイルのファイル・タイプの確認
+        assertThat(Files.probeContentType(downloaded), is(Files.probeContentType(original)));
+        file.delete();
+        dir.toFile().delete();
+    }
+
+    @Test
+    public void ダウンロードしたファイルの中身が壊れていないか_マルチバイト_SJIS() throws IOException {
+        DsmoqClient client = create();
+        Path original = Paths.get("testdata", "multibyte_sjis.txt");
+        client.createDataset(true, false, original.toFile());
+        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
+        String datasetId = summaries.stream().findFirst().get().getId();
+        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
+        String fileId = files.getResults().get(0).getId();
+        Path dir = Paths.get("temp");
+        if (! dir.toFile().exists()) {
+            Files.createDirectory(dir);
+        }
+        File file = client.downloadFile(datasetId, fileId, "temp");
+        assertThat(file.getName(), is("multibyte_sjis.txt"));
+        assertThat(file.exists(), is(true));
+        Path downloaded = Paths.get("temp", "multibyte_sjis.txt");
+        // ダウンロードしたファイルの中身が壊れていないかを、byte列の比較で確認する
+        Assert.assertArrayEquals(Files.readAllBytes(downloaded), Files.readAllBytes(original));
+        // ダウンロードしたファイルのファイル・タイプの確認
+        assertThat(Files.probeContentType(downloaded), is(Files.probeContentType(original)));
+        file.delete();
+        dir.toFile().delete();
+    }
+
+    @Test
+    public void ダウンロードしたファイルの中身が壊れていないか_マルチバイト_EUC() throws IOException {
+        DsmoqClient client = create();
+        Path original = Paths.get("testdata", "multibyte_euc.txt");
+        client.createDataset(true, false, original.toFile());
+        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
+        String datasetId = summaries.stream().findFirst().get().getId();
+        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
+        String fileId = files.getResults().get(0).getId();
+        Path dir = Paths.get("temp");
+        if (! dir.toFile().exists()) {
+            Files.createDirectory(dir);
+        }
+        File file = client.downloadFile(datasetId, fileId, "temp");
+        assertThat(file.getName(), is("multibyte_euc.txt"));
+        assertThat(file.exists(), is(true));
+        Path downloaded = Paths.get("temp", "multibyte_euc.txt");
+        // ダウンロードしたファイルの中身が壊れていないかを、byte列の比較で確認する
+        Assert.assertArrayEquals(Files.readAllBytes(downloaded), Files.readAllBytes(original));
         // ダウンロードしたファイルのファイル・タイプの確認
         assertThat(Files.probeContentType(downloaded), is(Files.probeContentType(original)));
         file.delete();
@@ -303,7 +378,7 @@ public class SDKTest {
         assertThat(file.exists(), is(true));
         Path downloaded = Paths.get("temp", "test.png");
         // ダウンロードしたファイルの中身が壊れていないかを、byte列の比較で確認する
-        Assert.assertTrue(Arrays.equals(Files.readAllBytes(downloaded), Files.readAllBytes(original)));
+        Assert.assertArrayEquals(Files.readAllBytes(downloaded), Files.readAllBytes(original));
         // ダウンロードしたファイルのファイル・タイプの確認
         assertThat(Files.probeContentType(downloaded), is(Files.probeContentType(original)));
         file.delete();

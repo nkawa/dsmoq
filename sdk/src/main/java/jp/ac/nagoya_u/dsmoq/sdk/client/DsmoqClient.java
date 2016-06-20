@@ -38,8 +38,6 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.nio.file.InvalidPathException;
-import java.util.UUID;
 import java.nio.charset.Charset;
 
 /**
@@ -568,7 +566,7 @@ public class DsmoqClient {
                 throw new DsmoqHttpException("Unsupported Charset(" + rawCharset + ").", e);
             }
         } else {
-            throw new DsmoqHttpException("No FileName in Content-Disposition header.");
+            return "";
         }
     }
 
