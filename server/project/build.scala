@@ -50,12 +50,12 @@ object DsmoqBuild extends Build {
       )
     )
 
-  lazy val dsmoq = Project("dsmoq-server", file("."))
+  lazy val apiServer = (project in file("apiServer"))
     .settings(Defaults.coreDefaultSettings)
     .settings(ScalatraPlugin.scalatraSettings)
     .settings(dsmoqSettings)
     .settings(
-      name := Name,
+      name := "apiServer",
       //port in container.Configuration := 8080,
       libraryDependencies ++= Seq(
         "ch.qos.logback" % "logback-classic" % "1.0.6" % "runtime",
