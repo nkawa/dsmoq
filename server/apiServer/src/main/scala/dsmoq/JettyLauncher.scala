@@ -8,9 +8,7 @@ import org.scalatra.servlet.ScalatraListener
 // 暫定サーブレット(Standalone deployment用)
 object JettyLauncher {
   def main(args: Array[String]) {
-    val port = if(System.getenv("PORT") != null) System.getenv("PORT").toInt else 8080
-
-    val server = new Server(port)
+    val server = new Server(AppConf.port)
     val context = new WebAppContext()
     context setContextPath "/"
     context.setResourceBase("src/main/webapp")

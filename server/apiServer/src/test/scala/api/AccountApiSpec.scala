@@ -26,8 +26,8 @@ import org.eclipse.jetty.server.Connector
 class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
 
-  private val dummyFile = new File("README.md")
-  private val dummyImage = new File("../client/www/dummy/images/nagoya.jpg")
+  private val dummyFile = new File("../README.md")
+  private val dummyImage = new File("../../client/www/dummy/images/nagoya.jpg")
 
   // multi-part file upload config
   val holder = addServlet(classOf[ApiController], "/api/*")

@@ -30,7 +30,7 @@ import scalikejdbc.config.DBsWithEnv
 class ZipSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
 
-  private val dummyFile = new File("README.md")
+  private val dummyFile = new File("../README.md")
 
   // multi-part file upload config
   val holder = addServlet(classOf[ApiController], "/api/*")
@@ -77,7 +77,7 @@ class ZipSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             (datasetId, fileId)
           }
 
-          val file = Map("file" -> new File("testdata/test1.zip"))
+          val file = Map("file" -> new File("../testdata/test1.zip"))
           val (fileUrl, zipUrl) = post("/api/datasets/" + datasetId + "/files/" + fileId, Map.empty, file) {
             checkStatus()
             val f = parse(body).extract[AjaxResponse[DatasetFile]].data
@@ -98,7 +98,7 @@ class ZipSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
       "Zipファイルを非Zipファイルで上書きした場合に、zipの中身が更新されるか" in {
         session {
           signIn()
-          val files = Map("file[]" -> new File("testdata/test1.zip"))
+          val files = Map("file[]" -> new File("../testdata/test1.zip"))
           val (datasetId, fileId) = post("/api/datasets", Map.empty, files) {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Dataset]]
@@ -124,7 +124,7 @@ class ZipSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
       "ZipファイルをZipファイルで上書きした場合に、zipの中身が更新されるか" in {
         session {
           signIn()
-          val files = Map("file[]" -> new File("testdata/test1.zip"))
+          val files = Map("file[]" -> new File("../testdata/test1.zip"))
           val (datasetId, fileId) = post("/api/datasets", Map.empty, files) {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Dataset]]
@@ -133,7 +133,7 @@ class ZipSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             result.data.files.head.zipedFiles.length should be(2)
             (datasetId, fileId)
           }
-          val file = Map("file" -> new File("testdata/test2.zip"))
+          val file = Map("file" -> new File("../testdata/test2.zip"))
           val (fileUrl, zipUrl) = post("/api/datasets/" + datasetId + "/files/" + fileId, Map.empty, file) {
             checkStatus()
             val f = parse(body).extract[AjaxResponse[DatasetFile]].data

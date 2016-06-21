@@ -4,13 +4,13 @@ import com.typesafe.config.ConfigFactory
 
 object AppConf {
   private val conf = ConfigFactory.load
-  private val dsmoq = conf.getConfig("dsmoq").getConfig(System.getProperty(org.scalatra.EnvironmentKey))
-  private val s3 = conf.getConfig("s3").getConfig(System.getProperty(org.scalatra.EnvironmentKey))
+  private val root = if (System.getProperty(org.scalatra.EnvironmentKey) == "test") conf.getConfig("test") else conf
 
-  val imageDir = dsmoq.getString("image_dir")
-  val fileDir = dsmoq.getString("file_dir")
-  val tempDir = dsmoq.getString("temp_dir")
-  val messageDir = dsmoq.getString("message_dir")
+  val port = root.getInt("apiserver.port")
+  val imageDir = root.getString("apiserver.image_dir")
+  val fileDir = root.getString("apiserver.file_dir")
+  val tempDir = root.getString("apiserver.temp_dir")
+  val messageDir = root.getString("apiserver.message_dir")
 
   val systemUserId = "dccc110c-c34f-40ed-be2c-7e34a9f1b8f0"
   val guestUserId = "6afb4198-859d-4053-8a15-5c791f3a8089"
@@ -29,19 +29,19 @@ object AppConf {
       "59ae7029-fafc-4f7e-8578-e7a00db2d147"
   )
 
-  val imageDownloadRoot = dsmoq.getString("image_url_root")
-  val fileDownloadRoot = dsmoq.getString("file_url_root")
+  val imageDownloadRoot = root.getString("apiserver.image_url_root")
+  val fileDownloadRoot = root.getString("apiserver.file_url_root")
 
-  val clientId = conf.getString("oauth.client_id")
-  val clientSecret = conf.getString("oauth.client_secret")
-  val callbackUrl = conf.getString("oauth.callback_url")
-  val scopes = conf.getStringList("oauth.scopes")
-  val applicationName = conf.getString("oauth.application_name")
-  val allowedMailaddrs = conf.getStringList("oauth.allowed_mailaddrs")
+  val clientId = root.getString("google.client_id")
+  val clientSecret = root.getString("google.client_secret")
+  val callbackUrl = root.getString("google.callback_url")
+  val scopes = root.getStringList("google.scopes")
+  val applicationName = root.getString("google.application_name")
+  val allowedMailaddrs = root.getStringList("google.allowed_mailaddrs")
 
-  val s3AccessKey = conf.getString("s3.access_key")
-  val s3SecretKey = conf.getString("s3.secret_key")
-  val s3UploadRoot = s3.getString("upload_bucket")
+  val s3AccessKey = root.getString("s3.access_key")
+  val s3SecretKey = root.getString("s3.secret_key")
+  val s3UploadRoot = root.getString("s3.upload_bucket")
 
-  val fileLimit = if (dsmoq.hasPath("file_limit")) dsmoq.getInt("file_limit") else 100
+  val fileLimit = if (root.hasPath("apiserver.file_limit")) root.getInt("apiserver.file_limit") else 100
 }

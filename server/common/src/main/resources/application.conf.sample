@@ -1,29 +1,39 @@
 # JDBC settings
-db.default.driver="org.postgresql.Driver"
-db.default.url="jdbc:postgresql://127.0.0.1:5432/dsmoq"
-db.default.user="postgres"
-db.default.password="postgres"
-# Connection Pool settings
-db.default.poolInitialSize=10
-db.default.poolMaxSize=20
-db.default.connectionTimeoutMillis=1000
-
-# JDBC setting for test
-test {
-  db.default.driver="org.postgresql.Driver"
-  db.default.url="jdbc:postgresql://127.0.0.1:5432/dsmoq_test"
-  db.default.user="postgres"
-  db.default.password="postgres"
+db {
+  default.driver="org.postgresql.Driver"
+  default.url="jdbc:postgresql://127.0.0.1:5432/dsmoq"
+  default.user="postgres"
+  default.password="postgres"
   # Connection Pool settings
-  db.default.poolInitialSize=10
-  db.default.poolMaxSize=20
-  db.default.connectionTimeoutMillis=1000
+  default.poolInitialSize=10
+  default.poolMaxSize=20
+  default.connectionTimeoutMillis=1000
 }
 
 #Amazon S3 settings
-s3  {
+s3 {
   access_key = "enter your access key"
   secret_key = "enter your secret key"
-  development.upload_bucket = "fileroot1"
-  test.upload_bucket = "fileroot2"
+  upload_bucket = "fileroot1"
+}
+
+test {
+  # JDBC setting for test
+  db {
+    default.driver="org.postgresql.Driver"
+    default.url="jdbc:postgresql://127.0.0.1:5432/dsmoq_test"
+    default.user="postgres"
+    default.password="postgres"
+    # Connection Pool settings
+    default.poolInitialSize=10
+    default.poolMaxSize=20
+    default.connectionTimeoutMillis=1000
+  }
+
+  #Amazon S3 settings for test
+  s3 {
+    access_key = "enter your access key"
+    secret_key = "enter your secret key"
+    upload_bucket = "fileroot2"
+  }
 }

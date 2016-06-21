@@ -27,8 +27,8 @@ import org.json4s.JsonDSL._
 class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
 
-  private val dummyFile = new File("README.md")
-  private val dummyImage = new File("../client/www/dummy/images/nagoya.jpg")
+  private val dummyFile = new File("../README.md")
+  private val dummyImage = new File("../../client/www/dummy/images/nagoya.jpg")
   private val dummyUserUUID = "eb7a596d-e50c-483f-bbc7-50019eea64d7"  // dummy 4
   private val dummyUserLoginParams = Map("id" -> "dummy4", "password" -> "password")
 

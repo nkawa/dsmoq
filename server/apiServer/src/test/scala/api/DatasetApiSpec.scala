@@ -37,9 +37,9 @@ import dsmoq.persistence.PostgresqlHelper._
 class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
 
-  private val dummyFile = new File("README.md")
-  private val dummyImage = new File("../client/www/dummy/images/nagoya.jpg")
-  private val dummyZipFile = new File("testdata/test1.zip")
+  private val dummyFile = new File("../README.md")
+  private val dummyImage = new File("../../client/www/dummy/images/nagoya.jpg")
+  private val dummyZipFile = new File("../testdata/test1.zip")
   private val testUserName = "dummy1"
   private val dummyUserName = "dummy4"
   private val testUserId = "023bfa40-e897-4dad-96db-9fd3cf001e79" // dummy1
@@ -1191,7 +1191,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           signIn()
           createDataset()
           val datasetId = createDataset()
-          val files = Map("files[]" -> new File("testdata/test2.zip"))
+          val files = Map("files[]" -> new File("../testdata/test2.zip"))
           val fileId = post("/api/datasets/" + datasetId + "/files", Map.empty, files) {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[DatasetAddFiles]]
@@ -2867,7 +2867,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           // このテストはapplication.conf file_limit=150が前提です
           session {
             signIn()
-            val files = List(("file[]", new File("testdata/test3.zip")))
+            val files = List(("file[]", new File("../testdata/test3.zip")))
             val datasetId = post("/api/datasets", Map.empty, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
@@ -2891,7 +2891,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           // このテストはapplication.conf file_limit=150が前提です
           session {
             signIn()
-            val files = List(("file[]", new File("testdata/test3.zip")))
+            val files = List(("file[]", new File("../testdata/test3.zip")))
             val datasetId = post("/api/datasets", Map.empty, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
@@ -2916,7 +2916,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           // このテストはapplication.conf file_limit=150が前提です
           session {
             signIn()
-            val files = List(("file[]", new File("testdata/test3.zip")))
+            val files = List(("file[]", new File("../testdata/test3.zip")))
             val datasetId = post("/api/datasets", Map.empty, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
@@ -2941,7 +2941,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           // このテストはapplication.conf file_limit=150が前提です
           session {
             signIn()
-            val files = List(("file[]", new File("testdata/test3.zip")))
+            val files = List(("file[]", new File("../testdata/test3.zip")))
             val datasetId = post("/api/datasets", Map.empty, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
@@ -2970,7 +2970,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           // このテストはapplication.conf file_limit=150が前提です
           session {
             signIn()
-            val files = List(("file[]", new File("testdata/test3.zip")))
+            val files = List(("file[]", new File("../testdata/test3.zip")))
             val datasetId = post("/api/datasets", Map.empty, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
@@ -2999,7 +2999,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           // このテストはapplication.conf file_limit=150が前提です
           session {
             signIn()
-            val files = List(("file[]", new File("testdata/test3.zip")))
+            val files = List(("file[]", new File("../testdata/test3.zip")))
             val datasetId = post("/api/datasets", Map.empty, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
@@ -3028,7 +3028,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           // このテストはapplication.conf file_limit=150が前提です
           session {
             signIn()
-            val files = List(("file[]", new File("testdata/test3.zip")))
+            val files = List(("file[]", new File("../testdata/test3.zip")))
             val datasetId = post("/api/datasets", Map.empty, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
@@ -3057,7 +3057,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           // このテストはapplication.conf file_limit=150が前提です
           session {
             signIn()
-            val files = List(("file[]", new File("testdata/test3.zip")))
+            val files = List(("file[]", new File("../testdata/test3.zip")))
             val datasetId = post("/api/datasets", Map.empty, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
@@ -3086,7 +3086,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           // このテストはapplication.conf file_limit=150が前提です
           session {
             signIn()
-            val files = List(("file[]", new File("testdata/test4.zip")))
+            val files = List(("file[]", new File("../testdata/test4.zip")))
             val datasetId = post("/api/datasets", Map.empty, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
@@ -3115,7 +3115,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           // このテストはapplication.conf file_limit=150が前提です
           session {
             signIn()
-            val files = List(("file[]", new File("testdata/test4.zip")))
+            val files = List(("file[]", new File("../testdata/test4.zip")))
             val datasetId = post("/api/datasets", Map.empty, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
@@ -3144,7 +3144,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           // このテストはapplication.conf file_limit=150が前提です
           session {
             signIn()
-            val files = List(("file[]", new File("testdata/test4.zip")))
+            val files = List(("file[]", new File("../testdata/test4.zip")))
             val datasetId = post("/api/datasets", Map.empty, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
@@ -3173,7 +3173,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           // このテストはapplication.conf file_limit=150が前提です
           session {
             signIn()
-            val files = List(("file[]", new File("testdata/test4.zip")))
+            val files = List(("file[]", new File("../testdata/test4.zip")))
             val datasetId = post("/api/datasets", Map.empty, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
@@ -3202,7 +3202,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           // このテストはapplication.conf file_limit=150が前提です
           session {
             signIn()
-            val files = List(("file[]", new File("testdata/test4.zip")))
+            val files = List(("file[]", new File("../testdata/test4.zip")))
             val datasetId = post("/api/datasets", Map.empty, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]

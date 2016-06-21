@@ -24,7 +24,7 @@ import org.json4s.JsonDSL._
 class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormats: Formats = DefaultFormats
 
-  private val dummyFile = new File("README.md")
+  private val dummyFile = new File("../README.md")
   private val accesscCheckUserID = "eb7a596d-e50c-483f-bbc7-50019eea64d7" // dummy 4
   private val accessCheckUserLoginParams = Map("d" -> compact(render(("id" -> "dummy4") ~ ("password" -> "password"))))
   private val noAuthorityUserLoginParams = Map("d" -> compact(render(("id" -> "dummy2") ~ ("password" -> "password"))))

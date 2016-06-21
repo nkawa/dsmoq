@@ -1,29 +1,43 @@
 # Google OAuth settings
-oauth  {
+google {
+  client_id = "enter your client_id"
+  client_secret = "enter your client_secret"
+  callback_url = "enter your callback_url"
+  scopes = ["https://www.googleapis.com/auth/plus.me", "profile", "email"]
+  application_name = "COI Data Store"
+  allowed_mailaddrs = [".*@.*.nagoya-u.ac.jp"]
+}
+
+# apiserver settings
+apiserver 
+  port = 8080
+  image_dir = "../storage/image"
+  file_dir = "../storage/file"
+  temp_dir = "../storage/temp"
+  message_dir = "../storage"
+  image_url_root = "http://localhost:8080/images/"
+  file_url_root = "http://localhost:8080/files/"
+  file_limit = 20
+}
+
+test {
+  # Google OAuth settings for test
+  google {
     client_id = "enter your client_id"
     client_secret = "enter your client_secret"
     callback_url = "enter your callback_url"
     scopes = ["https://www.googleapis.com/auth/plus.me", "profile", "email"]
     application_name = "COI Data Store"
     allowed_mailaddrs = [".*@.*.nagoya-u.ac.jp"]
-}
-
-# dsmoq settings
-dsmoq {
-  development {
-    image_dir = "../storage/image"
-    file_dir = "../storage/file"
-    temp_dir = "../storage/temp"
-    message_dir = "../storage"
-    image_url_root = "http://localhost:8080/images/"
-    file_url_root = "http://localhost:8080/files/"
-    file_limit = 20
   }
-  test {
-    image_dir = "../test_storage/image"
-    file_dir = "../test_storage/file"
-    temp_dir = "../test_storage/temp"
-    message_dir = "../test_storage"
+  
+  # apiserver settings for test
+  apiserver {
+    port = 8080
+    image_dir = "../../test_storage/image"
+    file_dir = "../../test_storage/file"
+    temp_dir = "../../test_storage/temp"
+    message_dir = "../../test_storage"
     image_url_root = "http://localhost:8080/images/"
     file_url_root = "http://localhost:8080/files/"
     file_limit = 20

@@ -1,17 +1,19 @@
-# dsmoq settings
-dsmoq {
-  development {
-    file_dir = "../storage/file"
+# taskserver settings
+taskserver {
+  file_dir = "../storage/file"
+  sampling_cycle = 5
+  sampling_unit = "minutes"
+  delete_cycle = 72
+  delete_unit = "hours"
+}
+
+test {
+  # taskserver settings for test
+  taskserver {
+    file_dir = "../test_storage/file"
     sampling_cycle = 5
     sampling_unit = "minutes"
     delete_cycle = 72
     delete_unit = "hours"
-  }
-  test {
-    file_dir = "../test_storage/file"
-    sampling_cycle = 1
-    sampling_unit = "minutes"
-    delete_cycle = 10
-    delete_unit = "milliseconds"
   }
 }
