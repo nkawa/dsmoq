@@ -273,7 +273,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val files = Map("file[]" -> dummyFile)
-          val datasetId = post("/api/datasets", Map.empty, files) {
+          val datasetId = post("/api/datasets", Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1"), files) {
             checkStatus()
             parse(body).extract[AjaxResponse[Dataset]].data.id
           }
@@ -290,8 +290,12 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         }
 
         // 属性候補から作成したattributesが取得できるか
-        val query = Map("query" -> attributeName)
-        get("/api/suggests/attributes", query) {
+        val params = Map("d" ->
+          compact(render(
+            ("query" -> attributeName)
+          ))
+        )
+        get("/api/suggests/attributes", params) {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[Seq[String]]]
           assert(result.data.contains(attributeName))

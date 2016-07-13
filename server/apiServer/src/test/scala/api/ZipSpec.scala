@@ -68,7 +68,8 @@ class ZipSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val files = Map("file[]" -> dummyFile)
-          val (datasetId, fileId) = post("/api/datasets", Map.empty, files) {
+          val params = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+          val (datasetId, fileId) = post("/api/datasets", params, files) {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Dataset]]
             val datasetId = result.data.id
@@ -99,7 +100,8 @@ class ZipSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val files = Map("file[]" -> new File("../testdata/test1.zip"))
-          val (datasetId, fileId) = post("/api/datasets", Map.empty, files) {
+          val params = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+          val (datasetId, fileId) = post("/api/datasets", params, files) {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Dataset]]
             val datasetId = result.data.id
@@ -125,7 +127,8 @@ class ZipSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val files = Map("file[]" -> new File("../testdata/test1.zip"))
-          val (datasetId, fileId) = post("/api/datasets", Map.empty, files) {
+          val params = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+          val (datasetId, fileId) = post("/api/datasets", params, files) {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Dataset]]
             val datasetId = result.data.id

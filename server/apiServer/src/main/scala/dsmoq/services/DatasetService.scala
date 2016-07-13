@@ -67,19 +67,8 @@ object DatasetService extends LazyLogging {
    * @param user
    * @return
    */
-  def create(files: Seq[FileItem], saveLocal: Option[Boolean], saveS3: Option[Boolean], name: Option[String], user: User): Try[DatasetData.Dataset] = {
+  def create(files: Seq[FileItem], saveLocal: Boolean, saveS3: Boolean, name: String, user: User): Try[DatasetData.Dataset] = {
     try {
-      val files_ = files.filter(_.name.nonEmpty)
-      val saveLocal_ = saveLocal.getOrElse(true)
-      val saveS3_ = saveS3.getOrElse(false)
-      val name_ = name.getOrElse("")
-
-      val errors = mutable.LinkedHashMap.empty[String, String]
-      if (! saveLocal_ && ! saveS3_) { errors.put("storage", "both check is false. select either") }
-      if (! saveLocal_ && ! saveS3_) { errors.put("storage", "Select COI Storage or Amazon S3") }
-      if (name_.isEmpty && files_.isEmpty) { errors.put("name", "name or file is necessary") }
-      if (errors.nonEmpty) throw new InputValidationException(errors)
-
       DB localTx { implicit s =>
         val myself = persistence.User.find(user.id).get
         val myGroup = getPersonalGroup(myself.id).get
@@ -87,7 +76,7 @@ object DatasetService extends LazyLogging {
         val datasetId = UUID.randomUUID().toString
         val timestamp = DateTime.now()
 
-        val f = files_.map(f => {
+        val f = files.map(f => {
           val isZip = f.getName.endsWith("zip")
           val fileId = UUID.randomUUID.toString
           val historyId = UUID.randomUUID.toString
@@ -106,8 +95,8 @@ object DatasetService extends LazyLogging {
             createdAt = timestamp,
             updatedBy = myself.id,
             updatedAt = timestamp,
-            localState = if (saveLocal_) { 1 } else { 3 },
-            s3State = if (saveS3_) { 2 } else { 0 }
+            localState = if (saveLocal) { 1 } else { 3 },
+            s3State = if (saveS3) { 2 } else { 0 }
           )
           val histroy = persistence.FileHistory.create(
             id = historyId,
@@ -129,7 +118,7 @@ object DatasetService extends LazyLogging {
 
         val dataset = persistence.Dataset.create(
           id = datasetId,
-          name = if (name_.isEmpty) { f.head._1.name } else { name_ },
+          name = if (name.isEmpty) { f.head._1.name } else { name },
           description = "",
           licenseId = AppConf.defaultLicenseId,
           filesCount = f.length,
@@ -138,12 +127,12 @@ object DatasetService extends LazyLogging {
           createdAt = timestamp,
           updatedBy = myself.id,
           updatedAt = timestamp,
-          localState = if (saveLocal_) { 1 } else { 3 },
-          s3State = if (saveS3_) { 2 } else { 0 }
+          localState = if (saveLocal) { 1 } else { 3 },
+          s3State = if (saveS3) { 2 } else { 0 }
         )
 
-        if (saveS3_ && ! f.isEmpty) {
-          createTask(datasetId, MoveToS3, myself.id, timestamp, saveLocal_)
+        if (saveS3 && ! f.isEmpty) {
+          createTask(datasetId, MoveToS3, myself.id, timestamp, saveLocal)
         }
 
         val ownership = persistence.Ownership.create(
@@ -780,9 +769,6 @@ object DatasetService extends LazyLogging {
   def addFiles(id: String, files: Seq[FileItem], user: User): Try[DatasetData.DatasetAddFiles] = {
     try {
       DB localTx { implicit s =>
-        // input validation
-        if (files.isEmpty) throw new InputValidationException(Map("files" -> "file is empty"))
-
         datasetAccessabilityCheck(id, user)
 
         val dataset = getDataset(id).get
@@ -868,15 +854,9 @@ object DatasetService extends LazyLogging {
    * @param user
    * @return
    */
-  def updateFile(datasetId: String, fileId: String, file: Option[FileItem], user: User) = {
+  def updateFile(datasetId: String, fileId: String, file: FileItem, user: User) = {
     try {
       DB localTx { implicit s =>
-        val file_ = file match {
-          case Some(x) => x
-          case None => throw new InputValidationException(Map("file" -> "file is empty"))
-        }
-        if (file_.getSize <= 0) throw new InputValidationException(Map("file" -> "file is empty"))
-
         fileAccessabilityCheck(datasetId, fileId, user)
 
         val myself = persistence.User.find(user.id).get
@@ -887,15 +867,15 @@ object DatasetService extends LazyLogging {
         updateFileNameAndSize(
           fileId,
           historyId,
-          file_,
+          file,
           myself.id,
           timestamp,
           if (dataset.s3State == 0) { 0 } else if (dataset.s3State == 3) { 3 } else { 2 },
           if (dataset.localState == 1 || dataset.localState == 2) { 1 } else { 3 }
         )
 
-        val isZip = file_.getName.endsWith("zip")
-        FileManager.uploadToLocal(datasetId, fileId, historyId, file_)
+        val isZip = file.getName.endsWith("zip")
+        FileManager.uploadToLocal(datasetId, fileId, historyId, file)
         val path = Paths.get(AppConf.fileDir, datasetId, fileId, historyId)
 
         val history = persistence.FileHistory.create(
@@ -906,13 +886,13 @@ object DatasetService extends LazyLogging {
           filePath = "/" + datasetId + "/" + fileId + "/" + historyId,
           fileSize = file.size,
           isZip = isZip,
-          realSize = if (isZip) { createZipedFiles(path, historyId, timestamp, myself).right.getOrElse(file_.size) } else { file_.size },
+          realSize = if (isZip) { createZipedFiles(path, historyId, timestamp, myself).right.getOrElse(file.size) } else { file.size },
           createdBy = myself.id,
           createdAt = timestamp,
           updatedBy = myself.id,
           updatedAt = timestamp
         )
-        FileManager.uploadToLocal(datasetId, fileId, history.id, file_)
+        FileManager.uploadToLocal(datasetId, fileId, history.id, file)
         if (dataset.s3State == 1 || dataset.s3State == 2) {
           createTask(datasetId, MoveToS3, myself.id, timestamp, dataset.localState == 1)
 
@@ -1107,13 +1087,8 @@ object DatasetService extends LazyLogging {
    * @param user
    * @return
    */
-  def modifyDatasetStorage(id:String, saveLocal: Option[Boolean], saveS3: Option[Boolean], user: User): Try[DatasetTask] = {
+  def modifyDatasetStorage(id:String, saveLocal: Boolean, saveS3: Boolean, user: User): Try[DatasetTask] = {
     try {
-      val saveLocal_ = saveLocal.getOrElse(true)
-      val saveS3_ = saveS3.getOrElse(false)
-
-      if (! saveLocal_ && ! saveS3_) throw new InputValidationException(List(("storage" -> "Select COI Storage or Amazon S3")))
-
       DB localTx { implicit s =>
         datasetAccessabilityCheck(id, user)
 
@@ -1122,35 +1097,35 @@ object DatasetService extends LazyLogging {
         val dataset = getDataset(id).get
 
         // S3 to local
-        val taskId = if (dataset.localState == 0 && (dataset.s3State == 1 || dataset.s3State == 2) && saveLocal_) {
+        val taskId = if (dataset.localState == 0 && (dataset.s3State == 1 || dataset.s3State == 2) && saveLocal) {
           updateDatasetStorage(
             dataset,
             myself.id,
             timestamp,
             2,
-            if (saveS3_) { 1 } else { 3 }
+            if (saveS3) { 1 } else { 3 }
           )
-          createTask(id, MoveToLocal, myself.id, timestamp, saveS3_)
+          createTask(id, MoveToLocal, myself.id, timestamp, saveS3)
           // local to S3
-        } else if ((dataset.localState == 1 || dataset.localState == 2) && dataset.s3State == 0 && saveS3_) {
+        } else if ((dataset.localState == 1 || dataset.localState == 2) && dataset.s3State == 0 && saveS3) {
           updateDatasetStorage(
             dataset,
             myself.id,
             timestamp,
-            if (saveLocal_) { 1 } else { 3 },
+            if (saveLocal) { 1 } else { 3 },
             2
           )
-          createTask(id, MoveToS3, myself.id, timestamp, saveLocal_)
+          createTask(id, MoveToS3, myself.id, timestamp, saveLocal)
           // local, S3のいずれか削除
-        } else if ((dataset.localState == 1 || dataset.localState == 2) && (dataset.s3State == 1 || dataset.s3State == 2) && saveLocal_ != saveS3_) {
+        } else if ((dataset.localState == 1 || dataset.localState == 2) && (dataset.s3State == 1 || dataset.s3State == 2) && saveLocal != saveS3) {
           updateDatasetStorage(
             dataset,
             myself.id,
             timestamp,
-            if (saveLocal_) { 1 } else { 3 },
-            if (saveS3_) { 1 } else { 3 }
+            if (saveLocal) { 1 } else { 3 },
+            if (saveS3) { 1 } else { 3 }
           )
-          createTask(id, if (saveS3_) { MoveToS3 } else { MoveToLocal } , myself.id, timestamp, false)
+          createTask(id, if (saveS3) { MoveToS3 } else { MoveToLocal } , myself.id, timestamp, false)
         } else {
           // no taskId
           "0"
@@ -1190,48 +1165,19 @@ object DatasetService extends LazyLogging {
    * @param user
    * @return
    */
-  def modifyDatasetMeta(id: String, name: Option[String], description: Option[String],
-                        license: Option[String], attributes: List[DataSetAttribute], user: User): Try[Unit] = {
+  def modifyDatasetMeta(id: String, name: String, description: Option[String],
+                        license: String, attributes: List[DataSetAttribute], user: User): Try[Unit] = {
     try {
-      val name_ = StringUtil.trimAllSpaces(name.getOrElse(""))
       val description_ = description.getOrElse("")
-      val license_ = license.getOrElse("")
       val attributes_ = attributes.map(x => x.name -> StringUtil.trimAllSpaces(x.value))
 
       DB localTx { implicit s =>
-        // input parameter check
-        val errors = mutable.LinkedHashMap.empty[String, String]
-        if (name_.isEmpty) {
-          errors.put("name", "name is empty")
-        }
-        if (license_.isEmpty) {
-            errors.put("license", "license is empty")
-        } else {
-          // licenseの存在チェック
-          if (StringUtil.isUUID(license_)) {
-            if (persistence.License.find(license_).isEmpty) {
-              errors.put("license", "license is invalid")
-            }
-          } else {
-            errors.put("license", "license is invalid")
-          }
-        }
-
-        // featured attributeは一つでなければならない
-        if (attributes_.filter(_._1 == "featured").length >= 2) {
-          errors.put("attribute", "featured attribute must be unique")
-        }
-
-        if (errors.size != 0) {
-          throw new InputValidationException(errors)
-        }
-
         datasetAccessabilityCheck(id, user)
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
 
-        updateDatasetDetail(id, name_, description_, license_, myself.id, timestamp)
+        updateDatasetDetail(id, name, description_, license, myself.id, timestamp)
 
         // 先に指定datasetに関連するannotation(name)を取得(あとで差分チェックするため)
         val oldAnnotations = getAnnotationsRelatedByDataset(id)
@@ -1366,10 +1312,6 @@ object DatasetService extends LazyLogging {
    */
   def addImages(datasetId: String, images: Seq[FileItem], user: User): Try[DatasetData.DatasetAddImages] = {
     try {
-      val images_ = images.filter(_.name.nonEmpty)
-
-      if (images_.isEmpty) throw new InputValidationException(Map("image" -> "image is empty"))
-
       DB localTx { implicit s =>
         if (!isOwner(user.id, datasetId)) throw new NotAuthorizedException
 
@@ -1378,7 +1320,7 @@ object DatasetService extends LazyLogging {
         val primaryImage = getPrimaryImageId(datasetId)
         var isFirst = true
 
-        val images = images_.map(i => {
+        val imgs = images.map(i => {
           val imageId = UUID.randomUUID().toString
           val bufferedImage = javax.imageio.ImageIO.read(i.getInputStream)
 
@@ -1412,7 +1354,7 @@ object DatasetService extends LazyLogging {
         })
 
         Success(DatasetData.DatasetAddImages(
-          images = images.map(x => Image(
+          images = imgs.map(x => Image(
             id = x.id,
             url = datasetImageDownloadRoot + datasetId + "/" + x.id
           )),
@@ -2570,16 +2512,10 @@ object DatasetService extends LazyLogging {
     }
   }
 
-  def importAttribute(datasetId: String, file: Option[FileItem], user: User): Try[Unit] = {
+  def importAttribute(datasetId: String, file: FileItem, user: User): Try[Unit] = {
     try
     {
-      val file_ = file match {
-        case Some(x) => x
-        case None => throw new InputValidationException(Map("file" -> "file is empty"))
-      }
-      if (file_.getSize <= 0) throw new InputValidationException(Map("file" -> "file is empty"))
-
-      val csv = use(new InputStreamReader(file_.getInputStream)) { in =>
+      val csv = use(new InputStreamReader(file.getInputStream)) { in =>
         CSVReader.open(in).all()
       }
       val nameMap = csv.map(x => (x(0), x(1))).toMap

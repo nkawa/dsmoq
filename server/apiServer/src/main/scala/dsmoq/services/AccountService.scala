@@ -98,23 +98,12 @@ object AccountService extends LazyLogging {
    * @param email
    * @return
    */
-  def changeUserEmail(id: String, email: Option[String]) = {
+  def changeUserEmail(id: String, email: String) = {
     try {
-      if (isGoogleUser((id))) {
-        throw  new InputValidationException(Map("email" -> "Google user can't change email address"))
-      }
-
       // Eメールアドレスのフォーマットチェックはしていない
-      val email_ = email.getOrElse("").trim
+      val email_ = email.trim
 
       DB localTx {implicit s =>
-        // validation
-        if (email_.isEmpty) {
-          throw new InputValidationException(Map("email" -> "email is empty"))
-        } else if (existsSameEmail(id, email_)) {
-          throw new InputValidationException(Map("email" -> "email is already exists"))
-        }
-
         (for {
           user <- persistence.User.find(id)
           address <- persistence.MailAddress.findByUserId(id)
@@ -141,7 +130,7 @@ object AccountService extends LazyLogging {
     }
   }
 
-  private def existsSameEmail(id: String, email: String)(implicit s: DBSession): Boolean = {
+  def existsSameEmail(id: String, email: String)(implicit s: DBSession): Boolean = {
     val ma = persistence.MailAddress.ma
     withSQL {
       select.apply(sqls"1")
@@ -161,30 +150,11 @@ object AccountService extends LazyLogging {
    * @param newPassword 新しいパスワード
    * @return
    */
-  def changeUserPassword(id: String, currentPassword: Option[String], newPassword: Option[String]): Try[Unit] = {
+  def changeUserPassword(id: String, currentPassword: persistence.Password, newPassword: String): Try[Unit] = {
     // TODO リファクタリング
     try {
       DB localTx { implicit s =>
-        // input validation
-        if (isGoogleUser(id)) {
-          throw new InputValidationException(Map("current_password" -> "Google user can't change password"))
-        }
-
-        val errors = mutable.LinkedHashMap.empty[String, String]
-        val pwd = getCurrentPassword(id, currentPassword)
-        if (pwd.isEmpty) {
-          errors.put("current_password", "wrong password")
-        }
-
-        val n = newPassword.getOrElse("")
-        if (n.isEmpty) {
-          errors.put("new_password", "new password is empty")
-        }
-        if (errors.size != 0) {
-          throw new InputValidationException(errors)
-        }
-
-        updatePassword(id, n, pwd.get)
+        updatePassword(id, newPassword, currentPassword)
       }
       Success(Unit)
     } catch {
@@ -192,9 +162,9 @@ object AccountService extends LazyLogging {
     }
   }
 
-  private def getCurrentPassword(id: String, currentPassword: Option[String])(implicit s: DBSession): Option[persistence.Password] =
+  def getCurrentPassword(id: String, currentPassword: String)(implicit s: DBSession): Option[persistence.Password] =
   {
-    val oldPasswordHash = createPasswordHash(currentPassword.getOrElse(""))
+    val oldPasswordHash = createPasswordHash(currentPassword)
     val u = persistence.User.u
     val p = persistence.Password.p
 
@@ -237,54 +207,24 @@ object AccountService extends LazyLogging {
    * @return
    */
   def updateUserProfile(id: String,
-                        name: Option[String],
-                        fullname: Option[String],
+                        name: String,
+                        fullname: String,
                         organization: Option[String],
                         title: Option[String],
                         description: Option[String]): Try[User]  = {
     // TODO リファクタリング
     try {
       DB localTx { implicit s =>
-        val name_ = StringUtil.trimAllSpaces(name.getOrElse(""))
-        val fullname_ = StringUtil.trimAllSpaces(fullname.getOrElse(""))
         val organization_ = StringUtil.trimAllSpaces(organization.getOrElse(""))
         val title_ = StringUtil.trimAllSpaces(title.getOrElse(""))
         val description_ = description.getOrElse("")
-
-        // input validation
-        val errors = mutable.LinkedHashMap.empty[String, String]
-
-        if (isGoogleUser(id)) {
-          // Googleアカウントユーザーはアカウント名の変更禁止(importスクリプトでusersテーブルのname列を使用しているため)
-          persistence.User.find(id) match {
-            case Some(x) =>
-              if (x.name != name_) {
-                errors.put("name", "Google user can't change account name")
-              }
-            case None => throw new NotFoundException
-          }
-        }
-
-        if (name_.isEmpty) {
-          errors.put("name", "name is empty")
-        } else if (existsSameName(id, name_)) {
-          errors.put("name", "name is already exists")
-        }
-
-        if (fullname_.isEmpty) {
-          errors.put("fullname", "fullname is empty")
-        }
-
-        if (errors.nonEmpty) {
-          throw new InputValidationException(errors)
-        }
 
         persistence.User.find(id) match {
           case Some(x) =>
             val user = persistence.User(
               id = x.id,
-              name = name_,
-              fullname = fullname_,
+              name = name,
+              fullname = fullname,
               organization = organization_,
               title = title_,
               description = description_,
@@ -317,28 +257,18 @@ object AccountService extends LazyLogging {
     * @param id
    * @param icon
    */
-  def changeIcon(id: String, icon: Option[FileItem]) = {
+  def changeIcon(id: String, icon: FileItem) = {
     try {
       DB localTx { implicit s =>
-        // input validation
-        val errors = mutable.LinkedHashMap.empty[String, String]
-        if (icon.isEmpty) {
-          errors.put("icon", "icon is empty")
-        }
-        if (errors.nonEmpty) {
-          throw new InputValidationException(errors)
-        }
-
-        val icon_ = icon.get
         persistence.User.find(id) match {
           case Some(x) =>
             val imageId = UUID.randomUUID().toString
-            val path = ImageSaveLogic.writeImageFile(imageId, icon_)
-            val bufferedImage = javax.imageio.ImageIO.read(icon_.getInputStream)
+            val path = ImageSaveLogic.writeImageFile(imageId, icon)
+            val bufferedImage = javax.imageio.ImageIO.read(icon.getInputStream)
 
             val image = persistence.Image.create(
               id = imageId,
-              name = icon_.getName,
+              name = icon.getName,
               width = bufferedImage.getWidth,
               height = bufferedImage.getWidth,
               filePath = path,
@@ -429,7 +359,7 @@ object AccountService extends LazyLogging {
     URLEncoder.encode(Base64.getEncoder.encodeToString(result), "UTF-8")
   }
 
-  private def existsSameName(id: String, name: String)(implicit s: DBSession): Boolean = {
+  def existsSameName(id: String, name: String)(implicit session: DBSession): Boolean = {
     val u = persistence.User.u
     withSQL {
       select(sqls"1")
@@ -444,11 +374,13 @@ object AccountService extends LazyLogging {
     MessageDigest.getInstance("SHA-256").digest(password.getBytes("UTF-8")).map("%02x".format(_)).mkString
   }
 
-  def getUserProfile(user: User) = {
-    ProfileData(user, isGoogleUser(user.id))
+  def getUserProfile(user: User): Try[ProfileData] = {
+    DB.readOnly { implicit s =>
+      Success(ProfileData(user, isGoogleUser(user.id)))
+    }
   }
 
-  private def isGoogleUser(id: String): Boolean = {
+  def isGoogleUser(id: String)(implicit session: DBSession): Boolean = {
     persistence.GoogleUser.findByUserId(id) match {
       case Some(x) => true
       case None => false

@@ -74,7 +74,8 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
                 checkStatus()
               }
 
-              post("/api/datasets", Map.empty, files) {
+              val params = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+              post("/api/datasets", params, files) {
                 checkStatus()
                 val datasetId = parse(body).extract[AjaxResponse[Dataset]].data.id
 

@@ -202,20 +202,6 @@ object GroupService {
     try {
       DB localTx { implicit s =>
         val name_ = StringUtil.trimAllSpaces(name)
-
-        // input validation
-        val errors = mutable.LinkedHashMap.empty[String, String]
-
-        if (name_.isEmpty) {
-          errors.put("name", "name is empty")
-        } else if (existsSameNameGroup(name_)) {
-          errors.put("name", "same name")
-        }
-
-        if (errors.nonEmpty) {
-          throw new InputValidationException(errors)
-        }
-
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
         val groupId = UUID.randomUUID.toString
@@ -271,7 +257,7 @@ object GroupService {
     }
   }
 
-  private def existsSameNameGroup(name: String)(implicit s: DBSession): Boolean = {
+  def existsSameNameGroup(name: String)(implicit s: DBSession): Boolean = {
     val g = persistence.Group.g
     withSQL {
       select(sqls"1")

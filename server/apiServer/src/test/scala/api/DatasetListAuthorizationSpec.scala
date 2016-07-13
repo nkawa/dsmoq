@@ -69,6 +69,7 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
         val groupAccessLevels = List(GroupAccessLevel.Deny, GroupAccessLevel.LimitedPublic, GroupAccessLevel.FullPublic, GroupAccessLevel.Provider)
         val guestAccessLevels = List(DefaultAccessLevel.Deny, DefaultAccessLevel.LimitedPublic, DefaultAccessLevel.FullPublic)
         val files = Map("file[]" -> dummyFile)
+        val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
         val datasetTuples = userAccessLevels.map { userAccessLevel =>
           groupAccessLevels.map { groupAccessLevel =>
             guestAccessLevels.map { guestAccessLevel =>
@@ -79,7 +80,7 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
                 checkStatus()
               }
 
-              post("/api/datasets", Map.empty, files) {
+              post("/api/datasets", createParams, files) {
                 checkStatus()
                 val datasetId = parse(body).extract[AjaxResponse[Dataset]].data.id
 
@@ -580,7 +581,8 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
 
   private def createDataset(groupId: String, userAccessLevel:Int, groupAccessLevel: Int, guestAccessLevel: Int) = {
     val files = Map("file[]" -> dummyFile)
-    post("/api/datasets", Map.empty, files) {
+    val params = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+    post("/api/datasets", params, files) {
       checkStatus()
       val datasetId = parse(body).extract[AjaxResponse[Dataset]].data.id
 

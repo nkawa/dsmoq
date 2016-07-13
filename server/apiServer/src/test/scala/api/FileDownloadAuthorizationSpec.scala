@@ -1226,7 +1226,8 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
 
   private def createDataset(): String = {
     val files = Map("file[]" -> dummyFile)
-    post("/api/datasets", Map.empty, files) {
+    val params = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+    post("/api/datasets", params, files) {
       checkStatus()
       parse(body).extract[AjaxResponse[Dataset]].data.id
     }
