@@ -318,7 +318,7 @@ object ZipUtil extends LazyLogging {
     for {
       offset <- errorPos
     } {
-      logger.debug(LOG_MARKER, "Return readRaw function, return error pos={}", offset)
+      logger.debug(LOG_MARKER, "Return readRaw function, return error pos={}", offset.toString)
       return Left(offset)
     }
     val ret = for {
