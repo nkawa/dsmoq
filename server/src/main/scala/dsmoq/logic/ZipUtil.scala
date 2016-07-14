@@ -249,6 +249,9 @@ object ZipUtil extends LazyLogging {
             logger.debug(LOG_MARKER, "Found Signature: Local file header. (0x04034b50)")
 
             val header = readLocalHeader(ra)
+            // XXX: Mac付属のFinderで作成したZIPファイルの場合、local file headerのcompress sizeが0になります。
+            // 暫定対応として、そのまま読み進め、次の読み込みで合致しないことによって解析失敗とします。
+            // 恒久対応としては、local file header ではなく central header を用いて解析をする必要があります。
             ra.seek(ra.getFilePointer + header.compressSize)
             localHeaders += (offset -> header)
           }
@@ -293,6 +296,8 @@ object ZipUtil extends LazyLogging {
           }
           case _ => {
             logger.debug(LOG_MARKER, "signature not found. header = 0x{}, pointer = {}", bytes2hex(header), ra.getFilePointer.toString)
+            // 合致しない場合、解析失敗とし、処理を中断します。
+            // ZIPファイルの形式をしていないもの、暗号化されたZIPファイル、Mac付属のFinderで作成したZIPファイル（暫定対応）が来る想定です。
             isLoop = false
             errorPos = Some(offset)
           }
