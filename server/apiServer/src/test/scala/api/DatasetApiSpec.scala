@@ -149,7 +149,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           val datasetId = createDataset()
           delete("/api/datasets/" + datasetId) { checkStatus() }
           get("/api/datasets/" + datasetId) {
-            status should be(200)
+            status should be(404)
             val result = parse(body).extract[AjaxResponse[Dataset]]
             result.status should be("NotFound")
           }
@@ -631,8 +631,9 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           // アクセスレベルを解除したdatasetはグループから見えなくなるはず
           post("/api/signin", dummyUserLoginParams) { checkStatus() }
           get("/api/datasets/" + datasetId) {
+            status should be(403)
             val result = parse(body).extract[AjaxResponse[Dataset]]
-            result.status should be("Unauthorized")
+            result.status should be("AccessDenied")
           }
         }
       }
@@ -685,8 +686,9 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           put("/api/datasets/" + datasetId + "/guest_access", deleteParams) { checkStatus() }
           post("/api/signout") { checkStatus() }
           get("/api/datasets/" + datasetId) {
+            status should be(403)
             val result = parse(body).extract[AjaxResponse[Dataset]]
-            result.status should be("Unauthorized")
+            result.status should be("AccessDenied")
           }
         }
       }
@@ -858,7 +860,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           changeStorageState(id, 1, 0)
           // ローカルのみに保存 => どちらにも保存しない(イレギュラー)
           put("/api/datasets/" + id + "/storage", Map("d" -> compact(render(("saveLocal" -> JBool(false)) ~ ("saveS3" -> JBool(false)))))) {
-            status should be(200)
+            status should be(400)
             val result = parse(body).extract[AjaxResponse[Any]]
             result.status should be("Illegal Argument")
           }
@@ -914,7 +916,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           changeStorageState(id, 0, 1)
           // s3のみに保存 => どちらにも保存しない(イレギュラー)
           put("/api/datasets/" + id + "/storage", Map("d" -> compact(render(("saveLocal" -> JBool(false)) ~ ("saveS3" -> JBool(false)))))) {
-            status should be(200)
+            status should be(400)
             val result = parse(body).extract[AjaxResponse[Any]]
             result.status should be("Illegal Argument")
           }
@@ -970,7 +972,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           changeStorageState(id, 1, 1)
           // ローカル・S3両方に保存 => どちらにも保存しない(イレギュラー)
           put("/api/datasets/" + id + "/storage", Map("d" -> compact(render(("saveLocal" -> JBool(false)) ~ ("saveS3" -> JBool(false)))))) {
-            status should be(200)
+            status should be(400)
             val result = parse(body).extract[AjaxResponse[Any]]
             result.status should be("Illegal Argument")
           }
@@ -2312,6 +2314,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               result.data.id
             }
             get(s"/api/datasets/${datasetId.reverse}/files") {
+              status should be(404)
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
               result.status should be("Illegal Argument")
             }
@@ -2329,8 +2332,9 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             }
             post("/api/signout") { checkStatus() }
             get(s"/api/datasets/${datasetId}/files") {
+              status should be(403)
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
-              result.status should be("Unauthorized")
+              result.status should be("AccessDenied")
             }
           }
         }
@@ -2347,8 +2351,9 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             post("/api/signout") { checkStatus() }
             post("/api/signin", dummyUserLoginParams) { checkStatus() }
             get(s"/api/datasets/${datasetId}/files") {
+              status should be(403)
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
-              result.status should be("Unauthorized")
+              result.status should be("AccessDenied")
             }
           }
         }
@@ -2422,6 +2427,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               result.data.results(0).id
             }
             get(s"/api/datasets/${datasetId.reverse}/files/${fileId}/zippedfiles") {
+              status should be(404)
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
               result.status should be("Illegal Argument")
             }
@@ -2443,6 +2449,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               result.data.results(0).id
             }
             get(s"/api/datasets/${datasetId}/files/${fileId.reverse}/zippedfiles") {
+              status should be(404)
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
               result.status should be("Illegal Argument")
             }
@@ -2463,9 +2470,10 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
               result.data.results(0).id
             }
-            get(s"/api/datasets/${datasetId}/files/${fileId.reverse}/zippedfiles") {
+            get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles") {
+              status should be(400)
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
-              result.status should be("Illegal Argument")
+              result.status should be("BadRequest")
             }
           }
         }
@@ -2486,8 +2494,9 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             }
             post("/api/signout") { checkStatus() }
             get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles") {
+              status should be(403)
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
-              result.status should be("Unauthorized")
+              result.status should be("AccessDenied")
             }
           }
         }
@@ -2509,8 +2518,9 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             post("/api/signout") { checkStatus() }
             post("/api/signin", dummyUserLoginParams) { checkStatus() }
             get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles") {
+              status should be(403)
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
-              result.status should be("Unauthorized")
+              result.status should be("AccessDenied")
             }
           }
         }
@@ -2611,6 +2621,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             }
             val params = Map("d" -> "null")
             get(s"/api/datasets/${datasetId}/files", params) {
+              status should be(400)
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
               result.status should be("Illegal Argument")
             }
@@ -2934,6 +2945,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             }
             val params = Map("d" -> "null")
             get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles", params) {
+              status should be(400)
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
               result.status should be("Illegal Argument")
             }

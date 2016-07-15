@@ -1,5 +1,3 @@
 package dsmoq.exceptions
 
-class NotAuthorizedException extends RuntimeException {
-
-}
+case class NotAuthorizedException(message: String = "") extends RuntimeException(message)

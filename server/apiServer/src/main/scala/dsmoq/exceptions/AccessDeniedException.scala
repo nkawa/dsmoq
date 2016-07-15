@@ -1,3 +1,3 @@
 package dsmoq.exceptions
 
-class AccessDeniedException extends RuntimeException
+case class AccessDeniedException(message: String) extends RuntimeException(message)

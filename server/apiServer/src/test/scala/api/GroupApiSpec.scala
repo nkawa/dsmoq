@@ -104,7 +104,7 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           val groupId = createGroup()
           delete("/api/groups/" + groupId) { checkStatus() }
           get("/api/groups/" + groupId) {
-            status should be(200)
+            status should be(404)
             val result = parse(body).extract[AjaxResponse[Group]]
             result.status should be("NotFound")
           }

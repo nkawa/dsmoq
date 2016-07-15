@@ -9,13 +9,13 @@ import scala.util.{Try, Success, Failure}
 import org.json4s._
 import org.json4s.jackson.JsonMethods
 import org.json4s.{DefaultFormats, Formats}
-import org.scalatra.ScalatraServlet
+import org.scalatra.{ScalatraServlet, BadRequest, Forbidden, InternalServerError, NotFound}
 import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet.{FileItem, FileUploadSupport}
 
 import dsmoq.ResourceNames
 import dsmoq.controllers.json._
-import dsmoq.exceptions.{BadRequestException, InputCheckException, InputValidationException, NotFoundException, NotAuthorizedException}
+import dsmoq.exceptions.{AccessDeniedException, BadRequestException, InputCheckException, InputValidationException, NotFoundException, NotAuthorizedException}
 import dsmoq.logic.CheckUtil
 import dsmoq.services._
 
@@ -71,9 +71,9 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       case Failure(e) => {
         clearSession()
         e match {
-          case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-          case InputCheckException(name, message, false) => AjaxResponse("Illegal Argument", CheckError(name, message))
-          case _ => AjaxResponse("NG")
+          case e: InputValidationException => BadRequest(AjaxResponse("BadRequest", e.getErrorMessage()))
+          case InputCheckException(name, message, false) => BadRequest(AjaxResponse("Illegal Argument", CheckError(name, message)))
+          case _ => InternalServerError(AjaxResponse("NG"))
         }
       }
     }
@@ -871,15 +871,16 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
     case Success(x) => AjaxResponse("OK", x)
     case Failure(e) =>
      e match {
-      case e: NotAuthorizedException => AjaxResponse("Unauthorized")
-      case e: NotFoundException => AjaxResponse("NotFound")
-      case InputCheckException(name, message, false) => AjaxResponse("Illegal Argument", CheckError(name, message))
-      case InputCheckException(name, message, true) => AjaxResponse("Illegal Argument", CheckError(name, message))
-      case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
-      case e: BadRequestException => AjaxResponse("BadRequest", e.getMessage)
+      case e: NotAuthorizedException => Forbidden(AjaxResponse("Unauthorized", e.getMessage))
+      case AccessDeniedException(message) => Forbidden(AjaxResponse("AccessDenied", message))
+      case e: NotFoundException => NotFound(AjaxResponse("NotFound"))
+      case InputCheckException(name, message, false) => BadRequest(AjaxResponse("Illegal Argument", CheckError(name, message)))
+      case InputCheckException(name, message, true) => NotFound(AjaxResponse("Illegal Argument", CheckError(name, message)))
+      case e: InputValidationException => BadRequest(AjaxResponse("BadRequest", e.getErrorMessage()))
+      case e: BadRequestException => BadRequest(AjaxResponse("BadRequest", e.getMessage))
       case _ =>
         log(e.getMessage, e)
-        AjaxResponse("NG")
+        InternalServerError(AjaxResponse("NG"))
     }
   }
 

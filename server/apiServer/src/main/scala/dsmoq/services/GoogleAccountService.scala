@@ -43,7 +43,7 @@ class GoogleAccountService(resource: ResourceBundle) extends LazyLogging {
       if (! matched) {
         // 設定された正規表現とメールアドレスがマッチしない場合
         logger.error(LOG_MARKER, "Login failed: access denied. [id] = {}, [email] = {}", googleAccount.getId, googleAccount.getEmail)
-        throw new AccessDeniedException
+        throw new AccessDeniedException("メールアドレスが許可された形式でありません")
       }
 
       logger.info(LOG_MARKER, "Allowed address: [id] = {}, [email] = {}", googleAccount.getId, googleAccount.getEmail)
