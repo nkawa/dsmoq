@@ -4,6 +4,9 @@ import java.nio.file.Paths
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 import java.net.URLEncoder
+import java.util.ResourceBundle
+
+import org.eclipse.jetty.servlet.ServletHolder
 
 import _root_.api.api.logic.SpecCommonLogic
 import com.amazonaws.auth.BasicAWSCredentials
@@ -48,21 +51,24 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
   private val host = "http://localhost:8080"
 
-  // multi-part file upload config
-  val holder = addServlet(classOf[ApiController], "/api/*")
-  holder.getRegistration.setMultipartConfig(
-    MultipartConfig(
-      maxFileSize = Some(3 * 1024 * 1024),
-      fileSizeThreshold = Some(1 * 1024 * 1024)
-    ).toMultipartConfigElement
-  )
-  addServlet(classOf[FileController], "/files/*")
-  addServlet(classOf[ImageController], "/images/*")
-
   override def beforeAll() {
     super.beforeAll()
     DBsWithEnv("test").setup()
     System.setProperty(org.scalatra.EnvironmentKey, "test")
+
+    val resource = ResourceBundle.getBundle("message")
+    val servlet = new ApiController(resource)
+    val holder = new ServletHolder(servlet.getClass.getName, servlet)
+    // multi-part file upload config
+    holder.getRegistration.setMultipartConfig(
+      MultipartConfig(
+        maxFileSize = Some(3 * 1024 * 1024),
+        fileSizeThreshold = Some(1 * 1024 * 1024)
+      ).toMultipartConfigElement
+    )
+    servletContextHandler.addServlet(holder, "/api/*")
+    addServlet(new FileController(resource), "/files/*")
+    addServlet(new ImageController(resource), "/images/*")
   }
 
   override def afterAll() {

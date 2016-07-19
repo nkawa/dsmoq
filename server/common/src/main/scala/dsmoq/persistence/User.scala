@@ -28,6 +28,11 @@ case class User(
       
 
 object User extends SQLSyntaxSupport[User] {
+  val id = "id"
+  val name = "name"
+  val imageId = "image_id"
+  val fullname = "fullname"
+  val organization = "organization"
 
   override val tableName = "users"
 

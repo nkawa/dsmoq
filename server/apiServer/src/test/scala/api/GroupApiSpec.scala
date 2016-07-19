@@ -1,5 +1,9 @@
 package api
 
+import java.util.ResourceBundle
+
+import org.eclipse.jetty.servlet.ServletHolder
+
 import _root_.api.api.logic.SpecCommonLogic
 import dsmoq.services.User
 import org.eclipse.jetty.server.Connector
@@ -32,21 +36,24 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   private val dummyUserUUID = "eb7a596d-e50c-483f-bbc7-50019eea64d7"  // dummy 4
   private val dummyUserLoginParams = Map("id" -> "dummy4", "password" -> "password")
 
-  // multi-part file upload config
-  val holder = addServlet(classOf[ApiController], "/api/*")
-  holder.getRegistration.setMultipartConfig(
-    MultipartConfig(
-      maxFileSize = Some(3 * 1024 * 1024),
-      fileSizeThreshold = Some(1 * 1024 * 1024)
-    ).toMultipartConfigElement
-  )
-  addServlet(classOf[FileController], "/files/*")
-  addServlet(classOf[ImageController], "/images/*")
-
   override def beforeAll() {
     super.beforeAll()
     DBsWithEnv("test").setup()
     System.setProperty(org.scalatra.EnvironmentKey, "test")
+
+    val resource = ResourceBundle.getBundle("message")
+    val servlet = new ApiController(resource)
+    val holder = new ServletHolder(servlet.getClass.getName, servlet)
+    // multi-part file upload config
+    holder.getRegistration.setMultipartConfig(
+      MultipartConfig(
+        maxFileSize = Some(3 * 1024 * 1024),
+        fileSizeThreshold = Some(1 * 1024 * 1024)
+      ).toMultipartConfigElement
+    )
+    servletContextHandler.addServlet(holder, "/api/*")
+    addServlet(new FileController(resource), "/files/*")
+    addServlet(new ImageController(resource), "/images/*")
   }
 
   override def afterAll() {

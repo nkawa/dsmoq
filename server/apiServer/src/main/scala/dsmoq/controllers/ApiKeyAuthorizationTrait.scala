@@ -5,6 +5,7 @@ import dsmoq.services.{AccountService, User}
 import com.typesafe.scalalogging.LazyLogging
 import org.slf4j.MarkerFactory
 
+import java.util.ResourceBundle
 import javax.servlet.http.HttpServletRequest
 
 sealed trait UserFromHeader
@@ -13,7 +14,12 @@ case object ApiAuthorizationFailed extends UserFromHeader
 case object NoAuthorizationHeader extends UserFromHeader
 
 trait ApiKeyAuthorizationTrait extends LazyLogging {
-  
+ 
+  /**
+   * AccountServiceのインスタンス
+   */
+  val accountService: AccountService
+
   /**
     * ログマーカー
     */
@@ -30,7 +36,7 @@ trait ApiKeyAuthorizationTrait extends LazyLogging {
     logger.info(LOG_MARKER, "Get user from header: request={}", request)
     getAuthorizationInfo(request) match {
       case Some((apiKey, signature)) => 
-        AccountService.getUserByKeys(apiKey, signature) match {
+        accountService.getUserByKeys(apiKey, signature) match {
           case Some(user) => {
             logger.info(LOG_MARKER, "Get user from header: User found. user={}", user)
             ApiUser(user)

@@ -21,6 +21,13 @@ object SystemService extends LazyLogging {
 
   private val LOG_MARKER_USER_GROUP = MarkerFactory.getMarker("USER_GROUP")
 
+  /**
+   * データセットへのアクセスログを記入する。
+   *
+   * @param datasetId データセットID
+   * @param user ユーザオブジェクト
+   * @return エラーが発生した場合は、例外をFailureに包んで返却する。
+   */
   def writeDatasetAccessLog(datasetId: String, user: User): Try[Unit] = {
     try {
       DB localTx { implicit s =>
@@ -34,6 +41,11 @@ object SystemService extends LazyLogging {
     }
   }
 
+  /**
+   * ライセンスの一覧を取得する。
+   *
+   * @return ライセンスの一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
+   */
   def getLicenses(): Try[Seq[dsmoq.services.json.License]] = {
     try {
       val licenses = DB readOnly { implicit s =>
@@ -50,6 +62,11 @@ object SystemService extends LazyLogging {
     }
   }
 
+  /**
+   * ユーザの一覧を取得する。
+   *
+   * @return ユーザの一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
+   */
   def getAccounts(): Try[Seq[User]] = {
     try {
       val result = DB readOnly { implicit s =>
@@ -81,7 +98,7 @@ object SystemService extends LazyLogging {
     * @param query 絞り込み条件 (比較対象：DB:users.name, users.fullname, mail_addresses.address)
     * @param limit 取得件数
     * @param offset 取得位置
-    * @return (条件に該当する) ユーザ一覧
+    * @return (条件に該当する) ユーザ一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
     */
   def getUsers(query: Option[String], limit: Option[Int], offset: Option[Int]): Try[Seq[SuggestData.User]] = {
     logger.debug(LOG_MARKER_USER_GROUP, "getUsers: start : [query] = {}, [offset] = {}, [limit] = {}", query, offset, limit)
@@ -148,10 +165,12 @@ object SystemService extends LazyLogging {
 
   /**
    * グループの一覧を取得します。
-   * @param query
-   * @param limit
-   * @param offset
-   * @return
+   * 条件を指定すれば取得対象を絞り込みます。
+   *
+   * @param query 絞り込み条件 (比較対象：DB:groups.name)
+   * @param limit 取得件数
+   * @param offset 取得位置
+   * @return グループ一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
    */
   def getGroups(query: Option[String], limit: Option[Int], offset: Option[Int]): Try[Seq[SuggestData.Group]] = {
     try {
@@ -201,7 +220,7 @@ object SystemService extends LazyLogging {
     * @param limit 取得件数
     * @param offset 取得位置
     * @param excludeIds 除外対象のid (除外対象：DB:users.id, groups.id)
-    * @return (条件に該当する) ユーザとグループの一覧
+    * @return (条件に該当する) ユーザとグループの一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
     */
   def getUsersAndGroups(param: Option[String], limit: Option[Int], offset: Option[Int], excludeIds: Seq[String]): Try[Seq[Any]] = {
     logger.debug(LOG_MARKER_USER_GROUP, "getUsersAndGroups: start : [param] = {}, [offset] = {}, [limit] = {}, [excludeIds] = {}",
@@ -270,11 +289,11 @@ object SystemService extends LazyLogging {
             .orderBy(sqls"name")
             .offset(offset.getOrElse(0))
             .limit(limit.getOrElse(100))
-        }.map(rs => (rs.string("id"),
-          rs.string("name"),
-          rs.string("image_id"),
-          rs.string("fullname"),
-          rs.string("organization"),
+        }.map(rs => (rs.string(persistence.User.id),
+          rs.string(persistence.User.name),
+          rs.string(persistence.User.imageId),
+          rs.string(persistence.User.fullname),
+          rs.string(persistence.User.organization),
           rs.int("type"))).list().apply
           .map {x =>
           if(x._6 == SuggestType.User) {
@@ -303,6 +322,15 @@ object SystemService extends LazyLogging {
     }
   }
 
+  /**
+    * 属性の一覧を取得します。
+    * 条件を指定すれば取得対象を絞り込みます。
+    *
+    * @param query 絞り込み条件 (比較対象：DB:annotation.name)
+    * @param limit 取得件数
+    * @param offset 取得位置
+    * @return 属性の一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
+    */
   def getAttributes(query: Option[String], limit: Option[Int], offset: Option[Int]): Try[Seq[String]] = {
     try {
       val a = persistence.Annotation.a
@@ -329,6 +357,11 @@ object SystemService extends LazyLogging {
     }
   }
 
+  /**
+   * タグの一覧を取得する。
+   *
+   * @return タグの一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
+   */
   def getTags(): Try[Seq[TagDetail]] = {
     try {
       val result = DB readOnly { implicit s =>
@@ -351,6 +384,11 @@ object SystemService extends LazyLogging {
     }
   }
 
+  /**
+   * トップページに表示するメッセージを取得する。
+   *
+   * @return メッセージの文字列。エラーが発生した場合は、例外をFailureに包んで返却する。
+   */
   def getMessage(): Try[String] = {
     try {
       val file = Paths.get(AppConf.messageDir, "message.txt").toFile

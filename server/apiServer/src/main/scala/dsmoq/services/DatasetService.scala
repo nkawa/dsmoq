@@ -9,6 +9,8 @@ import java.nio.charset.Charset
 import java.nio.file.{
   Files, Path, Paths
 }
+
+import java.util.ResourceBundle
 import java.util.UUID
 import java.util.zip.ZipInputStream
 
@@ -29,6 +31,7 @@ import org.scalatra.servlet.FileItem
 import scalikejdbc._
 
 import dsmoq.AppConf
+import dsmoq.ResourceNames
 import dsmoq.persistence
 import dsmoq.persistence.{
   Annotation,
@@ -44,7 +47,7 @@ import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.services.json.{DatasetData, Image, RangeSlice, RangeSliceSummary}
 import dsmoq.services.json.DatasetData.{DatasetOwnership, DatasetZipedFile, CopiedDataset, DatasetTask}
 
-object DatasetService extends LazyLogging {
+class DatasetService(resource: ResourceBundle) extends LazyLogging {
 
   /**
     * ログマーカー
@@ -59,6 +62,26 @@ object DatasetService extends LazyLogging {
   private val MoveToLocal = 1
 
   private val datasetImageDownloadRoot = AppConf.imageDownloadRoot + "datasets/"
+
+  /**
+   * データセットのファイルがS3またはローカルに保存されていないことを示す値
+   */
+  private val NotSavedState = 0
+
+  /**
+   * データセットのファイルがS3またはローカルに保存されていることを示す値
+   */
+  private val SavedState = 1
+
+  /**
+   * データセットのファイルをS3からローカル、またはローカルからS3に移動中であることを表す値
+   */
+  private val SynchronizingState = 2
+
+  /**
+   * データセットのファイルをS3またはローカルから削除中であることを表す値
+   */
+  private val DeletingState = 3
 
   /**
    * データセットを新規作成します。
@@ -95,8 +118,8 @@ object DatasetService extends LazyLogging {
             createdAt = timestamp,
             updatedBy = myself.id,
             updatedAt = timestamp,
-            localState = if (saveLocal) { 1 } else { 3 },
-            s3State = if (saveS3) { 2 } else { 0 }
+            localState = if (saveLocal) { SavedState } else { DeletingState },
+            s3State = if (saveS3) { SynchronizingState } else { NotSavedState }
           )
           val histroy = persistence.FileHistory.create(
             id = historyId,
@@ -127,8 +150,8 @@ object DatasetService extends LazyLogging {
           createdAt = timestamp,
           updatedBy = myself.id,
           updatedAt = timestamp,
-          localState = if (saveLocal) { 1 } else { 3 },
-          s3State = if (saveS3) { 2 } else { 0 }
+          localState = if (saveLocal) { SavedState } else { DeletingState },
+          s3State = if (saveS3) { SynchronizingState } else { NotSavedState }
         )
 
         if (saveS3 && ! f.isEmpty) {
@@ -793,8 +816,8 @@ object DatasetService extends LazyLogging {
             createdAt = timestamp,
             updatedBy = myself.id,
             updatedAt = timestamp,
-            localState = if (dataset.localState == 1 || dataset.localState == 2) { 1 } else { 3 },
-            s3State = if (dataset.s3State == 0) { 0 } else if (dataset.s3State == 3) { 3 } else { 2 }
+            localState = if (dataset.localState == SavedState || dataset.localState == SynchronizingState) { SavedState } else { DeletingState },
+            s3State = if (dataset.s3State == NotSavedState) { NotSavedState } else if (dataset.s3State == DeletingState) { DeletingState } else { SynchronizingState }
           )
           val history = persistence.FileHistory.create(
             id = historyId,
@@ -814,8 +837,8 @@ object DatasetService extends LazyLogging {
           (file, history)
         })
 
-        if (dataset.s3State == 1 || dataset.s3State == 2) {
-          createTask(id, MoveToS3, myself.id, timestamp, dataset.localState == 1)
+        if (dataset.s3State == SavedState || dataset.s3State == SynchronizingState) {
+          createTask(id, MoveToS3, myself.id, timestamp, dataset.localState == SavedState)
         }
         // datasetsのfiles_size, files_countの更新
         updateDatasetFileStatus(id, myself.id, timestamp)
@@ -870,8 +893,8 @@ object DatasetService extends LazyLogging {
           file,
           myself.id,
           timestamp,
-          if (dataset.s3State == 0) { 0 } else if (dataset.s3State == 3) { 3 } else { 2 },
-          if (dataset.localState == 1 || dataset.localState == 2) { 1 } else { 3 }
+          if (dataset.s3State == NotSavedState) { NotSavedState } else if (dataset.s3State == DeletingState) { DeletingState } else { SynchronizingState },
+          if (dataset.localState == SavedState || dataset.localState == SynchronizingState) { SavedState } else { DeletingState }
         )
 
         val isZip = file.getName.endsWith("zip")
@@ -893,15 +916,15 @@ object DatasetService extends LazyLogging {
           updatedAt = timestamp
         )
         FileManager.uploadToLocal(datasetId, fileId, history.id, file)
-        if (dataset.s3State == 1 || dataset.s3State == 2) {
-          createTask(datasetId, MoveToS3, myself.id, timestamp, dataset.localState == 1)
+        if (dataset.s3State == SavedState || dataset.s3State == SynchronizingState) {
+          createTask(datasetId, MoveToS3, myself.id, timestamp, dataset.localState == SavedState)
 
           // S3に上がっている場合は、アップロードが完了するまで、ローカルからダウンロードしなければならない
           withSQL {
             val d = persistence.Dataset.column
             update(persistence.Dataset)
-              .set(d.localState -> 3,
-                d.s3State -> 2)
+              .set(d.localState -> DeletingState,
+                d.s3State -> SynchronizingState)
               .where
               .eq(d.id, sqls.uuid(datasetId))
           }.update().apply
@@ -978,17 +1001,6 @@ object DatasetService extends LazyLogging {
   def updateFileMetadata(datasetId: String, fileId: String, filename: String,
                          description: String, user: User) = {
     try {
-      // input validation
-      val errors = mutable.LinkedHashMap.empty[String, String]
-
-      if (filename.isEmpty) {
-        errors.put("name", "name is empty")
-      }
-
-      if (errors.nonEmpty) {
-        throw new InputValidationException(errors)
-      }
-
       DB localTx { implicit s =>
         fileAccessabilityCheck(datasetId, fileId, user)
 
@@ -1080,12 +1092,12 @@ object DatasetService extends LazyLogging {
 
   /**
    * データセットの保存先を変更する
- *
-   * @param id
-   * @param saveLocal
-   * @param saveS3
-   * @param user
-   * @return
+   *
+   * @param id データセットID
+   * @param saveLocal ローカルに保存するか否か
+   * @param saveS3 S3に保存するか否か
+   * @param user ユーザオブジェクト
+   * @return データセットの保存先変更タスクオブジェクト。エラーが発生した場合は、例外をFailureにつつんで返却する。
    */
   def modifyDatasetStorage(id:String, saveLocal: Boolean, saveS3: Boolean, user: User): Try[DatasetTask] = {
     try {
@@ -1097,33 +1109,34 @@ object DatasetService extends LazyLogging {
         val dataset = getDataset(id).get
 
         // S3 to local
-        val taskId = if (dataset.localState == 0 && (dataset.s3State == 1 || dataset.s3State == 2) && saveLocal) {
+        val taskId = if (dataset.localState == NotSavedState && (dataset.s3State == SavedState || dataset.s3State == SynchronizingState) && saveLocal) {
           updateDatasetStorage(
             dataset,
             myself.id,
             timestamp,
-            2,
-            if (saveS3) { 1 } else { 3 }
+            SynchronizingState,
+            if (saveS3) { SavedState } else { DeletingState }
           )
           createTask(id, MoveToLocal, myself.id, timestamp, saveS3)
           // local to S3
-        } else if ((dataset.localState == 1 || dataset.localState == 2) && dataset.s3State == 0 && saveS3) {
+        } else if ((dataset.localState == SavedState || dataset.localState == SynchronizingState) && dataset.s3State == NotSavedState && saveS3) {
           updateDatasetStorage(
             dataset,
             myself.id,
             timestamp,
-            if (saveLocal) { 1 } else { 3 },
-            2
+            if (saveLocal) { SavedState } else { DeletingState },
+            SynchronizingState 
           )
           createTask(id, MoveToS3, myself.id, timestamp, saveLocal)
           // local, S3のいずれか削除
-        } else if ((dataset.localState == 1 || dataset.localState == 2) && (dataset.s3State == 1 || dataset.s3State == 2) && saveLocal != saveS3) {
+        } else if ((dataset.localState == SavedState || dataset.localState == SynchronizingState) 
+          && (dataset.s3State == SavedState || dataset.s3State == SynchronizingState) && saveLocal != saveS3) {
           updateDatasetStorage(
             dataset,
             myself.id,
             timestamp,
-            if (saveLocal) { 1 } else { 3 },
-            if (saveS3) { 1 } else { 3 }
+            if (saveLocal) { SavedState } else { DeletingState },
+            if (saveS3) { SavedState } else { DeletingState }
           )
           createTask(id, if (saveS3) { MoveToS3 } else { MoveToLocal } , myself.id, timestamp, false)
         } else {
@@ -1172,6 +1185,11 @@ object DatasetService extends LazyLogging {
       val attributes_ = attributes.map(x => x.name -> StringUtil.trimAllSpaces(x.value))
 
       DB localTx { implicit s =>
+        persistence.License.find(license) match {
+          case None => throw new BadRequestException(resource.getString(ResourceNames.invalidLicenseId).format(license))
+          case Some(_) => // do nothing
+        }
+
         datasetAccessabilityCheck(id, user)
 
         val myself = persistence.User.find(user.id).get
@@ -1320,7 +1338,7 @@ object DatasetService extends LazyLogging {
         val primaryImage = getPrimaryImageId(datasetId)
         var isFirst = true
 
-        val imgs = images.map(i => {
+        val addedImages = images.map(i => {
           val imageId = UUID.randomUUID().toString
           val bufferedImage = javax.imageio.ImageIO.read(i.getInputStream)
 
@@ -1354,7 +1372,7 @@ object DatasetService extends LazyLogging {
         })
 
         Success(DatasetData.DatasetAddImages(
-          images = imgs.map(x => Image(
+          images = addedImages.map(x => Image(
             id = x.id,
             url = datasetImageDownloadRoot + datasetId + "/" + x.id
           )),
@@ -1376,8 +1394,6 @@ object DatasetService extends LazyLogging {
    */
   def changePrimaryImage(datasetId: String, imageId: String, user: User): Try[Unit] = {
     try {
-      if (imageId.isEmpty) throw new InputValidationException(Map("id" -> "ID is empty"))
-
       DB localTx { implicit s =>
         datasetAccessabilityCheck(datasetId, user)
         if (!existsImage(datasetId, imageId)) throw new NotFoundException
@@ -1437,7 +1453,7 @@ object DatasetService extends LazyLogging {
       DB localTx { implicit s =>
         datasetAccessabilityCheck(datasetId, user)
         val cantDeleteImages = Seq(AppConf.defaultDatasetImageId)
-        if (cantDeleteImages.contains(imageId)) throw new InputValidationException(Map("imageId" -> "default image can't delete"))
+        if (cantDeleteImages.contains(imageId)) throw new BadRequestException(resource.getString(ResourceNames.cantDeleteDefaultImage))
         if (!existsImage(datasetId, imageId)) throw new NotFoundException
 
         val myself = persistence.User.find(user.id).get
@@ -2827,44 +2843,6 @@ object DatasetService extends LazyLogging {
   }
 
   /**
-    * DatasetService内で処理判別するためのケースオブジェクト
-    * ファイル情報を持つ
-    */
-  sealed trait FileInfo
-
-  /**
-    * ファイル情報：ローカルに保持する通常ファイル
-    *
-    * @param file ファイル情報
-    * @param path ファイルパス
-    */
-  case class FileInfoLocalNormal(file: persistence.File, path: String) extends FileInfo
-
-  /**
-    * ファイル情報：S3上に保持する通常ファイル
-    *
-    * @param file ファイル情報
-    * @param path ファイルパス
-    */
-  case class FileInfoS3Normal(file: persistence.File, path: String) extends FileInfo
-
-  /**
-    * ファイル情報：ローカルに保持するZIPファイル内の個別ファイル
-    *
-    * @param file ファイル情報
-    * @param path ファイルパス
-    */
-  case class FileInfoLocalZipped(file: persistence.File, path: String, zippedFile: persistence.ZipedFiles) extends FileInfo
-
-  /**
-    * ファイル情報：S3上に保持するZIPファイル内の個別ファイル
-    *
-    * @param file ファイル情報
-    * @param path ファイルパス
-    */
-  case class FileInfoS3Zipped(file: persistence.File, path: String, zippedFile: persistence.ZipedFiles) extends FileInfo
-
-  /**
     * 内部処理振り分けのための、ファイル情報を取得する
     *
     * @param datasetId データセットID
@@ -2872,7 +2850,7 @@ object DatasetService extends LazyLogging {
     * @param user ユーザ情報
     * @return ファイル情報を保持するケースオブジェクト
     */
-  private def getFileInfo(datasetId: String, fileId: String, user: User): Try[FileInfo] = {
+  private def getFileInfo(datasetId: String, fileId: String, user: User): Try[DatasetService.FileInfo] = {
     logger.trace(LOG_MARKER, "Called getFileInfo, datasetId={}, fileId={}, user={]", datasetId, fileId, user)
 
     val findResult = DB readOnly { implicit s =>
@@ -2889,22 +2867,22 @@ object DatasetService extends LazyLogging {
       fileInfo <- findResult
       _ <- requireNotWithPassword(fileInfo)
     } yield {
-      val isFileExistsOnLocal = fileInfo.file.localState == 1
-      val isFileSync = fileInfo.file.localState == 3
-      val isFileExistsOnS3 = fileInfo.file.s3State == 2
+      val isFileExistsOnLocal = fileInfo.file.localState == SavedState
+      val isFileSync = fileInfo.file.localState == DeletingState
+      val isFileExistsOnS3 = fileInfo.file.s3State == SynchronizingState
       val isDownloadFromLocal = isFileExistsOnLocal || (isFileExistsOnS3 && isFileSync)
       (fileInfo, isDownloadFromLocal) match {
         case (FileResultNormal(file, path), true) => {
-          FileInfoLocalNormal(file, path)
+          DatasetService.FileInfoLocalNormal(file, path)
         }
         case (FileResultNormal(file, path), false) => {
-          FileInfoS3Normal(file, path)
+          DatasetService.FileInfoS3Normal(file, path)
         }
         case (FileResultZip(file, path, zippedFile), true) => {
-          FileInfoLocalZipped(file, path, zippedFile)
+          DatasetService.FileInfoLocalZipped(file, path, zippedFile)
         }
         case (FileResultZip(file, path, zippedFile), false) => {
-          FileInfoS3Zipped(file, path, zippedFile)
+          DatasetService.FileInfoS3Zipped(file, path, zippedFile)
         }
         case _ => {
           logger.error(LOG_MARKER, "Unknown file info, fileInfo={}, isDownloadFromLocal={}", fileInfo, isDownloadFromLocal.toString)
@@ -2916,65 +2894,26 @@ object DatasetService extends LazyLogging {
   }
 
   /**
-    * ファイルダウンロード向けに必要項目を保持するケースオブジェクト
-    */
-  sealed trait DownloadFile
-
-  /**
-    * ファイルダウンロード：ローカルに保持する通常ファイル
-    *
-    * @param fileData ファイル内容を返すストリーム
-    * @param fileName ファイル名
-    * @param fileSize ファイルサイズ
-    */
-  case class DownloadFileLocalNormal(fileData: InputStream, fileName: String, fileSize: Long) extends DownloadFile
-
-  /**
-    * ファイルダウンロード：ローカルに保持するZIPファイル内の個別ファイル
-    *
-    * @param fileData ファイル内容を返すストリーム
-    * @param fileName ファイル名
-    * @param fileSize ファイルサイズ
-    */
-  case class DownloadFileLocalZipped(fileData: InputStream, fileName: String, fileSize: Long) extends DownloadFile
-
-  /**
-    * ファイルダウンロード：S3上に保持する通常ファイル
-    *
-    * @param redirectUrl S3上のファイルへのリダイレクトURL
-    */
-  case class DownloadFileS3Normal(redirectUrl: String) extends DownloadFile
-
-  /**
-    * ファイルダウンロード：S3上に保持するZIPファイル内の個別ファイル
-    *
-    * @param fileData ファイル内容を返すストリーム
-    * @param fileName ファイル名
-    * @param fileSize ファイルサイズ
-    */
-  case class DownloadFileS3Zipped(fileData: InputStream, fileName: String, fileSize: Long) extends DownloadFile
-
-  /**
     * ファイルダウンロード向けにケースオブジェクトを返す。
     *
     * @param fileInfo ファイル情報
     * @param requireData ファイル内容を返すストリームが必要な場合はtrue
     * @return ファイルダウンロード向けに必要項目を保持するケースオブジェクト
     */
-  private def getDownloadFileByFileInfo(fileInfo: FileInfo, requireData: Boolean = true): Try[DownloadFile] = Try {
+  private def getDownloadFileByFileInfo(fileInfo: DatasetService.FileInfo, requireData: Boolean = true): Try[DatasetService.DownloadFile] = Try {
     logger.trace(LOG_MARKER, "Called getDownloadFileByFileInfo, fileInfo={}, requireData={}", fileInfo, requireData.toString)
 
     fileInfo match {
-      case FileInfoLocalNormal(file, path) => {
+      case DatasetService.FileInfoLocalNormal(file, path) => {
         val downloadFile = FileManager.downloadFromLocal(path.substring(1))
         val is = if (requireData) { Files.newInputStream(downloadFile.toPath) } else { null }
-        DownloadFileLocalNormal(is, file.name, file.fileSize)
+        DatasetService.DownloadFileLocalNormal(is, file.name, file.fileSize)
       }
-      case FileInfoS3Normal(file, path) => {
+      case DatasetService.FileInfoS3Normal(file, path) => {
         val url = FileManager.downloadFromS3Url(path.substring(1), file.name)
-        DownloadFileS3Normal(url)
+        DatasetService.DownloadFileS3Normal(url)
       }
-      case FileInfoLocalZipped(file, path, zippedFile) => {
+      case DatasetService.FileInfoLocalZipped(file, path, zippedFile) => {
         val is = if (requireData) {
           createRangeInputStream(
             path = Paths.get(AppConf.fileDir, path.substring(1)),
@@ -2992,7 +2931,7 @@ object DatasetService extends LazyLogging {
               encoding = encoding)
           } else { null }
 
-          DownloadFileLocalZipped(zis, zippedFile.name, zippedFile.dataSize)
+          DatasetService.DownloadFileLocalZipped(zis, zippedFile.name, zippedFile.dataSize)
         } catch {
           case e: Exception => {
             logger.error(LOG_MARKER, "Error occurred.", e)
@@ -3002,7 +2941,7 @@ object DatasetService extends LazyLogging {
           }
         }
       }
-      case FileInfoS3Zipped(file, path, zippedFile) => {
+      case DatasetService.FileInfoS3Zipped(file, path, zippedFile) => {
         val is = if (requireData) {
           FileManager.downloadFromS3(
             filePath = path.substring(1),
@@ -3019,7 +2958,7 @@ object DatasetService extends LazyLogging {
               encoding = encoding)
           } else { null }
 
-          DownloadFileS3Zipped(zis, zippedFile.name, zippedFile.dataSize)
+          DatasetService.DownloadFileS3Zipped(zis, zippedFile.name, zippedFile.dataSize)
         } catch {
           case e: Exception => {
             logger.error(LOG_MARKER, "Error occurred.", e)
@@ -3041,7 +2980,7 @@ object DatasetService extends LazyLogging {
     * @param user ユーザ情報
     * @return ファイルダウンロード向けに必要項目を保持するケースオブジェクト
     */
-  def getDownloadFileWithStream(datasetId: String, fileId: String, user: User): Try[DownloadFile] = {
+  def getDownloadFileWithStream(datasetId: String, fileId: String, user: User): Try[DatasetService.DownloadFile] = {
     val fileInfo = getFileInfo(datasetId, fileId, user)
     fileInfo.flatMap(getDownloadFileByFileInfo(_, true))
   }
@@ -3055,7 +2994,7 @@ object DatasetService extends LazyLogging {
     * @param user ユーザ情報
     * @return ファイルダウンロード向けに必要項目を保持するケースオブジェクト
     */
-  def getDownloadFileWithoutStream(datasetId: String, fileId: String, user: User): Try[DownloadFile] = {
+  def getDownloadFileWithoutStream(datasetId: String, fileId: String, user: User): Try[DatasetService.DownloadFile] = {
     val fileInfo = getFileInfo(datasetId, fileId, user)
     fileInfo.flatMap(getDownloadFileByFileInfo(_, false))
   }
@@ -3123,8 +3062,8 @@ object DatasetService extends LazyLogging {
         val history = persistence.File.find(fileId).flatMap(file => persistence.FileHistory.find(file.historyId)) match {
           case Some(x) => 
             if (x.isZip) { x }
-            else { throw new BadRequestException("対象のファイルはZipファイルではないため、中身を取り出すことができません") }
-          case None => throw new BadRequestException("対象のファイルは存在しません")
+            else { throw new BadRequestException(resource.getString(ResourceNames.cantTakeOutBecauseNotZip)) }
+          case None => throw new BadRequestException(resource.getString(ResourceNames.fileNotFound))
         }
         val groups = getJoinedGroups(user)
         (for {
@@ -3185,4 +3124,84 @@ object DatasetService extends LazyLogging {
         .eq(zf.historyId, sqls.uuid(historyId))
     }.map(_.int(1)).single.apply.getOrElse(0)
   }
+}
+
+object DatasetService {
+  /**
+    * DatasetService内で処理判別するためのケースオブジェクト
+    * ファイル情報を持つ
+    */
+  sealed trait FileInfo
+
+  /**
+    * ファイル情報：ローカルに保持する通常ファイル
+    *
+    * @param file ファイル情報
+    * @param path ファイルパス
+    */
+  case class FileInfoLocalNormal(file: persistence.File, path: String) extends FileInfo
+
+  /**
+    * ファイル情報：S3上に保持する通常ファイル
+    *
+    * @param file ファイル情報
+    * @param path ファイルパス
+    */
+  case class FileInfoS3Normal(file: persistence.File, path: String) extends FileInfo
+
+  /**
+    * ファイル情報：ローカルに保持するZIPファイル内の個別ファイル
+    *
+    * @param file ファイル情報
+    * @param path ファイルパス
+    */
+  case class FileInfoLocalZipped(file: persistence.File, path: String, zippedFile: persistence.ZipedFiles) extends FileInfo
+
+  /**
+    * ファイル情報：S3上に保持するZIPファイル内の個別ファイル
+    *
+    * @param file ファイル情報
+    * @param path ファイルパス
+    */
+  case class FileInfoS3Zipped(file: persistence.File, path: String, zippedFile: persistence.ZipedFiles) extends FileInfo
+
+  /**
+    * ファイルダウンロード向けに必要項目を保持するケースオブジェクト
+    */
+  sealed trait DownloadFile
+
+  /**
+    * ファイルダウンロード：ローカルに保持する通常ファイル
+    *
+    * @param fileData ファイル内容を返すストリーム
+    * @param fileName ファイル名
+    * @param fileSize ファイルサイズ
+    */
+  case class DownloadFileLocalNormal(fileData: InputStream, fileName: String, fileSize: Long) extends DownloadFile
+
+  /**
+    * ファイルダウンロード：ローカルに保持するZIPファイル内の個別ファイル
+    *
+    * @param fileData ファイル内容を返すストリーム
+    * @param fileName ファイル名
+    * @param fileSize ファイルサイズ
+    */
+  case class DownloadFileLocalZipped(fileData: InputStream, fileName: String, fileSize: Long) extends DownloadFile
+
+  /**
+    * ファイルダウンロード：S3上に保持する通常ファイル
+    *
+    * @param redirectUrl S3上のファイルへのリダイレクトURL
+    */
+  case class DownloadFileS3Normal(redirectUrl: String) extends DownloadFile
+
+  /**
+    * ファイルダウンロード：S3上に保持するZIPファイル内の個別ファイル
+    *
+    * @param fileData ファイル内容を返すストリーム
+    * @param fileName ファイル名
+    * @param fileSize ファイルサイズ
+    */
+  case class DownloadFileS3Zipped(fileData: InputStream, fileName: String, fileSize: Long) extends DownloadFile
+
 }

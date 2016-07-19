@@ -2,17 +2,27 @@ package dsmoq.controllers
 
 import com.typesafe.scalalogging.LazyLogging
 import dsmoq.exceptions.{AccessDeniedException, NotAuthorizedException, NotFoundException}
-import dsmoq.services.DatasetService._
-import dsmoq.services.{DatasetService, User}
+import dsmoq.services.{AccountService, DatasetService, User}
 import org.apache.commons.io.input.BoundedInputStream
 import org.scalatra.ScalatraServlet
 import org.slf4j.MarkerFactory
 
+import java.util.ResourceBundle
 import javax.servlet.http.HttpServletRequest
 
 import scala.util.{Failure, Success, Try}
 
-class FileController extends ScalatraServlet with SessionTrait with ApiKeyAuthorizationTrait with LazyLogging {
+class FileController(resource: ResourceBundle) extends ScalatraServlet with SessionTrait with ApiKeyAuthorizationTrait with LazyLogging {
+
+  /**
+   * AccountServiceのインスタンス
+   */
+  val accountService = new AccountService(resource)
+
+  /**
+   * DatasetServiceのインスタンス
+   */
+  val datasetService = new DatasetService(resource)
 
   /**
     * ログマーカー
@@ -36,13 +46,13 @@ class FileController extends ScalatraServlet with SessionTrait with ApiKeyAuthor
     // このため、ストリームが設定されていない形でDownloadFileを取得する。
     val result = for {
       user <- getUser(request)
-      fileInfo <- DatasetService.getDownloadFileWithoutStream(datasetId, id, user)
+      fileInfo <- datasetService.getDownloadFileWithoutStream(datasetId, id, user)
     } yield {
       fileInfo
     }
 
     result match {
-      case Success(DownloadFileLocalNormal(_, fileName, fileSize)) => {
+      case Success(DatasetService.DownloadFileLocalNormal(_, fileName, fileSize)) => {
         // ローカルファイルで、Zip内のファイル指定でない場合
         logger.debug(LOG_MARKER, "Found local file, fileName={}, fileSize={}", fileName, fileSize.toString)
 
@@ -50,7 +60,7 @@ class FileController extends ScalatraServlet with SessionTrait with ApiKeyAuthor
         // 空ボディを返す
         ""
       }
-      case Success(DownloadFileLocalZipped(_, fileName, fileSize)) => {
+      case Success(DatasetService.DownloadFileLocalZipped(_, fileName, fileSize)) => {
         // ローカルファイルで、Zip内のファイル指定の場合
         logger.debug(LOG_MARKER, "Found local zipped inner file, fileName={}, fileSize={}", fileName, fileSize.toString)
 
@@ -58,14 +68,14 @@ class FileController extends ScalatraServlet with SessionTrait with ApiKeyAuthor
         // 空ボディを返す
         ""
       }
-      case Success(DownloadFileS3Normal(redirectUrl)) => {
+      case Success(DatasetService.DownloadFileS3Normal(redirectUrl)) => {
         // S3上のファイルで、Zip内のファイル指定でない場合
         logger.debug(LOG_MARKER, "Found S3 file, redirectUrl={}", redirectUrl)
 
         // リダイレクトヘッダを返す
         redirect(redirectUrl)
       }
-      case Success(DownloadFileS3Zipped(_, fileName, fileSize)) => {
+      case Success(DatasetService.DownloadFileS3Zipped(_, fileName, fileSize)) => {
         // S3上のファイルで、Zip内のファイル指定の場合
         logger.debug(LOG_MARKER, "Found S3 zipped inner file, fileName={}, fileSize={}", fileName, fileSize.toString)
 
@@ -96,7 +106,7 @@ class FileController extends ScalatraServlet with SessionTrait with ApiKeyAuthor
 
     val result = for {
       user <- getUser(request)
-      fileInfo <- DatasetService.getDownloadFileWithStream(datasetId, id, user)
+      fileInfo <- datasetService.getDownloadFileWithStream(datasetId, id, user)
     } yield {
       fileInfo
     }
@@ -104,7 +114,7 @@ class FileController extends ScalatraServlet with SessionTrait with ApiKeyAuthor
     val rangeHeader = request.getHeader("Range")
     result match {
 
-      case Success(DownloadFileLocalNormal(data, fileName, fileSize)) => {
+      case Success(DatasetService.DownloadFileLocalNormal(data, fileName, fileSize)) => {
         // ローカルファイルで、Zip内のファイル指定でない場合
         logger.debug(LOG_MARKER, "Found local file, fileName={}, fileSize={}", fileName, fileSize.toString)
 
@@ -165,13 +175,13 @@ class FileController extends ScalatraServlet with SessionTrait with ApiKeyAuthor
           }
         }
       }
-      case Success(DownloadFileS3Normal(redirectUrl)) => {
+      case Success(DatasetService.DownloadFileS3Normal(redirectUrl)) => {
         // S3上のファイルで、Zip内のファイル指定でない場合
         logger.debug(LOG_MARKER, "Found S3 file, redirectUrl={}", redirectUrl)
 
         redirect(redirectUrl)
       }
-      case Success(DownloadFileLocalZipped(fileData, fileName, fileSize)) => {
+      case Success(DatasetService.DownloadFileLocalZipped(fileData, fileName, fileSize)) => {
         // ローカルファイルで、Zip内のファイル指定の場合
         logger.debug(LOG_MARKER, "Found local zipped inner file, fileName={}, fileSize={}", fileName, fileSize.toString)
 
@@ -194,7 +204,7 @@ class FileController extends ScalatraServlet with SessionTrait with ApiKeyAuthor
           }
         }
       }
-      case Success(DownloadFileS3Zipped(fileData, fileName, fileSize)) => {
+      case Success(DatasetService.DownloadFileS3Zipped(fileData, fileName, fileSize)) => {
         // S3上のファイルで、Zip内のファイル指定の場合
         logger.debug(LOG_MARKER, "Found S3 zipped inner file, fileName={}, fileSize={}", fileName, fileSize.toString)
 

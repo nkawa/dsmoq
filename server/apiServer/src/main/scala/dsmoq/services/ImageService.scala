@@ -1,5 +1,7 @@
 package dsmoq.services
 
+import java.util.ResourceBundle
+
 import dsmoq.exceptions._
 import dsmoq.persistence.GroupType
 import dsmoq.{persistence, AppConf}
@@ -8,7 +10,7 @@ import scala.util.{Success, Failure}
 import dsmoq.logic.ImageSaveLogic
 import dsmoq.persistence.PostgresqlHelper._
 
-object ImageService {
+class ImageService(resource: ResourceBundle) {
   def getUserFile(userId: String, imageId: String, size: Option[String]) = {
     try {
       DB readOnly { implicit s =>

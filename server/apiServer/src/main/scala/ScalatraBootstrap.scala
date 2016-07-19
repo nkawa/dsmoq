@@ -1,4 +1,5 @@
 import org.scalatra._
+import java.util.ResourceBundle
 import javax.servlet.ServletContext
 import scalikejdbc.config.DBs
 import scalikejdbc._
@@ -13,12 +14,14 @@ class ScalatraBootstrap extends LifeCycle {
     )
     DBs.setup()
 
+    val resource = ResourceBundle.getBundle("message")
+
     context.mount(new ResourceController, "/*")
     context.mount(new SessionsController, "/sessions/*")
-    context.mount(new ApiController, "/api/*")
-    context.mount(new GoogleOAuthController, "/google_oauth/*")
-    context.mount(new ImageController, "/images/*")
-    context.mount(new FileController, "/files/*")
+    context.mount(new ApiController(resource), "/api/*")
+    context.mount(new GoogleOAuthController(resource), "/google_oauth/*")
+    context.mount(new ImageController(resource), "/images/*")
+    context.mount(new FileController(resource), "/files/*")
 
     // mock
     context.mount(new MockController, "/mock")

@@ -1,11 +1,13 @@
 package dsmoq.services
 
 import java.net.URLEncoder
+import java.util.ResourceBundle
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 import scala.util.Try
 import scalikejdbc._
 import java.security.MessageDigest
+import dsmoq.ResourceNames
 import dsmoq.persistence
 import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.exceptions._
@@ -21,34 +23,22 @@ import scala.collection.mutable
 import com.typesafe.scalalogging.LazyLogging
 import org.slf4j.MarkerFactory
 
-object AccountService extends LazyLogging {
+class AccountService(resource: ResourceBundle) extends LazyLogging {
 
   val LOG_MARKER = MarkerFactory.getMarker("AUTH_LOG")
 
   /**
    * IDとパスワードを指定してユーザを検索します。
-    *
-    * @param id アカウント名 or メールアドレス
+   *
+   * @param id アカウント名 or メールアドレス
    * @param password パスワード
-   * @return
+   * @return 取得したユーザオブジェクト。エラーが発生した場合、例外をFailureで包んで返す。
+   *         発生する可能性のある例外は、BadRequestExceptionである。
    */
   def findUserByIdAndPassword(id: String, password: String): Try[User] = {
     logger.info(LOG_MARKER, "Login request... : [id] = {}", id)
 
     try {
-
-      val errors = mutable.LinkedHashMap.empty[String, String]
-
-      if (id.isEmpty()) {
-        errors.put("id", "ID is empty")
-      }
-      if (password.isEmpty()) {
-        errors.put("id", "password is empty")
-      }
-      if (errors.size != 0) {
-        throw new InputValidationException(errors)
-      }
-
       DB readOnly { implicit s =>
         findUser(id, password) match {
           case Some(x) => {
@@ -56,13 +46,13 @@ object AccountService extends LazyLogging {
             Success(x)
           }
           case None => {
-            throw new InputValidationException(Map("password" -> "wrong password"))
+            throw new BadRequestException(resource.getString(ResourceNames.invalidPassword))
           }
         }
       }
     } catch {
-      case e: InputValidationException =>
-        logger.error(LOG_MARKER, "Login failed: input validation error occurred, [id] = {}, [error messages] = {}", id, e.getErrorMessage())
+      case e: BadRequestException =>
+        logger.error(LOG_MARKER, "Login failed: input validation error occurred, [id] = {}, [error messages] = {}", id, e.getMessage())
         Failure(e)
       case t: Throwable =>
         logger.error(LOG_MARKER, "Login failed: error occurred. [id] = {}", id, t)
@@ -93,17 +83,26 @@ object AccountService extends LazyLogging {
 
   /**
    * 指定したユーザのメールアドレスを更新します。
-    *
-    * @param id ユーザID
-   * @param email
-   * @return
+   *
+   * @param id ユーザID
+   * @param email EMailアドレス
+   * @return 更新後のユーザオブジェクト。エラーが発生した場合は例外をFailureで包んで返す。
+   *         発生する可能性のある例外は、BadRequestExceptionである。
    */
   def changeUserEmail(id: String, email: String) = {
     try {
       // Eメールアドレスのフォーマットチェックはしていない
-      val email_ = email.trim
-
+      val trimmedEmail = email.trim
+      
       DB localTx {implicit s =>
+        if (isGoogleUser(id)) {
+          throw new BadRequestException(resource.getString(ResourceNames.cantChangeGoogleUserEmail))
+        }
+
+        if (existsSameEmail(id, trimmedEmail)) {
+          throw new BadRequestException(resource.getString(ResourceNames.alreadyRegisteredEmail).format(trimmedEmail))
+        }
+
         (for {
           user <- persistence.User.find(id)
           address <- persistence.MailAddress.findByUserId(id)
@@ -112,14 +111,14 @@ object AccountService extends LazyLogging {
           persistence.MailAddress(
             id = address.id,
             userId = address.userId,
-            address = email_,
+            address = trimmedEmail,
             status = address.status,
             createdBy = address.createdBy,
             createdAt = address.createdAt,
             updatedBy = user.id,
             updatedAt = DateTime.now
           ).save
-          User(user, email_)
+          User(user, trimmedEmail)
         }) match {
           case Some(x) => Success(x)
           case None => throw new NotFoundException()
@@ -130,7 +129,7 @@ object AccountService extends LazyLogging {
     }
   }
 
-  def existsSameEmail(id: String, email: String)(implicit s: DBSession): Boolean = {
+  private def existsSameEmail(id: String, email: String)(implicit s: DBSession): Boolean = {
     val ma = persistence.MailAddress.ma
     withSQL {
       select.apply(sqls"1")
@@ -144,17 +143,26 @@ object AccountService extends LazyLogging {
 
   /**
    * 指定したユーザのパスワードを変更します。
-    *
-    * @param id ユーザID
+   *
+   * @param id ユーザID
    * @param currentPassword 現在のパスワード
    * @param newPassword 新しいパスワード
-   * @return
+   * @return エラーがあった場合は、例外をFailureで包んで返す。
+   *         発生する可能性のある例外は、BadRequestExceptionである。
    */
-  def changeUserPassword(id: String, currentPassword: persistence.Password, newPassword: String): Try[Unit] = {
-    // TODO リファクタリング
+  def changeUserPassword(id: String, currentPassword: String, newPassword: String): Try[Unit] = {
     try {
       DB localTx { implicit s =>
-        updatePassword(id, newPassword, currentPassword)
+        if (isGoogleUser(id)) {
+          throw new BadRequestException(resource.getString(ResourceNames.cantChangeGoogleUserPassword))
+        }
+
+        val currentPasswordObject = getCurrentPassword(id, currentPassword) match {
+          case None => throw new BadRequestException(resource.getString(ResourceNames.invalidPassword))
+          case Some(p) => p
+        }
+
+        updatePassword(id, newPassword, currentPasswordObject)
       }
       Success(Unit)
     } catch {
@@ -162,7 +170,7 @@ object AccountService extends LazyLogging {
     }
   }
 
-  def getCurrentPassword(id: String, currentPassword: String)(implicit s: DBSession): Option[persistence.Password] =
+  private def getCurrentPassword(id: String, currentPassword: String)(implicit s: DBSession): Option[persistence.Password] =
   {
     val oldPasswordHash = createPasswordHash(currentPassword)
     val u = persistence.User.u
@@ -199,35 +207,50 @@ object AccountService extends LazyLogging {
    * 指定したユーザの基本情報を更新します。
     *
     * @param id ユーザID
-   * @param name
-   * @param fullname
-   * @param organization
-   * @param title
-   * @param description
-   * @return
+   * @param name 名前
+   * @param fullname フルネーム
+   * @param organization 組織名
+   * @param title タイトル
+   * @param description 説明
+   * @return 更新後のユーザオブジェクト。エラーが発生した場合、例外をFailureで包んで返す。
+   *         発生する可能性のある例外は、NotFoundException、BadRequestExceptionである。
    */
   def updateUserProfile(id: String,
-                        name: String,
-                        fullname: String,
+                        name: Option[String],
+                        fullname: Option[String],
                         organization: Option[String],
                         title: Option[String],
                         description: Option[String]): Try[User]  = {
-    // TODO リファクタリング
     try {
       DB localTx { implicit s =>
-        val organization_ = StringUtil.trimAllSpaces(organization.getOrElse(""))
-        val title_ = StringUtil.trimAllSpaces(title.getOrElse(""))
-        val description_ = description.getOrElse("")
+        val trimmedName = StringUtil.trimAllSpaces(name.getOrElse(""))
+        val trimmedFullname = StringUtil.trimAllSpaces(fullname.getOrElse(""))
+        val trimmedOrganization = StringUtil.trimAllSpaces(organization.getOrElse(""))
+        val trimmedTitle = StringUtil.trimAllSpaces(title.getOrElse(""))
+        val checkedDescription = description.getOrElse("")
+
+        if (isGoogleUser(id)) {
+          // Googleアカウントユーザーはアカウント名の変更禁止(importスクリプトでusersテーブルのname列を使用しているため)
+          persistence.User.find(id) match {
+            case None => throw new NotFoundException
+            case Some(x) if x.name != name => throw new BadRequestException(resource.getString(ResourceNames.cantChangeGoogleUserName))
+            case Some(_) => // do nothing
+          }
+        }
+
+        if (existsSameName(id, trimmedName)) {
+          throw new BadRequestException(resource.getString(ResourceNames.alreadyResigsteredName).format(trimmedName))
+        }
 
         persistence.User.find(id) match {
           case Some(x) =>
             val user = persistence.User(
               id = x.id,
-              name = name,
-              fullname = fullname,
-              organization = organization_,
-              title = title_,
-              description = description_,
+              name = trimmedName,
+              fullname = trimmedFullname,
+              organization = trimmedOrganization,
+              title = trimmedTitle,
+              description = checkedDescription,
               imageId = x.imageId,
               createdBy = x.createdBy,
               createdAt = x.createdAt,
@@ -253,9 +276,11 @@ object AccountService extends LazyLogging {
 
   /**
    * 指定したユーザのアイコンを更新します。
-    *
-    * @param id
-   * @param icon
+   *
+   * @param id ユーザID
+   * @param icon アイコン画像
+   * @return アイコンの画像ID。エラーが発生した場合、例外をFailureで包んで返す。
+   *         発生する可能性のある例外は、NotFoundExceptionである。
    */
   def changeIcon(id: String, icon: FileItem) = {
     try {
@@ -304,6 +329,14 @@ object AccountService extends LazyLogging {
     }
   }
 
+  /**
+   * APIキーに紐づくユーザを取得する。
+   * パラメータは事前にチェック済みであるものとする。
+   *
+   * @param apiKey APIキー
+   * @param signature シグネチャ
+   * @return ユーザが見つかった場合、ユーザオブジェクト
+   */
   def getUserByKeys(apiKey: String, signature: String): Option[User] = {
     try
     {
@@ -359,7 +392,7 @@ object AccountService extends LazyLogging {
     URLEncoder.encode(Base64.getEncoder.encodeToString(result), "UTF-8")
   }
 
-  def existsSameName(id: String, name: String)(implicit session: DBSession): Boolean = {
+  private def existsSameName(id: String, name: String)(implicit session: DBSession): Boolean = {
     val u = persistence.User.u
     withSQL {
       select(sqls"1")
@@ -374,13 +407,19 @@ object AccountService extends LazyLogging {
     MessageDigest.getInstance("SHA-256").digest(password.getBytes("UTF-8")).map("%02x".format(_)).mkString
   }
 
+  /**
+   * ユーザのプロファイルを取得する。
+   *
+   * @param ユーザオブジェクト
+   * @return ユーザのプロファイル
+   */
   def getUserProfile(user: User): Try[ProfileData] = {
     DB.readOnly { implicit s =>
       Success(ProfileData(user, isGoogleUser(user.id)))
     }
   }
 
-  def isGoogleUser(id: String)(implicit session: DBSession): Boolean = {
+  private def isGoogleUser(id: String)(implicit session: DBSession): Boolean = {
     persistence.GoogleUser.findByUserId(id) match {
       case Some(x) => true
       case None => false

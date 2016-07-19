@@ -2,6 +2,9 @@ package api
 
 import java.io.File
 import java.util.UUID
+import java.util.ResourceBundle
+
+import org.eclipse.jetty.servlet.ServletHolder
 
 import _root_.api.api.logic.SpecCommonLogic
 import dsmoq.AppConf
@@ -31,19 +34,22 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
   private val dataCreateUser1ID = "023bfa40-e897-4dad-96db-9fd3cf001e79"  // dummy1
   private val dataCreateUser2ID = "4aaefd45-2fe5-4ce0-b156-3141613f69a6"  // dummy3
 
-  // multi-part file upload config
-  val holder = addServlet(classOf[ApiController], "/api/*")
-  holder.getRegistration.setMultipartConfig(
-    MultipartConfig(
-      maxFileSize = Some(3 * 1024 * 1024),
-      fileSizeThreshold = Some(1 * 1024 * 1024)
-    ).toMultipartConfigElement
-  )
-
   override def beforeAll() {
     super.beforeAll()
     DBsWithEnv("test").setup()
     System.setProperty(org.scalatra.EnvironmentKey, "test")
+    
+    val resource = ResourceBundle.getBundle("message")
+    val servlet = new ApiController(resource)
+    val holder = new ServletHolder(servlet.getClass.getName, servlet)
+    // multi-part file upload config
+    holder.getRegistration.setMultipartConfig(
+      MultipartConfig(
+        maxFileSize = Some(3 * 1024 * 1024),
+        fileSizeThreshold = Some(1 * 1024 * 1024)
+      ).toMultipartConfigElement
+    )
+    servletContextHandler.addServlet(holder, "/api/*")
   }
 
   override def afterAll() {
