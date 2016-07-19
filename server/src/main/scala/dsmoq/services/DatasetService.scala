@@ -117,7 +117,7 @@ object DatasetService extends LazyLogging {
             filePath = "/" + datasetId + "/" + file.id + "/" + historyId,
             fileSize = f.size,
             isZip = isZip,
-            realSize = if (isZip) { createZipedFiles(path, historyId, timestamp, myself).right.getOrElse(f.size) } else { f.size },
+            realSize = if (isZip) { createZipedFiles(path, historyId, timestamp, myself).getOrElse(f.size) } else { f.size },
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
@@ -236,10 +236,9 @@ object DatasetService extends LazyLogging {
     }
   }
 
-  private def createZipedFiles(path: Path, historyId: String, timestamp: DateTime, myself: persistence.User)(implicit s: DBSession): Either[Long, Long] = {
-    for {
-      zipInfos <- ZipUtil.read(path).right
-    } yield {
+  private def createZipedFiles(path: Path, historyId: String, timestamp: DateTime, myself: persistence.User)(implicit s: DBSession): Try[Long] = {
+    Try {
+      val zipInfos = ZipUtil.read(path)
       val zfs = for {
         zipInfo <- zipInfos.filter(!_.fileName.endsWith("/"))
       } yield {
@@ -267,6 +266,10 @@ object DatasetService extends LazyLogging {
         )
       }
       zfs.map(_.fileSize).sum
+    }.recoverWith {
+      case e: Exception =>
+        logger.warn(LOG_MARKER, "error occurred in createZipedFiles.", e)
+        Failure(e)
     }
   }
 
@@ -818,7 +821,7 @@ object DatasetService extends LazyLogging {
             filePath = "/" + id + "/" + file.id + "/" + historyId,
             fileSize = f.size,
             isZip = isZip,
-            realSize = if (isZip) { createZipedFiles(path, historyId, timestamp, myself).right.getOrElse(f.size) } else { f.size },
+            realSize = if (isZip) { createZipedFiles(path, historyId, timestamp, myself).getOrElse(f.size) } else { f.size },
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
@@ -906,7 +909,7 @@ object DatasetService extends LazyLogging {
           filePath = "/" + datasetId + "/" + fileId + "/" + historyId,
           fileSize = file.size,
           isZip = isZip,
-          realSize = if (isZip) { createZipedFiles(path, historyId, timestamp, myself).right.getOrElse(file_.size) } else { file_.size },
+          realSize = if (isZip) { createZipedFiles(path, historyId, timestamp, myself).getOrElse(file_.size) } else { file_.size },
           createdBy = myself.id,
           createdAt = timestamp,
           updatedBy = myself.id,
