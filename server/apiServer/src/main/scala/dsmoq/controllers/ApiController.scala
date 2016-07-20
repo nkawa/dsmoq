@@ -90,7 +90,9 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       d        <- getJsonValue[UpdateProfileParams]
       json     <- jsonOptToTry(d)
       name     <- checkUtil.requireForForm("d.name", json.name)
+      _        <- checkUtil.nonEmptyTrimmedSpacesForForm("d.name", name)
       fullname <- checkUtil.requireForForm("d.fullname", json.fullname)
+      _        <- checkUtil.nonEmptyTrimmedSpacesForForm("d.fullname", fullname)
       user     <- getUser(request, false)
       result   <- accountService.updateUserProfile(user.id, json.name, json.fullname, json.organization, json.title, json.description)
     } yield {
@@ -166,9 +168,8 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
   // dataset api
   // --------------------------------------------------------------------------
   post("/datasets") {
+    val files = fileMultiParams.get("file[]").getOrElse(Seq.empty).filter(_.name.nonEmpty)
     val ret = for {
-      files     <- checkUtil.requireForForm("file[]", fileMultiParams.get("file[]")).map(_.filter(_.name.nonEmpty))
-      _         <- checkUtil.hasElement("file[]", files)
       saveLocal <- checkUtil.requireForForm("saveLocal", params.get("saveLocal"))
       saveS3    <- checkUtil.requireForForm("saveS3", params.get("saveS3"))
       name      <- checkUtil.requireForForm("name", params.get("name"))
