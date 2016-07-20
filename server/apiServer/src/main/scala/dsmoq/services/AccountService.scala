@@ -233,7 +233,7 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
           // Googleアカウントユーザーはアカウント名の変更禁止(importスクリプトでusersテーブルのname列を使用しているため)
           persistence.User.find(id) match {
             case None => throw new NotFoundException
-            case Some(x) if x.name != name => throw new BadRequestException(resource.getString(ResourceNames.cantChangeGoogleUserName))
+            case Some(x) if x.name != trimmedName => throw new BadRequestException(resource.getString(ResourceNames.cantChangeGoogleUserName))
             case Some(_) => // do nothing
           }
         }
