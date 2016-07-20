@@ -58,6 +58,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   private val UserAndGroupAccessDeny = 0
   private val UserAndGroupAllowDownload = 2
 
+  /**
+   * オーナー、またはプロバイダを表すAccessLevelの値
+   */
+  private val OwnerOrProvider = 3
+
   private val MoveToS3 = 0
   private val MoveToLocal = 1
 
@@ -721,11 +726,30 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   }
 
   /**
+   * データセットの参照権限のチェックを行う。
+   * 
+   * @param datasetId データセットID
+   * @param user ユーザ情報
+   * @return ロールの値
+   * @throws 権限に該当しなかった場合、NotAuthorizedExceptionを送出する。
+   */
+  def checkReadPermission(datasetId: String, user: User)(implicit session: DBSession): Int = {
+    val groups = getJoinedGroups(user)
+    val permission = getPermission(datasetId, groups)
+    // FIXME チェック時、user権限はUserAccessLevelクラス, groupの場合はGroupAccessLevelクラスの定数を使用する
+    // (UserAndGroupAccessDeny 定数を削除する)
+    if (permission == UserAndGroupAccessDeny) {
+      throw new NotAuthorizedException
+    }
+    permission
+  }
+
+  /**
    * 指定したデータセットの詳細情報を取得します。
  *
-   * @param id
-   * @param user
-   * @return
+   * @param id データセットID
+   * @param user ユーザ情報
+   * @return データセットオブジェクト
    */
   def get(id: String, user: User): Try[DatasetData.Dataset] = {
     try {
@@ -735,22 +759,15 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           case Some(x) => x
           case None => throw new NotFoundException
         }
-        (for {
-          groups <- Some(getJoinedGroups(user))
-          permission <- getPermission(id, groups)
-          guestAccessLevel <- Some(getGuestAccessLevel(id))
-          owners <- Some(getAllOwnerships(id, user))
-          attributes <- Some(getAttributes(id))
-          images <- Some(getImages(id))
-          primaryImage <- getPrimaryImageId(id)
-          featuredImage <- getFeaturedImageId(id)
-          count <- Some(getAccessCount(id))
-        } yield {
-          // FIXME チェック時、user権限はUserAccessLevelクラス, groupの場合はGroupAccessLevelクラスの定数を使用する
-          // (UserAndGroupAccessDeny 定数を削除する)
-          if (permission == UserAndGroupAccessDeny) {
-            throw new NotAuthorizedException
-          }
+        val permission = checkReadPermission(id, user)
+        val guestAccessLevel = getGuestAccessLevel(id)
+        val owners = getAllOwnerships(id, user)
+        val attributes = getAttributes(id)
+        val images = getImages(id)
+        val primaryImage = getPrimaryImageId(id).getOrElse(AppConf.defaultDatasetImageId)
+        val featuredImage = getFeaturedImageId(id).getOrElse(AppConf.defaultFeaturedImageIds(0))
+        val count = getAccessCount(id)
+        Success(
           DatasetData.Dataset(
             id = dataset.id,
             files = Seq.empty,
@@ -773,8 +790,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             s3State = dataset.s3State,
             fileLimit = AppConf.fileLimit
           )
-        })
-        .map(x => Success(x)).getOrElse(Failure(new NotAuthorizedException()))
+        )
       }
     } catch {
       case e: Throwable => Failure(e)
@@ -1169,20 +1185,20 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
 
   /**
    * 指定したデータセットのメタデータを更新します。
- *
-   * @param id
-   * @param name
-   * @param description
-   * @param license
-   * @param attributes
-   * @param user
-   * @return
+   *
+   * @param id データセットID
+   * @param name データセットの名前
+   * @param description データセットの説明
+   * @param license データセットのライセンス
+   * @param attributes データセットの属性一覧
+   * @param user ユーザ情報
+   * @return 更新後のデータセットのメタデータ
    */
   def modifyDatasetMeta(id: String, name: String, description: Option[String],
-                        license: String, attributes: List[DataSetAttribute], user: User): Try[Unit] = {
+                        license: String, attributes: List[DataSetAttribute], user: User): Try[DatasetData.DatasetMetaData] = {
     try {
-      val description_ = description.getOrElse("")
-      val attributes_ = attributes.map(x => x.name -> StringUtil.trimAllSpaces(x.value))
+      val checkedDescription = description.getOrElse("")
+      val trimmedAttributes = attributes.map(x => x.name -> StringUtil.trimAllSpaces(x.value))
 
       DB localTx { implicit s =>
         persistence.License.find(license) match {
@@ -1195,7 +1211,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
 
-        updateDatasetDetail(id, name, description_, license, myself.id, timestamp)
+        updateDatasetDetail(id, name, checkedDescription, license, myself.id, timestamp)
 
         // 先に指定datasetに関連するannotation(name)を取得(あとで差分チェックするため)
         val oldAnnotations = getAnnotationsRelatedByDataset(id)
@@ -1206,7 +1222,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         // annotation(name)が既存のものかチェック なければ作る
         val annotationMap = getAvailableAnnotations.toMap
 
-        attributes_.foreach { x =>
+        trimmedAttributes.foreach { x =>
           if (x._1.length != 0) {
             val annotationId = if (annotationMap.keySet.contains(x._1.toLowerCase)) {
               annotationMap(x._1.toLowerCase)
@@ -1239,7 +1255,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
 
         // データ追加前のnameが他で使われているかチェック 使われていなければ削除
         oldAnnotations.foreach {x =>
-          if (!attributes_.map(_._1.toLowerCase).contains(x._1)) {
+          if (!trimmedAttributes.map(_._1.toLowerCase).contains(x._1)) {
             val datasetAnnotations = getDatasetAnnotations(x._2)
             if (datasetAnnotations.size == 0) {
               deleteAnnotation(x._2)
@@ -1247,7 +1263,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           }
         }
       }
-      Success(Unit)
+      Success(
+        DatasetData.DatasetMetaData(
+          name = name,
+          description = checkedDescription,
+          license = license,
+          attributes = trimmedAttributes.map{ case (name, value) => DatasetData.DatasetAttribute(name, value) }
+        )
+      )
     } catch {
       case e: Throwable => Failure(e)
     }
@@ -1322,11 +1345,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
 
   /**
    * 指定したデータセットに画像を追加します。
- *
-   * @param datasetId
-   * @param images
-   * @param user
-   * @return
+   *
+   * @param datasetId データセットID
+   * @param images 追加する画像の一覧
+   * @param user ユーザ情報
+   * @return 追加した画像オブジェクト
    */
   def addImages(datasetId: String, images: Seq[FileItem], user: User): Try[DatasetData.DatasetAddImages] = {
     try {
@@ -1368,14 +1391,18 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           isFirst = false
           // write image
           ImageSaveLogic.writeImageFile(imageId, i)
-          image
+          (image, datasetImage.isPrimary)
         })
 
         Success(DatasetData.DatasetAddImages(
-          images = addedImages.map(x => Image(
-            id = x.id,
-            url = datasetImageDownloadRoot + datasetId + "/" + x.id
-          )),
+          images = addedImages.map { case (image, isPrimary) => 
+            DatasetData.DatasetGetImage(
+              id = image.id,
+              name = image.name,
+              url = datasetImageDownloadRoot + datasetId + "/" + image.id,
+              isPrimary = isPrimary
+            )
+          },
           primaryImage = getPrimaryImageId(datasetId).getOrElse("")
         ))
       }
@@ -1548,15 +1575,20 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   /**
    * 指定したデータセットのアクセスコントロールを設定します。
  *
-   * @param datasetId
-   * @param acl
-   * @param user
-   * @return
+   * @param datasetId データセットID
+   * @param acl アクセスコントロール変更オブジェクトのリスト
+   * @param user ユーザオブジェクト
+   * @return 変更されたアクセスコントロールのリスト。
    */
   def setAccessControl(datasetId: String, acl: List[DataSetAccessControlItem], user: User): Try[Seq[DatasetData.DatasetOwnership]] = {
     try {
       DB localTx { implicit s =>
         datasetAccessabilityCheck(datasetId, user)
+
+        val notOwnerChanges = acl.filter(x => x.ownerType == OwnerType.User && x.accessLevel != OwnerOrProvider)
+        if (getOwners(datasetId).filter(x => !notOwnerChanges.contains(x.id)).length == 0) {
+          throw new BadRequestException(resource.getString(ResourceNames.noOwner))
+        }
 
         val ownerships = acl.map { x =>
           x.ownerType match {
@@ -1600,6 +1632,31 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * データセットのオーナー一覧を取得する。
+   * 
+   * @param datasetId データセットID
+   * @param s DBセッション
+   * @return オーナーのユーザオブジェクトのリスト
+   */
+  private def getOwners(datasetId: String)(implicit s: DBSession): Seq[persistence.User] = {
+    val u = persistence.User.u
+    val m = persistence.Member.m
+    val g = persistence.Group.g
+    val o = persistence.Ownership.o
+    withSQL {
+      select(u.result.*)
+        .from(persistence.Ownership as o)
+        .innerJoin(persistence.Group as g).on(sqls.eq(g.id, o.groupId).and.eq(g.groupType, GroupType.Personal))
+        .innerJoin(persistence.Member as m).on(sqls.eq(m.groupId, g.id))
+        .innerJoin(persistence.User as u).on(sqls.eq(u.id, m.userId))
+        .where
+          .eq(o.datasetId, sqls.uuid(datasetId))
+          .and
+          .eq(o.accessLevel, OwnerOrProvider)
+    }.map(persistence.User(u.resultName)).list().apply
+  }
+
   def findGroupIdByUserId(userId: String)(implicit s: DBSession): String = {
     val u = persistence.User.u
     val m = persistence.Member.m
@@ -1624,12 +1681,12 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   /**
    * 指定したデータセットのゲストアクセスレベルを設定します。
  *
-   * @param datasetId
-   * @param accessLevel
-   * @param user
-   * @return
+   * @param datasetId データセットID
+   * @param accessLevel 設定するゲストアクセスレベル
+   * @param user ユーザ情報
+   * @return 設定したゲストアクセスレベル
    */
-  def setGuestAccessLevel(datasetId: String, accessLevel: Int, user: User) = {
+  def setGuestAccessLevel(datasetId: String, accessLevel: Int, user: User): Try[DatasetData.DatasetGuestAccessLevel] = {
     try {
       DB localTx { implicit s =>
         datasetAccessabilityCheck(datasetId, user)
@@ -1663,7 +1720,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
               )
             }
         }
-        Success(Unit)
+        Success(DatasetData.DatasetGuestAccessLevel(accessLevel))
       }
     } catch {
       case e: Throwable => Failure(e)
@@ -1776,6 +1833,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       }
     }
   }
+
+  /**
+   * 対象のユーザが対象のデータセットのダウンロード権限を持つかをチェックする。
+   * @param user ユーザ情報
+   * @param datasetId データセットID
+   * @return 権限がない場合、AccessDeniedExceptionをFailureに包んで返却する。
+   */
   def requireAllowDownload(user: User, datasetId: String)(implicit s: DBSession): Try[Unit] = {
     val permission = if (user.isGuest) {
       getGuestAccessLevel(datasetId)
@@ -1786,13 +1850,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       // 旧仕様ではuser/groupは同じ権限を付与していたが、
       // 現仕様はuser/groupによって権限の扱いが異なる(groupには編集権限は付与しない)
       // 実装時間の都合と現段階の実装でも問題がない(値が同じ)ため対応していない
-      getPermission(datasetId, groups).getOrElse(UserAndGroupAccessDeny)
+      getPermission(datasetId, groups)
     }
     if (permission < UserAndGroupAllowDownload) {
       return Failure(new AccessDeniedException)
     }
     Success(())
   }
+
   def found[T](opt: Option[T]): Try[T] = {
     opt match {
       case Some(x) => Success(x)
@@ -1956,7 +2021,15 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
-  private def getPermission(id: String, groups: Seq[String])(implicit s: DBSession) = {
+  /**
+   * 対象のデータセットに対する、指定したグループが持つ最も強い権限を取得する。
+   *
+   * @param id データセットID
+   * @param groups グループのリスト
+   * @param s DBセッション
+   * @return 対象のデータセットに対する最も強い権限の値
+   */
+  private def getPermission(id: String, groups: Seq[String])(implicit s: DBSession): Int = {
     val o = persistence.Ownership.syntax("o")
     val g = persistence.Group.g
     val permissions = withSQL {
@@ -1970,17 +2043,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.map(rs => (rs.int(o.resultName.accessLevel), rs.int(g.resultName.groupType))).list().apply
     // 上記のSQLではゲストユーザーは取得できないため、別途取得する必要がある
     val guestPermission = (getGuestAccessLevel(id), GroupType.Personal)
-    // Provider権限のGroupはWriteできない
-    (guestPermission :: permissions) match {
-      case x :: xs => Some((guestPermission :: permissions).map{ case (accessLevel, groupType) =>
-        if (accessLevel == GroupAccessLevel.Provider && groupType == GroupType.Public) {
-          UserAndGroupAllowDownload
-        } else {
-          accessLevel
-        }
-      }.max)
-      case Nil => None
-    }
+    (guestPermission :: permissions).map{ case (accessLevel, groupType) =>
+      // Provider権限のGroupはWriteできない
+      if (accessLevel == GroupAccessLevel.Provider && groupType == GroupType.Public) {
+        UserAndGroupAllowDownload
+      } else {
+        accessLevel
+      }
+    }.max
   }
 
   private def getGuestAccessLevel(datasetId: String)(implicit s: DBSession) = {
@@ -2604,10 +2674,18 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * 属性をcsv形式で取得する。
+   *
+   * @param datasetId データセットID
+   * @param user ユーザ情報
+   * @return CSVファイル
+   */
   def exportAttribute(datasetId: String, user: User): Try[java.io.File] = {
     try
     {
       DB readOnly { implicit s =>
+        checkReadPermission(datasetId, user)
         val a = persistence.Annotation.a
         val da = persistence.DatasetAnnotation.da
         val attributes = withSQL {
@@ -2631,9 +2709,20 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * データセットのアクセスレベルの一覧を取得する。
+   * 
+   * @param datasetId データセットID
+   * @param limit 検索上限
+   * @param offset 検索の開始位置
+   * @param user ユーザ情報
+   * @return アクセスレベルの一覧(offset, limitつき)
+   */
   def searchOwnerships(datasetId: String, offset: Option[Int], limit: Option[Int], user: User): Try[RangeSlice[DatasetOwnership]] = {
     try {
       DB readOnly { implicit s =>
+        checkReadPermission(datasetId, user)
+
         val o = persistence.Ownership.o
         val u = persistence.User.u
         val g = persistence.Group.g
@@ -2741,10 +2830,19 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * データセットの画像一覧を取得する。
+   *
+   * @param datasetId データセットID
+   * @param limit 検索上限
+   * @param offset 検索の開始位置
+   * @param user ユーザー情報
+   * @return データセットが保持する画像の一覧(総件数、limit、offset付き)
+   */
   def getImages(datasetId: String, offset: Option[Int], limit: Option[Int], user: User): Try[RangeSlice[DatasetData.DatasetGetImage]] = {
     try {
       DB readOnly { implicit s =>
-        if (!isOwner(user.id, datasetId)) throw new NotAuthorizedException
+        checkReadPermission(datasetId, user)
 
         val di = persistence.DatasetImage.di
         val i = persistence.Image.i
@@ -3015,27 +3113,19 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           case Some(x) => x
           case None => throw new NotFoundException
         }
-        val groups = getJoinedGroups(user)
-        (for {
-          permission <- getPermission(datasetId, groups)
-        } yield {
-          if (permission == UserAndGroupAccessDeny) {
-            throw new NotAuthorizedException
-          }
-          val validatedLimit = limit.map{ x =>
-            if(x < 0) { 0 } else if (AppConf.fileLimit < x) { AppConf.fileLimit } else { x }
-          }.getOrElse(AppConf.fileLimit)
-          val validatedOffset = offset.getOrElse(0)
-          val count = getFileAmount(datasetId)
-          // offsetが0未満は空リストを返却する
-          if (validatedOffset < 0) {
-            RangeSlice(RangeSliceSummary(count, 0, validatedOffset), Seq.empty[DatasetData.DatasetFile])
-          } else {
-            val files = getFiles(datasetId, validatedLimit, validatedOffset)
-            RangeSlice(RangeSliceSummary(count, files.size, validatedOffset), files)
-          }
-        })
-        .map(x => Success(x)).getOrElse(Failure(new NotAuthorizedException()))
+        checkReadPermission(datasetId, user)
+        val validatedLimit = limit.map{ x =>
+          if(x < 0) { 0 } else if (AppConf.fileLimit < x) { AppConf.fileLimit } else { x }
+        }.getOrElse(AppConf.fileLimit)
+        val validatedOffset = offset.getOrElse(0)
+        val count = getFileAmount(datasetId)
+        // offsetが0未満は空リストを返却する
+        if (validatedOffset < 0) {
+          Success(RangeSlice(RangeSliceSummary(count, 0, validatedOffset), Seq.empty[DatasetData.DatasetFile]))
+        } else {
+          val files = getFiles(datasetId, validatedLimit, validatedOffset)
+          Success(RangeSlice(RangeSliceSummary(count, files.size, validatedOffset), files))
+        }
       }
     } catch {
       case e: Throwable => Failure(e)
@@ -3065,27 +3155,19 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             else { throw new BadRequestException(resource.getString(ResourceNames.cantTakeOutBecauseNotZip)) }
           case None => throw new BadRequestException(resource.getString(ResourceNames.fileNotFound))
         }
-        val groups = getJoinedGroups(user)
-        (for {
-          permission <- getPermission(datasetId, groups)
-        } yield {
-          if (permission == UserAndGroupAccessDeny) {
-            throw new NotAuthorizedException
-          }
-          val validatedLimit = limit.map{ x =>
-            if(x < 0) { 0 } else if (AppConf.fileLimit < x) { AppConf.fileLimit } else { x }
-          }.getOrElse(AppConf.fileLimit)
-          val validatedOffset = offset.getOrElse(0)
-          val count = getZippedFileAmount(datasetId, history.id)
-          // offsetが0未満は空リストを返却する
-          if (validatedOffset < 0) {
-            RangeSlice(RangeSliceSummary(count, 0, validatedOffset), Seq.empty[DatasetData.DatasetZipedFile])
-          } else {
-            val files = getZippedFiles(datasetId, history.id, validatedLimit, validatedOffset)
-            RangeSlice(RangeSliceSummary(count, files.size, validatedOffset), files)
-          }
-        })
-        .map(x => Success(x)).getOrElse(Failure(new NotAuthorizedException()))
+        checkReadPermission(datasetId, user)
+        val validatedLimit = limit.map{ x =>
+          if(x < 0) { 0 } else if (AppConf.fileLimit < x) { AppConf.fileLimit } else { x }
+        }.getOrElse(AppConf.fileLimit)
+        val validatedOffset = offset.getOrElse(0)
+        val count = getZippedFileAmount(datasetId, history.id)
+        // offsetが0未満は空リストを返却する
+        if (validatedOffset < 0) {
+          Success(RangeSlice(RangeSliceSummary(count, 0, validatedOffset), Seq.empty[DatasetData.DatasetZipedFile]))
+        } else {
+          val files = getZippedFiles(datasetId, history.id, validatedLimit, validatedOffset)
+          Success(RangeSlice(RangeSliceSummary(count, files.size, validatedOffset), files))
+        }
       }
     } catch {
       case e: Throwable => Failure(e)

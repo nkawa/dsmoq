@@ -114,4 +114,14 @@ object ResourceNames {
    * 数値は0以上を入力してください
    */
   val requireNonMinus = "require_non_minus"
+
+  /**
+   * データセットにはオーナーが最低一人は必要です
+   */
+  val noOwner = "no_owner"
+
+  /**
+   * グループにはマネージャーが最低一人は必要です
+   */
+  val noManager = "no_manager"
 }

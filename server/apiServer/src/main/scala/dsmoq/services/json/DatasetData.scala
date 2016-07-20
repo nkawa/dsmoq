@@ -56,8 +56,14 @@ object DatasetData {
     files: Seq[DatasetFile]
   )
 
+  /**
+   * データセットに追加した画像を返却する際のJSON型
+   *
+   * @param images データセットの画像のリスト
+   * @param primaryImage メイン画像のID
+   */
   case class DatasetAddImages(
-    images: Seq[Image],
+    images: Seq[DatasetGetImage],
     primaryImage: String
   )
 
@@ -113,5 +119,14 @@ object DatasetData {
 
   case class CopiedDataset (
     datasetId: String
+  )
+
+  /**
+   * データセットに設定したゲストアクセスレベルを返却するためのJSON型
+   * 
+   * @param defaultAccessLevel ゲストユーザが対象のデータセットに持っているロール
+   */
+  case class DatasetGuestAccessLevel(
+    defaultAccessLevel: Int
   )
 }

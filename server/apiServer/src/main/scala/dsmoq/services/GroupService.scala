@@ -341,10 +341,11 @@ class GroupService(resource: ResourceBundle) {
 
   /**
    * 指定したグループに画像を追加します。
-   * @param groupId
-   * @param images
-   * @param user
-   * @return
+   *
+   * @param groupId グループID
+   * @param images 追加する画像の一覧
+   * @param user ユーザ情報
+   * @return 追加した画像のリスト
    */
   def addImages(groupId: String, images: Seq[FileItem], user: User) = {
     try {
@@ -385,11 +386,18 @@ class GroupService(resource: ResourceBundle) {
           isFirst = false
           // write image
           ImageSaveLogic.writeImageFile(imageId, i)
-          image
+          (image, groupImage.isPrimary)
         })
 
         Success(GroupData.GroupAddImages(
-          images = addedImages.map(x => Image(id = x.id, url = groupImageDownloadRoot + groupId + "/" + x.id)),
+          images = addedImages.map{ case (image, isPrimary) => 
+            GroupData.GroupGetImage(
+              id = image.id,
+              name = image.name,
+              url = groupImageDownloadRoot + groupId + "/" + image.id,
+              isPrimary = isPrimary
+            )
+          },
           primaryImage = getPrimaryImageId(groupId).getOrElse("")
         ))
       }
@@ -400,12 +408,12 @@ class GroupService(resource: ResourceBundle) {
 
   /**
    * 指定したグループのユーザロールを設定します。
-   * @param groupId
-   * @param roles
-   * @param user
-   * @return
+   * @param groupId グループID
+   * @param members 追加するメンバーオブジェクト
+   * @param user ログインユーザオブジェクト
+   * @return 追加されたメンバーオブジェクトのリスト
    */
-  def addMembers(groupId: String, roles: Seq[GroupMember], user: User) = {
+  def addMembers(groupId: String, members: Seq[GroupMember], user: User) = {
     try {
       val u = persistence.User.u
       val m = persistence.Member.m
@@ -417,14 +425,16 @@ class GroupService(resource: ResourceBundle) {
         // 登録処理（既に登録されているユーザが送られてきた場合は無視する）
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
-        val userSet = persistence.User
-                        .findAllBy(sqls.inUuid(u.id, roles.map{_.userId}).and.isNull(u.deletedAt))
-                        .map{ _.id }.toSet
+        val userMap = persistence.User
+                        .findAllBy(sqls.inUuid(u.id, members.map{_.userId}).and.isNull(u.deletedAt))
+                        .map{ x => (x.id, x) }.toMap
         val memberMap = persistence.Member
-                          .findAllBy(sqls.inUuid(m.userId, roles.map{_.userId}).and.eq(m.groupId, sqls.uuid(groupId)))
+                          .findAllBy(sqls.inUuid(m.userId, members.map{_.userId}).and.eq(m.groupId, sqls.uuid(groupId)))
                           .map{ x => (x.userId, x) }.toMap
-        roles.filter{ x => userSet.contains(x.userId) }.foreach {item =>
-          if (!memberMap.contains(item.userId)) {
+        val updatedMembers = members.filter{ x => userMap.contains(x.userId) }.map {item =>
+          // 存在チェックは行われているので、必ず成功する
+          val user = userMap(item.userId)
+          val updatedMember = if (!memberMap.contains(item.userId)) {
             persistence.Member.create(
               id = UUID.randomUUID.toString,
               groupId = groupId,
@@ -452,10 +462,22 @@ class GroupService(resource: ResourceBundle) {
                 deletedAt = None,
                 deletedBy = None
               ).save()
+            } else {
+              member
             }
           }
+          GroupData.MemberSummary(
+            id = user.id,
+            name = user.name,
+            fullname = user.fullname,
+            organization = user.organization,
+            description = user.description,
+            title = user.title,
+            image = AppConf.imageDownloadRoot + "user/" + user.id + "/" + user.imageId,
+            role = updatedMember.role
+          )
         }
-        Success(Unit)
+        Success(GroupData.AddMembers(updatedMembers))
       }
     } catch {
       case e: Throwable => Failure(e)
@@ -464,16 +486,20 @@ class GroupService(resource: ResourceBundle) {
 
   /**
    * 指定したグループメンバーのロールレベルを変更します。
-   * @param groupId
-   * @param userId
-   * @param role
-   * @param user
+   * @param groupId グループID
+   * @param userId ユーザID
+   * @param role ロール
+   * @param user ログインユーザオブジェクト
+   * @return 更新されたメンバーオブジェクト
    */
   def updateMemberRole(groupId: String, userId: String, role: Int, user: User) = {
     try {
       val m = persistence.Member.m
 
       DB localTx { implicit s =>
+        if (getOtherManagerCount(groupId, userId) == 0) {
+          throw new BadRequestException(resource.getString(ResourceNames.noManager))
+        }
         (for {
           group <- findGroupById(groupId)
           user <- findUserById(userId)
@@ -492,14 +518,25 @@ class GroupService(resource: ResourceBundle) {
             deletedBy = None,
             deletedAt = None
           ).save()
+          GroupData.MemberSummary(
+            id = member.userId,
+            name = user.name,
+            fullname = user.fullname,
+            organization = user.organization,
+            description = user.description,
+            title = user.title,
+            image = AppConf.imageDownloadRoot + "user/" + user.id + "/" + user.imageId,
+            role = role
+          )
         }) match {
-          case Some(_) => Success(Unit)
+          case Some(member) => Success(member)
           case None => Failure(new NotFoundException())
         }
       }
     } catch {
       case e: Throwable => Failure(e)
-    }  }
+    }
+  }
 
   def findMemberById(groupId: String, userId: String)(implicit s: DBSession): Option[Member] = {
     val m = persistence.Member.m
@@ -527,13 +564,18 @@ class GroupService(resource: ResourceBundle) {
 
   /**
    * 指定したグループメンバーを削除します。
-   * @param groupId
-   * @param userId
-   * @param user
+   * @param groupId グループID
+   * @param userId ユーザID
+   * @param user ログインユーザオブジェクト
+   * @return エラーがあれば、例外をFailureに包んで返却する。発生しうる例外は、BadRequestException、NotFoundExcepitonである。
    */
   def removeMember(groupId: String, userId: String, user: User) = {
     try {
       DB localTx { implicit s =>
+        if (getOtherManagerCount(groupId, userId) == 0) {
+          throw new BadRequestException(resource.getString(ResourceNames.noManager))
+        }
+
         (for {
           group <- findGroupById(groupId)
           user <- findUserById(userId)
@@ -562,6 +604,29 @@ class GroupService(resource: ResourceBundle) {
     }
   }
 
+  /**
+   * 指定したユーザー以外のグループのマネージャの数を取得する。
+   *
+   * @param groupId グループID
+   * @param userId 除外するユーザーID
+   * @param session DBセッション
+   * @return マネージャの数
+   */
+  private def getOtherManagerCount(groupId: String, userId: String)(implicit session: DBSession): Int = {
+    val g = persistence.Group.g
+    val m = persistence.Member.m
+    withSQL {
+      select(sqls.count(m.id))
+        .from(persistence.Member as m)
+        .innerJoin(persistence.Group as g).on(sqls.eq(g.id, m.groupId))
+        .where
+          .ne(m.userId, sqls.uuid(userId))
+          .and
+          .eq(m.groupId, sqls.uuid(groupId))
+          .and
+          .eq(m.role, GroupMemberRole.Manager)
+    }.map(rs => rs.int(1)).single.apply.getOrElse(0)
+  }
 
   /**
    * 指定したグループを削除します。
@@ -1003,11 +1068,18 @@ class GroupService(resource: ResourceBundle) {
     }
   }
 
+  /**
+   * グループの画像一覧を取得する。
+   *
+   * @param groupId グループID
+   * @param limit 検索上限
+   * @param offset 検索の開始位置
+   * @param user ユーザー情報
+   * @return グループが保持する画像の一覧(総件数、limit、offset付き)
+   */
   def getImages(groupId: String, offset: Option[Int], limit: Option[Int], user: User): Try[RangeSlice[GroupData.GroupGetImage]] = {
     try {
       DB readOnly { implicit s =>
-        if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
-
         val gi = persistence.GroupImage.gi
         val i = persistence.Image.i
         val totalCount = withSQL {

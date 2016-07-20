@@ -125,6 +125,7 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
             }
           } else {
             get("/api/datasets/" + params._1) {
+              println(body)
               // Unauthorized
               status should be(200)
               val result = parse(body).extract[AjaxResponse[Any]]

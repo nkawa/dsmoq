@@ -500,7 +500,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
           response.setHeader("Content-Disposition", "attachment; filename=" + x.getName)
           response.setHeader("Content-Type", "application/octet-stream;charset=binary")
           x
-      case Failure(e) => halt(status = 403, reason = "Forbidden", body="Forbidden")
+      case Failure(_) => toAjaxResponse(ret)
     }
   }
 
@@ -706,8 +706,10 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
         } yield {}
       }
       user    <- getUser(request, false)
-      _       <- groupService.addMembers(groupId, json, user)
-    } yield {}
+      result  <- groupService.addMembers(groupId, json, user)
+    } yield {
+      result
+    }
     toAjaxResponse(ret)
   }
 
@@ -715,15 +717,17 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
     val groupId = params("groupId")
     val userId = params("userId")
     val ret = for {
-      _    <- checkUtil.validUuidForUrl("groupId", groupId)
-      _    <- checkUtil.validUuidForUrl("userId", userId)
-      d    <- getJsonValue[SetGroupMemberRoleParams]
-      json <- jsonOptToTry(d)
-      role <- checkUtil.requireForForm("d.role", json.role)
-      _    <- checkUtil.contains("d.role", role, Seq(0, 1, 2))
-      user <- getUser(request, false)
-      _    <- groupService.updateMemberRole(groupId, userId, role, user)
-    } yield {}
+      _      <- checkUtil.validUuidForUrl("groupId", groupId)
+      _      <- checkUtil.validUuidForUrl("userId", userId)
+      d      <- getJsonValue[SetGroupMemberRoleParams]
+      json   <- jsonOptToTry(d)
+      role   <- checkUtil.requireForForm("d.role", json.role)
+      _      <- checkUtil.contains("d.role", role, Seq(0, 1, 2))
+      user   <- getUser(request, false)
+      result <- groupService.updateMemberRole(groupId, userId, role, user)
+    } yield {
+      result
+    }
     toAjaxResponse(ret)
   }
 

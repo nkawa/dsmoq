@@ -36,6 +36,15 @@ object GroupData {
     role: Int
   )
 
+  /**
+   * グループに追加したメンバーを返却するために使用するJSON型
+   *
+   * @param ownerships メンバーに追加したユーザのリスト
+   */
+  case class AddMembers(
+    ownerships: Seq[MemberSummary]
+  )
+
   case class AddMember(
                         id: String,
                         name: String,
@@ -43,8 +52,14 @@ object GroupData {
                         role: Int
                         )
 
+  /**
+   * グループに追加した画像を返却するためのJSON型
+   *
+   * @param images グループの画像のリスト
+   * @param primaryImage メイン画像のID
+   */
   case class GroupAddImages(
-                             images: Seq[Image],
+                             images: Seq[GroupGetImage],
                              primaryImage: String
                              )
 
