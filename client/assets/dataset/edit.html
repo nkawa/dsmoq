@@ -168,7 +168,7 @@
                     {{/if}}
                   </div>
                 </div>
-              </div>
+              </div>{{!-- .dataset-file-view --}}
               <div class="row dataset-file-menu" style="margin-top: 4px;">
                 <div class="col-sm-12">
                   <button type="button" class="btn btn-xs dataset-file-edit-start" data-value="{{>id}}">edit</button>
@@ -178,12 +178,12 @@
               </div>
               <div class="dataset-file-edit"></div>
               <div class="dataset-file-replace"></div>
-            </div>
-          {{/for}}
+            </div>{{!-- .well.well-sm.dataset-file --}}
+          {{/for}}{{!-- dataset.files.items --}}
           {^{pagination dataset.files.index dataset.files.pages id="files-pagination" pagedelta=5 /}}
-        {{else}}
+        {{else}}{{!-- dataset.files.total --}}
           <p>There are no files.</p>
-        {{/if}}
+        {{/if}}{{!-- dataset.files.total --}}
         <form role="form" id="dataset-file-add-form">
           <div class="form-group">
             <label class="control-label">Add file</label><br>
@@ -191,7 +191,7 @@
             <a href="javascript:void 0;" class="btn btn-primary btn-sm" data-loading-text="Saving..." style="display: none;" id="dataset-file-add-submit">Upload</a>
           </div>
         </form>
-      </div>
+      </div>{{!-- #dataset-files --}}
 
       <div class="tab-pane" id="dataset-acl">
         <h3 style="margin-top: 0;">Access Control List</h3>

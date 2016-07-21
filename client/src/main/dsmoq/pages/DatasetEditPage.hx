@@ -2,16 +2,11 @@ package dsmoq.pages;
 
 import conduitbox.Navigation;
 import dsmoq.models.DatasetFile;
-import dsmoq.models.DatasetGuestAccessLevel;
 import dsmoq.models.DatasetImage;
-import dsmoq.models.DatasetMetadata;
 import dsmoq.models.DatasetPermission;
-import dsmoq.models.Image;
-import dsmoq.models.License;
 import dsmoq.models.Profile;
 import dsmoq.models.Service;
 import dsmoq.views.AutoComplete;
-import dsmoq.models.DatasetOwnership;
 import dsmoq.models.GroupRole;
 import dsmoq.models.SuggestedOwner;
 import dsmoq.View;
@@ -41,46 +36,9 @@ import js.html.EventTarget;
 import js.html.OptionElement;
 import js.Lib;
 import dsmoq.CKEditor;
+import dsmoq.pages.datas.DatasetEdit;
 
 using hxgnd.OptionTools;
-
-typedef Paged<T> = {
-    var index: Int;
-    var limit: Int;
-    var total: Int;
-    var items: Array<T>;
-    var pages: Int;
-};
-typedef DatasetEditPageDataDataset = {
-    var id: String;
-    var meta: DatasetMetadata;
-    var files: Paged<DatasetFile>;
-    var ownerships: Array<DatasetOwnership>;
-    var defaultAccessLevel: DatasetGuestAccessLevel;
-    var primaryImage: Image;
-    var featuredImage: Image;
-    var localState: Int;
-    var s3State: Int;
-    var errors: {
-        meta: {
-            name: String,
-            description: String,
-            license: String,
-            attributes: String,
-        },
-        icon: String,
-        files: {
-            images: String,
-        },
-        ownerships: { },
-    };
-};
-typedef DatasetEditPageData = {
-    var myself: Profile;
-    var licenses: Array<License>;
-    var dataset: DatasetEditPageDataDataset;
-    var owners: Async<Paged<DatasetOwnership>>;
-};
 
 class DatasetEditPage {
     inline static var OwnerCandicateSize = 5;
@@ -133,7 +91,7 @@ class DatasetEditPage {
         });
 
         promise.then(function (x) {
-            var data: DatasetEditPageData = {
+            var data: DatasetEdit = {
                 myself: Service.instance.profile,
                 licenses: Service.instance.licenses,
                 dataset: {
@@ -340,8 +298,12 @@ class DatasetEditPage {
                         setFileCount(data, data.dataset.files.total + res.length);
                         loadFiles(data, data.dataset.files.index, root, navigation);
                         Notification.show("success", "save successful");
+                        // TODO: 何らかのユーザ操作があるまで、追加完了の旨が残るようにする
+                        // (ページャ対応で、追加した対象が必ずしも画面に存在するとは限らないため)
+                        // TODO: ユーザ操作完了の際にlogを吐く
                     },
                     function (e) {
+                        // FIXME: エラーレスポンスの変更に追従する
                         switch (e.name) {
                             case ServiceErrorType.BadRequest:
                                 Notification.show("error", "file is empty");
@@ -362,6 +324,8 @@ class DatasetEditPage {
                 root.find(fileButtonPath).attr("disabled", true);
             }
 
+            // 以下のイベントハンドラの付与は、対象が常にDOM上に存在する(表示/非表示で制御)
+            
             // #dataset-file-add-formの状態が変更したときに動作する
             root.find("#dataset-file-add-form").on("change", "input[type=file]", function (e) {
                 // #dataset-file-add-submitの表示/非表示を切り替える
@@ -380,10 +344,12 @@ class DatasetEditPage {
             root.find("#dataset-file-add-submit-top").on("click", function (_) {
                 uploadFiles("#dataset-file-add-submit-top", "#dataset-file-add-form-top");
             });
-
+            // ページャの状態が変化したときに動作する
             JsViews.observe(data.dataset.files, "index", function (_, _) {
                 loadFiles(data, data.dataset.files.index, root, navigation);
             });
+            
+            // 初回読み込み
             loadFiles(data, data.dataset.files.index, root, navigation);
 
             // Access Control
@@ -849,12 +815,38 @@ class DatasetEditPage {
             });
         });
     }
-    static function loadFiles(data: DatasetEditPageData, index: Int, root: Html, navigation: PromiseBroker<Navigation<Page>>) {
+    /**
+     * 指定したページのファイル一覧を読み込みます。
+     * 
+     * @param data データバインドされた画面データ
+     * @param index 読み込むページ番号 (現在表示中のページではない) (0起算)
+     * @param root
+     * @param navigation
+     */
+    static function loadFiles(data: DatasetEdit, index: Int, root: Html, navigation: PromiseBroker<Navigation<Page>>) {
+        if (data == null) {
+            trace("DatasetEditPage.loadFiles: invalid data - null");
+            return;
+        }
+        if (root == null) {
+            trace("DatasetEditPage.loadFiles: invalid root - null");
+            return;
+        }
+        if (navigation == null) {
+            trace("DatasetEditPage.loadFiles: invalid navigation - null");
+            return;
+        }
+        if (index < 0) {
+            trace('DatasetEditPage.loadFiles: invalid index - ${index}');
+            return;
+        }
+        // TODO: 読み込み中にローディングスピナーを出す
         var offset = index * data.dataset.files.limit;
         Service.instance.getDatasetFiles(data.dataset.id, { limit: data.dataset.files.limit, offset: offset }).then(function (res) {
             JsViews.observable(data.dataset.files.items).refresh(res.results);
             setFileEditEvents(data, root, navigation);
         }, function (err) {
+            // FIXME: エラーレスポンスの変更に追従する
             switch (err.name) {
                 case ServiceErrorType.Unauthorized:
                     navigation.fulfill(Navigation.Navigate(Page.Top));
@@ -866,11 +858,44 @@ class DatasetEditPage {
             }
         });
     }
-    static function setFileCount(data: DatasetEditPageData, count: Int) {
+    /**
+     * ファイル総数を設定します。
+     * 
+     * @param data データバインドされた画面データ
+     * @param count 設定するファイル総数
+     */
+    static function setFileCount(data: DatasetEdit, count: Int) {
+        if (data == null) {
+            trace("DatasetEditPage.setFileCount: invalid data - null");
+            return;
+        }
+        if (count < 0) {
+            trace('DatasetEditPage.setFileCount: invalid count - ${count}');
+            return;
+        }
         var pages = Math.ceil(count / data.dataset.files.limit);
         JsViews.observable(data.dataset.files).setProperty({ total: count, pages: pages });
     }
-    static function setFileEditEvents(data: DatasetEditPageData, root: Html, navigation: PromiseBroker<Navigation<Page>>) {
+    /**
+     * ファイル一覧部にイベントハンドラを付与します。
+     * 
+     * @param data データバインドされた画面データ
+     * @param root
+     * @param navigation
+     */
+    static function setFileEditEvents(data: DatasetEdit, root: Html, navigation: PromiseBroker<Navigation<Page>>) {
+        if (data == null) {
+            trace("DatasetEditPage.setFileEditEvents: invalid data - null");
+            return;
+        }
+        if (root == null) {
+            trace("DatasetEditPage.setFileEditEvents: invalid root - null");
+            return;
+        }
+        if (navigation == null) {
+            trace("DatasetEditPage.setFileEditEvents: invalid navigation - null");
+            return;
+        }
         var id = data.dataset.id;
         root.find(".dataset-file-edit-start").off();
         root.find(".dataset-file-edit-submit").off();
@@ -921,6 +946,7 @@ class DatasetEditPage {
                         Notification.show("success", "save successful");
                     },
                     function (e) {
+                        // FIXME: エラーレスポンスの変更に追従する
                         switch (e.name) {
                             case ServiceErrorType.BadRequest:
                                 for (x in cast(e, ServiceError).detail) {
@@ -981,6 +1007,7 @@ class DatasetEditPage {
                         Notification.show("success", "save successful");
                     },
                     function (e) {
+                        // FIXME: エラーレスポンスの変更に追従する
                         switch (e.name) {
                             case ServiceErrorType.BadRequest:
                                 Notification.show("error", "file is empty");
@@ -1016,6 +1043,7 @@ class DatasetEditPage {
                     Notification.show("success", "delete successful");
                 },
                 function (e) {
+                    // FIXME: エラーレスポンスの変更に追従する
                     if (e.message != "Canceled") {
                         switch (e.name) {
                             case ServiceErrorType.NotFound:
