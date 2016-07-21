@@ -4,76 +4,115 @@ import dsmoq.exceptions._
 import dsmoq.persistence.GroupType
 import dsmoq.{persistence, AppConf}
 import scalikejdbc._
-import scala.util.{Success, Failure}
+import scala.util.Try
 import dsmoq.logic.ImageSaveLogic
+import dsmoq.persistence.GroupAccessLevel
 import dsmoq.persistence.PostgresqlHelper._
 
 object ImageService {
-  def getUserFile(userId: String, imageId: String, size: Option[String]) = {
-    try {
+  /**
+   * 指定されたユーザの画像を取得します。
+   * 
+   * @param userId 画像を持っているユーザのID
+   * @param imageId 取得する画像ID
+   * @param size 取得する画像サイズ、Noneでオリジナル
+   * @return
+   *   Success(ファイルオブジェクトとファイル名のペア) 成功時
+   *   Failure(NotFoundException) 対象画像が存在しない場合
+   */
+  def getUserFile(userId: String, imageId: String, size: Option[String]): Try[(java.io.File, String)] = {
+    Try {
       DB readOnly { implicit s =>
         val user = persistence.User.find(userId)
-        user match {
-          case Some(u) => {
-            if (u.imageId != imageId) throw new InputValidationException(Map("imageId" -> "imageId is not related to target"))
-          }
-          case None => throw new NotAuthorizedException
+        if (user.filter(_.imageId == imageId).isEmpty) {
+          throw new NotFoundException
         }
       }
-      Success(getFile(imageId, size))
-    } catch {
-      case e: Exception => Failure(e)
+      getFile(imageId, size)
     }
   }
 
-  def getDatasetFile(datasetId: String, imageId: String, size: Option[String], user: User) = {
-    try {
+  /**
+   * 指定されたデータセットの画像を取得します。
+   * 
+   * @param datasetId 画像を持っているデータセットのID
+   * @param imageId 取得する画像ID
+   * @param size 取得する画像サイズ、Noneでオリジナル
+   * @param user 画像を取得しようとしてるユーザ
+   * @return
+   *   Success(ファイルオブジェクトとファイル名のペア) 成功時
+   *   Failure(NotFoundException) 対象画像が存在しない場合
+   *   Failure(AccessDeniedException) 画像を取得しようとしているユーザに、対象データセットへのアクセス権限がない場合
+   */
+  def getDatasetFile(datasetId: String, imageId: String, size: Option[String], user: User): Try[(java.io.File, String)] = {
+    Try {
       DB readOnly { implicit s =>
-        (for {
-          groups <- Some(getJoinedGroups(user))
-          permission <- getPermission(datasetId, groups)
-        } yield {
-          if (permission == 0) throw new NotAuthorizedException
-          if (!isRelatedToDataset(datasetId, imageId)) throw new InputValidationException(Map("imageId" -> "imageId is not related to target"))
-          getFile(imageId, size)
-        }).map(x => Success(x)).getOrElse(Failure(new NotAuthorizedException()))
+        val groups = getJoinedGroups(user)
+        if (!isRelatedToDataset(datasetId, imageId)) {
+          throw new NotFoundException
+        }
+        if (getPermission(datasetId, groups) == GroupAccessLevel.Deny) {
+          throw new AccessDeniedException
+        }
+        getFile(imageId, size)
       }
-    } catch {
-      case e: Exception => Failure(e)
     }
   }
 
-  def getGroupFile(groupId: String, imageId: String, size: Option[String]) = {
-    try {
+  /**
+   * 指定されたグループの画像を取得します。
+   * 
+   * @param groupId 画像を持っているグループのID
+   * @param imageId 取得する画像ID
+   * @param size 取得する画像サイズ、Noneでオリジナル
+   * @return
+   *   Success(ファイルオブジェクトとファイル名のペア) 成功時
+   *   Failure(NotFoundException) 対象画像が存在しない場合
+   */
+  def getGroupFile(groupId: String, imageId: String, size: Option[String]): Try[(java.io.File, String)] = {
+    Try {
       DB readOnly { implicit s =>
-        if (!isRelatedToGroup(groupId, imageId)) throw new InputValidationException(Map("imageId" -> "imageId is not related to target"))
-        Success(getFile(imageId, size))
+        if (!isRelatedToGroup(groupId, imageId)) {
+          throw new NotFoundException
+        }
+        getFile(imageId, size)
       }
-    } catch {
-      case e: Exception => Failure(e)
     }
   }
 
-  def getFile(imageId: String, size: Option[String]) = {
-    val f = DB readOnly { implicit s =>
-      persistence.Image.find(imageId)
-    } match {
+  /**
+   * 指定された画像IDのファイルを取得します。
+   * 
+   * @param imageId 取得する画像ファイルのImageID
+   * @param size 取得する画像サイズ、Noneでオリジナル
+   * @return ファイルオブジェクトとファイル名のペア
+   * @throws NotFoundException 対象画像IDがDBに存在しない、またはファイルが存在しない場合
+   */
+  def getFile(imageId: String, size: Option[String]): (java.io.File, String) = {
+    val ret = for {
+      image <- DB.readOnly { implicit s => persistence.Image.find(imageId) }
+      file <- getImageFile(image, size)
+    } yield {
+      (file, image.name)
+    }
+    ret match { 
       case Some(x) => x
-      case None => throw new RuntimeException("data not found.")
+      case None => throw new NotFoundException
     }
-
+  }
+  /**
+   * 指定された画像のファイルを取得します。
+   * 
+   * @param image DB上の画像情報
+   * @param size 取得する画像のサイズ、Noneでオリジナル
+   * @return 画像ファイル、存在しない場合None
+   */
+  def getImageFile(image: persistence.Image, size: Option[String]): Option[java.io.File] = {
     // ファイルサイズ指定が合致すればその画像サイズ
-    val fileName = size match {
-      case Some(x) => if (ImageSaveLogic.imageSizes.contains(x.toInt)) {
-        x
-      } else {
-        ImageSaveLogic.defaultFileName
-      }
-      case None => ImageSaveLogic.defaultFileName
-    }
-    val file = new java.io.File(java.nio.file.Paths.get(AppConf.imageDir, f.filePath, fileName).toString)
-    if (!file.exists()) throw new RuntimeException("file not found.")
-    (file, f.name)
+    val fileName = size.filter(x => ImageSaveLogic.imageSizes.contains(x.toInt)).getOrElse(ImageSaveLogic.defaultFileName)
+    
+    val file = new java.io.File(java.nio.file.Paths.get(AppConf.imageDir, image.filePath, fileName).toString)
+    Option(file).filter(_.exists)
   }
 
   def getJoinedGroups(user: User)(implicit s: DBSession): Seq[String] = {
@@ -96,7 +135,14 @@ object ImageService {
     }
   }
 
-  private def getPermission(id: String, groups: Seq[String])(implicit s: DBSession) = {
+  /**
+   * 指定されたDatasetに対する権限を取得します。
+   * 
+   * @param id Dataset ID
+   * @param groups 所属しているグループ
+   * @return アクセスレベル (@see dsmoq.persistence.GroupAccessLevel)
+   */
+  private def getPermission(id: String, groups: Seq[String])(implicit s: DBSession): Int = {
     val o = persistence.Ownership.syntax("o")
     val g = persistence.Group.g
     val permissions = withSQL {
@@ -111,10 +157,10 @@ object ImageService {
     // 上記のSQLではゲストユーザーは取得できないため、別途取得する必要がある
     val guestPermission = (getGuestAccessLevel(id), GroupType.Personal)
     // Provider権限のGroupはWriteできない
-    (guestPermission :: permissions) match {
-      case x :: xs => Some((guestPermission :: permissions).map(x => if (x._1 == 3 && x._2 == GroupType.Public) { 2 } else { x._1 }).max)
-      case Nil => None
-    }
+    (guestPermission :: permissions).map {
+      case (accessLevel, groupType) =>
+        if (accessLevel == GroupAccessLevel.Provider && groupType == GroupType.Public) GroupAccessLevel.FullPublic else accessLevel
+    }.max
   }
 
   private def isRelatedToDataset(datasetId: String, imageId: String)(implicit s: DBSession): Boolean = {
@@ -154,6 +200,6 @@ object ImageService {
         .eq(o.groupId, sqls.uuid(AppConf.guestGroupId))
         .and
         .isNull(o.deletedAt)
-    }.map(_.int(o.resultName.accessLevel)).single().apply().getOrElse(0)
+    }.map(_.int(o.resultName.accessLevel)).single().apply().getOrElse(GroupAccessLevel.Deny)
   }
 }

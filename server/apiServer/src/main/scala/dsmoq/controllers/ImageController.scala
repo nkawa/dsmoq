@@ -61,9 +61,9 @@ class ImageController extends ScalatraServlet with SessionTrait {
         response.setHeader("Content-Type", "application/octet-stream;charset=binary")
         x._1
       case Failure(exp) => exp match {
-        case e: InputValidationException => halt(status = 403, reason = "imageId is not related to target", body="imageId is not related to target")
-        case e: NotAuthorizedException => halt(status = 403, reason = "Forbidden", body="Forbidden")
-        case e: RuntimeException => NotFound(e.getMessage)
+        case _: NotFoundException => halt(status = 404, reason = "NotFound", body = "NotFound")
+        case _: AccessDeniedException => halt(status = 403, reason = "Forbidden", body = "AccessDenied")
+        case _: Exception => halt(status = 500, reason = "InternalServerError", body = "InternalServerError")
       }
     }
   }

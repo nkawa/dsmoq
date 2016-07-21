@@ -77,9 +77,10 @@ class FileController extends ScalatraServlet with SessionTrait with ApiKeyAuthor
         logger.error(LOG_MARKER, "Failure occurred.", e)
 
         e match {
-          case _: NotFoundException => halt(status = 404, reason = "Not Found", body = "Not Found")
-          case _: AccessDeniedException => halt(status = 403, reason = "Forbidden", body = "Forbidden")
-          case e: Exception => halt(status = 500, reason = e.getMessage, body = e.getMessage)
+          case _: NotFoundException => halt(status = 404, reason = "NotFound", body = "NotFound")
+          case _: NotAuthorizedException => halt(status = 403, reason = "Forbidden", body = "Unauthorized")
+          case _: AccessDeniedException => halt(status = 403, reason = "Forbidden", body = "AccessDenied")
+          case _: Exception => halt(status = 500, reason = "InternalServerError", body = "InternalServerError")
         }
       }
     }
@@ -221,9 +222,10 @@ class FileController extends ScalatraServlet with SessionTrait with ApiKeyAuthor
         logger.error(LOG_MARKER, "Failure occurred.", e)
 
         e match {
-          case _: NotFoundException => halt(status = 404, reason = "Not Found", body = "Not Found")
-          case _: AccessDeniedException => halt(status = 403, reason = "Forbidden", body = "Forbidden")
-          case e: Exception => halt(status = 500, reason = e.getMessage, body = e.getMessage)
+          case _: NotFoundException => halt(status = 404, reason = "NotFound", body = "NotFound")
+          case _: NotAuthorizedException => halt(status = 403, reason = "Forbidden", body = "Unauthorized")
+          case _: AccessDeniedException => halt(status = 403, reason = "Forbidden", body = "AccessDenied")
+          case _: Exception => halt(status = 500, reason = "InternalServerError", body = "InternalServerError")
         }
       }
     }
