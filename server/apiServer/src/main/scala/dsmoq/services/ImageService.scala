@@ -25,6 +25,7 @@ object ImageService {
       DB readOnly { implicit s =>
         val user = persistence.User.find(userId)
         if (user.filter(_.imageId == imageId).isEmpty) {
+          // ユーザが存在しないが、ユーザの画像が指定の画像IDと一致しない場合、画像が存在しないとして処理を打ち切る
           throw new NotFoundException
         }
       }
@@ -47,11 +48,13 @@ object ImageService {
   def getDatasetFile(datasetId: String, imageId: String, size: Option[String], user: User): Try[(java.io.File, String)] = {
     Try {
       DB readOnly { implicit s =>
-        val groups = getJoinedGroups(user)
         if (!isRelatedToDataset(datasetId, imageId)) {
+          // 指定した画像が、指定のデータセットのものではない場合、画像が存在しないとして処理を打ち切る
           throw new NotFoundException
         }
+        val groups = getJoinedGroups(user)
         if (getPermission(datasetId, groups) == GroupAccessLevel.Deny) {
+          // 指定したユーザが所属しているグループが、指定したデータセットに対してアクセス権を持っていない場合、アクセス権がないとして処理を打ち切る
           throw new AccessDeniedException
         }
         getFile(imageId, size)
@@ -73,6 +76,7 @@ object ImageService {
     Try {
       DB readOnly { implicit s =>
         if (!isRelatedToGroup(groupId, imageId)) {
+          // 指定した画像が、指定のグループのものではない場合、画像が存在しないとして処理を打ち切る
           throw new NotFoundException
         }
         getFile(imageId, size)
@@ -97,7 +101,7 @@ object ImageService {
     }
     ret match { 
       case Some(x) => x
-      case None => throw new NotFoundException
+      case None => throw new NotFoundException // 対象画像IDがDBに存在しない、またはファイルが存在しない
     }
   }
   /**

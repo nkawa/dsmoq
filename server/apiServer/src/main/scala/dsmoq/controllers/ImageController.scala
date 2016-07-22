@@ -3,7 +3,7 @@ package dsmoq.controllers
 import org.scalatra.{NotFound, ScalatraServlet}
 import dsmoq.services.{ImageService, User}
 import scala.util.{Try, Success, Failure}
-import dsmoq.exceptions._
+import dsmoq.exceptions.{AccessDeniedException, NotFoundException}
 
 class ImageController extends ScalatraServlet with SessionTrait {
   before("/*") {
@@ -61,9 +61,9 @@ class ImageController extends ScalatraServlet with SessionTrait {
         response.setHeader("Content-Type", "application/octet-stream;charset=binary")
         x._1
       case Failure(exp) => exp match {
-        case _: NotFoundException => halt(status = 404, reason = "NotFound", body = "NotFound")
-        case _: AccessDeniedException => halt(status = 403, reason = "Forbidden", body = "AccessDenied")
-        case _: Exception => halt(status = 500, reason = "InternalServerError", body = "InternalServerError")
+        case _: NotFoundException => halt(status = 404, reason = "Not Found", body = "Not Found") // 403 Forbidden
+        case _: AccessDeniedException => halt(status = 403, reason = "Forbidden", body = "Access Denied") // 403 Forbidden
+        case _: Exception => halt(status = 500, reason = "Internal Server Error", body = "Internal Server Error") // 500 Internal Server Error
       }
     }
   }
