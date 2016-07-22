@@ -2,7 +2,7 @@ package dsmoq.controllers
 
 import com.typesafe.scalalogging.LazyLogging
 import dsmoq.exceptions.{AccessDeniedException, NotAuthorizedException, NotFoundException}
-import dsmoq.services.DatasetService._
+import dsmoq.services.DatasetService.{DownloadFileLocalNormal, DownloadFileLocalZipped, DownloadFileS3Normal, DownloadFileS3Zipped}
 import dsmoq.services.{DatasetService, User}
 import org.apache.commons.io.input.BoundedInputStream
 import org.scalatra.ScalatraServlet
@@ -77,9 +77,10 @@ class FileController extends ScalatraServlet with SessionTrait with ApiKeyAuthor
         logger.error(LOG_MARKER, "Failure occurred.", e)
 
         e match {
-          case _: NotFoundException => halt(status = 404, reason = "Not Found", body = "Not Found")
-          case _: AccessDeniedException => halt(status = 403, reason = "Forbidden", body = "Forbidden")
-          case e: Exception => halt(status = 500, reason = e.getMessage, body = e.getMessage)
+          case _: NotFoundException => halt(status = 404, reason = "Not Found", body = "Not Found") // 404 Not Found
+          case _: NotAuthorizedException => halt(status = 403, reason = "Forbidden", body = "Unauthorized") // 403 Forbidden (401 Unauthorized はブラウザ標準の認証処理が走るので不可)
+          case _: AccessDeniedException => halt(status = 403, reason = "Forbidden", body = "Access Denied") // 403 Forbidden
+          case _: Exception => halt(status = 500, reason = "Internal Server Error", body = "Internal Server Error") // 500 Internal Server Error
         }
       }
     }
@@ -221,9 +222,10 @@ class FileController extends ScalatraServlet with SessionTrait with ApiKeyAuthor
         logger.error(LOG_MARKER, "Failure occurred.", e)
 
         e match {
-          case _: NotFoundException => halt(status = 404, reason = "Not Found", body = "Not Found")
-          case _: AccessDeniedException => halt(status = 403, reason = "Forbidden", body = "Forbidden")
-          case e: Exception => halt(status = 500, reason = e.getMessage, body = e.getMessage)
+          case _: NotFoundException => halt(status = 404, reason = "Not Found", body = "Not Found") // 404 Not Found
+          case _: NotAuthorizedException => halt(status = 403, reason = "Forbidden", body = "Unauthorized") // 403 Forbidden (401 Unauthorized はブラウザ標準の認証処理が走るので不可)
+          case _: AccessDeniedException => halt(status = 403, reason = "Forbidden", body = "Access Denied") // 403 Forbidden
+          case _: Exception => halt(status = 500, reason = "Internal Server Error", body = "Internal Server Error") // 500 Internal Server Error
         }
       }
     }
