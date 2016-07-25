@@ -300,7 +300,6 @@ class DatasetEditPage {
                         Notification.show("success", "save successful");
                         // TODO: 何らかのユーザ操作があるまで、追加完了の旨が残るようにする
                         // (ページャ対応で、追加した対象が必ずしも画面に存在するとは限らないため)
-                        // TODO: ユーザ操作完了の際にlogを吐く
                     },
                     function (e) {
                         // FIXME: エラーレスポンスの変更に追従する
