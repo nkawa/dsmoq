@@ -8,120 +8,120 @@ object ResourceNames {
   /**
    * ローカルかS3のいずれかの保存先にチェックを付けてください
    */
-  val checkS3OrLocal = "check_s3_or_local"
+  val CHECK_S3_OR_LOCAL = "check_s3_or_local"
 
   /**
    * 空ファイルが指定されました
    */
-  val selectEmptyFile = "select_empty_file"
+  val SELECT_EMPTY_FILE = "select_empty_file"
 
   /**
    * featured属性は一つまでにしてください
    */
-  val featureAttributeIsOnlyOne = "feature_attribute_is_only_one"
+  val FEATURE_ATTRIBUTE_IS_ONLY_ONE = "feature_attribute_is_only_one"
 
   /**
    * JSONパラメータは必須です
    */
-  val jsonParameterRequired = "json_parameter_required"
+  val JSON_PARAMETER_REQUIRED = "json_parameter_required"
 
   /**
    * JSONの形式が不正です
    */
-  val invalidJsonFormat = "invalid_json_format"
+  val INVALID_JSON_FORMAT = "invalid_json_format"
 
   /**
    * パスワードが一致しません
    */
-  val invalidPassword = "invalid_password"
+  val INVALID_PASSWORD = "invalid_password"
 
   /**
    * GoogleユーザーアカウントのEmailアドレスは変更できません
    */
-  val cantChangeGoogleUserEmail = "cant_change_googleuser_email"
+  val CANT_CHANGE_GOOGLE_USER_EMAIL = "cant_change_googleuser_email"
 
   /**
    * Emailアドレス：%s はすでに登録されています
    */
-  val alreadyRegisteredEmail = "already_registered_email"
+  val ALREADY_REGISTERED_EMAIL = "already_registered_email"
 
   /**
    * Googleユーザーアカウントのパスワードは変更できません
    */
-  val cantChangeGoogleUserPassword = "cant_change_googleuser_password"
+  val CANT_CHANGE_GOOGLE_USER_PASSWORD = "cant_change_googleuser_password"
 
   /**
    * Googleアカウントユーザのアカウント名は変更できません
    */
-  val cantChangeGoogleUserName = "cant_change_googleuser_name"
+  val CANT_CHANGE_GOOGLE_USER_NAME = "cant_change_googleuser_name"
 
   /**
    * ユーザ名：%s はすでに存在しています
    */
-  val alreadyResigsteredName = "already_registered_name"
+  val ALREADY_REGISTERED_NAME = "already_registered_name"
 
   /**
    * %s は無効なライセンスIDです
    */
-  val invalidLicenseId = "invalid_licenseid"
+  val INVALID_LICENSEID = "invalid_licenseid"
 
   /**
    * デフォルトイメージは削除できません
    */
-  val cantDeleteDefaultImage = "cant_delete_default_image"
+  val CANT_DELETE_DEFAULTIMAGE = "cant_delete_default_image"
 
   /**
    * 対象のファイルはZipファイルではないため、中身を取り出すことができません
    */
-  val cantTakeOutBecauseNotZip = "cant_take_out_because_not_zip"
+  val CANT_TAKE_OUT_BECAUSE_NOT_ZIP = "cant_take_out_because_not_zip"
 
   /**
    * 対象のファイルは存在しません
    */
-  val fileNotFound = "file_not_found" 
+  val FILE_NOT_FOUND = "file_not_found" 
 
   /**
    * グループ名：%s はすでに登録されています
    */
-  val alreadyRegisteredGroupName = "already_registered_group_name"
+  val ALREADY_REGISTERED_GROUP_NAME = "already_registered_group_name"
 
   /**
    * %s が指定されていません
    */
-  val requireTarget = "require_target"
+  val REQUIRE_TARGET = "require_target"
 
   /**
    * %s の件数が0件です
    */
-  val empty = "empty"
+  val EMPTY = "empty"
 
   /**
    * %s (値：%s)は有効な値ではありません
    */
-  val notContainsRange = "not_contains_range"
+  val NOT_CONTAINS_RANGE = "not_contains_range"
 
   /**
    * %s を入力してください
    */
-  val requireNonEmpty = "require_non_empty"
+  val REQUIRE_NON_EMPTY = "require_non_empty"
 
   /**
    * %s(値：%s) はUUIDの形式ではありません
    */
-  val invalidUuid = "invalid_uuid"
+  val INVALID_UUID = "invalid_uuid"
 
   /**
    * 数値は0以上を入力してください
    */
-  val requireNonMinus = "require_non_minus"
+  val REQUIRE_NON_MINUS = "require_non_minus"
 
   /**
    * データセットにはオーナーが最低一人は必要です
    */
-  val noOwner = "no_owner"
+  val NO_OWNER = "no_owner"
 
   /**
    * グループにはマネージャーが最低一人は必要です
    */
-  val noManager = "no_manager"
+  val NO_MANAGER = "no_manager"
 }

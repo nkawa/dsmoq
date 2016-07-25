@@ -41,7 +41,7 @@ import dsmoq.persistence.{
   OwnerType, Ownership,
   PresetType, UserAccessLevel, ZipedFiles
 }
-import dsmoq.exceptions.{AccessDeniedException, BadRequestException, InputValidationException, NotAuthorizedException, NotFoundException}
+import dsmoq.exceptions.{AccessDeniedException, BadRequestException, InputValidationException, NotFoundException}
 import dsmoq.logic.{FileManager, StringUtil, ImageSaveLogic, ZipUtil}
 import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.services.json.{DatasetData, Image, RangeSlice, RangeSliceSummary}
@@ -54,49 +54,25 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     */
   val LOG_MARKER = MarkerFactory.getMarker("DATASET_LOG")
 
-  // FIXME 暫定パラメータのため、将来的には削除する
-  private val UserAndGroupAccessDeny = 0
-  private val UserAndGroupAllowDownload = 2
-
-  /**
-   * オーナー、またはプロバイダを表すAccessLevelの値
-   */
-  private val OwnerOrProvider = 3
-
-  private val MoveToS3 = 0
-  private val MoveToLocal = 1
-
   private val datasetImageDownloadRoot = AppConf.imageDownloadRoot + "datasets/"
 
   /**
-   * データセットのファイルがS3またはローカルに保存されていないことを示す値
-   */
-  private val NotSavedState = 0
-
-  /**
-   * データセットのファイルがS3またはローカルに保存されていることを示す値
-   */
-  private val SavedState = 1
-
-  /**
-   * データセットのファイルをS3からローカル、またはローカルからS3に移動中であることを表す値
-   */
-  private val SynchronizingState = 2
-
-  /**
-   * データセットのファイルをS3またはローカルから削除中であることを表す値
-   */
-  private val DeletingState = 3
-
-  /**
    * データセットを新規作成します。
- *
-   * @param files
-   * @param user
-   * @return
+   *
+   * @param files データセットに追加するファイルのリスト
+   * @param saveLocal データセットをLocalに保存するか否か
+   * @param saveS3 データセットをS3に保存するか否か
+   * @param name データセット名
+   * @param user ユーザ情報
+   * @return 作成したデータセットオブジェクト。エラーがあれば、例外をFailureに包んで返却する。発生しうる例外は、NullPointerExceptionである。
    */
   def create(files: Seq[FileItem], saveLocal: Boolean, saveS3: Boolean, name: String, user: User): Try[DatasetData.Dataset] = {
     try {
+      CheckUtil.checkNull(files, "files")
+      CheckUtil.checkNull(saveLocal, "saveLocal")
+      CheckUtil.checkNull(saveS3, "saveS3")
+      CheckUtil.checkNull(name, "name")
+      CheckUtil.checkNull(user, "user")
       DB localTx { implicit s =>
         val myself = persistence.User.find(user.id).get
         val myGroup = getPersonalGroup(myself.id).get
@@ -123,8 +99,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             createdAt = timestamp,
             updatedBy = myself.id,
             updatedAt = timestamp,
-            localState = if (saveLocal) { SavedState } else { DeletingState },
-            s3State = if (saveS3) { SynchronizingState } else { NotSavedState }
+            localState = if (saveLocal) { SaveStatus.SAVED } else { SaveStatus.DELETING },
+            s3State = if (saveS3) { SaveStatus.SYNCHRONIZING } else { SaveStatus.NOT_SAVED }
           )
           val histroy = persistence.FileHistory.create(
             id = historyId,
@@ -155,12 +131,12 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           createdAt = timestamp,
           updatedBy = myself.id,
           updatedAt = timestamp,
-          localState = if (saveLocal) { SavedState } else { DeletingState },
-          s3State = if (saveS3) { SynchronizingState } else { NotSavedState }
+          localState = if (saveLocal) { SaveStatus.SAVED } else { SaveStatus.DELETING },
+          s3State = if (saveS3) { SaveStatus.SYNCHRONIZING } else { SaveStatus.NOT_SAVED }
         )
 
         if (saveS3 && ! f.isEmpty) {
-          createTask(datasetId, MoveToS3, myself.id, timestamp, saveLocal)
+          createTask(datasetId, MoveToStatus.S3, myself.id, timestamp, saveLocal)
         }
 
         val ownership = persistence.Ownership.create(
@@ -731,15 +707,19 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param datasetId データセットID
    * @param user ユーザ情報
    * @return ロールの値
-   * @throws 権限に該当しなかった場合、NotAuthorizedExceptionを送出する。
+   * @throws AccessDeniedException 権限に該当しなかった場合
+   * @throws NullPointerException 引数がnullの場合
    */
   def checkReadPermission(datasetId: String, user: User)(implicit session: DBSession): Int = {
+    CheckUtil.checkNull(datasetId, "datasetId")
+    CheckUtil.checkNull(user, "user")
+    CheckUtil.checkNull(session, "session")
     val groups = getJoinedGroups(user)
     val permission = getPermission(datasetId, groups)
     // FIXME チェック時、user権限はUserAccessLevelクラス, groupの場合はGroupAccessLevelクラスの定数を使用する
-    // (UserAndGroupAccessDeny 定数を削除する)
-    if (permission == UserAndGroupAccessDeny) {
-      throw new NotAuthorizedException
+    // (UserAndGroupAccessLevel.DENY 定数を削除する)
+    if (permission == UserAndGroupAccessLevel.DENY) {
+      throw new AccessDeniedException
     }
     permission
   }
@@ -749,10 +729,12 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
  *
    * @param id データセットID
    * @param user ユーザ情報
-   * @return データセットオブジェクト
+   * @return データセットオブジェクト。エラーがあれば、例外をFailureに包んで返却する。発生しうる例外は、NotFoundException、NullPointerException、AccessDeniedExceptionである。
    */
   def get(id: String, user: User): Try[DatasetData.Dataset] = {
     try {
+      CheckUtil.checkNull(id, "id")
+      CheckUtil.checkNull(user, "user")
       DB readOnly { implicit s =>
         // データセットが存在しない場合例外
         val dataset = getDataset(id) match {
@@ -799,14 +781,17 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
 
   /**
    * 指定したデータセットにファイルを追加します。
- *
+   *
    * @param id データセットID
    * @param files ファイルリスト
-   * @param user
-   * @return
+   * @param user ユーザ情報
+   * @return 追加したファイルデータオブジェクト。エラーがあれば、例外をFailureに包んで返却する。発生しうる例外は、AccessDeniedException、NotFoundException、NullPointerExceptionである。
    */
   def addFiles(id: String, files: Seq[FileItem], user: User): Try[DatasetData.DatasetAddFiles] = {
     try {
+      CheckUtil.checkNull(id, "id")
+      CheckUtil.checkNull(files, "files")
+      CheckUtil.checkNull(user, "user")
       DB localTx { implicit s =>
         datasetAccessabilityCheck(id, user)
 
@@ -832,8 +817,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             createdAt = timestamp,
             updatedBy = myself.id,
             updatedAt = timestamp,
-            localState = if (dataset.localState == SavedState || dataset.localState == SynchronizingState) { SavedState } else { DeletingState },
-            s3State = if (dataset.s3State == NotSavedState) { NotSavedState } else if (dataset.s3State == DeletingState) { DeletingState } else { SynchronizingState }
+            localState = if (dataset.localState == SaveStatus.SAVED || dataset.localState == SaveStatus.SYNCHRONIZING) { SaveStatus.SAVED } else { SaveStatus.DELETING },
+            s3State = if (dataset.s3State == SaveStatus.NOT_SAVED) { SaveStatus.NOT_SAVED } else if (dataset.s3State == SaveStatus.DELETING) { SaveStatus.DELETING } else { SaveStatus.SYNCHRONIZING }
           )
           val history = persistence.FileHistory.create(
             id = historyId,
@@ -853,8 +838,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           (file, history)
         })
 
-        if (dataset.s3State == SavedState || dataset.s3State == SynchronizingState) {
-          createTask(id, MoveToS3, myself.id, timestamp, dataset.localState == SavedState)
+        if (dataset.s3State == SaveStatus.SAVED || dataset.s3State == SaveStatus.SYNCHRONIZING) {
+          createTask(id, MoveToStatus.S3, myself.id, timestamp, dataset.localState == SaveStatus.SAVED)
         }
         // datasetsのfiles_size, files_countの更新
         updateDatasetFileStatus(id, myself.id, timestamp)
@@ -886,15 +871,19 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
 
   /**
    * 指定したファイルを更新します。
- *
-   * @param datasetId
-   * @param fileId
-   * @param file
-   * @param user
-   * @return
+   *
+   * @param datasetId データセットID
+   * @param fileId ファイルID
+   * @param file 更新するファイル
+   * @param user ユーザ情報
+   * @return 更新したファイルオブジェクト。エラーがあれば、例外をFailureに包んで返却する。発生しうる例外は、NotFoundException、AccessDeniedException、NullPointerExceptionである。
    */
-  def updateFile(datasetId: String, fileId: String, file: FileItem, user: User) = {
+  def updateFile(datasetId: String, fileId: String, file: FileItem, user: User): Try[DatasetData.DatasetFile] = {
     try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(fileId, "fileId")
+      CheckUtil.checkNull(file, "file")
+      CheckUtil.checkNull(user, "user")
       DB localTx { implicit s =>
         fileAccessabilityCheck(datasetId, fileId, user)
 
@@ -909,8 +898,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           file,
           myself.id,
           timestamp,
-          if (dataset.s3State == NotSavedState) { NotSavedState } else if (dataset.s3State == DeletingState) { DeletingState } else { SynchronizingState },
-          if (dataset.localState == SavedState || dataset.localState == SynchronizingState) { SavedState } else { DeletingState }
+          if (dataset.s3State == SaveStatus.NOT_SAVED) { SaveStatus.NOT_SAVED } else if (dataset.s3State == SaveStatus.DELETING) { SaveStatus.DELETING } else { SaveStatus.SYNCHRONIZING },
+          if (dataset.localState == SaveStatus.SAVED || dataset.localState == SaveStatus.SYNCHRONIZING) { SaveStatus.SAVED } else { SaveStatus.DELETING }
         )
 
         val isZip = file.getName.endsWith("zip")
@@ -932,15 +921,15 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           updatedAt = timestamp
         )
         FileManager.uploadToLocal(datasetId, fileId, history.id, file)
-        if (dataset.s3State == SavedState || dataset.s3State == SynchronizingState) {
-          createTask(datasetId, MoveToS3, myself.id, timestamp, dataset.localState == SavedState)
+        if (dataset.s3State == SaveStatus.SAVED || dataset.s3State == SaveStatus.SYNCHRONIZING) {
+          createTask(datasetId, MoveToStatus.S3, myself.id, timestamp, dataset.localState == SaveStatus.SAVED)
 
           // S3に上がっている場合は、アップロードが完了するまで、ローカルからダウンロードしなければならない
           withSQL {
             val d = persistence.Dataset.column
             update(persistence.Dataset)
-              .set(d.localState -> DeletingState,
-                d.s3State -> SynchronizingState)
+              .set(d.localState -> SaveStatus.DELETING,
+                d.s3State -> SaveStatus.SYNCHRONIZING)
               .where
               .eq(d.id, sqls.uuid(datasetId))
           }.update().apply
@@ -979,7 +968,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   private def datasetAccessabilityCheck(datasetId: String, user: User)(implicit s: DBSession) {
     getDataset(datasetId) match {
       case Some(x) =>
-        if (!isOwner(user.id, datasetId)) throw new NotAuthorizedException
+        if (!isOwner(user.id, datasetId)) throw new AccessDeniedException
       case None =>
         throw new NotFoundException
     }
@@ -1113,10 +1102,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param saveLocal ローカルに保存するか否か
    * @param saveS3 S3に保存するか否か
    * @param user ユーザオブジェクト
-   * @return データセットの保存先変更タスクオブジェクト。エラーが発生した場合は、例外をFailureにつつんで返却する。
+   * @return データセットの保存先変更タスクオブジェクト。エラーが発生した場合は、例外をFailureにつつんで返却する。発生しうる例外は、NotFoundException、AccessDeniedException、NullPointerExceptionである。
    */
   def modifyDatasetStorage(id:String, saveLocal: Boolean, saveS3: Boolean, user: User): Try[DatasetTask] = {
     try {
+      CheckUtil.checkNull(id, "id")
+      CheckUtil.checkNull(saveLocal, "saveLocal")
+      CheckUtil.checkNull(saveS3, "saveS3")
+      CheckUtil.checkNull(user, "user")
       DB localTx { implicit s =>
         datasetAccessabilityCheck(id, user)
 
@@ -1125,36 +1118,36 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         val dataset = getDataset(id).get
 
         // S3 to local
-        val taskId = if (dataset.localState == NotSavedState && (dataset.s3State == SavedState || dataset.s3State == SynchronizingState) && saveLocal) {
+        val taskId = if (dataset.localState == SaveStatus.NOT_SAVED && (dataset.s3State == SaveStatus.SAVED || dataset.s3State == SaveStatus.SYNCHRONIZING) && saveLocal) {
           updateDatasetStorage(
             dataset,
             myself.id,
             timestamp,
-            SynchronizingState,
-            if (saveS3) { SavedState } else { DeletingState }
+            SaveStatus.SYNCHRONIZING,
+            if (saveS3) { SaveStatus.SAVED } else { SaveStatus.DELETING }
           )
-          createTask(id, MoveToLocal, myself.id, timestamp, saveS3)
+          createTask(id, MoveToStatus.LOCAL, myself.id, timestamp, saveS3)
           // local to S3
-        } else if ((dataset.localState == SavedState || dataset.localState == SynchronizingState) && dataset.s3State == NotSavedState && saveS3) {
+        } else if ((dataset.localState == SaveStatus.SAVED || dataset.localState == SaveStatus.SYNCHRONIZING) && dataset.s3State == SaveStatus.NOT_SAVED && saveS3) {
           updateDatasetStorage(
             dataset,
             myself.id,
             timestamp,
-            if (saveLocal) { SavedState } else { DeletingState },
-            SynchronizingState 
+            if (saveLocal) { SaveStatus.SAVED } else { SaveStatus.DELETING },
+            SaveStatus.SYNCHRONIZING 
           )
-          createTask(id, MoveToS3, myself.id, timestamp, saveLocal)
+          createTask(id, MoveToStatus.S3, myself.id, timestamp, saveLocal)
           // local, S3のいずれか削除
-        } else if ((dataset.localState == SavedState || dataset.localState == SynchronizingState) 
-          && (dataset.s3State == SavedState || dataset.s3State == SynchronizingState) && saveLocal != saveS3) {
+        } else if ((dataset.localState == SaveStatus.SAVED || dataset.localState == SaveStatus.SYNCHRONIZING) 
+          && (dataset.s3State == SaveStatus.SAVED || dataset.s3State == SaveStatus.SYNCHRONIZING) && saveLocal != saveS3) {
           updateDatasetStorage(
             dataset,
             myself.id,
             timestamp,
-            if (saveLocal) { SavedState } else { DeletingState },
-            if (saveS3) { SavedState } else { DeletingState }
+            if (saveLocal) { SaveStatus.SAVED } else { SaveStatus.DELETING },
+            if (saveS3) { SaveStatus.SAVED } else { SaveStatus.DELETING }
           )
-          createTask(id, if (saveS3) { MoveToS3 } else { MoveToLocal } , myself.id, timestamp, false)
+          createTask(id, if (saveS3) { MoveToStatus.S3 } else { MoveToStatus.LOCAL } , myself.id, timestamp, false)
         } else {
           // no taskId
           "0"
@@ -1192,17 +1185,23 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param license データセットのライセンス
    * @param attributes データセットの属性一覧
    * @param user ユーザ情報
-   * @return 更新後のデータセットのメタデータ
+   * @return 更新後のデータセットのメタデータ。エラーがあれば、例外をFailureに包んで返却する。発生しうる例外は、BadRequestException、NotFoundException、NullPointerException、AccessDeniedExceptionである。
    */
   def modifyDatasetMeta(id: String, name: String, description: Option[String],
                         license: String, attributes: List[DataSetAttribute], user: User): Try[DatasetData.DatasetMetaData] = {
     try {
+      CheckUtil.checkNull(id, "id")
+      CheckUtil.checkNull(name, "name")
+      CheckUtil.checkNull(description, "description")
+      CheckUtil.checkNull(license, "license")
+      CheckUtil.checkNull(attributes, "attributes")
+      CheckUtil.checkNull(user, "user")
       val checkedDescription = description.getOrElse("")
       val trimmedAttributes = attributes.map(x => x.name -> StringUtil.trimAllSpaces(x.value))
 
       DB localTx { implicit s =>
         persistence.License.find(license) match {
-          case None => throw new BadRequestException(resource.getString(ResourceNames.invalidLicenseId).format(license))
+          case None => throw new BadRequestException(resource.getString(ResourceNames.INVALID_LICENSEID).format(license))
           case Some(_) => // do nothing
         }
 
@@ -1349,12 +1348,15 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param datasetId データセットID
    * @param images 追加する画像の一覧
    * @param user ユーザ情報
-   * @return 追加した画像オブジェクト
+   * @return 追加した画像オブジェクト。エラーがあれば、例外をFailureに包んで返却する。発生しうる例外は、AccessDeniedException、NotFoundException、NullPointerExceptionである。
    */
   def addImages(datasetId: String, images: Seq[FileItem], user: User): Try[DatasetData.DatasetAddImages] = {
     try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(images, "images")
+      CheckUtil.checkNull(user, "user")
       DB localTx { implicit s =>
-        if (!isOwner(user.id, datasetId)) throw new NotAuthorizedException
+        if (!isOwner(user.id, datasetId)) throw new AccessDeniedException
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -1480,7 +1482,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       DB localTx { implicit s =>
         datasetAccessabilityCheck(datasetId, user)
         val cantDeleteImages = Seq(AppConf.defaultDatasetImageId)
-        if (cantDeleteImages.contains(imageId)) throw new BadRequestException(resource.getString(ResourceNames.cantDeleteDefaultImage))
+        if (cantDeleteImages.contains(imageId)) throw new BadRequestException(resource.getString(ResourceNames.CANT_DELETE_DEFAULTIMAGE))
         if (!existsImage(datasetId, imageId)) throw new NotFoundException
 
         val myself = persistence.User.find(user.id).get
@@ -1574,20 +1576,23 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
 
   /**
    * 指定したデータセットのアクセスコントロールを設定します。
- *
+   *
    * @param datasetId データセットID
    * @param acl アクセスコントロール変更オブジェクトのリスト
    * @param user ユーザオブジェクト
-   * @return 変更されたアクセスコントロールのリスト。
+   * @return 変更されたアクセスコントロールのリスト。エラーがあれば、例外をFailureに包んで返却する。発生しうる例外は、AccessDeniedException、BadRequestException、NotFoundException、NullPointerExceptionである。
    */
   def setAccessControl(datasetId: String, acl: List[DataSetAccessControlItem], user: User): Try[Seq[DatasetData.DatasetOwnership]] = {
     try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(acl, "acl")
+      CheckUtil.checkNull(user, "user")
       DB localTx { implicit s =>
         datasetAccessabilityCheck(datasetId, user)
 
-        val notOwnerChanges = acl.filter(x => x.ownerType == OwnerType.User && x.accessLevel != OwnerOrProvider)
+        val notOwnerChanges = acl.filter(x => x.ownerType == OwnerType.User && x.accessLevel != UserAndGroupAccessLevel.OWNER_OR_PROVIDER)
         if (getOwners(datasetId).filter(x => !notOwnerChanges.contains(x.id)).length == 0) {
-          throw new BadRequestException(resource.getString(ResourceNames.noOwner))
+          throw new BadRequestException(resource.getString(ResourceNames.NO_OWNER))
         }
 
         val ownerships = acl.map { x =>
@@ -1638,11 +1643,18 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param datasetId データセットID
    * @param s DBセッション
    * @return オーナーのユーザオブジェクトのリスト
+   * @throws NullPointerException 引数がnullの場合
    */
   private def getOwners(datasetId: String)(implicit s: DBSession): Seq[persistence.User] = {
+    CheckUtil.checkNull(datasetId, "datasetId")
+    CheckUtil.checkNull(s, "s")
+    // Usersテーブルのエイリアス
     val u = persistence.User.u
+    // Membersテーブルのエイリアス
     val m = persistence.Member.m
+    // Groupsテーブルのエイリアス
     val g = persistence.Group.g
+    // Ownershpsテーブルのエイリアス
     val o = persistence.Ownership.o
     withSQL {
       select(u.result.*)
@@ -1650,10 +1662,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .innerJoin(persistence.Group as g).on(sqls.eq(g.id, o.groupId).and.eq(g.groupType, GroupType.Personal))
         .innerJoin(persistence.Member as m).on(sqls.eq(m.groupId, g.id))
         .innerJoin(persistence.User as u).on(sqls.eq(u.id, m.userId))
-        .where
-          .eq(o.datasetId, sqls.uuid(datasetId))
-          .and
-          .eq(o.accessLevel, OwnerOrProvider)
+        .where.eq(o.datasetId, sqls.uuid(datasetId))
+        .and.eq(o.accessLevel, UserAndGroupAccessLevel.OWNER_OR_PROVIDER)
     }.map(persistence.User(u.resultName)).list().apply
   }
 
@@ -1680,14 +1690,17 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
 
   /**
    * 指定したデータセットのゲストアクセスレベルを設定します。
- *
+   *
    * @param datasetId データセットID
    * @param accessLevel 設定するゲストアクセスレベル
    * @param user ユーザ情報
-   * @return 設定したゲストアクセスレベル
+   * @return 設定したゲストアクセスレベル。エラーがあれば、例外をFailureに包んで返却する。発生しうる例外は、NotFoundException、AccessDeniedException、NullPointerExceptionである。
    */
   def setGuestAccessLevel(datasetId: String, accessLevel: Int, user: User): Try[DatasetData.DatasetGuestAccessLevel] = {
     try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(accessLevel, "accessLevel")
+      CheckUtil.checkNull(user, "user")
       DB localTx { implicit s =>
         datasetAccessabilityCheck(datasetId, user)
 
@@ -1839,20 +1852,23 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param user ユーザ情報
    * @param datasetId データセットID
    * @return 権限がない場合、AccessDeniedExceptionをFailureに包んで返却する。
+   * @throws NullPointerException 引数がnullの場合
    */
   def requireAllowDownload(user: User, datasetId: String)(implicit s: DBSession): Try[Unit] = {
+    CheckUtil.checkNull(user, "user")
+    CheckUtil.checkNull(datasetId, "datasetId")
+    CheckUtil.checkNull(s, "s")
     val permission = if (user.isGuest) {
       getGuestAccessLevel(datasetId)
     } else {
       val groups = getJoinedGroups(user)
       // FIXME チェック時、user権限はUserAccessLevelクラス, groupの場合はGroupAccessLevelクラスの定数を使用する
-      // (UserAndGroupAccessDeny, UserAndGroupAllowDownload 定数を削除する)
       // 旧仕様ではuser/groupは同じ権限を付与していたが、
       // 現仕様はuser/groupによって権限の扱いが異なる(groupには編集権限は付与しない)
       // 実装時間の都合と現段階の実装でも問題がない(値が同じ)ため対応していない
       getPermission(datasetId, groups)
     }
-    if (permission < UserAndGroupAllowDownload) {
+    if (permission < UserAndGroupAccessLevel.ALLOW_DOWNLOAD) {
       return Failure(new AccessDeniedException)
     }
     Success(())
@@ -2028,8 +2044,12 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param groups グループのリスト
    * @param s DBセッション
    * @return 対象のデータセットに対する最も強い権限の値
+   * @throws NullPointerException 引数がnullの場合
    */
   private def getPermission(id: String, groups: Seq[String])(implicit s: DBSession): Int = {
+    CheckUtil.checkNull(id, "id")
+    CheckUtil.checkNull(groups, "groups")
+    CheckUtil.checkNull(s, "s")
     val o = persistence.Ownership.syntax("o")
     val g = persistence.Group.g
     val permissions = withSQL {
@@ -2046,7 +2066,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     (guestPermission :: permissions).map{ case (accessLevel, groupType) =>
       // Provider権限のGroupはWriteできない
       if (accessLevel == GroupAccessLevel.Provider && groupType == GroupType.Public) {
-        UserAndGroupAllowDownload
+        UserAndGroupAccessLevel.ALLOW_DOWNLOAD
       } else {
         accessLevel
       }
@@ -2679,11 +2699,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    *
    * @param datasetId データセットID
    * @param user ユーザ情報
-   * @return CSVファイル
+   * @return CSVファイル。エラーがあれば、例外をFailureに包んで返却する。発生しうる例外は、NotFoundException、NullPointerException、AccessDeniedExceptionである。
    */
   def exportAttribute(datasetId: String, user: User): Try[java.io.File] = {
     try
     {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(user, "user")
       DB readOnly { implicit s =>
         checkReadPermission(datasetId, user)
         val a = persistence.Annotation.a
@@ -2716,13 +2738,16 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param limit 検索上限
    * @param offset 検索の開始位置
    * @param user ユーザ情報
-   * @return アクセスレベルの一覧(offset, limitつき)
+   * @return アクセスレベルの一覧(offset, limitつき)。エラーがあれば、例外をFailureに包んで返却する。発生しうる例外は、NotFoundException、AccessDeniedException、NullPointerExceptionである。
    */
   def searchOwnerships(datasetId: String, offset: Option[Int], limit: Option[Int], user: User): Try[RangeSlice[DatasetOwnership]] = {
     try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(offset, "offset")
+      CheckUtil.checkNull(limit, "limit")
+      CheckUtil.checkNull(user, "user")
       DB readOnly { implicit s =>
         checkReadPermission(datasetId, user)
-
         val o = persistence.Ownership.o
         val u = persistence.User.u
         val g = persistence.Group.g
@@ -2837,13 +2862,16 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param limit 検索上限
    * @param offset 検索の開始位置
    * @param user ユーザー情報
-   * @return データセットが保持する画像の一覧(総件数、limit、offset付き)
+   * @return データセットが保持する画像の一覧(総件数、limit、offset付き)。エラーがあれば、例外をFailureに包んで返却する。発生しうる例外は、AccessDeniedException、NotFoundException、NullPointerExceptionである。
    */
   def getImages(datasetId: String, offset: Option[Int], limit: Option[Int], user: User): Try[RangeSlice[DatasetData.DatasetGetImage]] = {
     try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(offset, "offset")
+      CheckUtil.checkNull(limit, "limit")
+      CheckUtil.checkNull(user, "user")
       DB readOnly { implicit s =>
         checkReadPermission(datasetId, user)
-
         val di = persistence.DatasetImage.di
         val i = persistence.Image.i
         val totalCount = withSQL {
@@ -2965,9 +2993,9 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       fileInfo <- findResult
       _ <- requireNotWithPassword(fileInfo)
     } yield {
-      val isFileExistsOnLocal = fileInfo.file.localState == SavedState
-      val isFileSync = fileInfo.file.localState == DeletingState
-      val isFileExistsOnS3 = fileInfo.file.s3State == SynchronizingState
+      val isFileExistsOnLocal = fileInfo.file.localState == SaveStatus.SAVED
+      val isFileSync = fileInfo.file.localState == SaveStatus.DELETING
+      val isFileExistsOnS3 = fileInfo.file.s3State == SaveStatus.SYNCHRONIZING
       val isDownloadFromLocal = isFileExistsOnLocal || (isFileExistsOnS3 && isFileSync)
       (fileInfo, isDownloadFromLocal) match {
         case (FileResultNormal(file, path), true) => {
@@ -3104,10 +3132,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param limit 検索上限
    * @param offset 検索の開始位置
    * @param user ユーザー情報
-   * @return データセットが保持するファイル情報の一覧(総件数、limit、offset付き)
+   * @return データセットが保持するファイル情報の一覧(総件数、limit、offset付き)。エラーがあれば、例外をFailureに包んで返却する。発生しうる例外は、NotFoundException、AccessDeniedException、NullPointerExceptionである。
    */
   def getDatasetFiles(datasetId: String, limit: Option[Int], offset: Option[Int], user: User): Try[RangeSlice[DatasetData.DatasetFile]] = {
     try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(limit, "limit")
+      CheckUtil.checkNull(offset, "offset")
+      CheckUtil.checkNull(user, "user")
       DB readOnly { implicit s =>
         val dataset = getDataset(datasetId) match {
           case Some(x) => x
@@ -3140,10 +3172,15 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param limit 検索上限
    * @param offset 検索の開始位置
    * @param user ユーザー情報
-   * @return Zipファイルが内部に保持するファイル情報の一覧(総件数、limit、offset付き)
+   * @return Zipファイルが内部に保持するファイル情報の一覧(総件数、limit、offset付き)。エラーがあれば、例外をFailureに包んで返却する。発生しうる例外は、NotFoundException、AccessDeniedException、BadRequestException、NullPointerExceptionである。
    */
   def getDatasetZippedFiles(datasetId: String, fileId: String, limit: Option[Int], offset: Option[Int], user: User): Try[RangeSlice[DatasetData.DatasetZipedFile]] = {
     try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(fileId, "fileId")
+      CheckUtil.checkNull(limit, "limit")
+      CheckUtil.checkNull(offset, "offset")
+      CheckUtil.checkNull(user, "user")
       DB readOnly { implicit s =>
         val dataset = getDataset(datasetId) match {
           case Some(x) => x
@@ -3152,8 +3189,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         val history = persistence.File.find(fileId).flatMap(file => persistence.FileHistory.find(file.historyId)) match {
           case Some(x) => 
             if (x.isZip) { x }
-            else { throw new BadRequestException(resource.getString(ResourceNames.cantTakeOutBecauseNotZip)) }
-          case None => throw new BadRequestException(resource.getString(ResourceNames.fileNotFound))
+            else { throw new BadRequestException(resource.getString(ResourceNames.CANT_TAKE_OUT_BECAUSE_NOT_ZIP)) }
+          case None => throw new BadRequestException(resource.getString(ResourceNames.FILE_NOT_FOUND))
         }
         checkReadPermission(datasetId, user)
         val validatedLimit = limit.map{ x =>

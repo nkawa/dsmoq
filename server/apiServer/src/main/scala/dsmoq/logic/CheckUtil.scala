@@ -59,7 +59,7 @@ class CheckUtil(resource: ResourceBundle) extends LazyLogging {
     value match {
       case None => 
         logger.error(LOG_MARKER, "require check failed: name:{}, value:none", name)
-        Failure(new InputCheckException(name, resource.getString(ResourceNames.requireTarget).format(name), isUrlParam))
+        Failure(new InputCheckException(name, resource.getString(ResourceNames.REQUIRE_TARGET).format(name), isUrlParam))
       case Some(x) => Success(x)
     }
   }
@@ -75,7 +75,7 @@ class CheckUtil(resource: ResourceBundle) extends LazyLogging {
   def hasElement[T](name: String, value: Seq[T]): Try[Unit] = {
     if (value.isEmpty) {
       logger.error(LOG_MARKER, "hasElement check failed: name:{}, value:{}", name, value)
-      Failure(new InputCheckException(name, resource.getString(ResourceNames.empty).format(name), false))
+      Failure(new InputCheckException(name, resource.getString(ResourceNames.EMPTY).format(name), false))
     }else {
       Success(Unit)
     }
@@ -95,7 +95,7 @@ class CheckUtil(resource: ResourceBundle) extends LazyLogging {
       Success(Unit)
     } else {
       logger.error(LOG_MARKER, "contains check failed: name:{}, value:{}", name, value.toString)
-      Failure(new InputCheckException(name, resource.getString(ResourceNames.notContainsRange).format(name, value.toString), false))
+      Failure(new InputCheckException(name, resource.getString(ResourceNames.NOT_CONTAINS_RANGE).format(name, value.toString), false))
     }
   }
 
@@ -186,7 +186,7 @@ class CheckUtil(resource: ResourceBundle) extends LazyLogging {
   private def nonEmptyTrimmedSpaces(name: String, value: String, isUrlParam: Boolean): Try[Unit] = {
     if (StringUtil.trimAllSpaces(value).isEmpty) {
       logger.error(LOG_MARKER, "nonEmptyTrimmedSpace check failed: name:{}", name)
-      Failure(new InputCheckException(name, resource.getString(ResourceNames.requireNonEmpty).format(name), isUrlParam))
+      Failure(new InputCheckException(name, resource.getString(ResourceNames.REQUIRE_NON_EMPTY).format(name), isUrlParam))
     } else {
       Success(Unit)
     }
@@ -226,7 +226,7 @@ class CheckUtil(resource: ResourceBundle) extends LazyLogging {
       Success(Unit)
     } else {
       logger.error(LOG_MARKER, "validUuid check failed: name:{}, value:{}", name, value)
-      Failure(new InputCheckException(name, resource.getString(ResourceNames.invalidUuid).format(name, value), isUrlParam))
+      Failure(new InputCheckException(name, resource.getString(ResourceNames.INVALID_UUID).format(name, value), isUrlParam))
     }
   }
 
@@ -278,7 +278,7 @@ class CheckUtil(resource: ResourceBundle) extends LazyLogging {
     if (file.getSize > 0) {
       Success(Unit)
     } else {
-      Failure(new InputCheckException(name, resource.getString(ResourceNames.selectEmptyFile), false))
+      Failure(new InputCheckException(name, resource.getString(ResourceNames.SELECT_EMPTY_FILE), false))
     }
   }
 
@@ -296,7 +296,7 @@ class CheckUtil(resource: ResourceBundle) extends LazyLogging {
         if (n >= 0) {
           Success(Unit)
         } else {
-          Failure(new InputCheckException(name, resource.getString(ResourceNames.requireNonMinus), false))
+          Failure(new InputCheckException(name, resource.getString(ResourceNames.REQUIRE_NON_MINUS), false))
         }
       case None => Success(Unit)
     }

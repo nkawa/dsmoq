@@ -209,7 +209,7 @@ class GroupService(resource: ResourceBundle) {
         val groupId = UUID.randomUUID.toString
 
         if (existsSameNameGroup(trimmedName)) {
-          throw new BadRequestException(resource.getString(ResourceNames.alreadyRegisteredGroupName).format(trimmedName))
+          throw new BadRequestException(resource.getString(ResourceNames.ALREADY_REGISTERED_GROUP_NAME).format(trimmedName))
         }
 
         val group = persistence.Group.create(
@@ -293,7 +293,7 @@ class GroupService(resource: ResourceBundle) {
         val trimmedName = StringUtil.trimAllSpaces(name)
 
         if (group.name != trimmedName && existsSameNameGroup(trimmedName)) {
-          throw new BadRequestException(resource.getString(ResourceNames.alreadyRegisteredGroupName).format(trimmedName))
+          throw new BadRequestException(resource.getString(ResourceNames.ALREADY_REGISTERED_GROUP_NAME).format(trimmedName))
         }
 
         if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
@@ -345,10 +345,13 @@ class GroupService(resource: ResourceBundle) {
    * @param groupId グループID
    * @param images 追加する画像の一覧
    * @param user ユーザ情報
-   * @return 追加した画像のリスト
+   * @return 追加した画像のリスト。エラーがあれば、例外をFailureに包んで返却する。発生しうる例外は、NotAuthorizedException、NotFoundException、NullPointerExceptionである。
    */
-  def addImages(groupId: String, images: Seq[FileItem], user: User) = {
+  def addImages(groupId: String, images: Seq[FileItem], user: User): Try[GroupData.GroupAddImages] = {
     try {
+      CheckUtil.checkNull(groupId, "groupId")
+      CheckUtil.checkNull(images, "images")
+      CheckUtil.checkNull(user, "user")
       DB localTx { implicit s =>
         val group = getGroup(groupId)
         if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
@@ -411,10 +414,13 @@ class GroupService(resource: ResourceBundle) {
    * @param groupId グループID
    * @param members 追加するメンバーオブジェクト
    * @param user ログインユーザオブジェクト
-   * @return 追加されたメンバーオブジェクトのリスト
+   * @return 追加されたメンバーオブジェクトのリスト。エラーがあれば、例外をFailureに包んで返却する。発生しうる例外は、NotFoundException、NotAuthorizedException、NullPointerExceptionである。
    */
-  def addMembers(groupId: String, members: Seq[GroupMember], user: User) = {
+  def addMembers(groupId: String, members: Seq[GroupMember], user: User): Try[GroupData.AddMembers] = {
     try {
+      CheckUtil.checkNull(groupId, "groupId")
+      CheckUtil.checkNull(members, "members")
+      CheckUtil.checkNull(user, "user")
       val u = persistence.User.u
       val m = persistence.Member.m
 
@@ -432,7 +438,7 @@ class GroupService(resource: ResourceBundle) {
                           .findAllBy(sqls.inUuid(m.userId, members.map{_.userId}).and.eq(m.groupId, sqls.uuid(groupId)))
                           .map{ x => (x.userId, x) }.toMap
         val updatedMembers = members.filter{ x => userMap.contains(x.userId) }.map {item =>
-          // 存在チェックは行われているので、必ず成功する
+          // ユーザIDが一致したものだけ処理しているため、必ず成功する
           val user = userMap(item.userId)
           val updatedMember = if (!memberMap.contains(item.userId)) {
             persistence.Member.create(
@@ -490,15 +496,20 @@ class GroupService(resource: ResourceBundle) {
    * @param userId ユーザID
    * @param role ロール
    * @param user ログインユーザオブジェクト
-   * @return 更新されたメンバーオブジェクト
+   * @return 更新されたメンバーオブジェクト。エラーがあれば、例外をFailureに包んで返却する。発生しうる例外は、NotFoundException、BadRequestException、NullPointerExceptionである。
    */
-  def updateMemberRole(groupId: String, userId: String, role: Int, user: User) = {
+  def updateMemberRole(groupId: String, userId: String, role: Int, user: User): Try[GroupData.MemberSummary] = {
     try {
+      CheckUtil.checkNull(groupId, "groupId")
+      CheckUtil.checkNull(userId, "userId")
+      CheckUtil.checkNull(role, "role")
+      CheckUtil.checkNull(user, "user")
       val m = persistence.Member.m
 
       DB localTx { implicit s =>
+        // 更新によってマネージャが0人になる場合をエラーとしている
         if (getOtherManagerCount(groupId, userId) == 0) {
-          throw new BadRequestException(resource.getString(ResourceNames.noManager))
+          throw new BadRequestException(resource.getString(ResourceNames.NO_MANAGER))
         }
         (for {
           group <- findGroupById(groupId)
@@ -567,15 +578,18 @@ class GroupService(resource: ResourceBundle) {
    * @param groupId グループID
    * @param userId ユーザID
    * @param user ログインユーザオブジェクト
-   * @return エラーがあれば、例外をFailureに包んで返却する。発生しうる例外は、BadRequestException、NotFoundExcepitonである。
+   * @return エラーがあれば、例外をFailureに包んで返却する。発生しうる例外は、BadRequestException、NotFoundExcepiton、NullPointerExceptionである。
    */
   def removeMember(groupId: String, userId: String, user: User) = {
     try {
+      CheckUtil.checkNull(groupId, "groupId")
+      CheckUtil.checkNull(userId, "userId")
+      CheckUtil.checkNull(user, "user")
       DB localTx { implicit s =>
+        // 削除によってマネージャが0人になる場合をエラーとしている
         if (getOtherManagerCount(groupId, userId) == 0) {
-          throw new BadRequestException(resource.getString(ResourceNames.noManager))
+          throw new BadRequestException(resource.getString(ResourceNames.NO_MANAGER))
         }
-
         (for {
           group <- findGroupById(groupId)
           user <- findUserById(userId)
@@ -611,20 +625,23 @@ class GroupService(resource: ResourceBundle) {
    * @param userId 除外するユーザーID
    * @param session DBセッション
    * @return マネージャの数
+   * @throws NullPointerException 引数がnullの場合
    */
   private def getOtherManagerCount(groupId: String, userId: String)(implicit session: DBSession): Int = {
+    CheckUtil.checkNull(groupId, "groupId")
+    CheckUtil.checkNull(userId, "userId")
+    CheckUtil.checkNull(session, "session")
+    // テーブルGroupsのエイリアス
     val g = persistence.Group.g
+    // テーブルMembersのエイリアス
     val m = persistence.Member.m
     withSQL {
       select(sqls.count(m.id))
         .from(persistence.Member as m)
         .innerJoin(persistence.Group as g).on(sqls.eq(g.id, m.groupId))
-        .where
-          .ne(m.userId, sqls.uuid(userId))
-          .and
-          .eq(m.groupId, sqls.uuid(groupId))
-          .and
-          .eq(m.role, GroupMemberRole.Manager)
+        .where.ne(m.userId, sqls.uuid(userId))
+        .and.eq(m.groupId, sqls.uuid(groupId))
+        .and.eq(m.role, GroupMemberRole.Manager)
     }.map(rs => rs.int(1)).single.apply.getOrElse(0)
   }
 
@@ -734,7 +751,7 @@ class GroupService(resource: ResourceBundle) {
         if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
         if (!existsGroupImage(groupId, imageId)) throw new NotFoundException
         val cantDeleteImages = Seq(AppConf.defaultGroupImageId)
-        if (cantDeleteImages.contains(imageId)) throw new BadRequestException(resource.getString(ResourceNames.cantDeleteDefaultImage))
+        if (cantDeleteImages.contains(imageId)) throw new BadRequestException(resource.getString(ResourceNames.CANT_DELETE_DEFAULTIMAGE))
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -1075,10 +1092,14 @@ class GroupService(resource: ResourceBundle) {
    * @param limit 検索上限
    * @param offset 検索の開始位置
    * @param user ユーザー情報
-   * @return グループが保持する画像の一覧(総件数、limit、offset付き)
+   * @return グループが保持する画像の一覧(総件数、limit、offset付き)。エラーがあれば、例外をFailureに包んで返却する。発生しうる例外は、NotFoundException、NullPointerExceptionである。
    */
   def getImages(groupId: String, offset: Option[Int], limit: Option[Int], user: User): Try[RangeSlice[GroupData.GroupGetImage]] = {
     try {
+      CheckUtil.checkNull(groupId, "groupId")
+      CheckUtil.checkNull(offset, "offset")
+      CheckUtil.checkNull(limit, "limit")
+      CheckUtil.checkNull(user, "user")
       DB readOnly { implicit s =>
         val gi = persistence.GroupImage.gi
         val i = persistence.Image.i

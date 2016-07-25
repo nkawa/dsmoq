@@ -124,7 +124,7 @@ object DatasetData {
   /**
    * データセットに設定したゲストアクセスレベルを返却するためのJSON型
    * 
-   * @param defaultAccessLevel ゲストユーザが対象のデータセットに持っているロール
+   * @param defaultAccessLevel ゲストユーザが対象のデータセットに持っているロール(DefaultAccessLevelの定義値)
    */
   case class DatasetGuestAccessLevel(
     defaultAccessLevel: Int

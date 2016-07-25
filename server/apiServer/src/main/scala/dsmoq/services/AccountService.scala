@@ -46,7 +46,7 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
             Success(x)
           }
           case None => {
-            throw new BadRequestException(resource.getString(ResourceNames.invalidPassword))
+            throw new BadRequestException(resource.getString(ResourceNames.INVALID_PASSWORD))
           }
         }
       }
@@ -96,11 +96,11 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
       
       DB localTx {implicit s =>
         if (isGoogleUser(id)) {
-          throw new BadRequestException(resource.getString(ResourceNames.cantChangeGoogleUserEmail))
+          throw new BadRequestException(resource.getString(ResourceNames.CANT_CHANGE_GOOGLE_USER_EMAIL))
         }
 
         if (existsSameEmail(id, trimmedEmail)) {
-          throw new BadRequestException(resource.getString(ResourceNames.alreadyRegisteredEmail).format(trimmedEmail))
+          throw new BadRequestException(resource.getString(ResourceNames.ALREADY_REGISTERED_EMAIL).format(trimmedEmail))
         }
 
         (for {
@@ -154,11 +154,11 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
     try {
       DB localTx { implicit s =>
         if (isGoogleUser(id)) {
-          throw new BadRequestException(resource.getString(ResourceNames.cantChangeGoogleUserPassword))
+          throw new BadRequestException(resource.getString(ResourceNames.CANT_CHANGE_GOOGLE_USER_PASSWORD))
         }
 
         val currentPasswordObject = getCurrentPassword(id, currentPassword) match {
-          case None => throw new BadRequestException(resource.getString(ResourceNames.invalidPassword))
+          case None => throw new BadRequestException(resource.getString(ResourceNames.INVALID_PASSWORD))
           case Some(p) => p
         }
 
@@ -233,13 +233,13 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
           // Googleアカウントユーザーはアカウント名の変更禁止(importスクリプトでusersテーブルのname列を使用しているため)
           persistence.User.find(id) match {
             case None => throw new NotFoundException
-            case Some(x) if x.name != trimmedName => throw new BadRequestException(resource.getString(ResourceNames.cantChangeGoogleUserName))
+            case Some(x) if x.name != trimmedName => throw new BadRequestException(resource.getString(ResourceNames.CANT_CHANGE_GOOGLE_USER_NAME))
             case Some(_) => // do nothing
           }
         }
 
         if (existsSameName(id, trimmedName)) {
-          throw new BadRequestException(resource.getString(ResourceNames.alreadyResigsteredName).format(trimmedName))
+          throw new BadRequestException(resource.getString(ResourceNames.ALREADY_REGISTERED_NAME).format(trimmedName))
         }
 
         persistence.User.find(id) match {

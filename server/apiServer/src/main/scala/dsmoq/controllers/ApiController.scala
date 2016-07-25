@@ -15,7 +15,7 @@ import org.scalatra.servlet.{FileItem, FileUploadSupport}
 
 import dsmoq.ResourceNames
 import dsmoq.controllers.json._
-import dsmoq.exceptions.{BadRequestException, InputCheckException, InputValidationException, NotFoundException, NotAuthorizedException}
+import dsmoq.exceptions.{AccessDeniedException, BadRequestException, InputCheckException, InputValidationException, NotFoundException, NotAuthorizedException}
 import dsmoq.logic.CheckUtil
 import dsmoq.services._
 
@@ -190,7 +190,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       _         <- checkUtil.contains("saveLocal", saveLocal, Seq("true", "false"))
       _         <- checkUtil.contains("saveS3", saveS3, Seq("true", "false"))
       _         <- checkUtil.invokeSeq(files) { x => checkUtil.checkNonZeroByteFile("file[]", x) }
-      _         <- checkUtil.invoke("saveLocal, saveS3", saveLocal.toBoolean || saveS3.toBoolean, resource.getString(ResourceNames.checkS3OrLocal))
+      _         <- checkUtil.invoke("saveLocal, saveS3", saveLocal.toBoolean || saveS3.toBoolean, resource.getString(ResourceNames.CHECK_S3_OR_LOCAL))
       user      <- getUser(request, false)
       result    <- datasetService.create(files, saveLocal.toBoolean, saveS3.toBoolean, name, user)
     } yield {
@@ -309,7 +309,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
           _  <- checkUtil.nonEmptyTrimmedSpacesForForm("d.attributes.value", x.value)
         } yield {}
       }
-      _           <- checkUtil.invoke("d.attribute", json.attributes.filter(_.name == "featured").length < 2, resource.getString(ResourceNames.featureAttributeIsOnlyOne))
+      _           <- checkUtil.invoke("d.attribute", json.attributes.filter(_.name == "featured").length < 2, resource.getString(ResourceNames.FEATURE_ATTRIBUTE_IS_ONLY_ONE))
       user        <- getUser(request, false)
       result      <- datasetService.modifyDatasetMeta(datasetId, name, json.description, license, json.attributes, user)
     } yield {
@@ -453,7 +453,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       json      <- jsonOptToTry(d)
       saveLocal <- checkUtil.requireForForm("d.saveLocal", json.saveLocal)
       saveS3    <- checkUtil.requireForForm("d.saveS3", json.saveS3)
-      _         <- checkUtil.invoke("saveLocal, saveS3", saveLocal || saveS3, resource.getString(ResourceNames.checkS3OrLocal))
+      _         <- checkUtil.invoke("saveLocal, saveS3", saveLocal || saveS3, resource.getString(ResourceNames.CHECK_S3_OR_LOCAL))
       user      <- getUser(request, false)
       result    <- datasetService.modifyDatasetStorage(datasetId, saveLocal, saveS3, user)
     } yield {
@@ -875,6 +875,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
     case Success(x) => AjaxResponse("OK", x)
     case Failure(e) =>
      e match {
+      case e: AccessDeniedException => AjaxResponse("Unauthorized")
       case e: NotAuthorizedException => AjaxResponse("Unauthorized")
       case e: NotFoundException => AjaxResponse("NotFound")
       case InputCheckException(name, message, false) => AjaxResponse("Illegal Argument", CheckError(name, message))
@@ -905,7 +906,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
 
   private def jsonOptToTry[T](obj: Option[T]): Try[T] = {
     obj match {
-      case None => Failure(new InputCheckException("d", resource.getString(ResourceNames.jsonParameterRequired), false))
+      case None => Failure(new InputCheckException("d", resource.getString(ResourceNames.JSON_PARAMETER_REQUIRED), false))
       case Some(x) => Success(x)
     }
   }
@@ -916,11 +917,11 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       case Some(x) => {
         try {
           JsonMethods.parse(x).extractOpt[T] match {
-            case None => Failure(new InputCheckException("d", resource.getString(ResourceNames.invalidJsonFormat), false))
+            case None => Failure(new InputCheckException("d", resource.getString(ResourceNames.INVALID_JSON_FORMAT), false))
             case Some(obj) => Success(Some(obj))
           }
         } catch {
-          case e: Exception => Failure(new InputCheckException("d", resource.getString(ResourceNames.invalidJsonFormat), false))
+          case e: Exception => Failure(new InputCheckException("d", resource.getString(ResourceNames.INVALID_JSON_FORMAT), false))
         }
       }
     }
