@@ -14,4 +14,6 @@ typedef Paged<T> = {
     var items: Array<T>;
     /** 総ページ数 */
     var pages: Int;
+    /** 読み込み中か */
+    @:optional var useProgress: Bool;
 };

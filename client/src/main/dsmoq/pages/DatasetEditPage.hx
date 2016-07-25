@@ -102,7 +102,8 @@ class DatasetEditPage {
                         limit: x.fileLimit,
                         total: x.filesCount,
                         items: new Array<DatasetFile>(),
-                        pages: Math.ceil(x.filesCount / x.fileLimit)
+                        pages: Math.ceil(x.filesCount / x.fileLimit),
+                        useProgress: false
                     },
                     ownerships: x.ownerships,
                     defaultAccessLevel: x.defaultAccessLevel,
@@ -839,13 +840,15 @@ class DatasetEditPage {
             trace('DatasetEditPage.loadFiles: invalid index - ${index}');
             return;
         }
-        // TODO: 読み込み中にローディングスピナーを出す
         var offset = index * data.dataset.files.limit;
+        JsViews.observable(data.dataset.files).setProperty("useProgress", true);
         Service.instance.getDatasetFiles(data.dataset.id, { limit: data.dataset.files.limit, offset: offset }).then(function (res) {
             JsViews.observable(data.dataset.files.items).refresh(res.results);
+            JsViews.observable(data.dataset.files).setProperty("useProgress", false);
             setFileEditEvents(data, root, navigation);
         }, function (err) {
             // FIXME: エラーレスポンスの変更に追従する
+            JsViews.observable(data.dataset.files).setProperty("useProgress", false);
             switch (err.name) {
                 case ServiceErrorType.Unauthorized:
                     navigation.fulfill(Navigation.Navigate(Page.Top));
