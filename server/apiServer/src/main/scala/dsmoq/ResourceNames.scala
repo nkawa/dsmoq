@@ -109,4 +109,9 @@ object ResourceNames {
    * %s(値：%s) はUUIDの形式ではありません
    */
   val invalidUuid = "invalid_uuid"
+
+  /**
+   * 数値は0以上を入力してください
+   */
+  val requireNonMinus = "require_non_minus"
 }

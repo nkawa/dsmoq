@@ -6,6 +6,7 @@ import scalikejdbc.DB
 
 import com.typesafe.scalalogging.LazyLogging
 import org.slf4j.MarkerFactory
+import org.scalatra.servlet.FileItem
 
 import scala.util.{Try, Success, Failure}
 
@@ -262,6 +263,42 @@ class CheckUtil(resource: ResourceBundle) extends LazyLogging {
     value match {
       case None => Success(Unit)
       case Some(v) => validUuid(name, v, isUrlParam)
+    }
+  }
+
+  /**
+   * ファイルが0byteであるかどうかをチェックする。チェックに違反した場合はエラーを返す。
+   * 
+   * @param name 項目名
+   * @param file ファイル
+   * @return エラーがあれば、Failureで例外を包んで返す。
+   *         返却する可能性のある例外は、InputCheckExceptionである。
+   */
+  def checkNonZeroByteFile(name: String, file: FileItem): Try[Unit] = {
+    if (file.getSize > 0) {
+      Success(Unit)
+    } else {
+      Failure(new InputCheckException(name, resource.getString(ResourceNames.selectEmptyFile), false))
+    }
+  }
+
+  /**
+   * 数値が0以上であるかどうかをチェックする。チェックに違反した場合はエラーを返す。
+   * 
+   * @param name 項目名
+   * @param num 数値(optional)
+   * @return エラーがあれば、Failureで例外を包んで返す。
+   *         返却する可能性のある例外は、InputCheckExceptionである。
+   */
+  def checkNonMinusNumber(name: String, num: Option[Int]): Try[Unit] = {
+    num match {
+      case Some(n) =>
+        if (n >= 0) {
+          Success(Unit)
+        } else {
+          Failure(new InputCheckException(name, resource.getString(ResourceNames.requireNonMinus), false))
+        }
+      case None => Success(Unit)
     }
   }
 }
