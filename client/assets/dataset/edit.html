@@ -138,53 +138,64 @@
       </div>
 
       <div class="tab-pane" id="dataset-files">
-          <form role="form" id="dataset-file-add-form-top">
-            <div class="form-group">
-              <label class="control-label">Add file</label><br>
-              <input type="file" style="display: inline" name="files[]" multiple="multiple">
-              <a href="javascript:void 0;" class="btn btn-primary btn-sm" data-loading-text="Saving..." style="display: none;" id="dataset-file-add-submit-top">Upload</a>
-            </div>
-          </form>
-
-        {^{for dataset.files}}
-          <div class="well well-sm dataset-file">
-            <div class="dataset-file-view">
-              <div class="row">
-                <div class="col-sm-12">
-                    <span class="glyphicon glyphicon-file"></span>
-                    {^{>file.name}} ({^{datasize file.size/}})
-                    uploaded by
-                    <img data-link="src{>file.createdBy.image}" class="icon">
-                    <strong>{^{>file.createdBy.fullname}}</strong>
-                </div>
-              </div>
-              <div class="row">
-                <div class="col-sm-12" style="margin-left: 16px;">
-                  {^{if !~isEmpty(file.description)}}
-                    <span data-link="description"></span>
-                  {{else}}
-                    <span>(This file does not have description.)</span>
-                  {{/if}}
-                </div>
-              </div>
-            </div>
-            <div class="row dataset-file-menu" style="margin-top: 4px;">
-              <div class="col-sm-12">
-                <button type="button" class="btn btn-xs dataset-file-edit-start" data-value="{{>file.id}}">edit</button>
-                <button type="button" class="btn btn-xs dataset-file-replace-start" data-value="{{>file.id}}">replace</button>
-                <button type="button" class="btn btn-xs dataset-file-delete" data-value="{{>file.id}}">delete</button>
-              </div>
-            </div>
-            <div class="dataset-file-edit"></div>
-            <div class="dataset-file-replace"></div>
+        <form role="form" id="dataset-file-add-form-top" data-link="class{>dataset.files.total ? '' : 'hidden'}">
+          <div class="form-group">
+            <label class="control-label">Add file</label><br>
+            <input type="file" style="display: inline" name="files[]" multiple="multiple">
+            <a href="javascript:void 0;" class="btn btn-primary btn-sm" data-loading-text="Saving..." style="display: none;" id="dataset-file-add-submit-top">Upload</a>
           </div>
-        {{/for}}
-        {^{if dataset.filesCount > dataset.files.length}}
-        <div class="well well-sm dataset-file more">
-          <span>more files...</span>
-        </div>
-        {{/if}}
-        {^{if dataset.files.length > 0}}
+        </form>
+        {^{if dataset.files.total}}
+          <p>{^{>dataset.files.total}} files.</p>
+          {^{if dataset.updatedFiles.length}}
+            <p>
+              {^{for dataset.updatedFiles}}
+                {^{>name}}
+              {{/for}}
+              updated.
+            </p>
+          {{/if}}{{!-- dataset.files.uploadedFiles.length --}}
+          {^{if dataset.files.useProgress}}
+            <div class='loading'></div>
+          {{else}}
+            {^{for dataset.files.items}}
+              <div class="well well-sm dataset-file">
+                <div class="dataset-file-view">
+                  <div class="row">
+                    <div class="col-sm-12">
+                        <span class="glyphicon glyphicon-file"></span>
+                        {^{>name}} ({^{datasize size/}})
+                        uploaded by
+                        <img data-link="src{>createdBy.image}" class="icon">
+                        <strong>{^{>createdBy.fullname}}</strong>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-sm-12" style="margin-left: 16px;">
+                      {^{if !~isEmpty(description)}}
+                        <span data-link="description"></span>
+                      {{else}}
+                        <span>(This file does not have description.)</span>
+                      {{/if}}
+                    </div>
+                  </div>
+                </div>{{!-- .dataset-file-view --}}
+                <div class="row dataset-file-menu" style="margin-top: 4px;">
+                  <div class="col-sm-12">
+                    <button type="button" class="btn btn-xs dataset-file-edit-start" data-value="{{>id}}">edit</button>
+                    <button type="button" class="btn btn-xs dataset-file-replace-start" data-value="{{>id}}">replace</button>
+                    <button type="button" class="btn btn-xs dataset-file-delete" data-value="{{>id}}">delete</button>
+                  </div>
+                </div>
+                <div class="dataset-file-edit"></div>
+                <div class="dataset-file-replace"></div>
+              </div>{{!-- .well.well-sm.dataset-file --}}
+            {{/for}}{{!-- dataset.files.items --}}
+          {{/if}}{{!-- dataset.files.useProgress --}}
+          {^{pagination dataset.files.index dataset.files.pages id="files-pagination" pagedelta=5 /}}
+        {{else}}{{!-- dataset.files.total --}}
+          <p>There are no files.</p>
+        {{/if}}{{!-- dataset.files.total --}}
         <form role="form" id="dataset-file-add-form">
           <div class="form-group">
             <label class="control-label">Add file</label><br>
@@ -192,8 +203,7 @@
             <a href="javascript:void 0;" class="btn btn-primary btn-sm" data-loading-text="Saving..." style="display: none;" id="dataset-file-add-submit">Upload</a>
           </div>
         </form>
-        {{/if}}
-      </div>
+      </div>{{!-- #dataset-files --}}
 
       <div class="tab-pane" id="dataset-acl">
         <h3 style="margin-top: 0;">Access Control List</h3>

@@ -7,7 +7,6 @@ import dsmoq.models.DatasetPermission;
 import dsmoq.models.Profile;
 import dsmoq.models.Service;
 import dsmoq.views.AutoComplete;
-import dsmoq.models.DatasetOwnership;
 import dsmoq.models.GroupRole;
 import dsmoq.models.SuggestedOwner;
 import dsmoq.View;
@@ -37,6 +36,7 @@ import js.html.EventTarget;
 import js.html.OptionElement;
 import js.Lib;
 import dsmoq.CKEditor;
+import dsmoq.pages.datas.DatasetEdit;
 
 using hxgnd.OptionTools;
 
@@ -91,20 +91,27 @@ class DatasetEditPage {
         });
 
         promise.then(function (x) {
-            var data = {
+            var data: DatasetEdit = {
                 myself: Service.instance.profile,
                 licenses: Service.instance.licenses,
                 dataset: {
                     id: x.id,
                     meta: x.meta,
-                    files: new Array<{ isAppend: Bool, file: DatasetFile }>(),
+                    files: {
+                        index: 0,
+                        limit: x.fileLimit,
+                        total: x.filesCount,
+                        items: new Array<DatasetFile>(),
+                        pages: calcPages(x.filesCount, x.fileLimit),
+                        useProgress: false
+                    },
+                    updatedFiles: [],
                     ownerships: x.ownerships,
                     defaultAccessLevel: x.defaultAccessLevel,
                     primaryImage: x.primaryImage,
                     featuredImage: x.featuredImage,
                     localState: x.localState,
                     s3State: x.s3State,
-                    filesCount: x.filesCount,
                     errors: {
                         meta: {
                             name: "",
@@ -119,11 +126,8 @@ class DatasetEditPage {
                         ownerships: { },
                     }
                 },
-                owners: Async.Pending,
-                fileLimit: x.fileLimit
+                owners: Async.Pending
             };
-            var fileOffset = 0;
-            var isZeroFileFirst = x.filesCount == 0;
             rootBinding.setProperty("data", data);
 
             var binding = JsViews.observable(rootBinding.data().data);
@@ -136,7 +140,7 @@ class DatasetEditPage {
                 binding.setProperty('dataset.meta.description', text);
             });
             
-            onClose.then(function(_) { 
+            onClose.then(function(_) {
                 editor.destroy();
             } );
 
@@ -270,7 +274,7 @@ class DatasetEditPage {
                             Notification.show("error", "error happened");
                         }
                     );
-                });                
+                });
             });
 
             // files
@@ -283,197 +287,6 @@ class DatasetEditPage {
                     root.find(formId).hide();
                 }
             }
-            function setFileEditEvents() {
-                root.find(".more").off();
-                root.find(".dataset-file-edit-start").off();
-                root.find(".dataset-file-edit-submit").off();
-                root.find(".dataset-file-edit-cancel").off();
-                root.find(".dataset-file-replace-start").off();
-                root.find(".dataset-file-replace-submit").off();
-                root.find(".dataset-file-replace-cancel").off();
-                root.find(".dataset-file-delete").off();
-                root.find(".more").on("click", function (e) {
-                    Service.instance.getDatasetFiles(id, { limit: data.fileLimit, offset: fileOffset }).then(function (res) {
-                        for (file in res.results) {
-                            if (data.dataset.files.map(function(x) { return x.file.id; }).indexOf(file.id) == -1) {
-                                JsViews.observable(data.dataset.files).insert({ isAppend: false, file: file });
-                            }
-                        }
-                        fileOffset += res.summary.count;
-                        setFileEditEvents();
-                    }, function (err) {
-                        switch (err.name) {
-                            case ServiceErrorType.Unauthorized:
-                                navigation.fulfill(Navigation.Navigate(Page.Top));
-                            case ServiceErrorType.NotFound:
-                                navigation.fulfill(Navigation.Navigate(Page.Top));
-                            default:
-                                trace(err);
-                                root.html("Network error");
-                        }
-                    });
-                });
-                root.on("click", ".dataset-file-edit-start", function (e) {
-                    var fid: String = new JqHtml(e.target).data("value");
-                    var file = data.dataset.files.filter(function (x) return x.file.id == fid)[0].file;
-                    var data = {
-                        name: file.name,
-                        description: file.description,
-                        errors: { name: "" }
-                    };
-                    var binding = JsViews.observable(data);
-
-                    var target = new JqHtml(e.target).parents(".dataset-file").find(".dataset-file-edit");
-                    var menu = new JqHtml(e.target).parents(".dataset-file").find(".dataset-file-menu");
-                    var btns = new JqHtml(e.target).parents(".dataset-file").find(".btn");
-
-                    var tpl = JsViews.template(Resource.getString("share/dataset/file/edit"));
-                    tpl.link(target, data);
-                    menu.hide();
-
-                    function close() {
-                        target.empty();
-                        menu.show();
-                        tpl.unlink(target);
-                        target.off();
-                    }
-
-                    target.on("click", ".dataset-file-edit-submit", function (_) {
-                        btns.attr("disabled", true);
-                        Service.instance.updateDatatetFileMetadata(id, fid, data.name, data.description).then(
-                            function (res) {
-                                var fb = JsViews.observable(file);
-                                fb.setProperty("name", res.name);
-                                fb.setProperty("description", res.description);
-                                fb.setProperty("url", res.url);
-                                fb.setProperty("size", res.size);
-                                fb.setProperty("createdAt", res.createdAt);
-                                fb.setProperty("createdBy", res.createdBy);
-                                fb.setProperty("updatedAt", res.updatedAt);
-                                fb.setProperty("updatedBy", res.updatedBy);
-                                close();
-                                Notification.show("success", "save successful");
-                            },
-                            function (e) {
-                                switch (e.name) {
-                                    case ServiceErrorType.BadRequest:
-                                        for (x in cast(e, ServiceError).detail) {
-                                            binding.setProperty('errors.${x.name}', x.message);
-                                        }
-                                }
-                                Notification.show("error", "error happened");
-                            },
-                            function () {
-                                btns.removeAttr("disabled");
-                            }
-                        );
-                    });
-
-                    target.on("click", ".dataset-file-edit-cancel", function (_) {
-                        close();
-                    });
-                });
-                root.on("click", ".dataset-file-replace-start", function (e) {
-                    var fid: String = new JqHtml(e.target).data("value");
-                    var file = data.dataset.files.filter(function (x) return x.file.id == fid)[0];
-
-                    var target = new JqHtml(e.target).parents(".dataset-file").find(".dataset-file-replace");
-                    var menu = new JqHtml(e.target).parents(".dataset-file").find(".dataset-file-menu");
-                    var btns = new JqHtml(e.target).parents(".dataset-file").find(".btn");
-
-                    target.html(Resource.getString("share/dataset/file/replace"));
-                    menu.hide();
-
-                    function close() {
-                        target.empty();
-                        menu.show();
-                        target.off();
-                    }
-
-                    target.find("input[type=file]").on("change", function (e) {
-                        if (new JqHtml(e.target).val() != "") {
-                            target.find(".dataset-file-replace-submit").attr("disabled", false);
-                        } else {
-                            target.find(".dataset-file-replace-submit").attr("disabled", true);
-                        }
-                    });
-
-                    target.on("click", ".dataset-file-replace-submit", function (_) {
-                        btns.attr("disabled", true);
-                        Service.instance.replaceDatasetFile(id, fid, target.find("form")).then(
-                            function (res) {
-                                var fb = JsViews.observable(file);
-                                fb.setProperty("name", res.name);
-                                fb.setProperty("description", res.description);
-                                fb.setProperty("url", res.url);
-                                fb.setProperty("size", res.size);
-                                fb.setProperty("createdAt", res.createdAt);
-                                fb.setProperty("createdBy", res.createdBy);
-                                fb.setProperty("updatedAt", res.updatedAt);
-                                fb.setProperty("updatedBy", res.updatedBy);
-                                close();
-                                Notification.show("success", "save successful");
-                            },
-                            function (e) {
-                                switch (e.name) {
-                                    case ServiceErrorType.BadRequest:
-                                        Notification.show("error", "file is empty");
-                                    case ServiceErrorType.NotFound:
-                                        Notification.show("error", "dataset not found");
-                                    case ServiceErrorType.Unauthorized: 
-                                        Notification.show("error", "permission denied");
-                                    default:
-                                        Notification.show("error", "error happened");
-                                }
-                            },
-                            function () {
-                                btns.removeAttr("disabled");
-                            }
-                        );
-                    });
-
-                    target.on("click", ".dataset-file-replace-cancel", function (_) {
-                        close();
-                    });
-                });
-
-                root.find(".dataset-file-delete").on("click", function (e) {
-                    var fid: String = new JqHtml(e.target).data("value");
-                    var btns = new JqHtml(e.target).parents(".dataset-file").find(".btn");
-                    btns.attr("disabled", true);
-                    JsTools.confirm("Are you sure you want to delete this file?").flatMap(function (_) {
-                        return Service.instance.removeDatasetFile(id, fid);
-                    }).then(
-                        function (_) {
-                            JsViews.observable(data.dataset).setProperty("filesCount", data.dataset.filesCount - 1);
-                            var target = data.dataset.files.filter(function (x) return x.file.id == fid)[0];
-                            if (!target.isAppend) {
-                                fileOffset--;
-                            }
-                            var files = data.dataset.files.filter(function (x) return x.file.id != fid);
-                            JsViews.observable(data.dataset.files).refresh(files);
-                            setFileEditEvents();
-                            Notification.show("success", "delete successful");
-                        },
-                        function (e) {
-                            if (e.message != "Canceled") {
-                                switch (e.name) {
-                                    case ServiceErrorType.NotFound:
-                                        Notification.show("error", "dataset not found");
-                                    case ServiceErrorType.Unauthorized: 
-                                        Notification.show("error", "permission denied");
-                                    default:
-                                        Notification.show("error", "error happened");
-                                }
-                            }
-                        },
-                        function () {
-                            btns.removeAttr("disabled");
-                        }
-                    );
-                });
-            }
-
             // 指定したフォームのID(formId)が保持しているファイルをServerにアップロードする
             // submitId: Uploadボタン(aタグ)、formId: Add fileフォーム
             function uploadFiles(submitId, formId) {
@@ -483,34 +296,20 @@ class DatasetEditPage {
                 Service.instance.addDatasetFiles(id, root.find(formId)).then(
                     function (res) {
                         root.find(submitId).hide();
-                        for (i in 0...res.length) {
-                            JsViews.observable(data.dataset.files).insert({ isAppend: true, file: res[i] });
-                        }
                         root.find(fileButtonPath).val("");
-
-                        JsViews.observable(data.dataset).setProperty("filesCount", data.dataset.filesCount + res.length);
-                        setFileEditEvents();
-                        if (isZeroFileFirst) { 
-                            // #dataset-file-add-formの状態が変更したときに動作する
-                            root.find("#dataset-file-add-form").on("change", "input[type=file]", function (e) {
-                                // #dataset-file-add-submitの表示/非表示を切り替える
-                                updateAddFileButton("#dataset-file-add-submit", e);
-                            });
-                            // #dataset-file-add-submitをクリックしたときに動作する (ファイルのアップロード)
-                            root.find("#dataset-file-add-submit").on("click", function (_) {
-                                uploadFiles("#dataset-file-add-submit", "#dataset-file-add-form");
-                            });
-                            isZeroFileFirst = false;
-                        }
+                        setFileCount(data, data.dataset.files.total + res.length);
+                        loadFiles(data, root, navigation);
                         Notification.show("success", "save successful");
+                        JsViews.observable(data.dataset.updatedFiles).refresh(res);
                     },
                     function (e) {
+                        // FIXME: エラーレスポンスの変更に追従する
                         switch (e.name) {
                             case ServiceErrorType.BadRequest:
                                 Notification.show("error", "file is empty");
                             case ServiceErrorType.NotFound:
                                 Notification.show("error", "dataset not found");
-                            case ServiceErrorType.Unauthorized: 
+                            case ServiceErrorType.Unauthorized:
                                 Notification.show("error", "permission denied");
                             default:
                                 Notification.show("error", "error happened");
@@ -524,43 +323,37 @@ class DatasetEditPage {
                 // フォームのinputタグを無効にする
                 root.find(fileButtonPath).attr("disabled", true);
             }
-            
-            Service.instance.getDatasetFiles(id, { limit: data.fileLimit, offset: 0 }).then(function (res) {
-                for (file in res.results) {
-                    JsViews.observable(data.dataset.files).insert({ isAppend: false, file: file });
-                }
-                fileOffset += res.summary.count;
-                setFileEditEvents();
-                // #dataset-file-add-formの状態が変更したときに動作する
-                root.find("#dataset-file-add-form").on("change", "input[type=file]", function (e) {
-                    // #dataset-file-add-submitの表示/非表示を切り替える
-                    updateAddFileButton("#dataset-file-add-submit", e);
-                });
-                // #dataset-file-add-submitをクリックしたときに動作する (ファイルのアップロード)
-                root.find("#dataset-file-add-submit").on("click", function (_) {
-                    uploadFiles("#dataset-file-add-submit", "#dataset-file-add-form");
-                });
-                // #dataset-file-add-form-topの状態が変更したときに動作する
-                root.find("#dataset-file-add-form-top").on("change", "input[type=file]", function (e) {
-                    // #dataset-file-add-submit-topの表示/非表示を切り替える
-                    updateAddFileButton("#dataset-file-add-submit-top", e);
-                });
-                // #dataset-file-add-submit-topをクリックしたときに動作する (ファイルのアップロード)
-                root.find("#dataset-file-add-submit-top").on("click", function (_) {
-                    uploadFiles("#dataset-file-add-submit-top", "#dataset-file-add-form-top");
-                });
 
-            }, function (err) {
-                switch (err.name) {
-                    case ServiceErrorType.Unauthorized:
-                        navigation.fulfill(Navigation.Navigate(Page.Top));
-                    case ServiceErrorType.NotFound:
-                        navigation.fulfill(Navigation.Navigate(Page.Top));
-                    default:
-                        trace(err);
-                        root.html("Network error");
-                }
+            // 以下のイベントハンドラの付与は、対象が常にDOM上に存在する(表示/非表示で制御)
+            
+            // #dataset-file-add-formの状態が変更したときに動作する
+            root.find("#dataset-file-add-form").on("change", "input[type=file]", function (e) {
+                // #dataset-file-add-submitの表示/非表示を切り替える
+                updateAddFileButton("#dataset-file-add-submit", e);
             });
+            // #dataset-file-add-submitをクリックしたときに動作する (ファイルのアップロード)
+            root.find("#dataset-file-add-submit").on("click", function (_) {
+                uploadFiles("#dataset-file-add-submit", "#dataset-file-add-form");
+            });
+            // #dataset-file-add-form-topの状態が変更したときに動作する
+            root.find("#dataset-file-add-form-top").on("change", "input[type=file]", function (e) {
+                // #dataset-file-add-submit-topの表示/非表示を切り替える
+                updateAddFileButton("#dataset-file-add-submit-top", e);
+            });
+            // #dataset-file-add-submit-topをクリックしたときに動作する (ファイルのアップロード)
+            root.find("#dataset-file-add-submit-top").on("click", function (_) {
+                uploadFiles("#dataset-file-add-submit-top", "#dataset-file-add-form-top");
+            });
+
+            // 各ファイル要素をクリックしたときの動作を登録する
+            setFileEditEvents(data, root, navigation);
+            // ページャの状態が変化したときに動作する
+            JsViews.observe(data.dataset.files, "index", function (_, _) {
+                loadFiles(data, root, navigation);
+            });
+            
+            // 初回読み込み
+            loadFiles(data, root, navigation);
 
             // Access Control
             function loadOwnerships() {
@@ -570,7 +363,7 @@ class DatasetEditPage {
                         total: x.summary.total,
                         items: x.results,
                         pages: Math.ceil(x.summary.total / 20)
-                    };    
+                    };
                     binding.setProperty("owners", Async.Completed(owners));
                     JsViews.observe(owners, "index", function (_, _) {
                         var i = owners.index;
@@ -618,7 +411,7 @@ class DatasetEditPage {
                         switch (err.name) {
                             case ServiceErrorType.NotFound:
                                 Notification.show("error", "dataset not found");
-                            case ServiceErrorType.Unauthorized: 
+                            case ServiceErrorType.Unauthorized:
                                 Notification.show("error", "permission denied");
                             default:
                                 Notification.show("error", "error happened");
@@ -631,9 +424,9 @@ class DatasetEditPage {
                 // bindingが更新タイミングの問題があるため、setImmediateを挟む
                 JsTools.setImmediate(function () {
                     getOwnershipByElement(e.currentTarget).iter(function (owner) {
-                        Service.instance.updateDatasetACL(id, 
+                        Service.instance.updateDatasetACL(id,
                             [{
-                                id: owner.id, 
+                                id: owner.id,
                                 ownerType: owner.ownerType,
                                 accessLevel: owner.accessLevel
                             }]
@@ -644,7 +437,7 @@ class DatasetEditPage {
                             switch (e.name) {
                                 case ServiceErrorType.NotFound:
                                     Notification.show("error", "dataset not found");
-                                case ServiceErrorType.Unauthorized: 
+                                case ServiceErrorType.Unauthorized:
                                     Notification.show("error", "permission denied");
                                 default:
                                     Notification.show("error", "error happened");
@@ -673,7 +466,7 @@ class DatasetEditPage {
                                     switch (err.name) {
                                         case ServiceErrorType.NotFound:
                                             Notification.show("error", "dataset not found");
-                                        case ServiceErrorType.Unauthorized: 
+                                        case ServiceErrorType.Unauthorized:
                                             Notification.show("error", "permission denied");
                                         default:
                                             Notification.show("error", "error happened");
@@ -696,7 +489,7 @@ class DatasetEditPage {
                         switch (e.name) {
                             case ServiceErrorType.NotFound:
                                 Notification.show("error", "dataset not found");
-                            case ServiceErrorType.Unauthorized: 
+                            case ServiceErrorType.Unauthorized:
                                 Notification.show("error", "permission denied");
                             default:
                                 Notification.show("error", "error happened");
@@ -722,7 +515,7 @@ class DatasetEditPage {
                                 Notification.show("error", "select check box");
                             case ServiceErrorType.NotFound:
                                 Notification.show("error", "dataset not found");
-                            case ServiceErrorType.Unauthorized: 
+                            case ServiceErrorType.Unauthorized:
                                 Notification.show("error", "permission denied");
                             default:
                                 Notification.show("error", "error happened");
@@ -748,7 +541,7 @@ class DatasetEditPage {
                             Notification.show("error", "error happened");
                         }
                     );
-                });                
+                });
             });
         });
         
@@ -937,7 +730,7 @@ class DatasetEditPage {
                         switch (e.name) {
                             case ServiceErrorType.NotFound:
                                 Notification.show("error", "not found");
-                            case ServiceErrorType.Unauthorized: 
+                            case ServiceErrorType.Unauthorized:
                                 Notification.show("error", "permission denied");
                             default:
                                 Notification.show("error", "error happened");
@@ -991,7 +784,7 @@ class DatasetEditPage {
                                 }
                             case ServiceErrorType.NotFound:
                                 Notification.show("error", "not found");
-                            case ServiceErrorType.Unauthorized: 
+                            case ServiceErrorType.Unauthorized:
                                 Notification.show("error", "permission denied");
                             default:
                                 Notification.show("error", "error happened");
@@ -1023,6 +816,250 @@ class DatasetEditPage {
             html.on("click", "#select-image-dialog-submit", function (e) {
                 ctx.fulfill(filterSelectedOwner()[0]);
             });
+        });
+    }
+    /**
+     * 指定したページのファイル一覧を読み込みます。
+     * 
+     * @param data データバインドされた画面データ
+     * @param root
+     * @param navigation
+     */
+    static function loadFiles(data: DatasetEdit, root: Html, navigation: PromiseBroker<Navigation<Page>>) {
+        if (data == null) {
+            trace("DatasetEditPage.loadFiles: invalid data - null");
+            return;
+        }
+        if (root == null) {
+            trace("DatasetEditPage.loadFiles: invalid root - null");
+            return;
+        }
+        if (navigation == null) {
+            trace("DatasetEditPage.loadFiles: invalid navigation - null");
+            return;
+        }
+        JsViews.observable(data.dataset.updatedFiles).refresh([]);
+        var newIndex = Std.int(Math.max(0, Math.min(data.dataset.files.index, data.dataset.files.pages - 1)));
+        JsViews.observable(data.dataset.files).setProperty({ index: newIndex, useProgress: true });
+        var offset = newIndex * data.dataset.files.limit;
+        Service.instance.getDatasetFiles(data.dataset.id, { limit: data.dataset.files.limit, offset: offset }).then(function (res) {
+            JsViews.observable(data.dataset.files.items).refresh(res.results);
+            setFileCount(data, res.summary.total);
+            JsViews.observable(data.dataset.files).setProperty("useProgress", false);
+        }, function (err) {
+            // FIXME: エラーレスポンスの変更に追従する
+            JsViews.observable(data.dataset.files).setProperty("useProgress", false);
+            switch (err.name) {
+                case ServiceErrorType.Unauthorized:
+                    navigation.fulfill(Navigation.Navigate(Page.Top));
+                case ServiceErrorType.NotFound:
+                    navigation.fulfill(Navigation.Navigate(Page.Top));
+                default:
+                    trace(err);
+                    root.html("Network error");
+            }
+        });
+    }
+    /**
+     * ファイル総数を設定します。
+     * 
+     * @param data データバインドされた画面データ
+     * @param count 設定するファイル総数
+     */
+    static function setFileCount(data: DatasetEdit, count: Int) {
+        if (data == null) {
+            trace("DatasetEditPage.setFileCount: invalid data - null");
+            return;
+        }
+        if (count < 0) {
+            trace('DatasetEditPage.setFileCount: invalid count - ${count}');
+            return;
+        }
+        var pages = calcPages(count, data.dataset.files.limit);
+        JsViews.observable(data.dataset.files).setProperty({ total: count, pages: pages });
+    }
+    /**
+     * ページ数を計算します。
+     * 
+     * @param total ファイル総数
+     * @param limit 1ページあたりのファイル数
+     * @return ページ数
+     */
+    static function calcPages(total: Int, limit: Int): Int {
+        if (limit <= 0) {
+            trace('DatasetEditPage.calcPages: invalid limit - ${limit}');
+            return 0;
+        }
+        return Math.ceil(total / limit);
+    }
+    /**
+     * ファイル一覧部にイベントハンドラを付与します。
+     * 
+     * @param data データバインドされた画面データ
+     * @param root
+     * @param navigation
+     */
+    static function setFileEditEvents(data: DatasetEdit, root: Html, navigation: PromiseBroker<Navigation<Page>>) {
+        if (data == null) {
+            trace("DatasetEditPage.setFileEditEvents: invalid data - null");
+            return;
+        }
+        if (root == null) {
+            trace("DatasetEditPage.setFileEditEvents: invalid root - null");
+            return;
+        }
+        if (navigation == null) {
+            trace("DatasetEditPage.setFileEditEvents: invalid navigation - null");
+            return;
+        }
+        var id = data.dataset.id;
+        root.find(".dataset-file-edit-start").off();
+        root.find(".dataset-file-edit-submit").off();
+        root.find(".dataset-file-edit-cancel").off();
+        root.find(".dataset-file-replace-start").off();
+        root.find(".dataset-file-replace-submit").off();
+        root.find(".dataset-file-replace-cancel").off();
+        root.find(".dataset-file-delete").off();
+        root.on("click", ".dataset-file-edit-start", function (e) {
+            var fid: String = new JqHtml(e.target).data("value");
+            var file = data.dataset.files.items.filter(function (x) return x.id == fid)[0];
+            var edit = {
+                name: file.name,
+                description: file.description,
+                errors: { name: "" }
+            };
+            var binding = JsViews.observable(edit);
+
+            var target = new JqHtml(e.target).parents(".dataset-file").find(".dataset-file-edit");
+            var menu = new JqHtml(e.target).parents(".dataset-file").find(".dataset-file-menu");
+            var btns = new JqHtml(e.target).parents(".dataset-file").find(".btn");
+
+            var tpl = JsViews.template(Resource.getString("share/dataset/file/edit"));
+            tpl.link(target, edit);
+            menu.hide();
+
+            function close() {
+                target.empty();
+                menu.show();
+                tpl.unlink(target);
+                target.off();
+            }
+
+            target.on("click", ".dataset-file-edit-submit", function (_) {
+                btns.attr("disabled", true);
+                Service.instance.updateDatatetFileMetadata(id, fid, edit.name, edit.description).then(
+                    function (res) {
+                        close();
+                        Notification.show("success", "save successful");
+                        loadFiles(data, root, navigation);
+                        JsViews.observable(data.dataset.updatedFiles).refresh([res]);
+                    },
+                    function (e) {
+                        // FIXME: エラーレスポンスの変更に追従する
+                        switch (e.name) {
+                            case ServiceErrorType.BadRequest:
+                                for (x in cast(e, ServiceError).detail) {
+                                    binding.setProperty('errors.${x.name}', x.message);
+                                }
+                        }
+                        Notification.show("error", "error happened");
+                    },
+                    function () {
+                        btns.removeAttr("disabled");
+                    }
+                );
+            });
+
+            target.on("click", ".dataset-file-edit-cancel", function (_) {
+                close();
+            });
+        });
+        root.on("click", ".dataset-file-replace-start", function (e) {
+            var fid: String = new JqHtml(e.target).data("value");
+            var file = data.dataset.files.items.filter(function (x) return x.id == fid)[0];
+
+            var target = new JqHtml(e.target).parents(".dataset-file").find(".dataset-file-replace");
+            var menu = new JqHtml(e.target).parents(".dataset-file").find(".dataset-file-menu");
+            var btns = new JqHtml(e.target).parents(".dataset-file").find(".btn");
+
+            target.html(Resource.getString("share/dataset/file/replace"));
+            menu.hide();
+
+            function close() {
+                target.empty();
+                menu.show();
+                target.off();
+            }
+
+            target.find("input[type=file]").on("change", function (e) {
+                if (new JqHtml(e.target).val() != "") {
+                    target.find(".dataset-file-replace-submit").attr("disabled", false);
+                } else {
+                    target.find(".dataset-file-replace-submit").attr("disabled", true);
+                }
+            });
+
+            target.on("click", ".dataset-file-replace-submit", function (_) {
+                btns.attr("disabled", true);
+                Service.instance.replaceDatasetFile(id, fid, target.find("form")).then(
+                    function (res) {
+                        close();
+                        Notification.show("success", "save successful");
+                        loadFiles(data, root, navigation);
+                        JsViews.observable(data.dataset.updatedFiles).refresh([res]);
+                    },
+                    function (e) {
+                        // FIXME: エラーレスポンスの変更に追従する
+                        switch (e.name) {
+                            case ServiceErrorType.BadRequest:
+                                Notification.show("error", "file is empty");
+                            case ServiceErrorType.NotFound:
+                                Notification.show("error", "dataset not found");
+                            case ServiceErrorType.Unauthorized:
+                                Notification.show("error", "permission denied");
+                            default:
+                                Notification.show("error", "error happened");
+                        }
+                    },
+                    function () {
+                        btns.removeAttr("disabled");
+                    }
+                );
+            });
+
+            target.on("click", ".dataset-file-replace-cancel", function (_) {
+                close();
+            });
+        });
+        root.on("click", ".dataset-file-delete", function (e) {
+            var fid: String = new JqHtml(e.target).data("value");
+            var btns = new JqHtml(e.target).parents(".dataset-file").find(".btn");
+            btns.attr("disabled", true);
+            JsTools.confirm("Are you sure you want to delete this file?").flatMap(function (_) {
+                return Service.instance.removeDatasetFile(id, fid);
+            }).then(
+                function (_) {
+                    Notification.show("success", "delete successful");
+                    setFileCount(data, data.dataset.files.total - 1);
+                    loadFiles(data, root, navigation);
+                },
+                function (e) {
+                    // FIXME: エラーレスポンスの変更に追従する
+                    if (e.message != "Canceled") {
+                        switch (e.name) {
+                            case ServiceErrorType.NotFound:
+                                Notification.show("error", "dataset not found");
+                            case ServiceErrorType.Unauthorized:
+                                Notification.show("error", "permission denied");
+                            default:
+                                Notification.show("error", "error happened");
+                        }
+                    }
+                },
+                function () {
+                    btns.removeAttr("disabled");
+                }
+            );
         });
     }
 }

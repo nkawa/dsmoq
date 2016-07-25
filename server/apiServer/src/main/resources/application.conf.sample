@@ -9,7 +9,7 @@ google {
 }
 
 # apiserver settings
-apiserver 
+apiserver {
   port = 8080
   image_dir = "../storage/image"
   file_dir = "../storage/file"
