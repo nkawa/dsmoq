@@ -297,7 +297,7 @@ class DatasetEditPage {
                         root.find(submitId).hide();
                         root.find(fileButtonPath).val("");
                         setFileCount(data, data.dataset.files.total + res.length);
-                        loadFiles(data, data.dataset.files.index, root, navigation);
+                        loadFiles(data, root, navigation);
                         Notification.show("success", "save successful");
                         // TODO: 何らかのユーザ操作があるまで、追加完了の旨が残るようにする
                         // (ページャ対応で、追加した対象が必ずしも画面に存在するとは限らないため)
@@ -346,11 +346,11 @@ class DatasetEditPage {
             });
             // ページャの状態が変化したときに動作する
             JsViews.observe(data.dataset.files, "index", function (_, _) {
-                loadFiles(data, data.dataset.files.index, root, navigation);
+                loadFiles(data, root, navigation);
             });
             
             // 初回読み込み
-            loadFiles(data, data.dataset.files.index, root, navigation);
+            loadFiles(data, root, navigation);
 
             // Access Control
             function loadOwnerships() {
@@ -819,11 +819,10 @@ class DatasetEditPage {
      * 指定したページのファイル一覧を読み込みます。
      * 
      * @param data データバインドされた画面データ
-     * @param index 読み込むページ番号 (現在表示中のページではない) (0起算)
      * @param root
      * @param navigation
      */
-    static function loadFiles(data: DatasetEdit, index: Int, root: Html, navigation: PromiseBroker<Navigation<Page>>) {
+    static function loadFiles(data: DatasetEdit, root: Html, navigation: PromiseBroker<Navigation<Page>>) {
         if (data == null) {
             trace("DatasetEditPage.loadFiles: invalid data - null");
             return;
@@ -836,14 +835,12 @@ class DatasetEditPage {
             trace("DatasetEditPage.loadFiles: invalid navigation - null");
             return;
         }
-        if (index < 0) {
-            trace('DatasetEditPage.loadFiles: invalid index - ${index}');
-            return;
-        }
-        var offset = index * data.dataset.files.limit;
-        JsViews.observable(data.dataset.files).setProperty("useProgress", true);
+        var newIndex = Std.int(Math.max(0, Math.min(data.dataset.files.index, data.dataset.files.pages - 1)));
+        JsViews.observable(data.dataset.files).setProperty({ index: newIndex, useProgress: true });
+        var offset = newIndex * data.dataset.files.limit;
         Service.instance.getDatasetFiles(data.dataset.id, { limit: data.dataset.files.limit, offset: offset }).then(function (res) {
             JsViews.observable(data.dataset.files.items).refresh(res.results);
+            setFileCount(data, res.summary.total);
             JsViews.observable(data.dataset.files).setProperty("useProgress", false);
             setFileEditEvents(data, root, navigation);
         }, function (err) {
@@ -1041,7 +1038,7 @@ class DatasetEditPage {
             }).then(
                 function (_) {
                     setFileCount(data, data.dataset.files.total - 1);
-                    loadFiles(data, data.dataset.files.index, root, navigation);
+                    loadFiles(data, root, navigation);
                     Notification.show("success", "delete successful");
                 },
                 function (e) {
