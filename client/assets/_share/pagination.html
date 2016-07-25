@@ -1,3 +1,4 @@
+{{if page}}
 <ul class="pagination {{>cls}}" data-value="{{>page}}">
   {{if index <= 0}}
     <li class="disabled"><a href="javascript:void 0;">&laquo;</a></li>
@@ -17,3 +18,4 @@
     <li><a href="javascript:void 0;" data-value="{{>pages-1}}">&raquo;</a></li>
   {{/if}}
 </ul>
+{{/if}}

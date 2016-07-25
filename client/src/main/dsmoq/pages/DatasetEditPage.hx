@@ -875,7 +875,7 @@ class DatasetEditPage {
             trace('DatasetEditPage.setFileCount: invalid count - ${count}');
             return;
         }
-        var pages = Math.ceil(count / data.dataset.files.limit);
+        var pages = if (data.dataset.files.limit <= 0) 0 else Math.ceil(count / data.dataset.files.limit);
         JsViews.observable(data.dataset.files).setProperty({ total: count, pages: pages });
     }
     /**
