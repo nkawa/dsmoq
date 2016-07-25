@@ -1,5 +1,5 @@
-{{if page}}
-<ul class="pagination {{>cls}}" data-value="{{>page}}">
+{^{if pages > 0}}
+<ul class="pagination {{>cls}}" data-value="{{>pages}}">
   {{if index <= 0}}
     <li class="disabled"><a href="javascript:void 0;">&laquo;</a></li>
   {{else}}

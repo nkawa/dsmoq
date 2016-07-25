@@ -102,7 +102,7 @@ class DatasetEditPage {
                         limit: x.fileLimit,
                         total: x.filesCount,
                         items: new Array<DatasetFile>(),
-                        pages: Math.ceil(x.filesCount / x.fileLimit),
+                        pages: calcPages(x.filesCount, x.fileLimit),
                         useProgress: false
                     },
                     updatedFiles: [],
@@ -875,8 +875,22 @@ class DatasetEditPage {
             trace('DatasetEditPage.setFileCount: invalid count - ${count}');
             return;
         }
-        var pages = if (data.dataset.files.limit <= 0) 0 else Math.ceil(count / data.dataset.files.limit);
+        var pages = calcPages(count, data.dataset.files.limit);
         JsViews.observable(data.dataset.files).setProperty({ total: count, pages: pages });
+    }
+    /**
+     * ページ数を計算します。
+     * 
+     * @param total ファイル総数
+     * @param limit 1ページあたりのファイル数
+     * @return ページ数
+     */
+    static function calcPages(total: Int, limit: Int): Int {
+        if (limit <= 0) {
+            trace('DatasetEditPage.calcPages: invalid limit - ${limit}');
+            return 0;
+        }
+        return Math.ceil(total / limit);
     }
     /**
      * ファイル一覧部にイベントハンドラを付与します。
