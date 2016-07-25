@@ -147,6 +147,14 @@
         </form>
         {^{if dataset.files.total}}
           <p>{^{>dataset.files.total}} files.</p>
+          {^{if dataset.updatedFiles.length}}
+            <p>
+              {^{for dataset.updatedFiles}}
+                {^{>name}}
+              {{/for}}
+              updated.
+            </p>
+          {{/if}}{{!-- dataset.files.uploadedFiles.length --}}
           {^{if dataset.files.useProgress}}
             <div class='loading'></div>
           {{else}}

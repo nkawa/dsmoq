@@ -19,6 +19,7 @@ typedef DatasetEditDataset = {
     /** @see dsmoq.models.Dataset.meta */
     var meta: DatasetMetadata;
     var files: Paged<DatasetFile>;
+    var updatedFiles: Array<DatasetFile>;
     /** @see dsmoq.models.Dataset.ownerships */
     var ownerships: Array<DatasetOwnership>;
     /** @see dsmoq.models.Dataset.defaultAccessLevel */

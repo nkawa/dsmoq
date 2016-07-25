@@ -105,6 +105,7 @@ class DatasetEditPage {
                         pages: Math.ceil(x.filesCount / x.fileLimit),
                         useProgress: false
                     },
+                    updatedFiles: [],
                     ownerships: x.ownerships,
                     defaultAccessLevel: x.defaultAccessLevel,
                     primaryImage: x.primaryImage,
@@ -299,8 +300,7 @@ class DatasetEditPage {
                         setFileCount(data, data.dataset.files.total + res.length);
                         loadFiles(data, root, navigation);
                         Notification.show("success", "save successful");
-                        // TODO: 何らかのユーザ操作があるまで、追加完了の旨が残るようにする
-                        // (ページャ対応で、追加した対象が必ずしも画面に存在するとは限らないため)
+                        JsViews.observable(data.dataset.updatedFiles).refresh(res);
                     },
                     function (e) {
                         // FIXME: エラーレスポンスの変更に追従する
@@ -344,6 +344,9 @@ class DatasetEditPage {
             root.find("#dataset-file-add-submit-top").on("click", function (_) {
                 uploadFiles("#dataset-file-add-submit-top", "#dataset-file-add-form-top");
             });
+
+            // 各ファイル要素をクリックしたときの動作を登録する
+            setFileEditEvents(data, root, navigation);
             // ページャの状態が変化したときに動作する
             JsViews.observe(data.dataset.files, "index", function (_, _) {
                 loadFiles(data, root, navigation);
@@ -835,6 +838,7 @@ class DatasetEditPage {
             trace("DatasetEditPage.loadFiles: invalid navigation - null");
             return;
         }
+        JsViews.observable(data.dataset.updatedFiles).refresh([]);
         var newIndex = Std.int(Math.max(0, Math.min(data.dataset.files.index, data.dataset.files.pages - 1)));
         JsViews.observable(data.dataset.files).setProperty({ index: newIndex, useProgress: true });
         var offset = newIndex * data.dataset.files.limit;
@@ -842,7 +846,6 @@ class DatasetEditPage {
             JsViews.observable(data.dataset.files.items).refresh(res.results);
             setFileCount(data, res.summary.total);
             JsViews.observable(data.dataset.files).setProperty("useProgress", false);
-            setFileEditEvents(data, root, navigation);
         }, function (err) {
             // FIXME: エラーレスポンスの変更に追従する
             JsViews.observable(data.dataset.files).setProperty("useProgress", false);
@@ -906,19 +909,19 @@ class DatasetEditPage {
         root.on("click", ".dataset-file-edit-start", function (e) {
             var fid: String = new JqHtml(e.target).data("value");
             var file = data.dataset.files.items.filter(function (x) return x.id == fid)[0];
-            var data = {
+            var edit = {
                 name: file.name,
                 description: file.description,
                 errors: { name: "" }
             };
-            var binding = JsViews.observable(data);
+            var binding = JsViews.observable(edit);
 
             var target = new JqHtml(e.target).parents(".dataset-file").find(".dataset-file-edit");
             var menu = new JqHtml(e.target).parents(".dataset-file").find(".dataset-file-menu");
             var btns = new JqHtml(e.target).parents(".dataset-file").find(".btn");
 
             var tpl = JsViews.template(Resource.getString("share/dataset/file/edit"));
-            tpl.link(target, data);
+            tpl.link(target, edit);
             menu.hide();
 
             function close() {
@@ -930,19 +933,12 @@ class DatasetEditPage {
 
             target.on("click", ".dataset-file-edit-submit", function (_) {
                 btns.attr("disabled", true);
-                Service.instance.updateDatatetFileMetadata(id, fid, data.name, data.description).then(
+                Service.instance.updateDatatetFileMetadata(id, fid, edit.name, edit.description).then(
                     function (res) {
-                        var fb = JsViews.observable(file);
-                        fb.setProperty("name", res.name);
-                        fb.setProperty("description", res.description);
-                        fb.setProperty("url", res.url);
-                        fb.setProperty("size", res.size);
-                        fb.setProperty("createdAt", res.createdAt);
-                        fb.setProperty("createdBy", res.createdBy);
-                        fb.setProperty("updatedAt", res.updatedAt);
-                        fb.setProperty("updatedBy", res.updatedBy);
                         close();
                         Notification.show("success", "save successful");
+                        loadFiles(data, root, navigation);
+                        JsViews.observable(data.dataset.updatedFiles).refresh([res]);
                     },
                     function (e) {
                         // FIXME: エラーレスポンスの変更に追従する
@@ -993,17 +989,10 @@ class DatasetEditPage {
                 btns.attr("disabled", true);
                 Service.instance.replaceDatasetFile(id, fid, target.find("form")).then(
                     function (res) {
-                        var fb = JsViews.observable(file);
-                        fb.setProperty("name", res.name);
-                        fb.setProperty("description", res.description);
-                        fb.setProperty("url", res.url);
-                        fb.setProperty("size", res.size);
-                        fb.setProperty("createdAt", res.createdAt);
-                        fb.setProperty("createdBy", res.createdBy);
-                        fb.setProperty("updatedAt", res.updatedAt);
-                        fb.setProperty("updatedBy", res.updatedBy);
                         close();
                         Notification.show("success", "save successful");
+                        loadFiles(data, root, navigation);
+                        JsViews.observable(data.dataset.updatedFiles).refresh([res]);
                     },
                     function (e) {
                         // FIXME: エラーレスポンスの変更に追従する
@@ -1028,8 +1017,7 @@ class DatasetEditPage {
                 close();
             });
         });
-
-        root.find(".dataset-file-delete").on("click", function (e) {
+        root.on("click", ".dataset-file-delete", function (e) {
             var fid: String = new JqHtml(e.target).data("value");
             var btns = new JqHtml(e.target).parents(".dataset-file").find(".btn");
             btns.attr("disabled", true);
@@ -1037,9 +1025,9 @@ class DatasetEditPage {
                 return Service.instance.removeDatasetFile(id, fid);
             }).then(
                 function (_) {
+                    Notification.show("success", "delete successful");
                     setFileCount(data, data.dataset.files.total - 1);
                     loadFiles(data, root, navigation);
-                    Notification.show("success", "delete successful");
                 },
                 function (e) {
                     // FIXME: エラーレスポンスの変更に追従する
