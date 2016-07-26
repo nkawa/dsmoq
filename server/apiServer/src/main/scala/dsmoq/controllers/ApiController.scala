@@ -17,13 +17,14 @@ import dsmoq.ResourceNames
 import dsmoq.controllers.json._
 import dsmoq.exceptions.{AccessDeniedException, BadRequestException, InputCheckException, InputValidationException, NotFoundException, NotAuthorizedException}
 import dsmoq.logic.CheckUtil
-import dsmoq.services._
+import dsmoq.services.{AccountService, AuthService, DataSetAccessControlItem, DatasetService, GroupMember, GroupService, StatisticsService, SystemService, TaskService, User}
 
 class ApiController(resource: ResourceBundle) extends ScalatraServlet
-    with JacksonJsonSupport with SessionTrait with FileUploadSupport with ApiKeyAuthorizationTrait {
+    with JacksonJsonSupport with FileUploadSupport {
   protected implicit val jsonFormats: Formats = DefaultFormats
   private implicit def objectToPipe[A](x: A) = Pipe(x)
 
+  val authService = new AuthService(resource, this)
   val accountService = new AccountService(resource)
   val datasetService = new DatasetService(resource)
   val groupService = new GroupService(resource)
@@ -61,15 +62,15 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       password <- checkUtil.requireForForm("d.password", json.password)
       _        <- checkUtil.nonEmptyTrimmedSpacesForForm("d.password", password)
       result   <- accountService.findUserByIdAndPassword(id, password)
+      _        <- authService.updateSessionUser(result)
     } yield {
       result
     }
     ret match {
-      case Success(x) =>
-        setSignedInUser(x)
-        AjaxResponse("OK", x)
+      case Success(user) =>
+        AjaxResponse("OK", user)
       case Failure(e) => {
-        clearSession()
+        authService.clearSession()
         e match {
           case e: InputValidationException => AjaxResponse("BadRequest", e.getErrorMessage())
           case InputCheckException(name, message, false) => AjaxResponse("Illegal Argument", CheckError(name, message))
@@ -80,8 +81,8 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
   }
 
   post("/signout") {
-    clearSession()
-    AjaxResponse("OK", guestUser)
+    authService.clearSession()
+    AjaxResponse("OK", authService.GUEST_USER)
   }
 
   // --------------------------------------------------------------------------
@@ -89,7 +90,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
   // --------------------------------------------------------------------------
   get("/profile") {
     val ret = for {
-      user   <- getUser(request, true)
+      user   <- authService.getUser
       result <- accountService.getUserProfile(user)
     } yield {
       result
@@ -105,13 +106,10 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       _        <- checkUtil.nonEmptyTrimmedSpacesForForm("d.name", name)
       fullname <- checkUtil.requireForForm("d.fullname", json.fullname)
       _        <- checkUtil.nonEmptyTrimmedSpacesForForm("d.fullname", fullname)
-      user     <- getUser(request, false)
+      user     <- authService.getNotGuestUser
       result   <- accountService.updateUserProfile(user.id, json.name, json.fullname, json.organization, json.title, json.description)
+      _        <- updateSessionUser(result)
     } yield {
-      // 直接ログインしてユーザーを更新した場合、セッション上のログイン情報を更新する
-      if (!hasAuthorizationHeader(request)) {
-        setSignedInUser(result)
-      }
       result
     }
     toAjaxResponse(ret)
@@ -121,25 +119,24 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
     val ret = for {
       icon     <- checkUtil.requireForForm("icon", fileParams.get("icon"))
       _        <- checkUtil.checkNonZeroByteFile("icon", icon)
-      user     <- getUser(request, false)
+      user     <- authService.getNotGuestUser
       imageId  <- accountService.changeIcon(user.id, icon)
-    } yield {
-      val newUser = User(
-        id = user.id,
-        name = user.name,
-        fullname = user.fullname,
-        organization = user.organization,
-        title = user.title,
-        image = dsmoq.AppConf.imageDownloadRoot + "user/" + user.id + "/" + imageId,
-        mailAddress = user.mailAddress,
-        description = user.description,
-        isGuest = user.isGuest,
-        isDeleted = user.isDeleted
+      newUser  <- Success(
+        User(
+          id = user.id,
+          name = user.name,
+          fullname = user.fullname,
+          organization = user.organization,
+          title = user.title,
+          image = dsmoq.AppConf.imageDownloadRoot + "user/" + user.id + "/" + imageId,
+          mailAddress = user.mailAddress,
+          description = user.description,
+          isGuest = user.isGuest,
+          isDeleted = user.isDeleted
+        )
       )
-      // 直接ログインしてユーザーを更新した場合、セッション上のログイン情報を更新する
-      if (!hasAuthorizationHeader(request)) {
-        setSignedInUser(newUser)
-      }
+      _        <- updateSessionUser(newUser)
+    } yield {
       newUser
     }
     toAjaxResponse(ret)
@@ -151,13 +148,10 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       json     <- jsonOptToTry(d)
       email    <- checkUtil.requireForForm("d.email", json.email)
       _        <- checkUtil.nonEmptyTrimmedSpacesForForm("d.email", email)
-      user     <- getUser(request, false)
+      user     <- authService.getNotGuestUser
       result   <- accountService.changeUserEmail(user.id, email)
+      _        <- updateSessionUser(result)
     } yield {
-      // 直接ログインしてユーザーを更新した場合、セッション上のログイン情報を更新する
-      if (!hasAuthorizationHeader(request)) {
-        setSignedInUser(result)
-      }
       result
     }
     toAjaxResponse(ret)
@@ -171,7 +165,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       _                <- checkUtil.nonEmptyTrimmedSpacesForForm("d.currentPassword", currentPassword)
       newPassword      <- checkUtil.requireForForm("d.newPassword", json.newPassword)
       _                <- checkUtil.nonEmptyTrimmedSpacesForForm("d.newPassword", newPassword)
-      user             <- getUser(request, false)
+      user             <- authService.getNotGuestUser
       result           <- accountService.changeUserPassword(user.id, currentPassword, newPassword)
     } yield {}
     toAjaxResponse(ret)
@@ -191,7 +185,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       _         <- checkUtil.contains("saveS3", saveS3, Seq("true", "false"))
       _         <- checkUtil.invokeSeq(files) { x => checkUtil.checkNonZeroByteFile("file[]", x) }
       _         <- checkUtil.invoke("saveLocal, saveS3", saveLocal.toBoolean || saveS3.toBoolean, resource.getString(ResourceNames.CHECK_S3_OR_LOCAL))
-      user      <- getUser(request, false)
+      user      <- authService.getNotGuestUser
       result    <- datasetService.create(files, saveLocal.toBoolean, saveS3.toBoolean, name, user)
     } yield {
       result
@@ -206,7 +200,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       _      <- checkUtil.contains("d.orderby", json.orderby, Seq("attribute"))
       _      <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _      <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
-      user   <- getUser(request, true)
+      user   <- authService.getUser
       result <- datasetService.search(json.query, json.owners, json.groups, json.attributes, json.limit, json.offset, json.orderby, user)
     } yield {
       result
@@ -218,7 +212,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
     val id = params("datasetId")
     val ret = for {
       _      <- checkUtil.validUuidForUrl("datasetId", id)
-      user   <- getUser(request, true)
+      user   <- authService.getUser
       result <- datasetService.get(id, user)
       _      <- SystemService.writeDatasetAccessLog(result.id, user)
     } yield {
@@ -234,7 +228,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       files  <- checkUtil.requireForForm("files", fileMultiParams.get("files"))
       _      <- checkUtil.hasElement("files", files)
       _      <- checkUtil.invokeSeq(files) { x => checkUtil.checkNonZeroByteFile("files", x) }
-      user   <- getUser(request, false)
+      user   <- authService.getNotGuestUser
       result <- datasetService.addFiles(id, files, user)
     } yield {
       result
@@ -250,7 +244,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       _      <- checkUtil.validUuidForUrl("fileId", fileId)
       file   <- checkUtil.requireForForm("file", fileParams.get("file"))
       _      <- checkUtil.checkNonZeroByteFile("file", file)
-      user   <- getUser(request, false)
+      user   <- authService.getNotGuestUser
       result <- datasetService.updateFile(datasetId, fileId, file, user)
     } yield {
       result
@@ -269,7 +263,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       name   <- checkUtil.requireForForm("d.name", json.name)
       _      <- checkUtil.nonEmptyTrimmedSpacesForForm("d.name", name)
       _      <- checkUtil.requireForForm("d.description", json.description)
-      user   <- getUser(request, false)
+      user   <- authService.getNotGuestUser
       result <- datasetService.updateFileMetadata(datasetId, fileId, name, json.description.getOrElse(""), user)
     } yield {
       result
@@ -283,7 +277,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
     val ret = for {
       _      <- checkUtil.validUuidForUrl("datasetId", datasetId)
       _      <- checkUtil.validUuidForUrl("fileId", fileId)
-      user   <- getUser(request, false)
+      user   <- authService.getNotGuestUser
       result <- datasetService.deleteDatasetFile(datasetId, fileId, user)
     } yield {
       result
@@ -310,7 +304,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
         } yield {}
       }
       _           <- checkUtil.invoke("d.attribute", json.attributes.filter(_.name == "featured").length < 2, resource.getString(ResourceNames.FEATURE_ATTRIBUTE_IS_ONLY_ONE))
-      user        <- getUser(request, false)
+      user        <- authService.getNotGuestUser
       result      <- datasetService.modifyDatasetMeta(datasetId, name, json.description, license, json.attributes, user)
     } yield {
       result
@@ -326,7 +320,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       json    <- Success(d.getOrElse(SearchRangeParams()))
       _       <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _       <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
-      user    <- getUser(request, false)
+      user    <- authService.getNotGuestUser
       result  <- datasetService.getImages(datasetId, json.offset, json.limit, user)
     } yield {
       result
@@ -341,7 +335,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       images <- checkUtil.requireForForm("images", fileMultiParams.get("images")).map(_.filter(_.name.nonEmpty))
       _      <- checkUtil.hasElement("images", images)
       _      <- checkUtil.invokeSeq(images) { x => checkUtil.checkNonZeroByteFile("images", x) }
-      user   <- getUser(request, false)
+      user   <- authService.getNotGuestUser
       result <- datasetService.addImages(datasetId, images, user)
     } yield {
       result
@@ -358,7 +352,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       imageId <- checkUtil.requireForForm("d.imageId", json.imageId)
       _       <- checkUtil.nonEmptyTrimmedSpacesForForm("d.imageId", imageId)
       _       <- checkUtil.validUuidForForm("d.imageId", imageId)
-      user    <- getUser(request, false)
+      user    <- authService.getNotGuestUser
       result  <- datasetService.changePrimaryImage(datasetId, imageId, user)
     } yield {
       result
@@ -372,7 +366,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
     val ret = for {
       _       <- checkUtil.validUuidForUrl("datasetId", datasetId)
       _       <- checkUtil.validUuidForUrl("imageId", imageId)
-      user    <- getUser(request, false)
+      user    <- authService.getNotGuestUser
       result  <- datasetService.deleteImage(datasetId, imageId, user)
     } yield {
       result
@@ -388,7 +382,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       json   <- Success(d.getOrElse(SearchRangeParams()))
       _      <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _      <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
-      user   <- getUser(request, false)
+      user   <- authService.getNotGuestUser
       result <- datasetService.searchOwnerships(datasetId, json.offset, json.limit, user)
     } yield {
       result
@@ -411,7 +405,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
           _  <- checkUtil.contains("d.accessLevel", x.accessLevel, Seq(0, 1, 2, 3))
         } yield {}
       }
-      user    <- getUser(request, false)
+      user    <- authService.getNotGuestUser
       result  <- datasetService.setAccessControl(datasetId, json, user)
     } yield {
       result
@@ -427,7 +421,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       json        <- jsonOptToTry(d)
       accessLevel <- checkUtil.requireForForm("d.accessLevel", json.accessLevel)
       _           <- checkUtil.contains("d.accessLevel", accessLevel, Seq(0, 1, 2))
-      user        <- getUser(request, false)
+      user        <- authService.getNotGuestUser
       result      <- datasetService.setGuestAccessLevel(datasetId, accessLevel, user)
     } yield {
       result
@@ -439,7 +433,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
     val datasetId = params("datasetId")
     val ret = for {
       _           <- checkUtil.validUuidForUrl("datasetId", datasetId)
-      user        <- getUser(request, false)
+      user        <- authService.getNotGuestUser
       _           <- datasetService.deleteDataset(datasetId, user)
     } yield {}
     toAjaxResponse(ret)
@@ -454,7 +448,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       saveLocal <- checkUtil.requireForForm("d.saveLocal", json.saveLocal)
       saveS3    <- checkUtil.requireForForm("d.saveS3", json.saveS3)
       _         <- checkUtil.invoke("saveLocal, saveS3", saveLocal || saveS3, resource.getString(ResourceNames.CHECK_S3_OR_LOCAL))
-      user      <- getUser(request, false)
+      user      <- authService.getNotGuestUser
       result    <- datasetService.modifyDatasetStorage(datasetId, saveLocal, saveS3, user)
     } yield {
       result
@@ -466,7 +460,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
     val datasetId = params("datasetId")
     val ret = for {
       _      <- checkUtil.validUuidForUrl("datasetId", datasetId)
-      user   <- getUser(request, false)
+      user   <- authService.getNotGuestUser
       result <- datasetService.copyDataset(datasetId, user)
     } yield {
       result
@@ -480,7 +474,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       _    <- checkUtil.validUuidForUrl("datasetId", datasetId)
       file <- checkUtil.requireForForm("file", fileParams.get("file"))
       _    <- checkUtil.checkNonZeroByteFile("file", file)
-      user <- getUser(request, false)
+      user <- authService.getNotGuestUser
       _    <- datasetService.importAttribute(datasetId, file, user)
     } yield {}
     toAjaxResponse(ret)
@@ -490,7 +484,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
     val datasetId = params("datasetId")
     val ret = for {
       _      <- checkUtil.validUuidForUrl("datasetId", datasetId)
-      user   <- getUser(request, false)
+      user   <- authService.getNotGuestUser
       result <- datasetService.exportAttribute(datasetId, user)
     } yield {
       result
@@ -513,7 +507,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       imageId <- checkUtil.requireForForm("d.imageId", json.imageId)
       _       <- checkUtil.nonEmptyTrimmedSpacesForForm("d.imageId", imageId)
       _       <- checkUtil.validUuidForForm("d.imageId", imageId)
-      user    <- getUser(request, false)
+      user    <- authService.getNotGuestUser
       _       <- datasetService.changeFeaturedImage(datasetId, imageId, user)
     } yield {}
     toAjaxResponse(ret)
@@ -527,7 +521,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       json   <- Success(d.getOrElse(SearchRangeParams(Some(dsmoq.AppConf.fileLimit), Some(0))))
       _      <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _      <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
-      user   <- getUser(request, true)
+      user   <- authService.getUser
       result <- datasetService.getDatasetFiles(datasetId, json.limit, json.offset, user)
     } yield {
       result
@@ -545,7 +539,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       json   <- Success(d.getOrElse(SearchRangeParams(Some(dsmoq.AppConf.fileLimit), Some(0))))
       _      <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _      <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
-      user   <- getUser(request, true)
+      user   <- authService.getUser
       result <- datasetService.getDatasetZippedFiles(datasetId, fileId, json.limit, json.offset, user)
     } yield {
       result
@@ -563,7 +557,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       _      <- checkUtil.validUuidForForm("d.user", json.user)
       _      <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _      <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
-      user   <- getUser(request, true)
+      user   <- authService.getUser
       result <- groupService.search(json.query, json.user, json.limit, json.offset, user)
     } yield {
       result
@@ -575,7 +569,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
     val groupId = params("groupId")
     val ret = for {
       _      <- checkUtil.validUuidForUrl("groupId", groupId)
-      user   <- getUser(request, true)
+      user   <- authService.getUser
       result <- groupService.get(groupId, user)
     } yield {
       result
@@ -591,7 +585,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       json   <- Success(d.getOrElse(GetGroupMembersParams()))
       _      <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _      <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
-      user   <- getUser(request, true)
+      user   <- authService.getUser
       result <- groupService.getGroupMembers(groupId, json.limit, json.offset, user)
     } yield {
       result
@@ -606,7 +600,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       name        <- checkUtil.requireForForm("d.name", json.name)
       _           <- checkUtil.nonEmptyTrimmedSpacesForForm("d.name", name)
       description <- checkUtil.requireForForm("d.description", json.description)
-      user        <- getUser(request, false)
+      user        <- authService.getNotGuestUser
       result      <- groupService.createGroup(name, description, user)
     } yield {
       result
@@ -623,7 +617,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       name        <- checkUtil.requireForForm("d.name", json.name)
       _           <- checkUtil.nonEmptyTrimmedSpacesForForm("d.name", name)
       description <- checkUtil.requireForForm("d.description", json.description)
-      user        <- getUser(request, false)
+      user        <- authService.getNotGuestUser
       result      <- groupService.updateGroup(groupId, name, description, user)
     } yield {
       result
@@ -639,7 +633,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       json   <- Success(d.getOrElse(SearchRangeParams()))
       _      <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _      <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
-      user   <- getUser(request, false)
+      user   <- authService.getNotGuestUser
       result <- groupService.getImages(groupId, json.offset, json.limit, user)
     } yield {
       result
@@ -654,7 +648,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       images <- checkUtil.requireForForm("images", fileMultiParams.get("images")).map(_.filter(_.name.nonEmpty))
       _      <- checkUtil.hasElement("images", images)
       _      <- checkUtil.invokeSeq(images) { x => checkUtil.checkNonZeroByteFile("images", x) }
-      user   <- getUser(request, false)
+      user   <- authService.getNotGuestUser
       result <- groupService.addImages(groupId, images, user)
     } yield {
       result
@@ -671,7 +665,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       imageId <- checkUtil.requireForForm("d.imageId", json.imageId)
       _       <- checkUtil.nonEmptyTrimmedSpacesForForm("d.imageId", imageId)
       _       <- checkUtil.validUuidForForm("d.imageId", imageId)
-      user    <- getUser(request, false)
+      user    <- authService.getNotGuestUser
       _       <- groupService.changePrimaryImage(groupId, imageId, user)
     } yield {}
     toAjaxResponse(ret)
@@ -683,7 +677,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
     val ret = for {
       _      <- checkUtil.validUuidForUrl("groupId", groupId)
       _      <- checkUtil.validUuidForUrl("imageId", imageId)
-      user   <- getUser(request, false)
+      user   <- authService.getNotGuestUser
       result <- groupService.deleteImage(groupId, imageId, user)
     } yield {
       result
@@ -705,7 +699,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
           _      <- checkUtil.contains("d.role", x.role, Seq(0, 1, 2))
         } yield {}
       }
-      user    <- getUser(request, false)
+      user    <- authService.getNotGuestUser
       result  <- groupService.addMembers(groupId, json, user)
     } yield {
       result
@@ -723,7 +717,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       json   <- jsonOptToTry(d)
       role   <- checkUtil.requireForForm("d.role", json.role)
       _      <- checkUtil.contains("d.role", role, Seq(0, 1, 2))
-      user   <- getUser(request, false)
+      user   <- authService.getNotGuestUser
       result <- groupService.updateMemberRole(groupId, userId, role, user)
     } yield {
       result
@@ -737,7 +731,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
     val ret = for {
       _    <- checkUtil.validUuidForUrl("groupId", groupId)
       _    <- checkUtil.validUuidForUrl("userId", userId)
-      user <- getUser(request, false)
+      user <- authService.getNotGuestUser
       _    <- groupService.removeMember(groupId, userId, user)
     } yield {}
     toAjaxResponse(ret)
@@ -747,7 +741,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
     val groupId = params("groupId")
     val ret = for {
       _    <- checkUtil.validUuidForUrl("groupId", groupId)
-      user <- getUser(request, false)
+      user <- authService.getNotGuestUser
       _    <- groupService.deleteGroup(groupId, user)
     } yield {}
     toAjaxResponse(ret)
@@ -870,6 +864,23 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
     toAjaxResponse(ret)
   }
   
+  /**
+   * セッション上のログイン情報を更新する。
+   *
+   * @param user 更新するユーザ情報
+   * @return
+   *        Success(Unit) 更新が成功した場合
+   *        Failure(NullPointerException) 更新するユーザ情報がnullの場合
+   */
+  private def updateSessionUser(user: User): Try[Unit] = {
+    // 直接ログインしてユーザーを更新した場合、セッション上のログイン情報を更新する
+    if (!authService.hasAuthorizationHeader()) {
+      authService.updateSessionUser(user)
+    } else {
+      Success(Unit)
+    }
+  }
+
   private def toAjaxResponse[A](result: Try[A]) = result match {
     case Success(Unit) => AjaxResponse("OK")
     case Success(x) => AjaxResponse("OK", x)
@@ -885,22 +896,6 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       case _ =>
         log(e.getMessage, e)
         AjaxResponse("NG")
-    }
-  }
-
-  private def getUser(request: HttpServletRequest, allowGuest: Boolean): Try[User] = {
-    userFromHeader(request) match {
-      case ApiUser(user) => Success(user)
-      case ApiAuthorizationFailed => Failure(new NotAuthorizedException)
-      case NoAuthorizationHeader => signedInUser match {
-        case SignedInUser(user) => Success(user)
-        case GuestUser(user) => if (allowGuest) {
-          Success(user)
-        } else {
-          clearSession()
-          Failure(new NotAuthorizedException)
-        }
-      }
     }
   }
 
