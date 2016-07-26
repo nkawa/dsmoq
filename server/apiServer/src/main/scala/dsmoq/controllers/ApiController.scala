@@ -268,6 +268,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       json   <- jsonOptToTry(d)
       name   <- checkUtil.requireForForm("d.name", json.name)
       _      <- checkUtil.nonEmptyTrimmedSpacesForForm("d.name", name)
+      _      <- checkUtil.requireForForm("d.description", json.description)
       user   <- getUser(request, false)
       result <- datasetService.updateFileMetadata(datasetId, fileId, name, json.description.getOrElse(""), user)
     } yield {
@@ -302,6 +303,12 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       _           <- checkUtil.nonEmptyTrimmedSpacesForForm("d.license", license)
       _           <- checkUtil.validUuidForForm("d.license", license)
       description <- checkUtil.requireForForm("d.description", json.description)
+      _           <- checkUtil.invokeSeq(json.attributes) { x =>
+        for {
+          _  <- checkUtil.nonEmptyTrimmedSpacesForForm("d.attributes.name", x.name)
+          _  <- checkUtil.nonEmptyTrimmedSpacesForForm("d.attributes.value", x.value)
+        } yield {}
+      }
       _           <- checkUtil.invoke("d.attribute", json.attributes.filter(_.name == "featured").length < 2, resource.getString(ResourceNames.featureAttributeIsOnlyOne))
       user        <- getUser(request, false)
       result      <- datasetService.modifyDatasetMeta(datasetId, name, json.description, license, json.attributes, user)
@@ -690,6 +697,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       _      <- checkUtil.validUuidForUrl("groupId", groupId)
       d       <- getJsonValue[List[GroupMember]]
       json    <- jsonOptToTry(d)
+      _       <- checkUtil.hasElement("d", json)
       _       <- checkUtil.invokeSeq(json) { x =>
         for {
           _      <- checkUtil.nonEmptyTrimmedSpacesForForm("d.userId", x.userId)
