@@ -24,9 +24,11 @@ import scalikejdbc.config.DBsWithEnv
 
 import dsmoq.AppConf
 import dsmoq.services.json.GroupData.Group
+import dsmoq.services.json.GroupData.GroupAddImages
 import dsmoq.services.json.DatasetData.Dataset
 import dsmoq.services.json.DatasetData.DatasetAddFiles
 import dsmoq.services.json.DatasetData.DatasetAddImages
+import dsmoq.services.json.DatasetData.DatasetTask
 
 class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   protected implicit val jsonFormatChecks: Formats = DefaultFormats
@@ -71,6 +73,7 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   }
 
   before {
+    SpecCommonLogic.deleteAllCreateData()
     SpecCommonLogic.insertDummyData()
   }
 
@@ -887,7 +890,7 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val datasetId = createDataset().id
-          val imageId = getImageId(datasetId)
+          val imageId = getDatasetImageId(datasetId)
           // UUIDチェック(dataset_id)
           block {
             val generator = (x: String) => s"/api/datasets/${x}/images/${imageId}"
@@ -960,21 +963,421 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           }
         }
       }
+
+      "GET /api/groups/:group_id" in {
+        session {
+          signIn()
+          val groupId = createGroup().id
+          // UUIDチェック(groupId)
+          block {
+            val generator = (x: String) => s"/api/groups/${x}"
+            uuidCheckForUrl(GET, generator, groupId, Map.empty)
+          }
+        }
+      }
+
+      "GET /api/groups/:group_id/images" in {
+        session {
+          signIn()
+          val groupId = createGroup().id
+          jsonFormatOnlyCheck(GET, s"/api/groups/${groupId}/images")
+          // UUIDチェック(groupId)
+          block {
+            val generator = (x: String) => s"/api/groups/${x}/images"
+            uuidCheckForUrl(GET, generator, groupId, Map.empty)
+          }
+          // 数値チェック(limit)
+          block {
+            val generator = (x: JValue) => Map("d" -> compact(render(("limit" -> x))))
+            nonMinusIntCheck(GET, s"/api/groups/${groupId}/images", generator)
+          }
+          // 数値チェック(offset)
+          block {
+            val generator = (x: JValue) => Map("d" -> compact(render(("offset" -> x))))
+            nonMinusIntCheck(GET, s"/api/groups/${groupId}/images", generator)
+          }
+        }
+      }
+
+      "POST /api/groups/:group_id/images" in {
+        session {
+          signIn()
+          val groupId = createGroup().id
+          // UUIDチェック(groupId)
+          block {
+            val generator = (x: String) => s"/api/groups/${x}/images"
+            val images = Map("images" -> nonZeroByteImage)
+            uuidCheckForUrl(POST, generator, groupId, Map.empty, images)
+          }
+          // 長さチェック
+          block {
+            val generator = (x: File) => Map("images" -> x)
+            nonZeroLengthCheckForFile(POST, s"/api/groups/${groupId}/images", nonZeroByteImage, Map.empty, generator)
+          }
+          // ファイル(0byte)
+          block {
+            val generator = (x: File) => Map("images" -> x)
+            fileCheck(POST, s"/api/groups/${groupId}/images", generator)
+          }
+        }
+      }
+
+      "PUT /api/groups/:group_id/images/primary" in {
+        session {
+          signIn()
+          val groupId = createGroup().id
+          val imageId = AppConf.defaultGroupImageId
+          // JSONフォーマット
+          jsonFormatCheck(PUT, s"/api/groups/${groupId}/images/primary")
+          // UUIDチェック(groupId)
+          block {
+            val generator = (x: String) => s"/api/groups/${x}/images/primary"
+            val params = Map("d" -> compact(render(("imageId" -> imageId))))
+            uuidCheckForUrl(PUT, generator, groupId, params)
+          }
+          // 省略不可能パラメータ省略(imageId)
+          block {
+            val params = Map("d" -> "{}")
+            requireCheck(PUT, s"/api/groups/${groupId}/images/primary", params)
+          }
+          // 空文字不許可チェック(imageId)
+          block {
+            val generator = (x: String) => Map("d" -> compact(render(("imageId" -> x))))
+            nonEmptyCheck(PUT, s"/api/groups/${groupId}/images/primary", imageId, generator)
+          }
+          // UUIDチェック(imageId)
+          block {
+            val generator = (x: String) => Map("d" -> compact(render(("imageId" -> x))))
+            uuidCheckForForm(PUT, s"/api/groups/${groupId}/images/primary", imageId, generator)
+          }
+        }
+      }
+
+      "GET /api/groups/:group_id/members" in {
+        session {
+          signIn()
+          val groupId = createGroup().id
+          jsonFormatOnlyCheck(GET, s"/api/groups/${groupId}/members")
+          // UUIDチェック(groupId)
+          block {
+            val generator = (x: String) => s"/api/groups/${x}/members"
+            uuidCheckForUrl(GET, generator, groupId, Map.empty)
+          }
+          // 数値チェック(limit)
+          block {
+            val generator = (x: JValue) => Map("d" -> compact(render(("limit" -> x))))
+            nonMinusIntCheck(GET, s"/api/groups/${groupId}/members", generator)
+          }
+          // 数値チェック(offset)
+          block {
+            val generator = (x: JValue) => Map("d" -> compact(render(("offset" -> x))))
+            nonMinusIntCheck(GET, s"/api/groups/${groupId}/members", generator)
+          }
+        }
+      }
+
+      "POST /api/groups/:dataset_id/members" in {
+        session {
+          signIn()
+          val groupId = createGroup().id
+          // JSONフォーマット
+          jsonFormatCheck(POST, s"/api/groups/${groupId}/members")
+          // UUIDチェック(groupId)
+          block {
+            val generator = (x: String) => s"/api/groups/${x}/members"
+            val params = Map("d" -> compact(render(Seq(("userId" -> testUserId) ~ ("role" -> JInt(1))))))
+            uuidCheckForUrl(POST, generator, groupId, params)
+          }
+          // 長さチェック
+          block {
+            val generator = (x: Seq[JValue]) => Map("d" -> compact(render(x)))
+            val valid = Seq(("userId" -> testUserId) ~ ("role" -> JInt(1)))
+            nonZeroLengthCheckForParam(POST, s"/api/groups/${groupId}/members", valid, generator)
+          }
+          // 省略不可能パラメータ省略(userId)
+          block {
+            val params = Map("d" -> compact(render(Seq(("role" -> JInt(1))))))
+            requireCheck(POST, s"/api/groups/${groupId}/members", params)
+          }
+          // 省略不可能パラメータ省略(role)
+          block {
+            val params = Map("d" -> compact(render(Seq(("role" -> JInt(1))))))
+            requireCheck(POST, s"/api/groups/${groupId}/members", params)
+          }
+          // 空文字不許可チェック(userId)
+          block {
+            val generator = (x: String) => Map("d" -> compact(render(Seq(("userId" -> x) ~ ("role" -> JInt(1))))))
+            nonEmptyCheck(POST, s"/api/groups/${groupId}/members", testUserId, generator)
+          }
+          // UUIDチェック(id)
+          block {
+            val generator = (x: String) => Map("d" -> compact(render(Seq(("userId" -> x) ~ ("role" -> JInt(1))))))
+            uuidCheckForForm(POST, s"/api/groups/${groupId}/members", testUserId, generator)
+          }
+          // 正常範囲チェック(role)
+          block {
+            val params = Map("d" -> compact(render(Seq(("userId" -> testUserId) ~ ("role" -> "")))))
+            post(s"/api/groups/${groupId}/members", params) {
+              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") 
+            }
+          }
+          block {
+            val params = Map("d" -> compact(render(Seq(("userId" -> testUserId) ~ ("role" -> JInt(-1))))))
+            post(s"/api/groups/${groupId}/members", params) {
+              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") 
+            }
+          }
+        }
+      }
+
+      "PUT /api/groups/:group_id/members/:user_id" in {
+        session {
+          signIn()
+          val groupId = createGroup().id
+          addMember(groupId, dummyUserId)
+          // JSONフォーマット
+          jsonFormatCheck(PUT, s"/api/groups/${groupId}/members/${dummyUserId}")
+          // UUIDチェック(groupId)
+          block {
+            val generator = (x: String) => s"/api/groups/${x}/members/${dummyUserId}"
+            val params = Map("d" -> compact(render(("role" -> JInt(1)))))
+            uuidCheckForUrl(PUT, generator, groupId, params)
+          }
+          // UUIDチェック(userId)
+          block {
+            val generator = (x: String) => s"/api/groups/${groupId}/members/${x}"
+            val params = Map("d" -> compact(render(("role" -> JInt(1)))))
+            uuidCheckForUrl(PUT, generator, dummyUserId, params)
+          }
+          // 省略不可能パラメータ省略(role)
+          block {
+            val params = Map("d" -> "{}")
+            requireCheck(PUT, s"/api/groups/${groupId}/members/${dummyUserId}", params)
+          }
+          // 正常範囲チェック(role)
+          block {
+            val params = Map("d" -> compact(render(("role" -> ""))))
+            put(s"/api/groups/${groupId}/members/${dummyUserId}", params) {
+              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") 
+            }
+          }
+          block {
+            val params = Map("d" -> compact(render(("role" -> JInt(-1)))))
+            put(s"/api/groups/${groupId}/members/${dummyUserId}", params) {
+              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") 
+            }
+          }
+        }
+      }
+
+      "DELETE /api/groups/:group_id/members/:user_id" in {
+        session {
+          signIn()
+          val groupId = createGroup().id
+          addMember(groupId, dummyUserId)
+          // UUIDチェック(groupId)
+          block {
+            val generator = (x: String) => s"/api/groups/${x}/members/${dummyUserId}"
+            uuidCheckForUrl(DELETE, generator, groupId, Map.empty)
+          }
+          // UUIDチェック(userId)
+          block {
+            val generator = (x: String) => s"/api/groups/${groupId}/members/${x}"
+            uuidCheckForUrl(DELETE, generator, dummyUserId, Map.empty)
+          }
+        }
+      }
+
+      "DELETE /api/groups/:group_id/images/:image_id" in {
+        session {
+          signIn()
+          val groupId = createGroup().id
+          val imageId = getGroupImageId(groupId)
+          // UUIDチェック(groupId)
+          block {
+            val generator = (x: String) => s"/api/groups/${x}/images/${imageId}"
+            uuidCheckForUrl(DELETE, generator, groupId, Map.empty)
+          }
+          // UUIDチェック(imageId)
+          block {
+            val generator = (x: String) => s"/api/groups/${groupId}/images/${x}"
+            uuidCheckForUrl(DELETE, generator, imageId, Map.empty)
+          }
+        }
+      }
+
+      "PUT /api/groups/:group_id" in {
+        session {
+          signIn()
+          val groupId = createGroup().id
+          // JSONフォーマット
+          jsonFormatCheck(PUT, s"/api/groups/${groupId}")
+          // UUIDチェック(groupId)
+          block {
+            val generator = (x: String) => s"/api/groups/${x}"
+            val params = Map("d" -> compact(render(("name" -> "group1") ~ ("description" -> "desc1"))))
+            uuidCheckForUrl(PUT, generator, groupId, params)
+          }
+          // 省略不可能パラメータ省略(name)
+          block {
+            val params = Map("d" -> compact(render(("description" -> "desc1"))))
+            requireCheck(PUT, s"/api/groups/${groupId}", params)
+          }
+          // 省略不可能パラメータ省略(description)
+          block {
+            val params = Map("d" -> compact(render(("name" -> "group1"))))
+            requireCheck(PUT, s"/api/groups/${groupId}", params)
+          }
+          // 空文字不許可チェック(name)
+          block {
+            val generator = (x: String) => Map("d" -> compact(render(("name" -> x) ~ ("description" -> "desc1"))))
+            nonEmptyCheck(PUT, s"/api/groups/${groupId}", "name1", generator)
+          }
+        }
+      }
+
     }
 
     "suggest" - {
+      "GET /api/suggests/attributes" in {
+        session {
+          signIn()
+          jsonFormatOnlyCheck(GET, s"/api/suggests/attributes")
+          // 数値チェック(limit)
+          block {
+            val generator = (x: JValue) => Map("d" -> compact(render(("limit" -> x))))
+            nonMinusIntCheck(GET, s"/api/suggests/attributes", generator)
+          }
+          // 数値チェック(offset)
+          block {
+            val generator = (x: JValue) => Map("d" -> compact(render(("offset" -> x))))
+            nonMinusIntCheck(GET, s"/api/suggests/attributes", generator)
+          }
+        }
+      }
+
+      "GET /api/suggests/groups" in {
+        session {
+          signIn()
+          jsonFormatOnlyCheck(GET, s"/api/suggests/groups")
+          // 数値チェック(limit)
+          block {
+            val generator = (x: JValue) => Map("d" -> compact(render(("limit" -> x))))
+            nonMinusIntCheck(GET, s"/api/suggests/groups", generator)
+          }
+          // 数値チェック(offset)
+          block {
+            val generator = (x: JValue) => Map("d" -> compact(render(("offset" -> x))))
+            nonMinusIntCheck(GET, s"/api/suggests/groups", generator)
+          }
+        }
+      }
+
+      "GET /api/suggests/users" in {
+        session {
+          signIn()
+          jsonFormatOnlyCheck(GET, s"/api/suggests/users")
+          // 数値チェック(limit)
+          block {
+            val generator = (x: JValue) => Map("d" -> compact(render(("limit" -> x))))
+            nonMinusIntCheck(GET, s"/api/suggests/users", generator)
+          }
+          // 数値チェック(offset)
+          block {
+            val generator = (x: JValue) => Map("d" -> compact(render(("offset" -> x))))
+            nonMinusIntCheck(GET, s"/api/suggests/users", generator)
+          }
+        }
+      }
+
+      "GET /api/suggests/users_and_groups" in {
+        session {
+          signIn()
+          jsonFormatOnlyCheck(GET, s"/api/suggests/users_and_groups")
+          // 数値チェック(limit)
+          block {
+            val generator = (x: JValue) => Map("d" -> compact(render(("limit" -> x))))
+            nonMinusIntCheck(GET, s"/api/suggests/users_and_groups", generator)
+          }
+          // 数値チェック(offset)
+          block {
+            val generator = (x: JValue) => Map("d" -> compact(render(("offset" -> x))))
+            nonMinusIntCheck(GET, s"/api/suggests/users_and_groups", generator)
+          }
+          // UUIDチェック(excludeIds)
+          block {
+            val generator = (x: String) => Map("d" -> compact(render(("excludeIds" -> Seq(x)))))
+            uuidCheckForForm(GET, s"/api/suggests/users_and_groups", testUserId, generator)
+          }
+        }
+      }
     }
 
     "others" - {
+      "GET /api/statistics" in {
+        session {
+          signIn()
+          jsonFormatOnlyCheck(GET, s"/api/statistics")
+          // 日付チェック(from)
+          block {
+            val generator = (x: String) => Map("d" -> compact(render(("from" -> x))))
+            dateCheck(GET, s"/api/statistics", generator)
+          }
+          // 日付チェック(to)
+          block {
+            val generator = (x: String) => Map("d" -> compact(render(("to" -> x))))
+            dateCheck(GET, s"/api/statistics", generator)
+          }
+        }
+      }
+
+      "GET /api/tasks/:task_id" in {
+        session {
+          signIn()
+          val datasetId = createDataset().id
+          val taskId = createDatasetTask(datasetId)
+          // UUIDチェック(taskId)
+          block {
+            val generator = (x: String) => s"/api/tasks/${x}"
+            uuidCheckForUrl(GET, generator, taskId, Map.empty)
+          }
+        }
+      }
     }
   }
 
+  /**
+   * Httpメソッドを表す型
+   */
   sealed trait HttpMethod
+  
+  /**
+   * GETメソッドを表す型
+   */
   case object GET extends HttpMethod
+
+  /**
+   * PUTメソッドを表す型
+   */
   case object PUT extends HttpMethod
+
+  /**
+   * POSTメソッドを表す型
+   */
   case object POST extends HttpMethod
+
+  /**
+   * DELETEメソッドを表す型
+   */
   case object DELETE extends HttpMethod
 
+  /**
+   * JSON未指定、JSONフォーマット不正のケースをテストします。
+   * 
+   * @param method Httpメソッド
+   * @param url テストするAPIのURL
+   * @return テスト結果
+   */
   private def jsonFormatCheck(method: HttpMethod, url: String) = {
     val params = Map("d" -> "hoge") 
     method match {
@@ -997,6 +1400,13 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     }
   }
 
+  /**
+   * JSONフォーマット不正のケースのみをテストします。
+   * 
+   * @param method Httpメソッド
+   * @param url テストするAPIのURL
+   * @return テスト結果
+   */
   private def jsonFormatOnlyCheck(method: HttpMethod, url: String) = {
     val params = Map("d" -> "null") 
     method match {
@@ -1015,6 +1425,15 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     }
   }
 
+  /**
+   * 項目の必須チェックをテストします。
+   * 
+   * @param method Httpメソッド
+   * @param url テストするAPIのURL
+   * @param params APIのFORMパラメータ
+   * @param files APIのFORMパラメータ(file)
+   * @return テスト結果
+   */
   private def requireCheck(method: HttpMethod, url: String, params: Iterable[(String, String)], files: Iterable[(String, Any)] = Map.empty) = {
     method match {
       case GET => get(url, params) { parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") }
@@ -1024,6 +1443,16 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     }
   }
 
+  /**
+   * 項目の空文字チェックをテストします。
+   * 
+   * @param method Httpメソッド
+   * @param url テストするAPIのURL
+   * @param valid 正常なケースで使用する値
+   * @param paramGenerator APIのFORMパラメータを生成するための関数
+   * @param files APIのFORMパラメータ(file)
+   * @return テスト結果
+   */
   private def nonEmptyCheck(method: HttpMethod, url: String, valid: String, paramGenerator: String => Iterable[(String, String)], files: Iterable[(String, Any)] = Map.empty) = {
     val zeroSpace = paramGenerator("")
     val nonZeroSpace = paramGenerator("   ")
@@ -1052,6 +1481,15 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     }
   }
 
+  /**
+   * 項目のfileチェックをテストします。
+   * 
+   * @param method Httpメソッド
+   * @param url テストするAPIのURL
+   * @param paramGenerator APIのFORMパラメータ(file)を生成するための関数
+   * @param params APIのFORMパラメータ
+   * @return テスト結果
+   */
   private def fileCheck(method: HttpMethod, url: String, paramGenerator: File => Iterable[(String, Any)], params: Iterable[(String, String)] = Map.empty) = {
     val nonZeroByteParam = paramGenerator(nonZeroByteImage)
     val zeroByteParam = paramGenerator(zeroByteImage)
@@ -1068,6 +1506,15 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     }
   }
 
+  /**
+   * 項目のbooleanチェック(JSON項目向け)をテストします。
+   * 
+   * @param method Httpメソッド
+   * @param url テストするAPIのURL
+   * @param paramGenerator APIのFORMパラメータを生成するための関数
+   * @param files APIのFORMパラメータ(file)
+   * @return テスト結果
+   */
   private def booleanCheckForJson(method: HttpMethod, url: String, paramGenerator: JValue => Iterable[(String, String)], files: Iterable[(String, Any)] = Map.empty) = {
     val zeroSpaceParam = paramGenerator("")
     val trueParam = paramGenerator(JBool(true))
@@ -1117,6 +1564,15 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     }
   }
 
+  /**
+   * 項目のbooleanチェック(FORMパラメータに直に入ってくる場合向け)をテストします。
+   * 
+   * @param method Httpメソッド
+   * @param url テストするAPIのURL
+   * @param paramGenerator APIのFORMパラメータを生成するための関数
+   * @param files APIのFORMパラメータ(file)
+   * @return テスト結果
+   */
   private def booleanCheckForForm(method: HttpMethod, url: String, paramGenerator: String => Iterable[(String, String)], files: Iterable[(String, Any)] = Map.empty) = {
     val zeroSpaceParam = paramGenerator("")
     val trueParam = paramGenerator("true")
@@ -1166,6 +1622,15 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     }
   }
 
+  /**
+   * 項目の非マイナス数値チェックをテストします。
+   * 
+   * @param method Httpメソッド
+   * @param url テストするAPIのURL
+   * @param paramGenerator APIのFORMパラメータを生成するための関数
+   * @param files APIのFORMパラメータ(file)
+   * @return テスト結果
+   */
   private def nonMinusIntCheck(method: HttpMethod, url: String, paramGenerator: JValue => Iterable[(String, String)], files: Iterable[(String, Any)] = Map.empty) = {
     val zeroSpaceParam = paramGenerator("")
     val zeroParam = paramGenerator(JInt(0))
@@ -1199,6 +1664,16 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     }
   }
 
+  /**
+   * 項目のUUIDチェック(URLパラメータ向け)をテストします。
+   * 
+   * @param method Httpメソッド
+   * @param urlGenerator テストするAPIのURLを生成するための関数
+   * @param valid 正常なケースで使用する値
+   * @param params APIのFORMパラメータ
+   * @param files APIのFORMパラメータ(file)
+   * @return テスト結果
+   */
   private def uuidCheckForUrl(method: HttpMethod, urlGenerator: String => String, valid: String, param: Iterable[(String, String)] = Map.empty, files: Iterable[(String, Any)] = Map.empty) = {
     val zeroSpaceUrl = urlGenerator("")
     val moreSpaceUrl = urlGenerator("   ")
@@ -1215,7 +1690,7 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         put(zeroSpaceUrl, param, files) { parse(body).extract[AjaxResponse[Any]].status should be("NotFound") }
 //        put(moreSpaceUrl, param, files) { parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") }
         put(invalidUrl, param, files) { parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") }
-        put(validUrl, param, files) { parse(body).extract[AjaxResponse[Any]].status should be("OK") }
+        put(validUrl, param, files) { println(body); parse(body).extract[AjaxResponse[Any]].status should be("OK") }
       }
       case POST => {
         post(zeroSpaceUrl, param, files) { parse(body).extract[AjaxResponse[Any]].status should be("NotFound") }
@@ -1232,6 +1707,16 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     }
   }
 
+  /**
+   * 項目のUUIDチェック(FORMパラメータ向け)をテストします。
+   * 
+   * @param method Httpメソッド
+   * @param url テストするAPIのURL
+   * @param valid 正常なケースで使用する値
+   * @param paramGenerator APIのFORMパラメータを生成するための関数
+   * @param files APIのFORMパラメータ(file)
+   * @return テスト結果
+   */
   private def uuidCheckForForm(method: HttpMethod, url: String, valid: String, paramGenerator: String => Iterable[(String, String)], files: Iterable[(String, Any)] = Map.empty) = {
     val zeroSpaceParam = paramGenerator("")
     val moreSpaceParam = paramGenerator(URLEncoder.encode("   ", "UTF-8"))
@@ -1265,6 +1750,16 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     }
   }
 
+  /**
+   * 項目の長さチェック(file以外)をテストします。
+   * 
+   * @param method Httpメソッド
+   * @param url テストするAPIのURL
+   * @param valid 正常なケースで使用する値
+   * @param paramGenerator APIのFORMパラメータを生成するための関数
+   * @param files APIのFORMパラメータ(file)
+   * @return テスト結果
+   */
   private def nonZeroLengthCheckForParam[T](method: HttpMethod, url: String, valid: Seq[T], paramGenerator: Seq[T] => Iterable[(String, String)], files: Iterable[(String, Any)] = Map.empty) = {
     val zeroLengthParam = paramGenerator(Seq[T]())
     val nonZeroLengthParam = paramGenerator(valid)
@@ -1288,6 +1783,16 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     }
   }
 
+  /**
+   * 項目の長さチェック(fileの場合)をテストします。
+   * 
+   * @param method Httpメソッド
+   * @param url テストするAPIのURL
+   * @param valid 正常なケースで使用する値
+   * @param params APIのFORMパラメータ
+   * @param fileGenerator APIのFORMパラメータ(file)を生成するための関数
+   * @return テスト結果
+   */
   private def nonZeroLengthCheckForFile(method: HttpMethod, url: String, valid: File, params: Iterable[(String, String)] = Map.empty, fileGenerator: File => Iterable[(String, Any)]) = {
     val zeroLengthParam = Map.empty 
     val nonZeroLengthParam = fileGenerator(valid)
@@ -1304,11 +1809,44 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     }
   }
 
+  /**
+   * 項目の日付チェックをテストします。
+   * 
+   * @param method Httpメソッド
+   * @param url テストするAPIのURL
+   * @param paramGenerator APIのFORMパラメータを生成するための関数
+   * @param files APIのFORMパラメータ(file)
+   * @return テスト結果
+   */
+  private def dateCheck(method: HttpMethod, url: String, paramGenerator: String => Iterable[(String, String)], files: Iterable[(String, Any)] = Map.empty) = {
+    val zeroSpaceParam = paramGenerator("")
+    val notDateParam = paramGenerator("hoge")
+    val invalidParam = paramGenerator("2016/12/32")
+    val validParam = paramGenerator("2016/12/31")
+    method match {
+      case GET => {
+        get(url, zeroSpaceParam) { parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") }
+        get(url, notDateParam) { parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") }
+        get(url, invalidParam) { parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") }
+        get(url, validParam) { parse(body).extract[AjaxResponse[Any]].status should be("OK") }
+      }
+      case _ => throw new Exception("サポートしていない操作です")
+    }
+  }
 
+  /**
+   * 独自スコープを持つブロックを作成するためのメソッドです。
+   *
+   * @param procedure ブロックで行う処理
+   * @return ブロックでの処理結果
+   */
   private def block[T](procedure: => T): T = {
     procedure
   }
 
+  /**
+   * テストユーザでサインインします。
+   */
   private def signIn() {
     val params = Map("d" -> compact(render(("id" -> "dummy1") ~ ("password" -> "password"))))
     post("/api/signin", params) {
@@ -1316,13 +1854,25 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     }
   }
 
-  private def getImageId(datasetId: String): String = {
+  /**
+   * データセットに画像を追加し、そのIDを取得します。
+   *
+   * @param datasetId データセットID
+   * @return 画像ID
+   */
+  private def getDatasetImageId(datasetId: String): String = {
     val files = Map("images" -> nonZeroByteImage)
     post(s"/api/datasets/${datasetId}/images", Map.empty, files) {
       parse(body).extract[AjaxResponse[DatasetAddImages]].data.images.headOption.map(_.id).getOrElse("")
     }
   }
 
+  /**
+   * データセットにファイルを追加し、そのIDを取得します。
+   *
+   * @param datasetId データセットID
+   * @return ファイルID
+   */
   private def getFileId(datasetId: String): String = {
     val files = Map("files" -> nonZeroByteImage)
     post(s"/api/datasets/${datasetId}/files", Map.empty, files) {
@@ -1330,6 +1880,11 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     }
   }
 
+  /**
+   * データセットを作成します。
+   *
+   * @return 作成したデータセット
+   */
   private def createDataset(): Dataset = {
     val params = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
     post("/api/datasets", params) {
@@ -1338,6 +1893,49 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     }
   }
 
+  /**
+   * データセットの保存先を変更し、タスクを生成して、そのIDを取得します。
+   *
+   * @param datasetId データセットID
+   * @return タスクID
+   */
+  private def createDatasetTask(datasetId: String): String = {
+    val params = Map("d" -> compact(render(("saveLocal" -> JBool(true)) ~ ("saveS3" -> JBool(true)))))
+    put(s"/api/datasets/${datasetId}/storage", params) {
+      parse(body).extract[AjaxResponse[DatasetTask]].data.taskId
+    }
+  }
+
+  /**
+   * グループにメンバーを追加します。
+   *
+   * @param groupId グループID
+   * @param userId 追加するユーザID
+   */
+  private def addMember(groupId: String, userId: String): Unit = {
+    val params = Map("d" -> compact(render(Seq(("userId" -> userId) ~ ("role" -> JInt(1))))))
+    post(s"/api/groups/${groupId}/members", params) {
+    }
+  }
+
+  /**
+   * グループに画像を追加し、そのIDを取得します。
+   *
+   * @param groupId グループID
+   * @return 画像ID
+   */
+  private def getGroupImageId(groupId: String): String = {
+    val files = Map("images" -> nonZeroByteImage)
+    post(s"/api/groups/${groupId}/images", Map.empty, files) {
+      parse(body).extract[AjaxResponse[GroupAddImages]].data.images.headOption.map(_.id).getOrElse("")
+    }
+  }
+
+  /**
+   * グループを作成します。
+   *
+   * @return 作成したグループ
+   */
   private def createGroup(): Group = {
     val params = Map("d" -> compact(render(("name" -> "group1") ~ ("description" -> "des1"))))
     post("/api/groups", params) {
@@ -1346,6 +1944,11 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     }
   }
 
+  /**
+   * API呼び出し結果のstatusを確認します。
+   *
+   * @return テスト結果
+   */
   private def checkStatus() {
     status should be(200)
     val result = parse(body).extract[AjaxResponse[Any]]
