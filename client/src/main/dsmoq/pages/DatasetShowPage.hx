@@ -122,7 +122,16 @@ class DatasetShowPage {
 
         return navigation.promise;
     }
-    
+   
+    /**
+     * データセットのファイル一覧を取得し、画面に設定する。
+     *
+     * @param data 画面で保持するbindingのデータ
+     * @param datasetId データセットID
+     * @param limit データセットのファイルの取得Limit
+     * @param offset データセットのファイルの取得位置
+     * @return データセットのファイル一覧取得のPromise
+     */
     static function setDatasetFiles(data: Dynamic, datasetId: String, limit: Int, offset: Int): Promise<RangeSlice<DatasetFile>> {
         JsViews.observable(data.root).setProperty("useProgress", true);
         return Service.instance.getDatasetFiles(datasetId, { limit: limit, offset: offset }).then(function (res) {
@@ -141,6 +150,16 @@ class DatasetShowPage {
         });
     }
 
+    /**
+     * データセットのZIP内ファイル一覧を取得し、画面に設定する。
+     *
+     * @param data 画面で保持するbindingのデータ
+     * @param datasetId データセットID
+     * @param index データセットのファイル中の、ZIPファイルのindex
+     * @param limit データセットのファイルの取得Limit
+     * @param offset データセットのファイルの取得位置
+     * @return データセットのZIP内ファイル一覧取得のPromise
+     */
     static function setDatasetZippedFiles(data: Dynamic, datasetId: String, index: Int, limit: Int, offset: Int): Promise<RangeSlice<DatasetZipedFile>> {
         JsViews.observable(data.root.files[index]).setProperty("useProgress", true);
         return Service.instance.getDatasetZippedFiles(datasetId, data.root.files[index].file.id, { limit: limit, offset: offset }).then(function (res) {
@@ -159,6 +178,14 @@ class DatasetShowPage {
         return index;
     }
     
+    /**
+     * ZIPファイルを展開したときのイベントを設定する。
+     *
+     * @param html
+     * @param navigation
+     * @param data
+     * @param datasetId データセットID
+     */
     static function setZipClickEvent(html: Html, navigation: PromiseBroker<Navigation<Page>>, data: Dynamic, datasetId: String): Void {
         html.find(".accordion-zip-item").on("click", function (e) {
             var index: Int = getIndex(e.target);
@@ -199,6 +226,16 @@ class DatasetShowPage {
             });
         });
     }
+
+    /**
+     * ファイルのmore file表示をクリックしたときのイベントを設定する。
+     *
+     * @param html
+     * @param navigation
+     * @param binding
+     * @param data
+     * @param datasetId データセットID
+     */
     static function setTopMoreClickEvent(html: Html, navigation: PromiseBroker<Navigation<Page>>, binding: Observable, data: Dynamic, datasetId: String): Void {
         html.find(".more-head-item").on("click", function (_) {
             binding.setProperty("data.root.useProgress", true);
@@ -227,6 +264,16 @@ class DatasetShowPage {
         });
     }
 
+    /**
+     * ZIPファイルのmore file表示をクリックしたときのイベントを設定する。
+     *
+     * @param html
+     * @param navigation
+     * @param binding
+     * @param data
+     * @param datasetId データセットID
+     * @param index データセットのファイル中の、ZIPファイルのindex
+     */
     static function setZipMoreClickEvent(html: Html, navigation: PromiseBroker<Navigation<Page>>, data: Dynamic, datasetId: String, index: Int): Void {
         html.find(".more-zip-item").on("click", function (_) {
             JsViews.observable(data.root.files[index]).setProperty("useProgress", true);

@@ -290,6 +290,13 @@ class GroupEditPage {
         });
     }
     
+    /**
+     * 画像選択ダイアログを表示する。
+     *
+     * @param id グループID
+     * @param rootBinding
+     * @return モーダルダイアログを表示するPromise
+     */
     static function showSelectImageDialog(id: String, rootBinding: Observable) {
         var data = {
             offset: 0,

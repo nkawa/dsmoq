@@ -1,5 +1,8 @@
 package dsmoq.models;
 
+/**
+ * APIのステータス文字列の定義体
+ */
 @:enum abstract ApiStatus(String) to String {
     var OK = "OK";
     var NotFound = "NotFound";

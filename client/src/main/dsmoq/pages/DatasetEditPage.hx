@@ -499,6 +499,12 @@ class DatasetEditPage {
         return navigation.promise;
     }
 
+    /**
+     * オーナーを追加するダイアログを表示する。
+     *
+     * @param myself ログインユーザ情報
+     * @return モーダルダイアログを表示するPromise
+     */
     static function showAddOwnerDialog(myself: Profile) {
         var data = {
             query: "",
@@ -592,6 +598,13 @@ class DatasetEditPage {
         });
     }
     
+    /**
+     * 画像を選択するダイアログを表示する。
+     *
+     * @param id データセットID
+     * @param rootBinding JsViewsのObservable
+     * @return モーダルダイアログを表示するPromise
+     */
     static function showSelectImageDialog(id: String, rootBinding: Observable) {
         var data = {
             offset: 0,
