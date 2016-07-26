@@ -1,5 +1,9 @@
 package api
 
+import java.util.ResourceBundle
+
+import org.eclipse.jetty.servlet.ServletHolder
+
 import _root_.api.api.logic.SpecCommonLogic
 import com.google.api.services.oauth2.model.Userinfoplus
 import dsmoq.AppConf
@@ -16,21 +20,27 @@ import scalikejdbc.config.DBsWithEnv
 import dsmoq.persistence.PostgresqlHelper._
 
 class GoogleAccountSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
+  val googleService = new GoogleAccountService(ResourceBundle.getBundle("message"))
+
   protected implicit val jsonFormats: Formats = DefaultFormats
-  // multi-part file upload config
-  val holder = addServlet(classOf[ApiController], "/api/*")
-  holder.getRegistration.setMultipartConfig(
-    MultipartConfig(
-      maxFileSize = Some(3 * 1024 * 1024),
-      fileSizeThreshold = Some(1 * 1024 * 1024)
-    ).toMultipartConfigElement
-  )
-  addServlet(classOf[GoogleOAuthController], "/google_oauth/*")
 
   override def beforeAll() {
     super.beforeAll()
     DBsWithEnv("test").setup()
     System.setProperty(org.scalatra.EnvironmentKey, "test")
+
+    val resource = ResourceBundle.getBundle("message")
+    val servlet = new ApiController(resource)
+    val holder = new ServletHolder(servlet.getClass.getName, servlet)
+    // multi-part file upload config
+    holder.getRegistration.setMultipartConfig(
+      MultipartConfig(
+        maxFileSize = Some(3 * 1024 * 1024),
+        fileSizeThreshold = Some(1 * 1024 * 1024)
+      ).toMultipartConfigElement
+    )
+    servletContextHandler.addServlet(holder, "/api/*")
+    addServlet(new GoogleOAuthController(resource), "/google_oauth/*")
   }
 
   override def afterAll() {
@@ -52,7 +62,7 @@ class GoogleAccountSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
       dummyGoogleUser.setEmail("dummy@dummy.co.jp")
       dummyGoogleUser.setId("dummyId")
       dummyGoogleUser.setName("dummyName")
-      val user = GoogleAccountService.getUser(dummyGoogleUser).get
+      val user = googleService.getUser(dummyGoogleUser).get
 
       DB readOnly { implicit s =>
         val u = User.u

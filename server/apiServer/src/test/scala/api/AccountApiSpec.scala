@@ -1,7 +1,10 @@
 package api
 
+import java.util.ResourceBundle
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
+
+import org.eclipse.jetty.servlet.ServletHolder
 
 import api.logic.SpecCommonLogic
 import dsmoq.services.User
@@ -29,19 +32,21 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   private val dummyFile = new File("../README.md")
   private val dummyImage = new File("../../client/www/dummy/images/nagoya.jpg")
 
-  // multi-part file upload config
-  val holder = addServlet(classOf[ApiController], "/api/*")
-  holder.getRegistration.setMultipartConfig(
-    MultipartConfig(
-      maxFileSize = Some(3 * 1024 * 1024),
-      fileSizeThreshold = Some(1 * 1024 * 1024)
-    ).toMultipartConfigElement
-  )
-
   override def beforeAll() {
     super.beforeAll()
     DBsWithEnv("test").setup()
     System.setProperty(org.scalatra.EnvironmentKey, "test")
+
+    val servlet = new ApiController(ResourceBundle.getBundle("message"))
+    val holder = new ServletHolder(servlet.getClass.getName, servlet)
+    // multi-part file upload config
+    holder.getRegistration.setMultipartConfig(
+      MultipartConfig(
+        maxFileSize = Some(3 * 1024 * 1024),
+        fileSizeThreshold = Some(1 * 1024 * 1024)
+      ).toMultipartConfigElement
+    )
+    servletContextHandler.addServlet(holder, "/api/*")
   }
 
   override def afterAll() {
@@ -273,7 +278,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val files = Map("file[]" -> dummyFile)
-          val datasetId = post("/api/datasets", Map.empty, files) {
+          val datasetId = post("/api/datasets", Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1"), files) {
             checkStatus()
             parse(body).extract[AjaxResponse[Dataset]].data.id
           }
@@ -290,8 +295,12 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         }
 
         // 属性候補から作成したattributesが取得できるか
-        val query = Map("query" -> attributeName)
-        get("/api/suggests/attributes", query) {
+        val params = Map("d" ->
+          compact(render(
+            ("query" -> attributeName)
+          ))
+        )
+        get("/api/suggests/attributes", params) {
           checkStatus()
           val result = parse(body).extract[AjaxResponse[Seq[String]]]
           assert(result.data.contains(attributeName))

@@ -7,6 +7,7 @@ import dsmoq.persistence.GroupMemberRole
 import dsmoq.{services, AppConf, persistence}
 import com.google.api.services.oauth2.Oauth2
 import org.joda.time.DateTime
+import java.util.ResourceBundle
 import java.util.UUID
 import scalikejdbc._
 import com.google.api.services.oauth2.model.Userinfoplus
@@ -18,7 +19,7 @@ import scala.collection.JavaConversions._
 import com.typesafe.scalalogging.LazyLogging
 import org.slf4j.MarkerFactory
 
-object GoogleAccountService extends LazyLogging {
+class GoogleAccountService(resource: ResourceBundle) extends LazyLogging {
 
   /**
     * ログマーカー

@@ -4,6 +4,9 @@ import java.nio.file.Paths
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 import java.net.URLEncoder
+import java.util.ResourceBundle
+
+import org.eclipse.jetty.servlet.ServletHolder
 
 import _root_.api.api.logic.SpecCommonLogic
 import com.amazonaws.auth.BasicAWSCredentials
@@ -48,21 +51,24 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
   private val host = "http://localhost:8080"
 
-  // multi-part file upload config
-  val holder = addServlet(classOf[ApiController], "/api/*")
-  holder.getRegistration.setMultipartConfig(
-    MultipartConfig(
-      maxFileSize = Some(3 * 1024 * 1024),
-      fileSizeThreshold = Some(1 * 1024 * 1024)
-    ).toMultipartConfigElement
-  )
-  addServlet(classOf[FileController], "/files/*")
-  addServlet(classOf[ImageController], "/images/*")
-
   override def beforeAll() {
     super.beforeAll()
     DBsWithEnv("test").setup()
     System.setProperty(org.scalatra.EnvironmentKey, "test")
+
+    val resource = ResourceBundle.getBundle("message")
+    val servlet = new ApiController(resource)
+    val holder = new ServletHolder(servlet.getClass.getName, servlet)
+    // multi-part file upload config
+    holder.getRegistration.setMultipartConfig(
+      MultipartConfig(
+        maxFileSize = Some(3 * 1024 * 1024),
+        fileSizeThreshold = Some(1 * 1024 * 1024)
+      ).toMultipartConfigElement
+    )
+    servletContextHandler.addServlet(holder, "/api/*")
+    addServlet(new FileController(resource), "/files/*")
+    addServlet(new ImageController(resource), "/images/*")
   }
 
   override def afterAll() {
@@ -112,7 +118,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val files = List(("file[]", dummyFile), ("file[]", dummyFile))
-          val (datasetId, fileIds) = post("/api/datasets", Map.empty, files) {
+          val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+          val (datasetId, fileIds) = post("/api/datasets", createParams, files) {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Dataset]]
             val datasetId = result.data.id
@@ -436,7 +443,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val files = Map("file[]" -> dummyFile)
-          val url = post("/api/datasets", Map.empty, files) {
+          val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+          val url = post("/api/datasets", createParams, files) {
             checkStatus()
             parse(body).extract[AjaxResponse[Dataset]].data.files(0).url
           }
@@ -769,7 +777,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val files = Map("file[]" -> dummyFile)
-          val params = Map("saveLocal" -> "false", "saveS3" -> "true")
+          val params = Map("saveLocal" -> "false", "saveS3" -> "true", "name" -> "test1")
           val url = post("/api/datasets", params, files) {
             checkStatus()
             val dataset = parse(body).extract[AjaxResponse[Dataset]]
@@ -789,7 +797,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val files = Map("file[]" -> dummyFile)
-          val params = Map("saveLocal" -> "false", "saveS3" -> "true")
+          val params = Map("saveLocal" -> "false", "saveS3" -> "true", "name" -> "test1")
           val data = post("/api/datasets", params, files) {
             checkStatus()
             val dataset = parse(body).extract[AjaxResponse[Dataset]]
@@ -821,7 +829,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val files = Map("file[]" -> dummyFile)
-          val params = Map("saveLocal" -> "true", "saveS3" -> "true")
+          val params = Map("saveLocal" -> "true", "saveS3" -> "true", "name" -> "test1")
           val url = post("/api/datasets", params, files) {
             checkStatus()
             val dataset = parse(body).extract[AjaxResponse[Dataset]]
@@ -841,7 +849,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val files = Map("file[]" -> dummyFile)
-          val id = post("/api/datasets", Map.empty, files) {
+          val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+          val id = post("/api/datasets", createParams, files) {
             checkStatus()
             parse(body).extract[AjaxResponse[Dataset]].data.id
           }
@@ -851,7 +860,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           put("/api/datasets/" + id + "/storage", Map("d" -> compact(render(("saveLocal" -> JBool(false)) ~ ("saveS3" -> JBool(false)))))) {
             status should be(200)
             val result = parse(body).extract[AjaxResponse[Any]]
-            result.status should be("BadRequest")
+            result.status should be("Illegal Argument")
           }
 
           get("/api/datasets/" + id) {
@@ -896,7 +905,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val files = Map("file[]" -> dummyFile)
-          val id = post("/api/datasets", Map.empty, files) {
+          val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+          val id = post("/api/datasets", createParams, files) {
             checkStatus()
             parse(body).extract[AjaxResponse[Dataset]].data.id
           }
@@ -906,7 +916,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           put("/api/datasets/" + id + "/storage", Map("d" -> compact(render(("saveLocal" -> JBool(false)) ~ ("saveS3" -> JBool(false)))))) {
             status should be(200)
             val result = parse(body).extract[AjaxResponse[Any]]
-            result.status should be("BadRequest")
+            result.status should be("Illegal Argument")
           }
 
           get("/api/datasets/" + id) {
@@ -951,7 +961,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val files = Map("file[]" -> dummyFile)
-          val id = post("/api/datasets", Map.empty, files) {
+          val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+          val id = post("/api/datasets", createParams, files) {
             checkStatus()
             parse(body).extract[AjaxResponse[Dataset]].data.id
           }
@@ -961,7 +972,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           put("/api/datasets/" + id + "/storage", Map("d" -> compact(render(("saveLocal" -> JBool(false)) ~ ("saveS3" -> JBool(false)))))) {
             status should be(200)
             val result = parse(body).extract[AjaxResponse[Any]]
-            result.status should be("BadRequest")
+            result.status should be("Illegal Argument")
           }
 
           get("/api/datasets/" + id) {
@@ -1006,7 +1017,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val files = Map("file[]" -> dummyFile)
-          val datasetId = post("/api/datasets", Map.empty, files) {
+          val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+          val datasetId = post("/api/datasets", createParams, files) {
             checkStatus()
             parse(body).extract[AjaxResponse[Dataset]].data.id
           }
@@ -1028,8 +1040,9 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
       "APIキーによるログインで操作できるか" in {
         val files = Map("file[]" -> dummyFile)
+        val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
         val signature = getSignature("5dac067a4c91de87ee04db3e3c34034e84eb4a599165bcc9741bb9a91e8212cb", "dc9765e63b2b469a7bfb611fad8a10f2394d2b98b7a7105078356ec2a74164ea")
-        val datasetId = post("/api/datasets", Map.empty, files, Map("Authorization" -> ("api_key=5dac067a4c91de87ee04db3e3c34034e84eb4a599165bcc9741bb9a91e8212cb, signature=" + signature))) {
+        val datasetId = post("/api/datasets", createParams, files, Map("Authorization" -> ("api_key=5dac067a4c91de87ee04db3e3c34034e84eb4a599165bcc9741bb9a91e8212cb, signature=" + signature))) {
           checkStatus()
           parse(body).extract[AjaxResponse[Dataset]].data.id
         }
@@ -1540,6 +1553,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             // datasetを別々のユーザーで2つ作成、どちらもguestアクセス可能とする
             signIn()
             val datasetId = createDataset()
+            val datasetName = "test1"
             val params = Map("d" -> compact(render(("accessLevel" -> JInt(DefaultAccessLevel.FullPublic)))))
             put("/api/datasets/" + datasetId + "/guest_access", params) {
               checkStatus()
@@ -1572,7 +1586,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             // 検索クエリとユーザー名を指定して検索可能か
             var searchParmas = Map("d" ->
               compact(render(
-                ("query" -> dummyFile.getName) ~
+                ("query" -> datasetName) ~
                   ("owners" -> List(testUserName))
               ))
             )
@@ -1583,13 +1597,13 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               assert(result.data.results.map(_.id).contains(datasetId))
               // 検索クエリとユーザー名で絞り込めているかチェック
               val dataset = result.data.results.find(_.id == datasetId).get
-              assert(dataset.name.contains(dummyFile.getName) || dataset.description.contains(dummyFile.getName))
+              assert(dataset.name.contains(datasetName))
               assert(dataset.ownerships.filter(_.ownerType == OwnerType.User).map(_.name).contains(testUserName))
             }
 
             var searchParmas2 = Map("d" ->
               compact(render(
-                ("query" -> dummyFile.getName) ~
+                ("query" -> datasetName) ~
                   ("owners" -> List(dummyUserName))
               ))
             )
@@ -1600,7 +1614,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               assert(result.data.results.map(_.id).contains(anotherDatasetId))
               // 検索クエリとユーザー名で絞り込めているかチェック
               val dataset = result.data.results.find(_.id == anotherDatasetId).get
-              assert(dataset.name.contains(dummyFile.getName) || dataset.description.contains(dummyFile.getName))
+              assert(dataset.name.contains(datasetName))
               assert(dataset.ownerships.filter(_.ownerType == OwnerType.User).map(_.name).contains(dummyUserName))
             }
           }
@@ -1612,6 +1626,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             signIn()
             createDataset()
             val datasetId = createDataset()
+            val datasetName = "test1"
             val groupName = "groupName" + UUID.randomUUID().toString
             val createGroupParams = Map("d" -> compact(render(("name" -> groupName) ~ ("description" -> "group description"))))
             val groupId = post("/api/groups", createGroupParams) {
@@ -1642,7 +1657,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             // 検索クエリとグループ名を指定して検索可能か
             var searchParmas = Map("d" ->
               compact(render(
-                ("query" -> dummyFile.getName) ~
+                ("query" -> datasetName) ~
                   ("groups" -> List(groupName))
               ))
             )
@@ -1653,7 +1668,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               assert(result.data.results.map(_.id).contains(datasetId))
               // 検索クエリとグループ名で絞り込めているかチェック
               val dataset = result.data.results.find(_.id == datasetId).get
-              assert(dataset.name.contains(dummyFile.getName) || dataset.description.contains(dummyFile.getName))
+              assert(dataset.name.contains(datasetName))
               assert(dataset.ownerships.filter(_.ownerType == OwnerType.Group).map(_.name).contains(groupName))
             }
           }
@@ -1885,6 +1900,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             signIn()
             createDataset()
             val datasetId = createDataset()
+            val datasetName = "test1"
             val groupName = "groupName" + UUID.randomUUID().toString
             val createGroupParams = Map("d" -> compact(render(("name" -> groupName) ~ ("description" -> "group description"))))
             val groupId = post("/api/groups", createGroupParams) {
@@ -1915,7 +1931,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             // 検索クエリ・ユーザー名・グループ名を指定して検索可能か
             var searchParmas = Map("d" ->
               compact(render(
-                ("query" -> dummyFile.getName) ~
+                ("query" -> datasetName) ~
                   ("owners" -> List(testUserName)) ~
                   ("groups" -> List(groupName))
               ))
@@ -1927,7 +1943,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               assert(result.data.results.map(_.id).contains(datasetId))
               // 検索クエリ・ユーザー名・グループ名で絞り込めているかチェック
               val dataset = result.data.results.find(_.id == datasetId).get
-              assert(dataset.name.contains(dummyFile.getName) || dataset.description.contains(dummyFile.getName))
+              assert(dataset.name.contains(datasetName))
               assert(dataset.ownerships.filter(_.ownerType == OwnerType.User).map(_.name).contains(testUserName))
               assert(dataset.ownerships.filter(_.ownerType == OwnerType.Group).map(_.name).contains(groupName))
             }
@@ -2289,14 +2305,15 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List(("file[]", dummyFile))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
             }
             get(s"/api/datasets/${datasetId.reverse}/files") {
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
-              result.status should be("NotFound")
+              result.status should be("Illegal Argument")
             }
           }
         }
@@ -2304,7 +2321,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List(("file[]", dummyFile))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2320,7 +2338,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List(("file[]", dummyFile))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2337,7 +2356,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List(("file[]", dummyFile))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2357,7 +2377,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List(("file[]", dummyFile))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2389,7 +2410,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List(("file[]", dummyZipFile))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2401,7 +2423,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             }
             get(s"/api/datasets/${datasetId.reverse}/files/${fileId}/zippedfiles") {
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
-              result.status should be("NotFound")
+              result.status should be("Illegal Argument")
             }
           }
         }
@@ -2409,7 +2431,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List(("file[]", dummyZipFile))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2421,7 +2444,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             }
             get(s"/api/datasets/${datasetId}/files/${fileId.reverse}/zippedfiles") {
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
-              result.status should be("BadRequest")
+              result.status should be("Illegal Argument")
             }
           }
         }
@@ -2429,7 +2452,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List(("file[]", dummyFile))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2441,7 +2465,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             }
             get(s"/api/datasets/${datasetId}/files/${fileId.reverse}/zippedfiles") {
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
-              result.status should be("BadRequest")
+              result.status should be("Illegal Argument")
             }
           }
         }
@@ -2449,7 +2473,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List(("file[]", dummyZipFile))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2470,7 +2495,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List(("file[]", dummyZipFile))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2492,7 +2518,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List(("file[]", dummyZipFile))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2517,7 +2544,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List(("file[]", dummyZipFile))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2554,7 +2582,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List.fill(151)(("file[]", dummyFile))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2574,19 +2603,16 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List.fill(151)(("file[]", dummyFile))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
             }
             val params = Map("d" -> "null")
             get(s"/api/datasets/${datasetId}/files", params) {
-              checkStatus()
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
-              result.data.summary.total should be(151)
-              result.data.summary.count should be(150)
-              result.data.summary.offset should be(0)
-              result.data.results.size should be(150)
+              result.status should be("Illegal Argument")
             }
           }
         }
@@ -2595,7 +2621,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List.fill(151)(("file[]", dummyFile))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2616,7 +2643,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List.fill(151)(("file[]", dummyFile))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2627,12 +2655,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               )))
             )
             get(s"/api/datasets/${datasetId}/files", params) {
-              checkStatus()
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
-              result.data.summary.total should be(151)
-              result.data.summary.count should be(0)
-              result.data.summary.offset should be(0)
-              result.data.results.size should be(0)
+              result.status should be("Illegal Argument")
             }
           }
         }
@@ -2641,7 +2665,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List.fill(151)(("file[]", dummyFile))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2666,7 +2691,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List.fill(151)(("file[]", dummyFile))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2691,7 +2717,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List.fill(151)(("file[]", dummyFile))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2716,7 +2743,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List.fill(151)(("file[]", dummyFile))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2741,7 +2769,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List.fill(20)(("file[]", dummyFile))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2752,12 +2781,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               )))
             )
             get(s"/api/datasets/${datasetId}/files", params) {
-              checkStatus()
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
-              result.data.summary.total should be(20)
-              result.data.summary.count should be(0)
-              result.data.summary.offset should be(-1)
-              result.data.results.size should be(0)
+              result.status should be("Illegal Argument")
             }
           }
         }
@@ -2766,7 +2791,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List.fill(20)(("file[]", dummyFile))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2791,7 +2817,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List.fill(20)(("file[]", dummyFile))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2816,7 +2843,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List.fill(20)(("file[]", dummyFile))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2841,7 +2869,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List.fill(20)(("file[]", dummyFile))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2868,7 +2897,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List(("file[]", new File("../testdata/test3.zip")))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2892,7 +2922,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List(("file[]", new File("../testdata/test3.zip")))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2903,12 +2934,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             }
             val params = Map("d" -> "null")
             get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles", params) {
-              checkStatus()
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
-              result.data.summary.total should be(151)
-              result.data.summary.count should be(150)
-              result.data.summary.offset should be(0)
-              result.data.results.size should be(150)
+              result.status should be("Illegal Argument")
             }
           }
         }
@@ -2917,7 +2944,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List(("file[]", new File("../testdata/test3.zip")))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2942,7 +2970,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List(("file[]", new File("../testdata/test3.zip")))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -2957,12 +2986,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               )))
             )
             get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles", params) {
-              checkStatus()
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
-              result.data.summary.total should be(151)
-              result.data.summary.count should be(0)
-              result.data.summary.offset should be(0)
-              result.data.results.size should be(0)
+              result.status should be("Illegal Argument")
             }
           }
         }
@@ -2971,7 +2996,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List(("file[]", new File("../testdata/test3.zip")))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -3000,7 +3026,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List(("file[]", new File("../testdata/test3.zip")))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -3029,7 +3056,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List(("file[]", new File("../testdata/test3.zip")))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -3058,7 +3086,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List(("file[]", new File("../testdata/test3.zip")))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -3087,7 +3116,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List(("file[]", new File("../testdata/test4.zip")))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -3102,12 +3132,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               )))
             )
             get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles", params) {
-              checkStatus()
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
-              result.data.summary.total should be(20)
-              result.data.summary.count should be(0)
-              result.data.summary.offset should be(-1)
-              result.data.results.size should be(0)
+              result.status should be("Illegal Argument")
             }
           }
         }
@@ -3116,7 +3142,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List(("file[]", new File("../testdata/test4.zip")))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -3145,7 +3172,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List(("file[]", new File("../testdata/test4.zip")))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -3174,7 +3202,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List(("file[]", new File("../testdata/test4.zip")))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -3203,7 +3232,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           session {
             signIn()
             val files = List(("file[]", new File("../testdata/test4.zip")))
-            val datasetId = post("/api/datasets", Map.empty, files) {
+            val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+            val datasetId = post("/api/datasets", createParams, files) {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id
@@ -3284,7 +3314,8 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
   private def createDataset(): String = {
     val files = Map("file[]" -> dummyFile)
-    post("/api/datasets", Map.empty, files) {
+    val params = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+    post("/api/datasets", params, files) {
       checkStatus()
       parse(body).extract[AjaxResponse[Dataset]].data.id
     }

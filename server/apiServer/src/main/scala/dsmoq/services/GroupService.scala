@@ -1,7 +1,9 @@
 package dsmoq.services
 
+import java.util.ResourceBundle
 import java.util.UUID
 
+import dsmoq.ResourceNames
 import dsmoq.exceptions._
 import dsmoq.logic.{ImageSaveLogic, StringUtil}
 import dsmoq.persistence._
@@ -16,7 +18,7 @@ import dsmoq.persistence.PostgresqlHelper._
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
-object GroupService {
+class GroupService(resource: ResourceBundle) {
   private val groupImageDownloadRoot = AppConf.imageDownloadRoot + "groups/"
 
   /**
@@ -201,28 +203,18 @@ object GroupService {
   def createGroup(name: String, description: String, user: User) = {
     try {
       DB localTx { implicit s =>
-        val name_ = StringUtil.trimAllSpaces(name)
-
-        // input validation
-        val errors = mutable.LinkedHashMap.empty[String, String]
-
-        if (name_.isEmpty) {
-          errors.put("name", "name is empty")
-        } else if (existsSameNameGroup(name_)) {
-          errors.put("name", "same name")
-        }
-
-        if (errors.nonEmpty) {
-          throw new InputValidationException(errors)
-        }
-
+        val trimmedName = StringUtil.trimAllSpaces(name)
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
         val groupId = UUID.randomUUID.toString
 
+        if (existsSameNameGroup(trimmedName)) {
+          throw new BadRequestException(resource.getString(ResourceNames.alreadyRegisteredGroupName).format(trimmedName))
+        }
+
         val group = persistence.Group.create(
           id = groupId,
-          name = name_,
+          name = trimmedName,
           description = description,
           groupType = persistence.GroupType.Public,
           createdBy = myself.id,
@@ -271,7 +263,7 @@ object GroupService {
     }
   }
 
-  private def existsSameNameGroup(name: String)(implicit s: DBSession): Boolean = {
+  def existsSameNameGroup(name: String)(implicit s: DBSession): Boolean = {
     val g = persistence.Group.g
     withSQL {
       select(sqls"1")
@@ -298,27 +290,18 @@ object GroupService {
     try {
       DB localTx { implicit s =>
         val group = getGroup(groupId)
-        val name_ = StringUtil.trimAllSpaces(name)
+        val trimmedName = StringUtil.trimAllSpaces(name)
 
-        // input validation
-        val errors = mutable.LinkedHashMap.empty[String, String]
+        if (group.name != trimmedName && existsSameNameGroup(trimmedName)) {
+          throw new BadRequestException(resource.getString(ResourceNames.alreadyRegisteredGroupName).format(trimmedName))
+        }
 
         if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
-
-        if (name_.isEmpty) {
-          errors.put("name", "name is empty")
-        } else if (group.name != name_ && existsSameNameGroup(name_)) {
-          errors.put("name", "same name")
-        }
-
-        if (errors.nonEmpty) {
-          throw new InputValidationException(errors)
-        }
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
 
-        updateGroupDetail(groupId, name_, description, myself, timestamp)
+        updateGroupDetail(groupId, trimmedName, description, myself, timestamp)
 
         val images = getGroupImage(groupId)
         val primaryImage = getGroupPrimaryImageId(groupId)
@@ -326,7 +309,7 @@ object GroupService {
 
         Success(GroupData.Group(
           id = group.id,
-          name = name_,
+          name = trimmedName,
           description = description,
           images = images.map(x => Image(
             id = x.id,
@@ -428,20 +411,6 @@ object GroupService {
       val m = persistence.Member.m
 
       DB localTx { implicit s =>
-        // input parameter check
-        val errors = mutable.MutableList.empty[(String, String)]
-        roles.foreach {x =>
-          if (x.userId.isEmpty) {
-            errors += ("id" -> "ID is empty")
-          } else if (!List(GroupMemberRole.Deny, GroupMemberRole.Member, GroupMemberRole.Manager).contains(x.role)) {
-            errors += ("role" -> "role is empty")
-          }
-        }
-
-        if (errors.nonEmpty) {
-          throw new InputValidationException(errors)
-        }
-
         val group = getGroup(groupId)
         if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
 
@@ -502,10 +471,6 @@ object GroupService {
    */
   def updateMemberRole(groupId: String, userId: String, role: Int, user: User) = {
     try {
-      if (role != GroupMemberRole.Deny && role != GroupMemberRole.Member && role != GroupMemberRole.Manager) {
-        throw new InputValidationException(Map("role" -> "invalid role"))
-      }
-
       val m = persistence.Member.m
 
       DB localTx { implicit s =>
@@ -704,7 +669,7 @@ object GroupService {
         if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
         if (!existsGroupImage(groupId, imageId)) throw new NotFoundException
         val cantDeleteImages = Seq(AppConf.defaultGroupImageId)
-        if (cantDeleteImages.contains(imageId)) throw new InputValidationException(Map("imageId" -> "default image can't delete"))
+        if (cantDeleteImages.contains(imageId)) throw new BadRequestException(resource.getString(ResourceNames.cantDeleteDefaultImage))
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
