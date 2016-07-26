@@ -114,4 +114,24 @@ object ResourceNames {
    * 数値は0以上を入力してください
    */
   val requireNonMinus = "require_non_minus"
+
+  /**
+   * 対象のユーザにはアクセス権がありません
+   */
+  val NO_ACCESS_PERMISSION = "no_access_permission"
+
+  /**
+   * 対象のユーザにはダウンロード権がありません
+   */
+  val NO_DOWNLOAD_PERMISSION = "no_download_permission"
+
+  /**
+   * この操作はデータセットのオーナーにのみ許可されています
+   */
+  val ONLY_ALLOW_DATASET_OWNER = "only_allow_dataset_owner"
+
+  /**
+   * メールアドレスが許可された形式でありません
+   */
+  val INVALID_EMAIL_FORMAT = "invalid_email_format"
 }

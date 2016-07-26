@@ -6,18 +6,38 @@ import javax.servlet.http.HttpServletRequest
 import scala.language.implicitConversions
 import scala.util.{Try, Success, Failure}
 
-import org.json4s._
 import org.json4s.jackson.JsonMethods
 import org.json4s.{DefaultFormats, Formats}
 import org.scalatra.{ScalatraServlet, BadRequest, Forbidden, InternalServerError, NotFound}
 import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet.{FileItem, FileUploadSupport}
 
+import dsmoq.controllers.json.{
+  ChangeGroupPrimaryImageParams,
+  ChangePrimaryImageParams,
+  CreateGroupParams,
+  DatasetStorageParams,
+  GetGroupMembersParams,
+  SearchDatasetsParams,
+  SearchGroupsParams,
+  SearchRangeParams,
+  SetGroupMemberRoleParams,
+  SigninParams,
+  StatisticsParams,
+  SuggestApiParams,
+  UpdateDatasetFileMetadataParams,
+  UpdateDatasetGuestAccessParams,
+  UpdateDatasetMetaParams,
+  UpdateGroupParams,
+  UpdateMailAddressParams,
+  UpdatePasswordParams,
+  UpdateProfileParams,
+  UserAndGroupSuggestApiParams
+}
+import dsmoq.services.{AccountService, DataSetAccessControlItem, DatasetService, GroupMember, GroupService, StatisticsService, SystemService, TaskService, User}
 import dsmoq.ResourceNames
-import dsmoq.controllers.json._
 import dsmoq.exceptions.{AccessDeniedException, BadRequestException, InputCheckException, InputValidationException, NotFoundException, NotAuthorizedException}
 import dsmoq.logic.CheckUtil
-import dsmoq.services._
 
 class ApiController(resource: ResourceBundle) extends ScalatraServlet
     with JacksonJsonSupport with SessionTrait with FileUploadSupport with ApiKeyAuthorizationTrait {
@@ -34,19 +54,19 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
   }
 
   get("/*") {
-    AjaxResponse("NotFound")
+    NotFound(AjaxResponse("NotFound")) // 404
   }
 
   put("/*") {
-    AjaxResponse("NotFound")
+    NotFound(AjaxResponse("NotFound")) // 404
   }
 
   post("/*") {
-    AjaxResponse("NotFound")
+    NotFound(AjaxResponse("NotFound")) // 404
   }
 
   delete("/*") {
-    AjaxResponse("NotFound")
+    NotFound(AjaxResponse("NotFound")) // 404
   }
 
   // --------------------------------------------------------------------------
@@ -69,11 +89,12 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
         setSignedInUser(x)
         AjaxResponse("OK", x)
       case Failure(e) => {
+        log(e.getMessage, e)
         clearSession()
         e match {
-          case e: InputValidationException => BadRequest(AjaxResponse("BadRequest", e.getErrorMessage()))
-          case InputCheckException(name, message, false) => BadRequest(AjaxResponse("Illegal Argument", CheckError(name, message)))
-          case _ => InternalServerError(AjaxResponse("NG"))
+          case e: InputValidationException => BadRequest(AjaxResponse("BadRequest", e.getErrorMessage())) // 400
+          case InputCheckException(name, message, false) => BadRequest(AjaxResponse("Illegal Argument", CheckError(name, message))) // 400
+          case _ => InternalServerError(AjaxResponse("NG")) // 500
         }
       }
     }
@@ -500,7 +521,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
           response.setHeader("Content-Disposition", "attachment; filename=" + x.getName)
           response.setHeader("Content-Type", "application/octet-stream;charset=binary")
           x
-      case Failure(e) => halt(status = 403, reason = "Forbidden", body="Forbidden")
+      case Failure(e) => toAjaxResponse(ret)
     }
   }
 
@@ -870,18 +891,17 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
     case Success(Unit) => AjaxResponse("OK")
     case Success(x) => AjaxResponse("OK", x)
     case Failure(e) =>
-     e match {
-      case e: NotAuthorizedException => Forbidden(AjaxResponse("Unauthorized", e.getMessage))
-      case AccessDeniedException(message) => Forbidden(AjaxResponse("AccessDenied", message))
-      case e: NotFoundException => NotFound(AjaxResponse("NotFound"))
-      case InputCheckException(name, message, false) => BadRequest(AjaxResponse("Illegal Argument", CheckError(name, message)))
-      case InputCheckException(name, message, true) => NotFound(AjaxResponse("Illegal Argument", CheckError(name, message)))
-      case e: InputValidationException => BadRequest(AjaxResponse("BadRequest", e.getErrorMessage()))
-      case e: BadRequestException => BadRequest(AjaxResponse("BadRequest", e.getMessage))
-      case _ =>
-        log(e.getMessage, e)
-        InternalServerError(AjaxResponse("NG"))
-    }
+      log(e.getMessage, e)
+      e match {
+        case e: NotAuthorizedException => Forbidden(AjaxResponse("Unauthorized", e.getMessage)) // 403
+        case AccessDeniedException(message) => Forbidden(AjaxResponse("AccessDenied", message)) // 403
+        case e: NotFoundException => NotFound(AjaxResponse("NotFound")) // 404
+        case InputCheckException(name, message, false) => BadRequest(AjaxResponse("Illegal Argument", CheckError(name, message))) // 400
+        case InputCheckException(name, message, true) => NotFound(AjaxResponse("Illegal Argument", CheckError(name, message))) // 404
+        case e: InputValidationException => BadRequest(AjaxResponse("BadRequest", e.getErrorMessage())) // 400
+        case e: BadRequestException => BadRequest(AjaxResponse("BadRequest", e.getMessage)) // 400
+        case _ => InternalServerError(AjaxResponse("NG")) // 500
+      }
   }
 
   private def getUser(request: HttpServletRequest, allowGuest: Boolean): Try[User] = {

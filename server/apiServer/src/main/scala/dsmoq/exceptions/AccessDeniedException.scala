@@ -1,3 +1,8 @@
 package dsmoq.exceptions
 
-case class AccessDeniedException(message: String) extends RuntimeException(message)
+/**
+ * 権限チェックに違反した場合に送出する例外
+ *
+ * @param message エラーメッセージ
+ */
+case class AccessDeniedException(message: String) extends Exception(message)

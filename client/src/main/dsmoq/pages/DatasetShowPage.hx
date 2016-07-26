@@ -2,6 +2,7 @@ package dsmoq.pages;
 
 import dsmoq.Async;
 import dsmoq.Page;
+import dsmoq.models.ApiStatus;
 import dsmoq.models.DatasetFile;
 import dsmoq.models.DatasetGuestAccessLevel;
 import dsmoq.models.DatasetPermission;
@@ -94,14 +95,21 @@ class DatasetShowPage {
                 setDatasetFiles(data, id, data.fileLimit, 0).then(function (_) {
                     setTopMoreClickEvent(html, navigation, binding, data, id);
                     setZipClickEvent(html, navigation, data, id);
-                }, function (err) {
-                    switch (err.name) {
-                        case ServiceErrorType.Unauthorized:
-                            navigation.fulfill(Navigation.Navigate(Page.Top));
-                        case ServiceErrorType.NotFound:
-                            navigation.fulfill(Navigation.Navigate(Page.Top));
-                        default:
-                            trace(err);
+                }, function (err: Dynamic) {
+                    switch (err.status) {
+                        case 403: // Forbidden
+                            switch (err.responseJSON.status) {
+                                case ApiStatus.AccessDenied:
+                                    navigation.fulfill(Navigation.Navigate(Page.Top));
+                                case ApiStatus.Unauthorized:
+                                    navigation.fulfill(Navigation.Navigate(Page.Top));
+                            }
+                        case 404: // NotFound
+                            switch (err.responseJSON.status) {
+                                case ApiStatus.NotFound:
+                                    navigation.fulfill(Navigation.Navigate(Page.Top));
+                            }
+                        case _: // その他(500系など)
                             html.html("Network error");
                     }
                 });
@@ -109,16 +117,7 @@ class DatasetShowPage {
             });
             
         }, function (err: Dynamic) {
-            switch (err.responseJSON.status) {
-                case ApiStatus.Unauthorized:
-                    html.html("Unauthorized");
-                case ApiStatus.AccessDenied:
-                    html.html("Permission denied");
-                case ApiStatus.NotFound:
-                    html.html("Not found");
-                default:
-                    html.html("Network error");
-            }
+            html.html(err.responseJSON.status);
         });
 
         return navigation.promise;
@@ -174,15 +173,27 @@ class DatasetShowPage {
             setDatasetZippedFiles(data, datasetId, index, data.fileLimit, 0).then(function(_) {
                 setZipMoreClickEvent(html, navigation, data, datasetId, index);
             }, function(err: Dynamic) {
-                switch (err.responseJSON.status) {
-                    case ApiStatus.AccessDenied:
-                        navigation.fulfill(Navigation.Navigate(Page.Top));
-                    case ApiStatus.Unauthorized:
-                        navigation.fulfill(Navigation.Navigate(Page.Top));
-                    case ApiStatus.NotFound:
-                        navigation.fulfill(Navigation.Navigate(Page.Top));
-                    default:
-                        trace(err);
+                switch (err.status) {
+                    case 400: // BadRequest
+                        switch (err.responseJSON.status) {
+                            case ApiStatus.BadRequest:
+                                navigation.fulfill(Navigation.Navigate(Page.Top));
+                            case _:
+                                html.html(err.responseJSON.status);
+                        }
+                    case 403: // Forbidden
+                        switch (err.responseJSON.status) {
+                            case ApiStatus.AccessDenied:
+                                navigation.fulfill(Navigation.Navigate(Page.Top));
+                            case ApiStatus.Unauthorized:
+                                navigation.fulfill(Navigation.Navigate(Page.Top));
+                        }
+                    case 404: // NotFound
+                        switch (err.responseJSON.status) {
+                            case ApiStatus.NotFound:
+                                navigation.fulfill(Navigation.Navigate(Page.Top));
+                        }
+                    case _: // その他(500系など)
                         html.html("Network error");
                 }
             });
@@ -196,15 +207,20 @@ class DatasetShowPage {
                 setTopMoreClickEvent(html, navigation, binding, data, datasetId);
                 setZipClickEvent(html, navigation, data, datasetId);
             }, function (err: Dynamic) {
-                switch (err.responseJSON.status) {
-                    case ApiStatus.AccessDenied:
-                        navigation.fulfill(Navigation.Navigate(Page.Top));
-                    case ApiStatus.Unauthorized:
-                        navigation.fulfill(Navigation.Navigate(Page.Top));
-                    case ApiStatus.NotFound:
-                        navigation.fulfill(Navigation.Navigate(Page.Top));
-                    default:
-                        trace(err);
+                switch (err.status) {
+                    case 403: // Forbidden
+                        switch (err.responseJSON.status) {
+                            case ApiStatus.AccessDenied:
+                                navigation.fulfill(Navigation.Navigate(Page.Top));
+                            case ApiStatus.Unauthorized:
+                                navigation.fulfill(Navigation.Navigate(Page.Top));
+                        }
+                    case 404: // NotFound
+                        switch (err.responseJSON.status) {
+                            case ApiStatus.NotFound:
+                                navigation.fulfill(Navigation.Navigate(Page.Top));
+                        }
+                    case _: // その他(500系など)
                         html.html("Network error");
                 }
             });
@@ -218,15 +234,27 @@ class DatasetShowPage {
                 JsViews.observable(data.root.files[index]).setProperty("useProgress", false);
                 setZipMoreClickEvent(html, navigation, data, datasetId, index);
             }, function (err: Dynamic) {
-                switch (err.responseJSON.status) {
-                    case ApiStatus.AccessDenied:
-                        navigation.fulfill(Navigation.Navigate(Page.Top));
-                    case ApiStatus.Unauthorized:
-                        navigation.fulfill(Navigation.Navigate(Page.Top));
-                    case ApiStatus.NotFound:
-                        navigation.fulfill(Navigation.Navigate(Page.Top));
-                    default:
-                        trace(err);
+                switch (err.status) {
+                    case 400: // BadRequest
+                        switch (err.responseJSON.status) {
+                            case ApiStatus.BadRequest:
+                                navigation.fulfill(Navigation.Navigate(Page.Top));
+                            case _:
+                                html.html(err.responseJSON.status);
+                        }
+                    case 403: // Forbidden
+                        switch (err.responseJSON.status) {
+                            case ApiStatus.AccessDenied:
+                                navigation.fulfill(Navigation.Navigate(Page.Top));
+                            case ApiStatus.Unauthorized:
+                                navigation.fulfill(Navigation.Navigate(Page.Top));
+                        }
+                    case 404: // NotFound
+                        switch (err.responseJSON.status) {
+                            case ApiStatus.NotFound:
+                                navigation.fulfill(Navigation.Navigate(Page.Top));
+                        }
+                    case _: // その他(500系など)
                         html.html("Network error");
                 }
             });

@@ -3,6 +3,7 @@ package dsmoq.pages;
 import conduitbox.Engine;
 import conduitbox.Frame;
 import conduitbox.Navigation;
+import dsmoq.models.ApiStatus;
 import dsmoq.models.Service;
 import dsmoq.Page;
 import dsmoq.View;
@@ -158,6 +159,8 @@ class Frame {
                 navigation.update(Navigation.Navigate(DatasetShow(data.id)));
                 Notification.show("success", "create successful");
             }, function (err) {
+                // Service内でNotificationを出力するようにしたため、この箇所でのNotification出力は不要。
+                // このfunctionはfinally時に呼び出されるfunctionを指定するための引数の数合わせです。
             }, function () {
                 BootstrapButton.reset(JQuery._("#new-dataset-dialog-submit"));
                 JQuery._("#new-dataset-dialog").find(":input").prop("disabled", false);
@@ -198,9 +201,12 @@ class Frame {
                 Notification.show("success", "create successful");
                 navigation.update(Navigation.Navigate(GroupShow(data.id)));
             }, function (err: Dynamic) {
-                switch (err.responseJSON.status) {
-                    case ApiStatus.IllegalArgument:
-                        binding.setProperty('groupForm.errors.name', err.responseJSON.data.value);
+                switch (err.status) {
+                    case 400: // BadRequest
+                        switch (err.responseJSON.status) {
+                            case ApiStatus.IllegalArgument:
+                                binding.setProperty('groupForm.errors.name', err.responseJSON.data.value);
+                        }
                 }
             }, function () {
                 BootstrapButton.reset(JQuery._("#new-group-dialog-submit"));

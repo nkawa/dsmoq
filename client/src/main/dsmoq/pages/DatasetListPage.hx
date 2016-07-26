@@ -20,6 +20,12 @@ import js.html.KeyboardEvent;
 import js.Lib;
 
 class DatasetListPage {
+
+    /**
+     * 1ページあたりに表示するデータセットの件数
+     */
+    static inline var DATASET_LIMIT_PER_PAGE: Int = 20;
+
     public static function render(root: Html, onClose: Promise<Unit>, pageNum: Int, query: String, filters: Dynamic): Promise<Navigation<Page>> {
         var navigation = new PromiseBroker();
         var condition = {
@@ -55,13 +61,13 @@ class DatasetListPage {
                     owners: owners,
                     groups: groups,
                     attributes: attrs,
-                    offset: 20 * condition.index,
-                    limit: 20
+                    offset: DATASET_LIMIT_PER_PAGE * condition.index,
+                    limit: DATASET_LIMIT_PER_PAGE
                 }).then(function (x) {
                     binding.setProperty("result", Async.Completed({
                         total: x.summary.total,
                         items: x.results,
-                        pages: Math.ceil(x.summary.total / 20)
+                        pages: Math.ceil(x.summary.total / DATASET_LIMIT_PER_PAGE)
                     }));
                 });
             });

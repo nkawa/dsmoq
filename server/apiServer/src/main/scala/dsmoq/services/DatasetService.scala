@@ -1,7 +1,7 @@
 package dsmoq.services
 
 import java.io.{
-  ByteArrayInputStream, FileOutputStream,
+  ByteArrayInputStream, Closeable, FileOutputStream,
   InputStream, InputStreamReader,
   SequenceInputStream
 }
@@ -28,7 +28,8 @@ import org.json4s.JsonDSL._
 import org.json4s.jackson.JsonMethods.{compact, render}
 import org.json4s.{JInt, JBool}
 import org.scalatra.servlet.FileItem
-import scalikejdbc._
+import scalikejdbc.{DB, DBSession, delete, update, select, SelectSQLBuilder, sqls, SubQuery, withSQL}
+import scalikejdbc.interpolation.Implicits._
 
 import dsmoq.AppConf
 import dsmoq.ResourceNames
@@ -47,6 +48,11 @@ import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.services.json.{DatasetData, Image, RangeSlice, RangeSliceSummary}
 import dsmoq.services.json.DatasetData.{DatasetOwnership, DatasetZipedFile, CopiedDataset, DatasetTask}
 
+/**
+ * データセット関連の操作を取り扱うサービスクラス
+ *
+ * @param resource リソースバンドルのインスタンス
+ */
 class DatasetService(resource: ResourceBundle) extends LazyLogging {
 
   /**
@@ -749,7 +755,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           // FIXME チェック時、user権限はUserAccessLevelクラス, groupの場合はGroupAccessLevelクラスの定数を使用する
           // (UserAndGroupAccessDeny 定数を削除する)
           if (permission == UserAndGroupAccessDeny) {
-            throw new AccessDeniedException("対象のユーザにはアクセス権がありません")
+            throw new AccessDeniedException(resource.getString(ResourceNames.NO_ACCESS_PERMISSION))
           }
           DatasetData.Dataset(
             id = dataset.id,
@@ -774,7 +780,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             fileLimit = AppConf.fileLimit
           )
         })
-        .map(x => Success(x)).getOrElse(Failure(new AccessDeniedException("対象のユーザにはアクセス権がありません")))
+        .map(x => Success(x)).getOrElse(Failure(new AccessDeniedException(resource.getString(ResourceNames.NO_ACCESS_PERMISSION))))
       }
     } catch {
       case e: Throwable => Failure(e)
@@ -963,7 +969,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   private def datasetAccessabilityCheck(datasetId: String, user: User)(implicit s: DBSession) {
     getDataset(datasetId) match {
       case Some(x) =>
-        if (!isOwner(user.id, datasetId)) throw new AccessDeniedException("対象のユーザにはアクセス権がありません")
+        if (!isOwner(user.id, datasetId)) throw new AccessDeniedException(resource.getString(ResourceNames.ONLY_ALLOW_DATASET_OWNER))
       case None =>
         throw new NotFoundException
     }
@@ -1331,7 +1337,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   def addImages(datasetId: String, images: Seq[FileItem], user: User): Try[DatasetData.DatasetAddImages] = {
     try {
       DB localTx { implicit s =>
-        if (!isOwner(user.id, datasetId)) throw new AccessDeniedException("対象のユーザにはアクセス権がありません")
+        if (!isOwner(user.id, datasetId)) throw new AccessDeniedException(resource.getString(ResourceNames.ONLY_ALLOW_DATASET_OWNER))
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -1789,7 +1795,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       getPermission(datasetId, groups).getOrElse(UserAndGroupAccessDeny)
     }
     if (permission < UserAndGroupAllowDownload) {
-      return Failure(new AccessDeniedException("ユーザにダウンロード権限がありません"))
+      return Failure(new AccessDeniedException(resource.getString(ResourceNames.NO_DOWNLOAD_PERMISSION)))
     }
     Success(())
   }
@@ -2592,7 +2598,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
-  private def use[T1 <: Closable, T2](resource: T1)(f: T1 => T2): T2 = {
+  private def use[T1 <: Closeable, T2](resource: T1)(f: T1 => T2): T2 = {
     try {
       f(resource)
     } finally {
@@ -2744,7 +2750,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   def getImages(datasetId: String, offset: Option[Int], limit: Option[Int], user: User): Try[RangeSlice[DatasetData.DatasetGetImage]] = {
     try {
       DB readOnly { implicit s =>
-        if (!isOwner(user.id, datasetId)) throw new AccessDeniedException("その操作はオーナー以外には許可されていません")
+        if (!isOwner(user.id, datasetId)) throw new AccessDeniedException(resource.getString(ResourceNames.ONLY_ALLOW_DATASET_OWNER))
 
         val di = persistence.DatasetImage.di
         val i = persistence.Image.i
@@ -3020,7 +3026,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           permission <- getPermission(datasetId, groups)
         } yield {
           if (permission == UserAndGroupAccessDeny) {
-            throw new AccessDeniedException("対象のユーザにはアクセス権がありません")
+            throw new AccessDeniedException(resource.getString(ResourceNames.NO_ACCESS_PERMISSION))
           }
           val validatedLimit = limit.map{ x =>
             if(x < 0) { 0 } else if (AppConf.fileLimit < x) { AppConf.fileLimit } else { x }
@@ -3035,7 +3041,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             RangeSlice(RangeSliceSummary(count, files.size, validatedOffset), files)
           }
         })
-        .map(x => Success(x)).getOrElse(Failure(new AccessDeniedException("対象のユーザにはアクセス権がありません")))
+        .map(x => Success(x)).getOrElse(Failure(new AccessDeniedException(resource.getString(ResourceNames.NO_ACCESS_PERMISSION))))
       }
     } catch {
       case e: Throwable => Failure(e)
@@ -3070,7 +3076,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           permission <- getPermission(datasetId, groups)
         } yield {
           if (permission == UserAndGroupAccessDeny) {
-            throw new AccessDeniedException("対象のユーザにはアクセス権がありません")
+            throw new AccessDeniedException(resource.getString(ResourceNames.NO_ACCESS_PERMISSION))
           }
           val validatedLimit = limit.map{ x =>
             if(x < 0) { 0 } else if (AppConf.fileLimit < x) { AppConf.fileLimit } else { x }
@@ -3085,7 +3091,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             RangeSlice(RangeSliceSummary(count, files.size, validatedOffset), files)
           }
         })
-        .map(x => Success(x)).getOrElse(Failure(new AccessDeniedException("対象のユーザにはアクセス権がありません")))
+        .map(x => Success(x)).getOrElse(Failure(new AccessDeniedException(resource.getString(ResourceNames.NO_ACCESS_PERMISSION))))
       }
     } catch {
       case e: Throwable => Failure(e)

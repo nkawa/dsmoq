@@ -1,6 +1,7 @@
 package dsmoq.pages;
 
 import conduitbox.Navigation;
+import dsmoq.models.ApiStatus;
 import dsmoq.models.Service;
 import dsmoq.Page;
 import dsmoq.views.ViewTools;
@@ -92,19 +93,22 @@ class ProfilePage {
                         Notification.show("success", "save successful");
                     },
                     function (e: Dynamic) {
-                        switch (e.responseJSON.status) {
-                            case ApiStatus.IllegalArgument:
-                                binding.setProperty("basics.errors.name", "");
-                                binding.setProperty("basics.errors.fullname", "");
-                                binding.setProperty("basics.errors.organization", "");
-                                binding.setProperty("basics.errors.title", "");
-                                binding.setProperty("basics.errors.description", "");
-                                binding.setProperty("basics.errors.image", "");
-                                var name = StringTools.replace(e.responseJSON.data.key, "d.", "");
-                                binding.setProperty('basics.errors.${name}', StringTools.replace(e.responseJSON.data.value, "d.", ""));
-                            case ApiStatus.BadRequest:
-                                binding.setProperty("basics.errors.name", "");
-                                binding.setProperty('basics.errors.name', StringTools.replace(e.responseJSON.data, "d.", ""));
+                        switch (e.status) {
+                            case 400: // BadRequest
+                                switch (e.responseJSON.status) {
+                                    case ApiStatus.IllegalArgument:
+                                        binding.setProperty("basics.errors.name", "");
+                                        binding.setProperty("basics.errors.fullname", "");
+                                        binding.setProperty("basics.errors.organization", "");
+                                        binding.setProperty("basics.errors.title", "");
+                                        binding.setProperty("basics.errors.description", "");
+                                        binding.setProperty("basics.errors.image", "");
+                                        var name = StringTools.replace(e.responseJSON.data.key, "d.", "");
+                                        binding.setProperty('basics.errors.${name}', StringTools.replace(e.responseJSON.data.value, "d.", ""));
+                                    case ApiStatus.BadRequest:
+                                        binding.setProperty("basics.errors.name", "");
+                                        binding.setProperty('basics.errors.name', StringTools.replace(e.responseJSON.data, "d.", ""));
+                                }
                         }
                     },
                     function () {
@@ -124,10 +128,13 @@ class ProfilePage {
                     ViewTools.hideLoading("body");
                     Notification.show("success", "save successful");
                 }, function (e: Dynamic) {
-                    switch (e.responseJSON.status) {
-                        case ApiStatus.IllegalArgument:
-                            binding.setProperty("icon.errors.image", "");
-                            binding.setProperty('email.errors.image', StringTools.replace(e.responseJSON.data.value, "d.", ""));
+                    switch (e.status) {
+                        case 400: // BadRequest
+                            switch (e.responseJSON.status) {
+                                case ApiStatus.IllegalArgument:
+                                    binding.setProperty("icon.errors.image", "");
+                                    binding.setProperty('icon.errors.image', StringTools.replace(e.responseJSON.data.value, "d.", ""));
+                            }
                     }
                     ViewTools.hideLoading("body");
                 });
@@ -141,10 +148,16 @@ class ProfilePage {
                         Notification.show("success", "save successful");
                     },
                     function (e: Dynamic) {
-                        switch (e.responseJSON.status) {
-                            case ApiStatus.IllegalArgument:
-                                binding.setProperty("email.errors.email", "");
-                                binding.setProperty('email.errors.email', StringTools.replace(e.responseJSON.data.value, "d.", ""));
+                        switch (e.status) {
+                            case 400: // BadRequest
+                                switch (e.responseJSON.status) {
+                                    case ApiStatus.IllegalArgument:
+                                        binding.setProperty("email.errors.email", "");
+                                        binding.setProperty('email.errors.email', StringTools.replace(e.responseJSON.data.value, "d.", ""));
+                                    case ApiStatus.BadRequest:
+                                        binding.setProperty("email.errors.email", "");
+                                        binding.setProperty('email.errors.email', StringTools.replace(e.responseJSON.data.value, "d.", ""));
+                                }
                         }
                     }, function () {
                         BootstrapButton.reset(root.find("#email-form-submit"));
@@ -173,19 +186,22 @@ class ProfilePage {
                         Notification.show("success", "save successful");
                     },
                     function (e: Dynamic) {
-                        switch (e.responseJSON.status) {
-                            case ApiStatus.IllegalArgument:
-                                binding.setProperty("password.errors.currentValue", "");
-                                binding.setProperty("password.errors.newValue", "");
-                                var name = switch (e.responseJSON.data.key) {
-                                    case "d.currentPassword": "newValue";
-                                    case "d.newPassword": "currentValue";
-                                    case _: e.responseJSON.data.key;
-                                };
-                                binding.setProperty('password.errors.${name}', StringTools.replace(e.responseJSON.data.value, "d.", ""));
-                            case ApiStatus.BadRequest:
-                                binding.setProperty("password.errors.verifyValue", "");
-                                binding.setProperty('password.errors.verifyValue', StringTools.replace(e.responseJSON.data.value, "d.", ""));
+                        switch (e.status) {
+                            case 400: // BadRequest
+                                switch (e.responseJSON.status) {
+                                    case ApiStatus.IllegalArgument:
+                                        binding.setProperty("password.errors.currentValue", "");
+                                        binding.setProperty("password.errors.newValue", "");
+                                        var name = switch (e.responseJSON.data.key) {
+                                            case "d.currentPassword": "newValue";
+                                            case "d.newPassword": "currentValue";
+                                            case _: e.responseJSON.data.key;
+                                        };
+                                        binding.setProperty('password.errors.${name}', StringTools.replace(e.responseJSON.data.value, "d.", ""));
+                                    case ApiStatus.BadRequest:
+                                        binding.setProperty("password.errors.verifyValue", "");
+                                        binding.setProperty('password.errors.verifyValue', StringTools.replace(e.responseJSON.data.value, "d.", ""));
+                                }
                         }
                     },
                     function () {

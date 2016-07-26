@@ -2,6 +2,7 @@ package dsmoq.pages;
 
 import conduitbox.Navigation;
 import dsmoq.Async;
+import dsmoq.models.ApiStatus;
 import dsmoq.models.Service;
 import dsmoq.models.TagDetail;
 import dsmoq.Page;
@@ -90,17 +91,7 @@ class GroupShowPage {
                 });
             });
         }, function (err: Dynamic) {
-            trace(err);
-            root.html(switch (err.responseJSON.status) {
-                case ApiStatus.AccessDenied:
-                    "Permission denied";
-                case ApiStatus.Unauthorized:
-                    "Unauthorized";
-                case ApiStatus.NotFound:
-                    "Not found";
-                case _:
-                    "Network Error";
-            });
+            root.html(err.responseJSON.status);
         });
 
         return navigation.promise;

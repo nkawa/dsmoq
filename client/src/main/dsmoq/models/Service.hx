@@ -351,6 +351,14 @@ class Service extends Stream<ServiceEvent> {
         }
     }
 
+    /**
+     * AJAXを送信する。
+     *
+     * @param method HTTPメソッド
+     * @param url 送信するAPIのURL
+     * @param data 送信するデータ
+     * @return 処理結果のPromise
+     */
     function send<T>(method: RequestMethod, url: String, ?data: {}): Promise<T> {
         var str: String = method;
 
@@ -362,35 +370,48 @@ class Service extends Stream<ServiceEvent> {
 
         return JQuery.ajax(url, { type: str, dataType: "json", cache: false, data: d } )
         .fail(function(err: Dynamic) {
+            trace(err);
             switch (err.status) {
-                case 400:
+                case 400: // BadRequest
                     switch (err.responseJSON.status) {
                         case ApiStatus.IllegalArgument:
                             Notification.show("error", trimD(err.responseJSON.data.value));
                         case _:
                             Notification.show("error", trimD(err.responseJSON.data));
                     }
-                case 404:
+                case 404: // NotFound
                     Notification.show("error", "NotFound");
-                case 403:
+                case 403: // Forbidden
                     switch (err.responseJSON.status) {
                         case ApiStatus.Unauthorized:
                             if (!profile.isGuest) {
+                                // ログインしている状態でUnauthorizedを受け取った場合、
+                                // セッションタイムアウトによってサーバー側ではログアウトしているが、
+                                // クライアント側ではログイン情報が更新されていない。
+                                // その為、クライアント側のログイン情報をゲスト化する必要がある。
                                 profile = guest();
                                 update(SignedOut);
                             }
-                        case _:
                     }
                     Notification.show("error", trimD(err.responseJSON.data));
-                case _:
+                case _: // その他(500系など)
                     Notification.show("error", "error happened");
             }
         }).toPromise()
         .flatMap(function (response: ApiResponse) {
+            trace(response);
             return Promise.fulfilled(cast response.data);
         });
     }
 
+    /**
+     * FormをPOSTする。
+     *
+     * @param url 送信先のAPIのURL
+     * @param form 送信するForm
+     * @param optData 送信するデータ
+     * @return 処理結果のPromise
+     */
     function sendForm<T>(url: String, form: JqHtml, ?optData: {}): Promise<T> {
         return new Promise(function (ctx) {
             untyped form.ajaxSubmit({
@@ -399,6 +420,7 @@ class Service extends Stream<ServiceEvent> {
                 dataType: "json",
                 data: optData,
                 success: function (response) {
+                    trace(response);
                     switch (response.status) {
                         case ApiStatus.OK:
                             ctx.fulfill(cast response.data);
@@ -407,34 +429,45 @@ class Service extends Stream<ServiceEvent> {
                     }
                 },
                 error: function(err) {
+                    trace(err);
                     ctx.reject(cast err);
                     switch (err.status) {
-                        case 400:
+                        case 400: // BadRequest
                             switch (err.responseJSON.status) {
                                 case ApiStatus.IllegalArgument:
                                     Notification.show("error", trimD(err.responseJSON.data.value));
                                 case _:
                                     Notification.show("error", trimD(err.responseJSON.data));
                             }
-                        case 404:
+                        case 404: // NotFound
                             Notification.show("error", "NotFound");
-                        case 403:
+                        case 403: // Forbidden
                             switch (err.responseJSON.status) {
                                 case ApiStatus.Unauthorized:
                                     if (!profile.isGuest) {
+                                        // ログインしている状態でUnauthorizedを受け取った場合、
+                                        // セッションタイムアウトによってサーバー側ではログアウトしているが、
+                                        // クライアント側ではログイン情報が更新されていない。
+                                        // その為、クライアント側のログイン情報をゲスト化する必要がある。
                                         profile = guest();
                                         update(SignedOut);
                                     }
-                                case _:
                             }
                             Notification.show("error", trimD(err.responseJSON.data));
-                        case _:
+                        case _: // その他(500系など)
                             Notification.show("error", "error happened");
                     }
                 }
             });
         });
     }
+
+    /**
+     * パラメータから"d."を削り、表示用に整形する。
+     *
+     * @param str 整形対象
+     * @return 整形後の文字列
+     */
     function trimD(str: String): String {
         return StringTools.replace(str, "d.", "");
     }
@@ -474,14 +507,4 @@ class ServiceError extends Error {
 private typedef ApiResponse = {
     var status: ApiStatus;
     var data: Dynamic;
-}
-
-@:enum abstract ApiStatus(String) to String {
-    var OK = "OK";
-    var NotFound = "NotFound";
-    var BadRequest = "BadRequest";
-    var Unauthorized = "Unauthorized";
-    var Error = "Error";
-    var IllegalArgument = "Illegal Argument";
-    var AccessDenied = "AccessDenied";
 }
