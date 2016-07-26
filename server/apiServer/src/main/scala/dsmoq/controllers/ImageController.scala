@@ -5,7 +5,7 @@ import java.util.ResourceBundle
 import org.scalatra.{NotFound, ScalatraServlet}
 import dsmoq.services.{ImageService, User}
 import scala.util.{Try, Success, Failure}
-import dsmoq.exceptions._
+import dsmoq.exceptions.{AccessDeniedException, NotFoundException}
 
 class ImageController(resource: ResourceBundle) extends ScalatraServlet with SessionTrait {
 
@@ -66,9 +66,9 @@ class ImageController(resource: ResourceBundle) extends ScalatraServlet with Ses
         response.setHeader("Content-Type", "application/octet-stream;charset=binary")
         x._1
       case Failure(exp) => exp match {
-        case e: InputValidationException => halt(status = 403, reason = "imageId is not related to target", body="imageId is not related to target")
-        case e: NotAuthorizedException => halt(status = 403, reason = "Forbidden", body="Forbidden")
-        case e: RuntimeException => NotFound(e.getMessage)
+        case _: NotFoundException => halt(status = 404, reason = "Not Found", body = "Not Found") // 403 Forbidden
+        case _: AccessDeniedException => halt(status = 403, reason = "Forbidden", body = "Access Denied") // 403 Forbidden
+        case _: Exception => halt(status = 500, reason = "Internal Server Error", body = "Internal Server Error") // 500 Internal Server Error
       }
     }
   }
