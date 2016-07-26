@@ -158,16 +158,6 @@ class Frame {
                 navigation.update(Navigation.Navigate(DatasetShow(data.id)));
                 Notification.show("success", "create successful");
             }, function (err) {
-                switch (err.name) {
-                    case ServiceErrorType.BadRequest:
-                        for (x in cast(err, ServiceError).detail) {
-                            Notification.show("error", x.message);
-                        }                                
-                    case ServiceErrorType.Unauthorized: 
-                        Notification.show("error", "permission denied");
-                    default:
-                        Notification.show("error", "error happened");
-                }
             }, function () {
                 BootstrapButton.reset(JQuery._("#new-dataset-dialog-submit"));
                 JQuery._("#new-dataset-dialog").find(":input").prop("disabled", false);
@@ -207,14 +197,11 @@ class Frame {
                 JQuery._("#new-group-dialog-submit").attr("disabled", true);
                 Notification.show("success", "create successful");
                 navigation.update(Navigation.Navigate(GroupShow(data.id)));
-            }, function (err) {
-                switch (err.name) {
-                    case ServiceErrorType.BadRequest:
-                        for (x in cast(err, ServiceError).detail) {
-                            binding.setProperty('groupForm.errors.${x.name}', x.message);
-                        }
+            }, function (err: Dynamic) {
+                switch (err.responseJSON.status) {
+                    case ApiStatus.IllegalArgument:
+                        binding.setProperty('groupForm.errors.name', err.responseJSON.data.value);
                 }
-                Notification.show("error", "error happened");
             }, function () {
                 BootstrapButton.reset(JQuery._("#new-group-dialog-submit"));
             });

@@ -41,10 +41,11 @@ class GroupEditPage {
                 case _:
                     Promise.rejected(new ServiceError("", ServiceErrorType.Unauthorized));
             }
-        }).thenError(function (err) {
-            root.html(switch (err.name) {
-                case ServiceErrorType.NotFound: "Not found";
-                case ServiceErrorType.Unauthorized: "Permission denied";
+        }).thenError(function (err: Dynamic) {
+            root.html(switch (err.responseJSON.status) {
+                case ApiStatus.NotFound: "Not found";
+                case ApiStatus.AccessDenied: "Permission denied";
+                case ApiStatus.Unauthorized: "Unauthorized";
                 default: "Network error";
             });
         }).then(function (res) {
@@ -112,13 +113,6 @@ class GroupEditPage {
                 Service.instance.updateGroupBasics(id, data.group.name, data.group.description).then(function (_) {
                     Notification.show("success", "save successful");
                 }, function (err) {
-                    switch (err.name) {
-                        case ServiceErrorType.BadRequest:
-                            for (x in cast(err, ServiceError).detail) {
-                                binding.setProperty('groupErrors.${x.name}', x.message);
-                            }
-                    }
-                    Notification.show("error", "error happened");
                 }, function () {
                     BootstrapButton.reset(root.find("#group-basics-submit"));
                     root.find("#group-basics").find("input,textarea").removeAttr("disabled");
@@ -133,16 +127,6 @@ class GroupEditPage {
 							binding.setProperty("group.primaryImage.id", image.id);
 							binding.setProperty("group.primaryImage.url", image.url);
 							Notification.show("success", "save successful");
-						},
-						function (e) {
-							switch (e.name) {
-								case ServiceErrorType.NotFound:
-									Notification.show("error", "group not found");
-								case ServiceErrorType.Unauthorized: 
-									Notification.show("error", "permission denied");
-								default:
-									Notification.show("error", "error happened");
-							}
 						}
 					);
 				});				
@@ -158,18 +142,6 @@ class GroupEditPage {
                         Notification.show("success", "save successful");
                     }, function (err) {
                         ViewTools.hideLoading("body");
-						switch (err.name) {
-							case ServiceErrorType.BadRequest:
-								for (x in cast(err, ServiceError).detail) {
-									Notification.show("error", x.message);
-								}								
-							case ServiceErrorType.NotFound:
-								Notification.show("error", "group not found");
-							case ServiceErrorType.Unauthorized: 
-								Notification.show("error", "permission denied");
-							default:
-								Notification.show("error", "error happened");
-						}
                     });
                 });
             });
@@ -191,19 +163,6 @@ class GroupEditPage {
                     getMemberByElement(e.currentTarget).iter(function (member) {
                         Service.instance.updateGroupMemberRole(id, member.id, member.role).then(function (_) {
                             Notification.show("success", "save successful");
-                        }, function (e) {
-							switch (e.name) {
-								case ServiceErrorType.BadRequest:
-									for (x in cast(e, ServiceError).detail) {
-										Notification.show("error", x.message);
-									}								
-								case ServiceErrorType.NotFound:
-									Notification.show("error", "group not found");
-								case ServiceErrorType.Unauthorized: 
-									Notification.show("error", "permission denied");
-								default:
-									Notification.show("error", "error happened");
-							}
                         });
                     });
                 });
@@ -222,12 +181,6 @@ class GroupEditPage {
                                     Notification.show("success", "remove successful");
                                 }, function (err) {
                                     ViewTools.hideLoading("body");
-									switch (err.name) {	
-										case ServiceErrorType.NotFound:
-											Notification.show("error", "member not found");
-										default:
-											Notification.show("error", "error happened");
-									}
                                 });
                         }
                     });
@@ -416,14 +369,6 @@ class GroupEditPage {
 						html.find("#image-form input").val("");
                     },
                     function (e) {
-						switch (e.name) {
-							case ServiceErrorType.NotFound:
-								Notification.show("error", "not found");
-							case ServiceErrorType.Unauthorized: 
-								Notification.show("error", "permission denied");
-							default:
-								Notification.show("error", "error happened");
-						}
                     },
 					function () {
 						BootstrapButton.reset(html.find("#upload-image > div"));
@@ -464,18 +409,6 @@ class GroupEditPage {
 						rootBinding.setProperty("group.primaryImage.url", getUrl(ids.primaryImage));
                     },
                     function (e) {
-						switch (e.name) {
-							case ServiceErrorType.BadRequest:
-								for (x in cast(e, ServiceError).detail) {
-									Notification.show("error", x.message);
-								}
-							case ServiceErrorType.NotFound:
-								Notification.show("error", "not found");
-							case ServiceErrorType.Unauthorized: 
-								Notification.show("error", "permission denied");
-							default:
-								Notification.show("error", "error happened");
-						}
                     },
 					function () {
 						BootstrapButton.reset(html.find("#delete-image > div"));

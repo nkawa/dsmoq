@@ -12,6 +12,8 @@ import hxgnd.Stream;
 import hxgnd.js.JQuery;
 import hxgnd.js.JqHtml;
 
+import dsmoq.pages.Notification;
+
 class Service extends Stream<ServiceEvent> {
     public static inline var QueryLimit: UInt = 20;
 
@@ -312,7 +314,7 @@ class Service extends Stream<ServiceEvent> {
     }
     
     public function setDatasetImageFeatured(datasetId: String, imageId: String): Promise<Unit> {
-        return send(Put, '/api/datasets/$datasetId/images/$imageId/featured');
+        return send(Put, '/api/datasets/$datasetId/images/featured', { imageId: imageId });
     }
     
     public function getTags() : Promise<Array<TagDetail>> {
@@ -358,25 +360,35 @@ class Service extends Stream<ServiceEvent> {
             { d: Json.stringify(data) };
         }
 
-        return JQuery.ajax(url, {type: str, dataType: "json", cache: false, data: d}).toPromise()
-            .flatMap(function (response: ApiResponse) {
-                return switch (response.status) {
-                    case ApiStatus.OK:
-                        Promise.fulfilled(cast response.data);
-                    case ApiStatus.NotFound:
-                        Promise.rejected(new ServiceError("NotFound", NotFound));
-                    case ApiStatus.BadRequest:
-                        Promise.rejected(new ServiceError(response.status, BadRequest, response.data));
-                    case ApiStatus.Unauthorized:
-                        if (!profile.isGuest) {
-                            profile = guest();
-                            update(SignedOut);
-                        }
-                        Promise.rejected(new ServiceError(response.status, Unauthorized));
-                    case _:
-                        Promise.rejected(new ServiceError("Unknown", Unknown));
-                }
-            });
+        return JQuery.ajax(url, { type: str, dataType: "json", cache: false, data: d } )
+        .fail(function(err: Dynamic) {
+            switch (err.status) {
+                case 400:
+                    switch (err.responseJSON.status) {
+                        case ApiStatus.IllegalArgument:
+                            Notification.show("error", trimD(err.responseJSON.data.value));
+                        case _:
+                            Notification.show("error", trimD(err.responseJSON.data));
+                    }
+                case 404:
+                    Notification.show("error", "NotFound");
+                case 403:
+                    switch (err.responseJSON.status) {
+                        case ApiStatus.Unauthorized:
+                            if (!profile.isGuest) {
+                                profile = guest();
+                                update(SignedOut);
+                            }
+                        case _:
+                    }
+                    Notification.show("error", trimD(err.responseJSON.data));
+                case _:
+                    Notification.show("error", "error happened");
+            }
+        }).toPromise()
+        .flatMap(function (response: ApiResponse) {
+            return Promise.fulfilled(cast response.data);
+        });
     }
 
     function sendForm<T>(url: String, form: JqHtml, ?optData: {}): Promise<T> {
@@ -390,23 +402,41 @@ class Service extends Stream<ServiceEvent> {
                     switch (response.status) {
                         case ApiStatus.OK:
                             ctx.fulfill(cast response.data);
-                        case ApiStatus.NotFound:
-                            ctx.rejected(new ServiceError("NotFound", NotFound));
-                        case ApiStatus.BadRequest:
-                            ctx.reject(new ServiceError(response.status, BadRequest, response.data));
-                        case ApiStatus.Unauthorized:
-                            if (!profile.isGuest) {
-                                profile = guest();
-                                update(SignedOut);
-                            }
-                            ctx.reject(new ServiceError(response.status, Unauthorized));
                         case _:
                             ctx.reject(new ServiceError("Unknown", Unknown));
                     }
                 },
-                error: ctx.reject
+                error: function(err) {
+                    ctx.reject(cast err);
+                    switch (err.status) {
+                        case 400:
+                            switch (err.responseJSON.status) {
+                                case ApiStatus.IllegalArgument:
+                                    Notification.show("error", trimD(err.responseJSON.data.value));
+                                case _:
+                                    Notification.show("error", trimD(err.responseJSON.data));
+                            }
+                        case 404:
+                            Notification.show("error", "NotFound");
+                        case 403:
+                            switch (err.responseJSON.status) {
+                                case ApiStatus.Unauthorized:
+                                    if (!profile.isGuest) {
+                                        profile = guest();
+                                        update(SignedOut);
+                                    }
+                                case _:
+                            }
+                            Notification.show("error", trimD(err.responseJSON.data));
+                        case _:
+                            Notification.show("error", "error happened");
+                    }
+                }
             });
         });
+    }
+    function trimD(str: String): String {
+        return StringTools.replace(str, "d.", "");
     }
 }
 
@@ -446,10 +476,12 @@ private typedef ApiResponse = {
     var data: Dynamic;
 }
 
-@:enum private abstract ApiStatus(String) to String {
+@:enum abstract ApiStatus(String) to String {
     var OK = "OK";
     var NotFound = "NotFound";
     var BadRequest = "BadRequest";
     var Unauthorized = "Unauthorized";
     var Error = "Error";
+    var IllegalArgument = "Illegal Argument";
+    var AccessDenied = "AccessDenied";
 }

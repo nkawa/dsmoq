@@ -48,12 +48,8 @@ class GroupShowPage {
                         b.setProperty("total", x.summary.total);
                         b.setProperty("items", x.results);
                         b.setProperty("pages", Math.ceil(x.summary.total / 20));
-                    }, function (e) {
-                        Notification.show("error", "error happened");
                     });
                 });
-            }, function (err) {
-                Notification.show("error", "error happened");
             });
 
 			Service.instance.getTags().then(function(x) {
@@ -75,15 +71,9 @@ class GroupShowPage {
 							b.setProperty("total", x.summary.total);
 							b.setProperty("items", x.results);
 							b.setProperty("pages", Math.ceil(x.summary.total / 20));
-						}, function (e) {
-							Notification.show("error", "error happened");
 						});
 					});
-				}, function (err) {
-					Notification.show("error", "error happened");
 				});
-            }, function (err) {
-                Notification.show("error", "error happened");				
 			});
 
 
@@ -97,16 +87,16 @@ class GroupShowPage {
                 Service.instance.deleteGroup(id).then(function (_) {
                     Notification.show("success", "delete successful");
                     navigation.fulfill(Navigation.Navigate(Page.GroupList(1, "")));
-                }, function (err) {
-                    Notification.show("error", "error happened");
                 });
             });
-        }, function (err) {
+        }, function (err: Dynamic) {
             trace(err);
-            root.html(switch (err.name) {
-                case ServiceErrorType.Unauthorized:
+            root.html(switch (err.responseJSON.status) {
+                case ApiStatus.AccessDenied:
                     "Permission denied";
-                case ServiceErrorType.NotFound:
+                case ApiStatus.Unauthorized:
+                    "Unauthorized";
+                case ApiStatus.NotFound:
                     "Not found";
                 case _:
                     "Network Error";

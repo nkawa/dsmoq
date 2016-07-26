@@ -108,11 +108,13 @@ class DatasetShowPage {
                 setTopMoreClickEvent(html, navigation, binding, data, id);
             });
             
-        }, function (err) {
-            switch (err.name) {
-                case ServiceErrorType.Unauthorized:
+        }, function (err: Dynamic) {
+            switch (err.responseJSON.status) {
+                case ApiStatus.Unauthorized:
+                    html.html("Unauthorized");
+                case ApiStatus.AccessDenied:
                     html.html("Permission denied");
-                case ServiceErrorType.NotFound:
+                case ApiStatus.NotFound:
                     html.html("Not found");
                 default:
                     html.html("Network error");
@@ -171,15 +173,14 @@ class DatasetShowPage {
             }
             setDatasetZippedFiles(data, datasetId, index, data.fileLimit, 0).then(function(_) {
                 setZipMoreClickEvent(html, navigation, data, datasetId, index);
-            }, function(err) {
-                switch (err.name) {
-                    case ServiceErrorType.Unauthorized:
+            }, function(err: Dynamic) {
+                switch (err.responseJSON.status) {
+                    case ApiStatus.AccessDenied:
                         navigation.fulfill(Navigation.Navigate(Page.Top));
-                    case ServiceErrorType.NotFound:
+                    case ApiStatus.Unauthorized:
                         navigation.fulfill(Navigation.Navigate(Page.Top));
-                    case ServiceErrorType.BadRequest:
-                        var detail = cast(cast(err, ServiceError).detail, String);
-                        Notification.show("error", detail);
+                    case ApiStatus.NotFound:
+                        navigation.fulfill(Navigation.Navigate(Page.Top));
                     default:
                         trace(err);
                         html.html("Network error");
@@ -194,11 +195,13 @@ class DatasetShowPage {
                 binding.setProperty("data.root.useProgress", false);
                 setTopMoreClickEvent(html, navigation, binding, data, datasetId);
                 setZipClickEvent(html, navigation, data, datasetId);
-            }, function (err) {
-                switch (err.name) {
-                    case ServiceErrorType.Unauthorized:
+            }, function (err: Dynamic) {
+                switch (err.responseJSON.status) {
+                    case ApiStatus.AccessDenied:
                         navigation.fulfill(Navigation.Navigate(Page.Top));
-                    case ServiceErrorType.NotFound:
+                    case ApiStatus.Unauthorized:
+                        navigation.fulfill(Navigation.Navigate(Page.Top));
+                    case ApiStatus.NotFound:
                         navigation.fulfill(Navigation.Navigate(Page.Top));
                     default:
                         trace(err);
@@ -214,15 +217,14 @@ class DatasetShowPage {
             setDatasetZippedFiles(data, datasetId, index, data.fileLimit, data.root.files[index].zippedFiles.length).then(function (_) {
                 JsViews.observable(data.root.files[index]).setProperty("useProgress", false);
                 setZipMoreClickEvent(html, navigation, data, datasetId, index);
-            }, function (err) {
-                switch (err.name) {
-                    case ServiceErrorType.Unauthorized:
+            }, function (err: Dynamic) {
+                switch (err.responseJSON.status) {
+                    case ApiStatus.AccessDenied:
                         navigation.fulfill(Navigation.Navigate(Page.Top));
-                    case ServiceErrorType.NotFound:
+                    case ApiStatus.Unauthorized:
                         navigation.fulfill(Navigation.Navigate(Page.Top));
-                    case ServiceErrorType.BadRequest:
-                        var detail = cast(cast(err, ServiceError).detail, String);
-                        Notification.show("error", detail);
+                    case ApiStatus.NotFound:
+                        navigation.fulfill(Navigation.Navigate(Page.Top));
                     default:
                         trace(err);
                         html.html("Network error");
