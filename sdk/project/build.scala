@@ -33,6 +33,7 @@ object DsmoqSdkBuild extends Build {
       version := Version,
       resolvers += Classpaths.typesafeReleases,
       scalaVersion := ScalaVersion,
+      javacOptions ++= Seq("-encoding", "UTF-8"),
       libraryDependencies ++= Seq(
         "org.apache.httpcomponents" % "httpclient" % "4.3.6",
         "org.apache.httpcomponents" % "httpmime" % "4.3.6",

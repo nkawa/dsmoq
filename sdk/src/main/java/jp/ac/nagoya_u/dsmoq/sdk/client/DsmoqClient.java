@@ -1,14 +1,63 @@
 package jp.ac.nagoya_u.dsmoq.sdk.client;
 
-import jp.ac.nagoya_u.dsmoq.sdk.http.*;
-import jp.ac.nagoya_u.dsmoq.sdk.request.*;
-import jp.ac.nagoya_u.dsmoq.sdk.response.*;
-import jp.ac.nagoya_u.dsmoq.sdk.util.*;
+import jp.ac.nagoya_u.dsmoq.sdk.http.AutoCloseHttpClient;
+import jp.ac.nagoya_u.dsmoq.sdk.http.AutoHttpDelete;
+import jp.ac.nagoya_u.dsmoq.sdk.http.AutoHttpGet;
+import jp.ac.nagoya_u.dsmoq.sdk.http.AutoHttpPost;
+import jp.ac.nagoya_u.dsmoq.sdk.http.AutoHttpPut;
+import jp.ac.nagoya_u.dsmoq.sdk.request.AddMemberParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.ChangePasswordParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.ChangeStorageParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.CreateGroupParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.GetDatasetsParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.GetGroupsParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.GetMembersParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.GetRangeParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.SetAccessLevelParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.SetGuestAccessLevelParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.SetMemberRoleParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.SetPrimaryImageParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.StatisticsParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateDatasetMetaParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateEmailParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateFileMetaParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateGroupParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateProfileParam;
+import jp.ac.nagoya_u.dsmoq.sdk.response.Dataset;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetAddFiles;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetAddImages;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetDeleteImage;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetFile;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetGetImage;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetOwnership;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetOwnerships;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetTask;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetZipedFile;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetsSummary;
+import jp.ac.nagoya_u.dsmoq.sdk.response.Group;
+import jp.ac.nagoya_u.dsmoq.sdk.response.GroupAddImages;
+import jp.ac.nagoya_u.dsmoq.sdk.response.GroupDeleteImage;
+import jp.ac.nagoya_u.dsmoq.sdk.response.GroupGetImage;
+import jp.ac.nagoya_u.dsmoq.sdk.response.GroupsSummary;
+import jp.ac.nagoya_u.dsmoq.sdk.response.License;
+import jp.ac.nagoya_u.dsmoq.sdk.response.MemberSummary;
+import jp.ac.nagoya_u.dsmoq.sdk.response.RangeSlice;
+import jp.ac.nagoya_u.dsmoq.sdk.response.StatisticsDetail;
+import jp.ac.nagoya_u.dsmoq.sdk.response.TaskStatus;
+import jp.ac.nagoya_u.dsmoq.sdk.response.User;
+import jp.ac.nagoya_u.dsmoq.sdk.util.ApiFailedException;
+import jp.ac.nagoya_u.dsmoq.sdk.util.ConnectionLostException;
+import jp.ac.nagoya_u.dsmoq.sdk.util.DsmoqHttpException;
+import jp.ac.nagoya_u.dsmoq.sdk.util.ErrorRespondedException;
+import jp.ac.nagoya_u.dsmoq.sdk.util.HttpStatusException;
+import jp.ac.nagoya_u.dsmoq.sdk.util.JsonUtil;
+import jp.ac.nagoya_u.dsmoq.sdk.util.ResponseFunction;
+import jp.ac.nagoya_u.dsmoq.sdk.util.TimeoutException;
+import org.apache.http.Header;
 import org.apache.http.HttpException;
 import org.apache.http.HttpResponse;
-import org.apache.http.NameValuePair;
-import org.apache.http.Header;
 import org.apache.http.HttpResponse;
+import org.apache.http.NameValuePair;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.methods.HttpUriRequest;
@@ -23,22 +72,31 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.SocketTimeoutException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.charset.IllegalCharsetNameException;
+import java.nio.charset.UnsupportedCharsetException;
+import java.nio.charset.spi.CharsetProvider;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.List;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.nio.charset.Charset;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * dsmoq APIを叩くためのクライアントクラス
@@ -82,14 +140,20 @@ public class DsmoqClient {
      * Datasetを検索する。(GET /api/datasets相当)
      * @param param Dataset検索に使用するパラメタ
      * @return 検索結果
+     * @throws NullPointerException paramsがnullの場合
+     * @throws HttpStatusException エラーレスポンスが返ってきた場合
+     * @throws TimeoutException 接続がタイムアウトした場合
+     * @throws ConnectionLostException 接続が失敗した、または失われた場合
+     * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public RangeSlice<DatasetsSummary> getDatasets(GetDatasetsParam param) {
+        requireNotNull(param, "at param in getDatasets");
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + "/api/datasets?d=" + URLEncoder.encode(param.toJsonString(), "UTF-8"))){
             addAuthorizationHeader(request);
-            String json = execute(request);
+            String json = executeWithStringResponse(request);
             return JsonUtil.toDatasets(json);
-        } catch(UnsupportedEncodingException e) {
-            throw new ApiFailedException(e.getMessage(), e);
+        } catch (Exception e) {
+            throw translateInnerException(e);
         }
     }
 
@@ -97,12 +161,20 @@ public class DsmoqClient {
      * Datasetを取得する。(GET /api/datasets/${dataset_id}相当)
      * @param datasetId DatasetID
      * @return 取得結果
+     * @throws IllegalArgumentException datasetIdがnullまたは空文字の場合
+     * @throws HttpStatusException エラーレスポンスが返ってきた場合
+     * @throws TimeoutException 接続がタイムアウトした場合
+     * @throws ConnectionLostException 接続が失敗した、または失われた場合
+     * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public Dataset getDataset(String datasetId) {
+        requireNotEmpty(datasetId, "at datasetId in getDataset");
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/datasets/%s", datasetId))){
             addAuthorizationHeader(request);
-            String json = execute(request);
+            String json = executeWithStringResponse(request);
             return JsonUtil.toDataset(json);
+        } catch (Exception e) {
+            throw translateInnerException(e);
         }
     }
 
@@ -112,6 +184,10 @@ public class DsmoqClient {
      * @param saveS3 Amazon S3に保存するか否か
      * @param files Datasetに設定するファイル(複数可)
      * @return 作成したDataset
+     * @throws HttpStatusException エラーレスポンスが返ってきた場合
+     * @throws TimeoutException 接続がタイムアウトした場合
+     * @throws ConnectionLostException 接続が失敗した、または失われた場合
+     * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public Dataset createDataset(boolean saveLocal, boolean saveS3, File... files) {
         logger.debug(LOG_MARKER, "createDataset start : [saveLocal] = {}, [saveS3] = {}, [files size] = {}",
@@ -127,9 +203,11 @@ public class DsmoqClient {
             builder.addTextBody("saveLocal", saveLocal ? "true" : "false");
             builder.addTextBody("saveS3", saveS3 ? "true" : "false");
             request.setEntity(builder.build());
-            String json = execute(request);
+            String json = executeWithStringResponse(request);
             logger.debug(LOG_MARKER, "createDataset end : receive json = {}", json);
             return JsonUtil.toDataset(json);
+        } catch (Exception e) {
+            throw translateInnerException(e);
         }
     }
 
@@ -139,6 +217,10 @@ public class DsmoqClient {
      * @param saveLocal ローカルに保存するか否か
      * @param saveS3 Amazon S3に保存するか否か
      * @return 作成したDataset
+     * @throws HttpStatusException エラーレスポンスが返ってきた場合
+     * @throws TimeoutException 接続がタイムアウトした場合
+     * @throws ConnectionLostException 接続が失敗した、または失われた場合
+     * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public Dataset createDataset(String name, boolean saveLocal, boolean saveS3) {
         logger.debug(LOG_MARKER, "createDataset start : [name] = {}, [saveLocal] = {}, [saveS3] = {}",
@@ -150,9 +232,11 @@ public class DsmoqClient {
             builder.addTextBody("saveLocal", saveLocal ? "true" : "false");
             builder.addTextBody("saveS3", saveS3 ? "true" : "false");
             request.setEntity(builder.build());
-            String json = execute(request);
+            String json = executeWithStringResponse(request);
             logger.debug(LOG_MARKER, "createDataset end : receive json = {}", json);
             return JsonUtil.toDataset(json);
+        } catch (Exception e) {
+            throw translateInnerException(e);
         }
     }
 
@@ -499,11 +583,14 @@ public class DsmoqClient {
     }
 
     /**
-     * データセットからファイルをダウンロードする。（GET /files/${dataset_id}/${file_id}相当）
+     * データセットからファイルをダウンロードします。（GET /files/${dataset_id}/${file_id}相当）
+     * 指定されたディレクトリ以下に、ファイルに設定されているファイル名で保存します。
+     * ファイル名が設定されていない場合、ファイルIDで保存します。
      * @param datasetId DatasetID
      * @param fileId ファイルID
      * @param downloadDirectory ダウンロード先のディレクトリ
      * @return ダウンロードしたファイル情報
+     * @throws DsmoqHttpException ファイルの取得に失敗した場合
      */
     public File downloadFile(String datasetId, String fileId, String downloadDirectory) {
         String url = _baseUrl + String.format("/files/%s/%s", datasetId, fileId);
@@ -511,18 +598,21 @@ public class DsmoqClient {
                 url, downloadDirectory);
         try (AutoHttpGet request = new AutoHttpGet(url)){
             addAuthorizationHeader(request);
-            try (AutoCloseHttpClient client = createHttpClient()) {
-                HttpResponse response = client.execute(request);
-                File file = Paths.get(downloadDirectory, getFileName(response, downloadDirectory)).toFile();
-                try (FileOutputStream fos = new FileOutputStream(file)) {
+            return execute(request, response -> {
+String header = Arrays.stream(response.getAllHeaders()).map(Header::toString).collect(Collectors.joining("\n"));
+System.out.println(header);
+                String fileName = getFileName(response, downloadDirectory);
+                if (fileName == null) {
+                    fileName = fileId;
+                }
+                File file = Paths.get(downloadDirectory, fileName).toFile();
+                try (OutputStream fos = new BufferedOutputStream(new FileOutputStream(file))) {
                     response.getEntity().writeTo(fos);
                 }
                 return file;
-            } catch (DsmoqHttpException e) {
-                throw e;
-            } catch (Exception e) {
-                throw new DsmoqHttpException(e.getMessage(), e);
-            }
+            });
+        } catch (Exception e) {
+            throw new DsmoqHttpException(e.getMessage(), e);
         }
     }
 
@@ -552,21 +642,37 @@ public class DsmoqClient {
         return sb.toString();
     }
 
+    /**
+     * 指定されたHttpResponseのHeader部から、ファイル名を取得します。
+     * @return ファイル名、取得できなかった場合null
+     */
     private String getFileNameFromHeader(HttpResponse response) {
         Header header = response.getFirstHeader("Content-Disposition");
+        if (header == null) {
+            return null;
+        }
         Pattern p = Pattern.compile("attachment; filename\\*=([^']+)''(.+)");
         Matcher m = p.matcher(header.getValue());
-        if (m.find()) {
-            String rawCharset = m.group(1);
-            String rawFileName = m.group(2);
-            Charset charset = Charset.forName(rawCharset);
-            try {
-                return URLDecoder.decode(rawFileName, charset.name());
-            } catch(UnsupportedEncodingException e) {
-                throw new DsmoqHttpException("Unsupported Charset(" + rawCharset + ").", e);
-            }
-        } else {
-            return "";
+        if (!m.find()) {
+            return null;
+        }
+        String rawCharset = m.group(1);
+        String rawFileName = m.group(2);
+        Charset charset = toCharset(rawCharset);
+        if (charset == null) {
+            charset = StandardCharsets.UTF_8;
+        }
+        try {
+            return URLDecoder.decode(rawFileName, charset.name());
+        } catch (UnsupportedEncodingException e) {
+            return rawFileName;
+        }
+    }
+    private static Charset toCharset(String name) {
+        try {
+            return Charset.forName(name);
+        } catch (IllegalCharsetNameException | UnsupportedCharsetException e) {
+            return null;
         }
     }
 
@@ -1020,6 +1126,82 @@ public class DsmoqClient {
             throw new ApiFailedException(e.getMessage(), e);
         } catch (HttpException e) {
             throw new ApiFailedException(e.getMessage(), e);
+        }
+    }
+
+    /** デフォルトのレスポンスボディ文字コード */
+    public static final Charset DEFAULT_RESPONSE_CHAESET = StandardCharsets.UTF_8;
+    
+    /**
+     * リクエストを実行し、文字列型のレスポンスを取得する。
+     * @param request リクエスト
+     * @return レスポンスボディ文字列
+     * @throws IOException 接続に失敗した場合
+     * @throws HttpException レスポンスがHTTPレスポンスとして不正な場合 
+     * @throws ErrorRespondedException エラーレスポンスが返ってきた場合
+     */
+    private String executeWithStringResponse(HttpUriRequest request) throws IOException, HttpException, ErrorRespondedException {
+        return executeWithStringResponse(request, DEFAULT_RESPONSE_CHAESET.name());
+    }
+    /**
+     * リクエストを実行し、文字列型のレスポンスを取得する。
+     * @param request リクエスト
+     * @param charset レスポンスボディの文字コード
+     * @return レスポンスボディ文字列
+     * @throws IOException 接続に失敗した場合
+     * @throws HttpException レスポンスがHTTPレスポンスとして不正な場合 
+     * @throws ErrorRespondedException エラーレスポンスが返ってきた場合
+     */
+    private String executeWithStringResponse(HttpUriRequest request, String charset) throws IOException, HttpException, ErrorRespondedException {
+        return execute(request, response -> EntityUtils.toString(response.getEntity(), charset));
+    }
+    /**
+     * リクエストを実行する。
+     * @param <T> レスポンス変換後の型
+     * @param request リクエスト
+     * @param f レスポンスボディ変換関数
+     * @return fの変換結果
+     * @throws IOException 接続に失敗した場合
+     * @throws HttpException レスポンスがHTTPレスポンスとして不正な場合 
+     * @throws ErrorRespondedException エラーレスポンスが返ってきた場合
+     */
+    private <T> T execute(HttpUriRequest request, ResponseFunction<T> f) throws IOException, HttpException, ErrorRespondedException {
+        try (AutoCloseHttpClient client = createHttpClient()) {
+            HttpResponse response = client.execute(request);
+            int status = response.getStatusLine().getStatusCode();
+            if (status >= 400) {
+                throw new ErrorRespondedException(response);
+            }
+            return f.apply(response);
+        }
+    }
+    /**
+     * 内部で送出される例外を、公開用に翻訳します。
+     * @param e 内部で送出される例外
+     * @return 公開用に翻訳された例外
+     */
+    private static RuntimeException translateInnerException(Exception e) {
+        if (e instanceof ErrorRespondedException) {
+            return new HttpStatusException(((ErrorRespondedException) e).getStatusCode());
+        }
+        if (e instanceof SocketTimeoutException) {
+            return new TimeoutException(e.getMessage(), e);
+        }
+        if (e instanceof HttpHostConnectException) {
+            return new ConnectionLostException(e.getMessage(), e);
+        }
+        return new ApiFailedException(e.getMessage(), e);
+    }
+    private <T> void requireNotNull(T x, String position) {
+        if (x == null) {
+            logger.warn(LOG_MARKER, "invalid parameter - null ({})", position);
+            throw new NullPointerException(String.format("invalid parameter - null (%s)", position));
+        }
+    }
+    private void requireNotEmpty(String x, String position) {
+        if (x == null || x.isEmpty()) {
+            logger.warn(LOG_MARKER, "invalid parameter - empty ({})", position);
+            throw new IllegalArgumentException(String.format("invalid parameter - empty (%s)", position));
         }
     }
 }
