@@ -3151,7 +3151,7 @@ object DatasetService extends LazyLogging {
             throw new NotAuthorizedException
           }
           val validatedLimit = limit.map{ x =>
-            if(x < 0) { 0 } else if (AppConf.fileLimit < x) { AppConf.fileLimit } else { x }
+            if(x < 0) { 0 } else { x }
           }.getOrElse(AppConf.fileLimit)
           val validatedOffset = offset.getOrElse(0)
           val count = getFileAmount(datasetId)
@@ -3201,7 +3201,7 @@ object DatasetService extends LazyLogging {
             throw new NotAuthorizedException
           }
           val validatedLimit = limit.map{ x =>
-            if(x < 0) { 0 } else if (AppConf.fileLimit < x) { AppConf.fileLimit } else { x }
+            if(x < 0) { 0 } else { x }
           }.getOrElse(AppConf.fileLimit)
           val validatedOffset = offset.getOrElse(0)
           val count = getZippedFileAmount(datasetId, history.id)
