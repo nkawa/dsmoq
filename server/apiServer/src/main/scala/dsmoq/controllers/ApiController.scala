@@ -24,10 +24,29 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
   protected implicit val jsonFormats: Formats = DefaultFormats
   private implicit def objectToPipe[A](x: A) = Pipe(x)
 
+  /**
+   * AuthServiceのインスタンス
+   */
   val authService = new AuthService(resource, this)
+
+  /**
+   * AccountServiceのインスタンス
+   */
   val accountService = new AccountService(resource)
+
+  /**
+   * DatasetServiceのインスタンス
+   */
   val datasetService = new DatasetService(resource)
+
+  /**
+   * GroupServiceのインスタンス
+   */
   val groupService = new GroupService(resource)
+
+  /**
+   * CheckUtilのインスタンス
+   */
   val checkUtil = new CheckUtil(resource)
 
   before() {

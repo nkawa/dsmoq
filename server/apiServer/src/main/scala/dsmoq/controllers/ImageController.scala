@@ -3,12 +3,20 @@ package dsmoq.controllers
 import java.util.ResourceBundle
 
 import org.scalatra.{NotFound, ScalatraServlet}
-import dsmoq.services.{ImageService, User}
+import dsmoq.services.{AuthService, ImageService, User}
 import scala.util.{Try, Success, Failure}
 import dsmoq.exceptions.{AccessDeniedException, NotFoundException}
 
-class ImageController(resource: ResourceBundle) extends ScalatraServlet with SessionTrait {
+class ImageController(resource: ResourceBundle) extends ScalatraServlet {
 
+  /**
+   * AuthServiceのインスタンス
+   */
+  val authService = new AuthService(resource, this)
+
+  /**
+   * ImageServiceのインスタンス
+   */
   val imageService = new ImageService(resource)
 
   before("/*") {
@@ -31,14 +39,14 @@ class ImageController(resource: ResourceBundle) extends ScalatraServlet with Ses
   get("/datasets/:datasetId/:imageId") {
     val imageId = params("imageId")
     val datasetId = params("datasetId")
-    getImage(imageService.getDatasetFile(datasetId, imageId, None, currentUser))
+    getImage(imageService.getDatasetFile(datasetId, imageId, None, authService.getUserFromSession))
   }
 
   get("/datasets/:datasetId/:imageId/:size") {
     val imageId = params("imageId")
     val datasetId = params("datasetId")
     val size = params.get("size")
-    getImage(imageService.getDatasetFile(datasetId, imageId, size, currentUser))
+    getImage(imageService.getDatasetFile(datasetId, imageId, size, authService.getUserFromSession))
   }
 
   get("/groups/:groupId/:imageId") {
@@ -53,12 +61,7 @@ class ImageController(resource: ResourceBundle) extends ScalatraServlet with Ses
     val size = params.get("size")
     getImage(imageService.getGroupFile(groupId, imageId, size))
   }
-  private def currentUser: User = {
-    signedInUser match {
-      case SignedInUser(user) => user
-      case GuestUser(user) => user
-    }
-  }
+
   private def getImage(result: Try[(java.io.File, String)]) = {
     result match {
       case Success(x) =>

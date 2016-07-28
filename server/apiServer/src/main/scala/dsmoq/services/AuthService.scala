@@ -144,6 +144,35 @@ class AuthService(resource: ResourceBundle, servlet: ScalatraServlet) extends La
   }
 
   /**
+   * セッションからユーザを取得する。
+   * 
+   * @return
+   *        セッションからユーザを取得できた場合、そのユーザを返却する。
+   *        セッションからユーザを取得できなかった場合、ゲストユーザを返却する。
+   */
+  def getUserFromSession(): User = {
+    // session.getを使用するためのimplicit conversionをimportしている
+    import servlet._
+    servlet.sessionOption match {
+      case Some(_) => servlet.session.get(SESSION_KEY) match {
+        case Some(sessionUser) => {
+          val user = sessionUser.asInstanceOf[User]
+          logger.info(LOG_MARKER, "Auth: Get user from Session: User found. user={}", user)
+          user
+        }
+        case None => {
+          logger.info(LOG_MARKER, "Auth: Get user from Session: User not found. Use guest user.")
+          GUEST_USER
+        }
+      }
+      case None => {
+        logger.info(LOG_MARKER, "Auth: Get user from Session: User not found. Use guest user.")
+        GUEST_USER
+      }
+    }
+  }
+
+  /**
    * Authorizationヘッダ、セッションからユーザを取得する。
    *
    * @param request HTTPリクエスト
@@ -164,46 +193,26 @@ class AuthService(resource: ResourceBundle, servlet: ScalatraServlet) extends La
             }
             case None => {
               logger.error(LOG_MARKER, "Auth: Get user from Authorization Header: User not found. api_key={}, signature={}", apiKey, signature)
-              throw new NotAuthorizedException()
+              throw new NotAuthorizedException(resource.getString(ResourceNames.INVALID_APIKEY_OR_SIGNATURE))
             }
           }
         }
         case ApiKeyNotFound => {
           logger.error(LOG_MARKER, "Auth: Get user from Authorization Header: ApiKey not found.")
-          throw new NotAuthorizedException()
+          throw new NotAuthorizedException(resource.getString(ResourceNames.REQUIRE_APIKEY))
         }
         case SignatureNotFound => {
           logger.error(LOG_MARKER, "Auth: Get user from Authorization Header: Signature not found.")
-          throw new NotAuthorizedException()
+          throw new NotAuthorizedException(resource.getString(ResourceNames.REQUIRE_SIGNATURE))
         }
         case BothNotFound => {
           logger.error(LOG_MARKER, "Auth: Get user from Authorization Header: ApiKey and Signature not found.")
-          throw new NotAuthorizedException()
+          throw new NotAuthorizedException(resource.getString(ResourceNames.REQUIRE_APIKEY_AND_SIGNATURE))
         }
         case NoAuthorizationHeader => {
-          // servlet.session, sessionOptionが要求するimplicit valを満たすため変数定義
-          implicit val req = request
-          // session.getを使用するためのimplicit conversionをimportしている
-          import servlet._
           logger.info(LOG_MARKER, "Auth: No Authorization Header")
           // Authorizationヘッダがない場合、セッションからユーザ情報を取得する
-          servlet.sessionOption match {
-            case Some(_) => servlet.session.get(SESSION_KEY) match {
-              case Some(sessionUser) => {
-                val user = sessionUser.asInstanceOf[User]
-                logger.info(LOG_MARKER, "Auth: Get user from Session: User found. user={}", user)
-                user
-              }
-              case None => {
-                logger.info(LOG_MARKER, "Auth: Get user from Session: User not found. Use guest user.")
-                GUEST_USER
-              }
-            }
-            case None => {
-              logger.info(LOG_MARKER, "Auth: Get user from Session: User not found. Use guest user.")
-              GUEST_USER
-            }
-          }
+          getUserFromSession()
         }
       }
     }
@@ -229,7 +238,10 @@ class AuthService(resource: ResourceBundle, servlet: ScalatraServlet) extends La
    */
   def getNotGuestUser(): Try[User] = {
     getUser(servlet.request) match {
-      case Success(user) if user.isGuest => Failure(new NotAuthorizedException())
+      case Success(user) if user.isGuest => {
+        logger.error(LOG_MARKER, "Auth: Not Allow Guest.")
+        Failure(new NotAuthorizedException(resource.getString(ResourceNames.NOT_ALLOW_GUEST)))
+      }
       case other => other
     }
   }

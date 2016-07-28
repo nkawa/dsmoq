@@ -3,11 +3,19 @@ package dsmoq.controllers
 import java.util.ResourceBundle
 
 import org.scalatra.ScalatraServlet
-import dsmoq.services.GoogleAccountService
+import dsmoq.services.{AuthService, GoogleAccountService}
 import scala.util.{Failure, Success}
 
-class GoogleOAuthController(resource: ResourceBundle) extends ScalatraServlet with SessionTrait {
+class GoogleOAuthController(resource: ResourceBundle) extends ScalatraServlet {
+  
+  /**
+   * AuthServiceのインスタンス
+   */
+  val authService = new AuthService(resource, this)
 
+  /**
+   * GoogleAccountServiceのインスタンス
+   */
   val googleAccountService = new GoogleAccountService(resource)
 
   get("/*") {
@@ -29,15 +37,15 @@ class GoogleOAuthController(resource: ResourceBundle) extends ScalatraServlet wi
       case Some(code) =>
         googleAccountService.loginWithGoogle(code) match {
           case Success(y) =>
-            clearSession()
-            setSignedInUser(y)
+            authService.clearSession()
+            authService.updateSessionUser(y)
             redirect(userRedirectUri)
           case Failure(e) =>
-            clearSession()
+            authService.clearSession()
             redirect(userRedirectUri)
         }
       case None =>
-        clearSession()
+        authService.clearSession()
         redirect(userRedirectUri)
     }
   }
