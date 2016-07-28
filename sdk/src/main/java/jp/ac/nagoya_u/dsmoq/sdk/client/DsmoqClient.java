@@ -90,7 +90,9 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -718,19 +720,29 @@ public class DsmoqClient {
      * CSVファイルにAttributeを出力する。（GET /api/datasets/${dataset_id}/attributes/export相当）
      * @param datasetId DatasetID
      * @param downloadDirectory 出力先ディレクトリ
+     * @throws NullPointerException datasetIdまたはdownloadDirectoryがnullの場合
+     * @throws IllegalArgumentException downloadDirectoryがディレクトリを指していない場合
+     * @throws HttpStatusException エラーレスポンスが返ってきた場合
+     * @throws TimeoutException 接続がタイムアウトした場合
+     * @throws ConnectionLostException 接続が失敗した、または失われた場合
+     * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      * @return CSVファイル
      */
     public File exportAttribute(String datasetId, String downloadDirectory) {
+        requireNotNull(datasetId, "at datasetId in exportAttribute");
+        requireNotNull(downloadDirectory, "at downloadDirectory in exportAttribute");
+        requireDirectory(downloadDirectory, "at downloadDirectory in exportAttribute");
         try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/datasets/%s/attributes/export", datasetId))){
             addAuthorizationHeader(request);
-
-            File file = Paths.get(downloadDirectory, "export.csv").toFile();
-            try (FileOutputStream fos = new FileOutputStream(file)) {
-                executeWrite(request, fos);
-            }
-            return file;
-        } catch(IOException e) {
-            throw new ApiFailedException(e.getMessage(), e);
+            return execute(request, response -> {
+                File file = Paths.get(downloadDirectory, "export.csv").toFile();
+                try (OutputStream fos = new BufferedOutputStream(new FileOutputStream(file))) {
+                    response.getEntity().writeTo(fos);
+                }
+                return file;
+            });
+        } catch (Exception e) {
+            throw translateInnerException(e);
         }
     }
 
@@ -781,22 +793,22 @@ public class DsmoqClient {
      * @param fileId ファイルID
      * @param downloadDirectory ダウンロード先のディレクトリ
      * @return ダウンロードしたファイル情報
+     * @throws NullPointerException datasetIdまたはfileIdまたはdownloadDirectoryがnullの場合
+     * @throws IllegalArgumentException downloadDirectoryがディレクトリを指していない場合
      * @throws DsmoqHttpException ファイルの取得に失敗した場合
      */
     public File downloadFile(String datasetId, String fileId, String downloadDirectory) {
+        requireNotNull(datasetId, "at datasetId in downloadFile");
+        requireNotNull(fileId, "at fileId in downloadFile");
+        requireNotNull(downloadDirectory, "at downloadDirectory in downloadFile");
+        requireDirectory(downloadDirectory, "at downloadDirectory in downloadFile");
         String url = _baseUrl + String.format("/files/%s/%s", datasetId, fileId);
         logger.debug(LOG_MARKER, "downloadFile start : [downloadUrl] = {}, [downloadDirectory] = {}",
                 url, downloadDirectory);
         try (AutoHttpGet request = new AutoHttpGet(url)){
             addAuthorizationHeader(request);
             return execute(request, response -> {
-String header = Arrays.stream(response.getAllHeaders()).map(Header::toString).collect(Collectors.joining("\n"));
-System.out.println(header);
-                String fileName = getFileName(response, downloadDirectory);
-                if (fileName == null) {
-                    fileName = fileId;
-                }
-                File file = Paths.get(downloadDirectory, fileName).toFile();
+                File file = getDownloadTargetFile(response, downloadDirectory, fileId);
                 try (OutputStream fos = new BufferedOutputStream(new FileOutputStream(file))) {
                     response.getEntity().writeTo(fos);
                 }
@@ -806,33 +818,52 @@ System.out.println(header);
             throw new DsmoqHttpException(e.getMessage(), e);
         }
     }
-
-    private String getFileName(HttpResponse response, String downloadDirectory) {
+    /**
+     * ダウンロード先Fileオブジェクトを取得します。
+     * @return ダウンロード先Fileオブジェクト
+     */
+    private File getDownloadTargetFile(HttpResponse response, String downloadDirectory, String fileId) {
         String fullName = getFileNameFromHeader(response);
-        String[] splitted = fullName.split("\\.");
-        String name = join(splitted, 0, splitted.length > 1 ? splitted.length - 1 : 1);
-        String ext = splitted.length > 1 ? "." + splitted[splitted.length - 1] : "";
-        String fileName = name + ext;
-        File file = Paths.get(downloadDirectory, fileName).toFile();
-        for (int i = 1; file.exists(); i ++) {
-            fileName = name + " (" + i + ")" + ext;
-            file = Paths.get(downloadDirectory, fileName).toFile();
+        if (fullName == null) {
+            logger.warn(LOG_MARKER, "Cannot get filename from response header. Use fileId.");
+            fullName = fileId;
+        } else if (fullName.isEmpty()) {
+            logger.warn(LOG_MARKER, "Detect empty filename from response header. Use fileId.");
+            fullName = fileId;
         }
-        logger.debug(LOG_MARKER, "donwloadFile : [originalFileName] = {}, [fileName] = {}", name + ext, fileName);
-        return fileName;
-    }
-
-    private String join(String[] strs, int start, int end) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = start; i < end; i ++) {
-            sb.append(strs[i]);
-            if (i < end - 1) {
-                sb.append(".");
-            }
+        File dir = Paths.get(downloadDirectory).toFile();
+        File file = Paths.get(downloadDirectory, fullName).toFile();
+        // TODO: ファイル存在時に名前部にsuffixを付ける
+//      String[] splitted = fullName.split("\\.");
+//      String name = join(splitted, 0, splitted.length > 1 ? splitted.length - 1 : 1);
+//      String ext = splitted.length > 1 ? "." + splitted[splitted.length - 1] : "";
+//      String fileName = name + ext;
+//      for (int i = 1; file.exists(); i ++) {
+//          fileName = name + " (" + i + ")" + ext;
+//          file = Paths.get(downloadDirectory, fileName).toFile();
+//      }
+        if (file.exists()) {
+            int extIndex = fullName.lastIndexOf(".");
+            String name = extIndex < 0 ? fullName : fullName.substring(0, extIndex);
+            String ext = extIndex < 0 ? "" : fullName.substring(extIndex);
+              String fileName = name + ext;
+//            while (exists.contains(fileName)) {
+//            }
+            
         }
-        return sb.toString();
+        logger.debug(LOG_MARKER, "donwloadFile : [originalFileName] = {}, [fileName] = {}", fullName, file.getName());
+        return file;
     }
-
+//    private String join(String[] strs, int start, int end) {
+//        StringBuilder sb = new StringBuilder();
+//        for (int i = start; i < end; i ++) {
+//            sb.append(strs[i]);
+//            if (i < end - 1) {
+//                sb.append(".");
+//            }
+//        }
+//        return sb.toString();
+//    }
     /**
      * 指定されたHttpResponseのHeader部から、ファイル名を取得します。
      * @return ファイル名、取得できなかった場合null
@@ -840,29 +871,22 @@ System.out.println(header);
     private String getFileNameFromHeader(HttpResponse response) {
         Header header = response.getFirstHeader("Content-Disposition");
         if (header == null) {
+            logger.warn(LOG_MARKER, "Content-Disposition not found.");
             return null;
         }
         Pattern p = Pattern.compile("attachment; filename\\*=([^']+)''(.+)");
         Matcher m = p.matcher(header.getValue());
         if (!m.find()) {
+            logger.warn(LOG_MARKER, "Illegal format Content-Disposition: {}", header.getValue());
             return null;
         }
         String rawCharset = m.group(1);
         String rawFileName = m.group(2);
-        Charset charset = toCharset(rawCharset);
-        if (charset == null) {
-            charset = StandardCharsets.UTF_8;
-        }
         try {
+            Charset charset = Charset.forName(rawCharset);
             return URLDecoder.decode(rawFileName, charset.name());
-        } catch (UnsupportedEncodingException e) {
-            return rawFileName;
-        }
-    }
-    private static Charset toCharset(String name) {
-        try {
-            return Charset.forName(name);
-        } catch (IllegalCharsetNameException | UnsupportedCharsetException e) {
+        } catch (UnsupportedEncodingException | IllegalCharsetNameException | UnsupportedCharsetException e) {
+            logger.warn(LOG_MARKER, "Unsupported charset: {}", rawCharset);
             return null;
         }
     }
@@ -1572,6 +1596,18 @@ System.out.println(header);
         if (x == null) {
             logger.warn(LOG_MARKER, "invalid parameter - null ({})", position);
             throw new NullPointerException(String.format("invalid parameter - null (%s)", position));
+        }
+    }
+    /**
+     * 指定された文字列がディレクトリを指しているかを検査します。
+     * @param directory チェック対象
+     * @param position チェック位置
+     * @throws IllegalArgumentException 引数がディレクトリを指していない場合
+     */
+    private void requireDirectory(String directory, String position) {
+        if (!Paths.get(directory).toFile().isDirectory()) {
+            logger.warn(LOG_MARKER, "invalid parameter - not a directory ({})", position);
+            throw new IllegalArgumentException(String.format("invalid parameter - not a directory (%s)", position));
         }
     }
 }
