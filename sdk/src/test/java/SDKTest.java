@@ -12,9 +12,11 @@ import org.junit.Assert;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.core.Is.*;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -498,7 +500,7 @@ public class SDKTest {
     }
 
     @Test
-    public void ファイルを部分的にダウンロードできるか() throws IOException {
+    public void ファイルを部分的にダウンロードしInputStreamで取得できるか() throws IOException {
         DsmoqClient client = create();
         Path original = Paths.get("testdata", "test.csv");
         client.createDataset(true, false, original.toFile());
@@ -506,17 +508,37 @@ public class SDKTest {
         String datasetId = summaries.stream().findFirst().get().getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId(); 
-        client.downloadFileWithRange(datasetId, fileId, 9L, 14L, content -> {
+        String data = client.downloadFileWithRange(datasetId, fileId, 9L, 14L, content -> {
+            assertThat(content.getName(), is("test.csv"));
+            try {
+                BufferedReader in = new BufferedReader(new InputStreamReader(content.getContent()));
+                return in.readLine();
+            } catch (IOException e) {
+                throw new IllegalStateException(e);
+            }
+        });
+        assertThat(data, is("uga,2"));
+    }
+    @Test
+    public void ファイルを部分的にダウンロードしOutputStreamで出力できるか() throws IOException {
+        DsmoqClient client = create();
+        Path original = Paths.get("testdata", "test.csv");
+        client.createDataset(true, false, original.toFile());
+        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
+        String datasetId = summaries.stream().findFirst().get().getId();
+        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
+        String fileId = files.getResults().get(0).getId(); 
+        String data = client.downloadFileWithRange(datasetId, fileId, 9L, 14L, content -> {
             assertThat(content.getName(), is("test.csv"));
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
             try {
                 content.writeTo(bos);
+                return bos.toString();
             } catch (IOException e) {
                 throw new IllegalStateException(e);
             }
-            assertThat(bos.toString(), is("uga,2"));
-            return null;
         });
+        assertThat(data, is("uga,2"));
     }
 
     @Test

@@ -77,6 +77,7 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.SocketTimeoutException;
@@ -920,7 +921,7 @@ public class DsmoqClient {
      * @param fileId ファイルID
      * @param from 開始位置指定、指定しない場合null
      * @param to 終了位置指定、指定しない場合null
-     * @param f ファイルデータを処理する関数 (引数のDatasetFileはこの処理関数中でのみ利用可能)
+     * @param f ファイルデータを処理する関数 (引数のDatasetFileContentはこの処理関数中でのみ利用可能)
      * @return fの変換結果
      * @throws NullPointerException datasetIdまたはfileIdがnullの場合
      * @throws IllegalArgumentException fromまたはtoが0未満の場合
@@ -943,6 +944,9 @@ public class DsmoqClient {
                 return f.apply(new DatasetFileContent() {
                     public String getName() {
                         return filename;
+                    }
+                    public InputStream getContent() throws IOException {
+                        return response.getEntity().getContent();
                     }
                     public void writeTo(OutputStream s) throws IOException {
                         response.getEntity().writeTo(s);

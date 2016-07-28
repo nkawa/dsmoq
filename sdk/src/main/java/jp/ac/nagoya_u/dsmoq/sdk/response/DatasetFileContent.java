@@ -1,6 +1,7 @@
 package jp.ac.nagoya_u.dsmoq.sdk.response;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
@@ -8,13 +9,19 @@ import java.io.OutputStream;
  */
 public interface DatasetFileContent {
     /**
-     * 取得したファイルに設定されているファイル名を取得します。
+     * ファイルに設定されているファイル名を取得します。
      * @return 設定されているファイル名、ない場合null
      */
     String getName();
     /**
-     * 取得したファイルの内容を、指定されたOutputStreamへ書き込みます。
-     * @param os 出力先Stream
+     * ファイルの内容を取得します。
+     * @return ファイルの内容を表すストリーム
+     * @throws IOException 入出力エラーが発生した場合
+     */
+    InputStream getContent() throws IOException;
+    /**
+     * ファイルの内容を、指定されたストリームへ書き込みます。
+     * @param os 出力先ストリーム
      * @throws IOException 入出力エラーが発生した場合
      */
     void writeTo(OutputStream os) throws IOException;
