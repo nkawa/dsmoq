@@ -818,8 +818,12 @@ public class DsmoqClient {
             throw new DsmoqHttpException(e.getMessage(), e);
         }
     }
+
     /**
      * ダウンロード先Fileオブジェクトを取得します。
+     * @param response HTTPレスポンスオブジェクト
+     * @param downloadDirectory ダウンロード先のディレクトリ
+     * @param fileId ファイルID
      * @return ダウンロード先Fileオブジェクト
      */
     private File getDownloadTargetFile(HttpResponse response, String downloadDirectory, String fileId) {
@@ -833,39 +837,29 @@ public class DsmoqClient {
         }
         File dir = Paths.get(downloadDirectory).toFile();
         File file = Paths.get(downloadDirectory, fullName).toFile();
-        // TODO: ファイル存在時に名前部にsuffixを付ける
-//      String[] splitted = fullName.split("\\.");
-//      String name = join(splitted, 0, splitted.length > 1 ? splitted.length - 1 : 1);
-//      String ext = splitted.length > 1 ? "." + splitted[splitted.length - 1] : "";
-//      String fileName = name + ext;
-//      for (int i = 1; file.exists(); i ++) {
-//          fileName = name + " (" + i + ")" + ext;
-//          file = Paths.get(downloadDirectory, fileName).toFile();
-//      }
         if (file.exists()) {
             int extIndex = fullName.lastIndexOf(".");
-            String name = extIndex < 0 ? fullName : fullName.substring(0, extIndex);
+            // finalである理由は、ラムダ式中で使用するにはfinalである必要があるため
+            final String name = extIndex < 0 ? fullName : fullName.substring(0, extIndex);
             String ext = extIndex < 0 ? "" : fullName.substring(extIndex);
-              String fileName = name + ext;
-//            while (exists.contains(fileName)) {
-//            }
-            
+            Set<String> exists = new HashSet<>(Arrays.asList(dir.list((f, n) -> n.startsWith(name))));
+            int fileIndex = 1;
+            String fileName = fullName;
+            // 対象のファイル名が存在する場合、ファイル名 (n)の形式でまだ存在していない名前を探す
+            // nは1から始まる数値
+            while (exists.contains(fileName)) {
+                fileName = name + " (" + fileIndex + ")" + ext;
+                fileIndex ++;
+            }
+            file = Paths.get(downloadDirectory, fileName).toFile();
         }
         logger.debug(LOG_MARKER, "donwloadFile : [originalFileName] = {}, [fileName] = {}", fullName, file.getName());
         return file;
     }
-//    private String join(String[] strs, int start, int end) {
-//        StringBuilder sb = new StringBuilder();
-//        for (int i = start; i < end; i ++) {
-//            sb.append(strs[i]);
-//            if (i < end - 1) {
-//                sb.append(".");
-//            }
-//        }
-//        return sb.toString();
-//    }
+
     /**
      * 指定されたHttpResponseのHeader部から、ファイル名を取得します。
+     * @param response HTTPレスポンスオブジェクト
      * @return ファイル名、取得できなかった場合null
      */
     private String getFileNameFromHeader(HttpResponse response) {
