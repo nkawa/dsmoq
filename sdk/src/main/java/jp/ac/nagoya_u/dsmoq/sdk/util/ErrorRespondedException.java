@@ -27,19 +27,18 @@ public class ErrorRespondedException extends Exception {
      * @param response 元となるHttpResponse
      */
     public ErrorRespondedException(HttpResponse response) throws IOException {
-        super(toMessage(response));
-        StatusLine status = response.getStatusLine();
-        this.statusCode = status.getStatusCode();
-        this.reasonPhrase = status.getReasonPhrase();
-        this.header = Arrays.stream(response.getAllHeaders()).map(Header::toString).collect(Collectors.joining("\n"));
-        this.body = EntityUtils.toString(response.getEntity(), DsmoqClient.DEFAULT_RESPONSE_CHAESET.name());
+        this(
+            response.getStatusLine().getStatusCode(), response.getStatusLine().getReasonPhrase(),
+            Arrays.stream(response.getAllHeaders()).map(Header::toString).collect(Collectors.joining("\n")),
+            EntityUtils.toString(response.getEntity(), DsmoqClient.DEFAULT_RESPONSE_CHAESET.name())
+        );
     }
-    private static String toMessage(HttpResponse response) throws IOException {
-        StatusLine status = response.getStatusLine();
-        int statusCode = status.getStatusCode();
-        String reasonPhrase = status.getReasonPhrase();
-        String body = EntityUtils.toString(response.getEntity(), DsmoqClient.DEFAULT_RESPONSE_CHAESET.name());
-        return String.format("%d %s - %s", statusCode, reasonPhrase, body);
+    public ErrorRespondedException(int statusCode, String reasonPhrase, String header, String body) {
+        super(String.format("%d %s - %s", statusCode, reasonPhrase, body));
+        this.statusCode = statusCode;
+        this.reasonPhrase = reasonPhrase;
+        this.header = header;
+        this.body = body;
     }
     /**
      * Status Code を返します。

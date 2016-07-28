@@ -28,6 +28,7 @@ import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetAddFiles;
 import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetAddImages;
 import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetDeleteImage;
 import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetFile;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetFileContent;
 import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetGetImage;
 import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetOwnership;
 import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetOwnerships;
@@ -193,12 +194,11 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public Dataset createDataset(boolean saveLocal, boolean saveS3, File... files) {
-        logger.debug(LOG_MARKER, "createDataset start : [saveLocal] = {}, [saveS3] = {}, [files size] = {}",
-                saveLocal, saveS3, (files != null) ? files.length : "null");
         requireNotNull(files, "at files in createDataset");
         for (int i = 0; i < files.length; i ++) {
             requireNotNull(files[i], String.format("at files[%d] in createDataset", i));
         }
+        logger.debug(LOG_MARKER, "createDataset start : [saveLocal] = {}, [saveS3] = {}, [files size] = {}", saveLocal, saveS3, (files != null) ? files.length : "null");
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/datasets"))) {
             addAuthorizationHeader(request);
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
@@ -231,9 +231,8 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public Dataset createDataset(String name, boolean saveLocal, boolean saveS3) {
-        logger.debug(LOG_MARKER, "createDataset start : [name] = {}, [saveLocal] = {}, [saveS3] = {}",
-                name, saveLocal, saveS3);
         requireNotNull(name, "at name in createDataset");
+        logger.debug(LOG_MARKER, "createDataset start : [name] = {}, [saveLocal] = {}, [saveS3] = {}", name, saveLocal, saveS3);
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/datasets"))) {
             addAuthorizationHeader(request);
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
@@ -263,13 +262,12 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public Dataset createDataset(String name, boolean saveLocal, boolean saveS3, File... files) {
-        logger.debug(LOG_MARKER, "createDataset start : [name] = {}, [saveLocal] = {}, [saveS3] = {}, [files size] = {}",
-                name, saveLocal, saveS3, (files != null) ? files.length : "null");
         requireNotNull(name, "at name in createDataset");
         requireNotNull(files, "at files in createDataset");
         for (int i = 0; i < files.length; i ++) {
             requireNotNull(files[i], String.format("at files[%d] in createDataset", i));
         }
+        logger.debug(LOG_MARKER, "createDataset start : [name] = {}, [saveLocal] = {}, [saveS3] = {}, [files size] = {}", name, saveLocal, saveS3, (files != null) ? files.length : "null");
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/datasets"))) {
             addAuthorizationHeader(request);
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
@@ -303,13 +301,12 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public DatasetAddFiles addFiles(String datasetId, File... files) {
-        logger.debug(LOG_MARKER, "addFiles start : [datasetId] = {}, [files size] = {}",
-                datasetId, (files != null) ? files.length : "null");
         requireNotNull(datasetId, "at datasetId in addFiles");
         requireNotNull(files, "at files in addFiles");
         for (int i = 0; i < files.length; i ++) {
             requireNotNull(files[i], String.format("at files[%d] in addFiles", i));
         }
+        logger.debug(LOG_MARKER, "addFiles start : [datasetId] = {}, [files size] = {}", datasetId, (files != null) ? files.length : "null");
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/files", datasetId)))) {
             addAuthorizationHeader(request);
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
@@ -803,8 +800,7 @@ public class DsmoqClient {
         requireNotNull(downloadDirectory, "at downloadDirectory in downloadFile");
         requireDirectory(downloadDirectory, "at downloadDirectory in downloadFile");
         String url = _baseUrl + String.format("/files/%s/%s", datasetId, fileId);
-        logger.debug(LOG_MARKER, "downloadFile start : [downloadUrl] = {}, [downloadDirectory] = {}",
-                url, downloadDirectory);
+        logger.debug(LOG_MARKER, "downloadFile start : [downloadUrl] = {}, [downloadDirectory] = {}", url, downloadDirectory);
         try (AutoHttpGet request = new AutoHttpGet(url)){
             addAuthorizationHeader(request);
             return execute(request, response -> {
@@ -882,6 +878,47 @@ public class DsmoqClient {
         } catch (UnsupportedEncodingException | IllegalCharsetNameException | UnsupportedCharsetException e) {
             logger.warn(LOG_MARKER, "Unsupported charset: {}", rawCharset);
             return null;
+        }
+    }
+
+    /**
+     * データセットからファイルの内容を部分的に取得します。（GET /files/${dataset_id}/${file_id}相当）
+     * @param <T> ファイルデータ処理後の型
+     * @param datasetId DatasetID
+     * @param fileId ファイルID
+     * @param from 開始位置指定、指定しない場合null
+     * @param to 終了位置指定、指定しない場合null
+     * @param f ファイルデータを処理する関数 (引数のDatasetFileはこの処理関数中でのみ利用可能)
+     * @return fの変換結果
+     * @throws NullPointerException datasetIdまたはfileIdがnullの場合
+     * @throws IllegalArgumentException fromまたはtoが0未満の場合
+     * @throws DsmoqHttpException ファイルの取得に失敗した場合
+     */
+    public <T> T downloadFileWithRange(String datasetId, String fileId, Long from, Long to, Function<DatasetFileContent, T> f) {
+        requireNotNull(datasetId, "at datasetId in downloadFileWithRange");
+        requireNotNull(fileId, "at fileId in downloadFileWithRange");
+        requireGeq(from, 0L, "at from in downloadFileWithRange");
+        requireGeq(to, 0L, "at to in downloadFileWithRange");
+        String url = _baseUrl + String.format("/files/%s/%s", datasetId, fileId);
+        logger.debug(LOG_MARKER, "downloadFileWithRange start : [downloadUrl] = {}, [from:to] = {}:{}", url, from, to);
+        try (AutoHttpGet request = new AutoHttpGet(url)){
+            addAuthorizationHeader(request);
+            if (from != null || to != null) {
+                request.setHeader("Range", String.format("bytes=%s-%s", from == null ? "" : from.toString(), to == null ? "" : to.toString()));
+            }
+            return execute(request, response -> {
+                String filename = getFileNameFromHeader(response);
+                return f.apply(new DatasetFileContent() {
+                    public String getName() {
+                        return filename;
+                    }
+                    public void writeTo(OutputStream s) throws IOException {
+                        response.getEntity().writeTo(s);
+                    }
+                });
+            });
+        } catch (Exception e) {
+            throw new DsmoqHttpException(e.getMessage(), e);
         }
     }
 
@@ -1489,30 +1526,6 @@ public class DsmoqClient {
         return new AutoCloseHttpClient();
     }
 
-    /**
-     * リクエストを実行し、その結果をstreamに書き込む。
-     * @param request リクエスト
-     * @param ost 書き込み先ストリーム
-     */
-    private void executeWrite(HttpUriRequest request, FileOutputStream ost) {
-        try (AutoCloseHttpClient client = createHttpClient()) {
-            HttpResponse response = client.execute(request);
-            int status = response.getStatusLine().getStatusCode();
-            if (status >= 400) {
-                throw new HttpStatusException(status);
-            }
-            response.getEntity().writeTo(ost);
-        } catch (SocketTimeoutException e) {
-            throw new TimeoutException(e.getMessage(), e);
-        } catch (HttpHostConnectException e) {
-            throw new ConnectionLostException(e.getMessage(), e);
-        } catch (IOException e) {
-            throw new ApiFailedException(e.getMessage(), e);
-        } catch (HttpException e) {
-            throw new ApiFailedException(e.getMessage(), e);
-        }
-    }
-
     /** デフォルトのレスポンスボディ文字コード */
     public static final Charset DEFAULT_RESPONSE_CHAESET = StandardCharsets.UTF_8;
     
@@ -1602,6 +1615,21 @@ public class DsmoqClient {
         if (!Paths.get(directory).toFile().isDirectory()) {
             logger.warn(LOG_MARKER, "invalid parameter - not a directory ({})", position);
             throw new IllegalArgumentException(String.format("invalid parameter - not a directory (%s)", position));
+        }
+    }
+    /**
+     * 指定された値が基準値以上であることを検査します。
+     * 
+     * 値がnullの場合は検査を行いません。
+     * @param x チェック対象
+     * @param base 基準値
+     * @param position チェック位置
+     * @throws IllegalArgumentException 引数が基準値以上でないばあい
+     */
+    private <T extends Comparable<T>> void requireGeq(T x, T base, String position) {
+        if (x != null && base.compareTo(x) > 0) {
+            logger.warn(LOG_MARKER, "invalid parameter - {} is not bigger than {} ({})", x.toString(), base.toString(), position);
+            throw new IllegalArgumentException(String.format("invalid parameter - %S is not bigger than %s (%s)", x.toString(), base.toString(), position));
         }
     }
 }

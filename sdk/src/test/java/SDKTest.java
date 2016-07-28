@@ -12,6 +12,7 @@ import org.junit.Assert;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.core.Is.*;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -491,6 +492,28 @@ public class SDKTest {
         original.delete();
         file.delete();
         dir.toFile().delete();
+    }
+
+    @Test
+    public void ファイルを部分的にダウンロードできるか() throws IOException {
+        DsmoqClient client = create();
+        Path original = Paths.get("testdata", "test.csv");
+        client.createDataset(true, false, original.toFile());
+        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
+        String datasetId = summaries.stream().findFirst().get().getId();
+        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
+        String fileId = files.getResults().get(0).getId(); 
+        client.downloadFileWithRange(datasetId, fileId, 9L, 14L, content -> {
+            assertThat(content.getName(), is("test.csv"));
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            try {
+                content.writeTo(bos);
+            } catch (IOException e) {
+                throw new IllegalStateException(e);
+            }
+            assertThat(bos.toString(), is("uga,2"));
+            return null;
+        });
     }
 
     @Test
