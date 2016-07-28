@@ -20,6 +20,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipException;
+import java.util.zip.ZipFile;
 
 public class SDKTest {
 
@@ -759,6 +762,34 @@ public class SDKTest {
         DsmoqClient client = create();
         List<StatisticsDetail> stats = client.getStatistics(new StatisticsParam(Optional.of(new DateTime()), Optional.of(new DateTime())));
         assertThat(stats.size(), is(0));
+    }
+
+    @Test
+    public void HEADリクエスト_Local通常ファイル() {
+        DsmoqClient client = create();
+        File file = new File("README.md");
+        Dataset dataset = client.createDataset(true, false, file);
+        String datasetId = dataset.getId();
+        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
+        String fileId = files.getResults().get(0).getId();
+        Long contentLength = client.getFileSize(datasetId, fileId);
+        assertThat(contentLength, is(file.length()));
+    }
+
+    @Test
+    public void HEADリクエスト_LocalZIP内ファイル() throws ZipException, IOException {
+        DsmoqClient client = create();
+        File file = new File("testdata/test.zip");
+        Dataset dataset = client.createDataset(true, false, file);
+        String datasetId = dataset.getId();
+        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
+        String fileId = files.getResults().get(0).getId();
+        RangeSlice<DatasetZipedFile> zFiles = client.getDatasetZippedFiles(datasetId, fileId, new GetRangeParam());
+        String zFileId = zFiles.getResults().get(0).getId();
+        ZipFile zf = new ZipFile(file);
+        ZipEntry zEntry = zf.entries().nextElement();
+        Long contentLength = client.getFileSize(datasetId, zFileId);
+        assertThat(contentLength, is(zEntry.getSize()));
     }
 
     @Test

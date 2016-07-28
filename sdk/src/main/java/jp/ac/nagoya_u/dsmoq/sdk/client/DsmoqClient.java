@@ -5,6 +5,7 @@ import jp.ac.nagoya_u.dsmoq.sdk.http.AutoHttpDelete;
 import jp.ac.nagoya_u.dsmoq.sdk.http.AutoHttpGet;
 import jp.ac.nagoya_u.dsmoq.sdk.http.AutoHttpPost;
 import jp.ac.nagoya_u.dsmoq.sdk.http.AutoHttpPut;
+import jp.ac.nagoya_u.dsmoq.sdk.http.AutoHttpHead;
 import jp.ac.nagoya_u.dsmoq.sdk.request.AddMemberParam;
 import jp.ac.nagoya_u.dsmoq.sdk.request.ChangePasswordParam;
 import jp.ac.nagoya_u.dsmoq.sdk.request.ChangeStorageParam;
@@ -56,7 +57,6 @@ import jp.ac.nagoya_u.dsmoq.sdk.util.ResponseFunction;
 import jp.ac.nagoya_u.dsmoq.sdk.util.TimeoutException;
 import org.apache.http.Header;
 import org.apache.http.HttpException;
-import org.apache.http.HttpResponse;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
@@ -780,6 +780,38 @@ public class DsmoqClient {
         requireNotNull(file, "at file in setFeaturedImageToDataset");
         DatasetAddImages image = addImagesToDataset(datasetId, file);
         setFeaturedImageToDataset(datasetId, image.getImages().get(0).getId());
+    }
+
+    /**
+     * データセットのファイルのファイルサイズを取得する。(HEAD /files/${dataset_id}/${file_id}相当)
+     * @param datasetId DatasetID
+     * @param fileId ファイルID
+     * @return データセットのファイルのサイズ。取得できなかった場合、nullを返却する。
+     * @throws NullPointerException datasetIdまたはfileIdがnullの場合
+     * @throws HttpStatusException エラーレスポンスが返ってきた場合
+     * @throws TimeoutException 接続がタイムアウトした場合
+     * @throws ConnectionLostException 接続が失敗した、または失われた場合
+     * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
+     */
+    public Long getFileSize(String datasetId, String fileId) {
+        requireNotNull(datasetId, "at datasetId in headFile");
+        requireNotNull(fileId, "at fileId in headFile");
+        try (AutoHttpHead request = new AutoHttpHead(String.format("%s/files/%s/%s", _baseUrl, datasetId, fileId))) {
+            addAuthorizationHeader(request);
+            return execute(request, response -> {
+                Header header = response.getFirstHeader("Content-Length");
+                if (header == null) {
+                    return null;
+                }
+                try {
+                    return Long.valueOf(header.getValue());
+                } catch (NumberFormatException e) {
+                    return null;
+                }
+            });
+        } catch (Exception e) {
+            throw translateInnerException(e);
+        }
     }
 
     /**
