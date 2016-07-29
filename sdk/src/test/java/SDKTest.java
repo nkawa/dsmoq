@@ -411,14 +411,14 @@ public class SDKTest {
     @Test
     public void ファイルを部分的にダウンロードしInputStreamで取得できるか() throws IOException {
         DsmoqClient client = create();
-        Path original = Paths.get("testdata", "test.csv");
+        Path original = Paths.get("testdata", "abc.txt");
         client.createDataset(true, false, original.toFile());
         List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
         String datasetId = summaries.stream().findFirst().get().getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId(); 
         String data = client.downloadFileWithRange(datasetId, fileId, 9L, 14L, content -> {
-            assertThat(content.getName(), is("test.csv"));
+            assertThat(content.getName(), is("abc.txt"));
             try {
                 BufferedReader in = new BufferedReader(new InputStreamReader(content.getContent()));
                 return in.readLine();
@@ -426,20 +426,20 @@ public class SDKTest {
                 throw new IllegalStateException(e);
             }
         });
-        assertThat(data, is("uga,2"));
+        assertThat(data, is("jklmn"));
     }
 
     @Test
     public void ファイルを部分的にダウンロードしOutputStreamで出力できるか() throws IOException {
         DsmoqClient client = create();
-        Path original = Paths.get("testdata", "test.csv");
+        Path original = Paths.get("testdata", "abc.txt");
         client.createDataset(true, false, original.toFile());
         List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
         String datasetId = summaries.stream().findFirst().get().getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId(); 
         String data = client.downloadFileWithRange(datasetId, fileId, 9L, 14L, content -> {
-            assertThat(content.getName(), is("test.csv"));
+            assertThat(content.getName(), is("abc.txt"));
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
             try {
                 content.writeTo(bos);
@@ -448,7 +448,7 @@ public class SDKTest {
                 throw new IllegalStateException(e);
             }
         });
-        assertThat(data, is("uga,2"));
+        assertThat(data, is("jklmn"));
     }
 
     @Test
