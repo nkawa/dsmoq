@@ -1,11 +1,51 @@
 package jp.ac.nagoya_u.dsmoq.sdk.client;
 
-import jp.ac.nagoya_u.dsmoq.sdk.request.*;
-import jp.ac.nagoya_u.dsmoq.sdk.response.*;
+import jp.ac.nagoya_u.dsmoq.sdk.request.AddMemberParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.ChangePasswordParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.ChangeStorageParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.CreateGroupParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.GetDatasetsParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.GetGroupsParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.GetMembersParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.GetRangeParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.SetAccessLevelParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.SetGuestAccessLevelParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.SetMemberRoleParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.SetPrimaryImageParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.StatisticsParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateDatasetMetaParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateEmailParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateFileMetaParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateGroupParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateProfileParam;
+import jp.ac.nagoya_u.dsmoq.sdk.response.Dataset;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetAddFiles;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetAddImages;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetDeleteImage;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetFile;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetFileContent;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetGetImage;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetOwnership;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetOwnerships;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetTask;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetZipedFile;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetsSummary;
+import jp.ac.nagoya_u.dsmoq.sdk.response.Group;
+import jp.ac.nagoya_u.dsmoq.sdk.response.GroupAddImages;
+import jp.ac.nagoya_u.dsmoq.sdk.response.GroupDeleteImage;
+import jp.ac.nagoya_u.dsmoq.sdk.response.GroupGetImage;
+import jp.ac.nagoya_u.dsmoq.sdk.response.GroupsSummary;
+import jp.ac.nagoya_u.dsmoq.sdk.response.License;
+import jp.ac.nagoya_u.dsmoq.sdk.response.MemberSummary;
+import jp.ac.nagoya_u.dsmoq.sdk.response.RangeSlice;
+import jp.ac.nagoya_u.dsmoq.sdk.response.StatisticsDetail;
+import jp.ac.nagoya_u.dsmoq.sdk.response.TaskStatus;
+import jp.ac.nagoya_u.dsmoq.sdk.response.User;
 
 import java.io.File;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 public class AsyncDsmoqClient {
     private DsmoqClient client;
@@ -268,14 +308,24 @@ public class AsyncDsmoqClient {
     }
 
     /**
+     * データセットのファイルのファイルサイズを取得する。(HEAD /files/${dataset_id}/${file_id}相当)
+     * @param datasetId DatasetID
+     * @param fileId ファイルID
+     * @return データセットのファイルのサイズのFuture
+     */
+    public CompletableFuture<Long> getFileSize(String datasetId, String fileId) {
+        return CompletableFuture.supplyAsync(() -> client.getFileSize(datasetId, fileId));
+    }
+
+    /**
      * データセットからファイルをダウンロードする。（GET /files/${dataset_id}/${file_id}相当）
      * @param datasetId DatasetID
      * @param fileId ファイルID
-     * @param downloadDirectory ダウンロード先のディレクトリ
-     * @return ダウンロードしたファイル情報のFuture
+     * @param f ファイルデータを処理する関数 (引数のDatasetFileはこの処理関数中でのみ利用可能)
+     * @return fの処理結果のFuture
      */
-    public CompletableFuture<File> downloadFile(String datasetId, String fileId, String downloadDirectory) {
-        return CompletableFuture.supplyAsync(() -> client.downloadFile(datasetId, fileId, downloadDirectory));
+    public <T> CompletableFuture<T> downloadFile(String datasetId, String fileId, Function<DatasetFileContent, T> f) {
+        return CompletableFuture.supplyAsync(() -> client.downloadFile(datasetId, fileId, f));
     }
 
     /**

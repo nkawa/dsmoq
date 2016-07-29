@@ -7,6 +7,7 @@ import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetsSummary;
 import jp.ac.nagoya_u.dsmoq.sdk.response.RangeSlice;
 
 import java.io.*;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -37,7 +38,15 @@ public class DatasetFileSample {
                     .filter(x -> x.getName().endsWith(".csv"))
                     .map(x -> x.getId()).collect(Collectors.toList());
             // ダウンロードしてくる
-            List<File> fs = ids.stream().map(x -> client.downloadFile(dataset.getId(), x, ".")).collect(Collectors.toList());
+            List<File> fs = ids.stream().map(x -> client.downloadFile(dataset.getId(), x, content -> {
+                File file = Paths.get(content.getName()).toFile();
+                try (OutputStream fos = new BufferedOutputStream(new FileOutputStream(file))) {
+                    content.writeTo(fos);
+                } catch (IOException e) {
+                    // do something
+                }
+                return file;
+            })).collect(Collectors.toList());
             files.addAll(fs);
         }
 

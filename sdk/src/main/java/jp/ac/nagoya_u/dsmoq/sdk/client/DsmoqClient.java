@@ -3,9 +3,9 @@ package jp.ac.nagoya_u.dsmoq.sdk.client;
 import jp.ac.nagoya_u.dsmoq.sdk.http.AutoCloseHttpClient;
 import jp.ac.nagoya_u.dsmoq.sdk.http.AutoHttpDelete;
 import jp.ac.nagoya_u.dsmoq.sdk.http.AutoHttpGet;
+import jp.ac.nagoya_u.dsmoq.sdk.http.AutoHttpHead;
 import jp.ac.nagoya_u.dsmoq.sdk.http.AutoHttpPost;
 import jp.ac.nagoya_u.dsmoq.sdk.http.AutoHttpPut;
-import jp.ac.nagoya_u.dsmoq.sdk.http.AutoHttpHead;
 import jp.ac.nagoya_u.dsmoq.sdk.request.AddMemberParam;
 import jp.ac.nagoya_u.dsmoq.sdk.request.ChangePasswordParam;
 import jp.ac.nagoya_u.dsmoq.sdk.request.ChangeStorageParam;
@@ -816,113 +816,27 @@ public class DsmoqClient {
     }
 
     /**
-     * データセットからファイルをダウンロードします。（GET /files/${dataset_id}/${file_id}相当）
-     * 指定されたディレクトリ以下に、ファイルに設定されているファイル名で保存します。
-     * ファイル名が設定されていない場合、ファイルIDで保存します。
+     * データセットからファイルをダウンロードする。（GET /files/${dataset_id}/${file_id}相当）
+     * @param <T> ファイルデータ処理後の型
      * @param datasetId DatasetID
      * @param fileId ファイルID
-     * @param downloadDirectory ダウンロード先のディレクトリ
-     * @return ダウンロードしたファイル情報
-     * @throws NullPointerException datasetIdまたはfileIdまたはdownloadDirectoryがnullの場合
-     * @throws IllegalArgumentException downloadDirectoryがディレクトリを指していない場合
+     * @param f ファイルデータを処理する関数 (引数のDatasetFileはこの処理関数中でのみ利用可能)
+     * @return fの処理結果
      * @throws DsmoqHttpException ファイルの取得に失敗した場合
      */
-    public File downloadFile(String datasetId, String fileId, String downloadDirectory) {
-        requireNotNull(datasetId, "at datasetId in downloadFile");
-        requireNotNull(fileId, "at fileId in downloadFile");
-        requireNotNull(downloadDirectory, "at downloadDirectory in downloadFile");
-        requireDirectory(downloadDirectory, "at downloadDirectory in downloadFile");
-        String url = _baseUrl + String.format("/files/%s/%s", datasetId, fileId);
-        logger.debug(LOG_MARKER, "downloadFile start : [downloadUrl] = {}, [downloadDirectory] = {}", url, downloadDirectory);
-        try (AutoHttpGet request = new AutoHttpGet(url)){
-            addAuthorizationHeader(request);
-            return execute(request, response -> {
-                File file = getDownloadTargetFile(response, downloadDirectory, fileId);
-                try (OutputStream fos = new BufferedOutputStream(new FileOutputStream(file))) {
-                    response.getEntity().writeTo(fos);
-                }
-                return file;
-            });
-        } catch (Exception e) {
-            throw new DsmoqHttpException(e.getMessage(), e);
-        }
+    public <T> T downloadFile(String datasetId, String fileId, Function<DatasetFileContent, T> f) {
+        return downloadFileWithRange(datasetId, fileId, null, null, f);
     }
 
     /**
-     * ダウンロード先Fileオブジェクトを取得します。
-     * @param response HTTPレスポンスオブジェクト
-     * @param downloadDirectory ダウンロード先のディレクトリ
-     * @param fileId ファイルID
-     * @return ダウンロード先Fileオブジェクト
-     */
-    private File getDownloadTargetFile(HttpResponse response, String downloadDirectory, String fileId) {
-        String fullName = getFileNameFromHeader(response);
-        if (fullName == null) {
-            logger.warn(LOG_MARKER, "Cannot get filename from response header. Use fileId.");
-            fullName = fileId;
-        } else if (fullName.isEmpty()) {
-            logger.warn(LOG_MARKER, "Detect empty filename from response header. Use fileId.");
-            fullName = fileId;
-        }
-        File dir = Paths.get(downloadDirectory).toFile();
-        File file = Paths.get(downloadDirectory, fullName).toFile();
-        if (file.exists()) {
-            int extIndex = fullName.lastIndexOf(".");
-            // finalである理由は、ラムダ式中で使用するにはfinalである必要があるため
-            final String name = extIndex < 0 ? fullName : fullName.substring(0, extIndex);
-            String ext = extIndex < 0 ? "" : fullName.substring(extIndex);
-            Set<String> exists = new HashSet<>(Arrays.asList(dir.list((f, n) -> n.startsWith(name))));
-            int fileIndex = 1;
-            String fileName = fullName;
-            // 対象のファイル名が存在する場合、ファイル名 (n)の形式でまだ存在していない名前を探す
-            // nは1から始まる数値
-            while (exists.contains(fileName)) {
-                fileName = name + " (" + fileIndex + ")" + ext;
-                fileIndex ++;
-            }
-            file = Paths.get(downloadDirectory, fileName).toFile();
-        }
-        logger.debug(LOG_MARKER, "donwloadFile : [originalFileName] = {}, [fileName] = {}", fullName, file.getName());
-        return file;
-    }
-
-    /**
-     * 指定されたHttpResponseのHeader部から、ファイル名を取得します。
-     * @param response HTTPレスポンスオブジェクト
-     * @return ファイル名、取得できなかった場合null
-     */
-    private String getFileNameFromHeader(HttpResponse response) {
-        Header header = response.getFirstHeader("Content-Disposition");
-        if (header == null) {
-            logger.warn(LOG_MARKER, "Content-Disposition not found.");
-            return null;
-        }
-        Pattern p = Pattern.compile("attachment; filename\\*=([^']+)''(.+)");
-        Matcher m = p.matcher(header.getValue());
-        if (!m.find()) {
-            logger.warn(LOG_MARKER, "Illegal format Content-Disposition: {}", header.getValue());
-            return null;
-        }
-        String rawCharset = m.group(1);
-        String rawFileName = m.group(2);
-        try {
-            Charset charset = Charset.forName(rawCharset);
-            return URLDecoder.decode(rawFileName, charset.name());
-        } catch (UnsupportedEncodingException | IllegalCharsetNameException | UnsupportedCharsetException e) {
-            logger.warn(LOG_MARKER, "Unsupported charset: {}", rawCharset);
-            return null;
-        }
-    }
-
-    /**
-     * データセットからファイルの内容を部分的に取得します。（GET /files/${dataset_id}/${file_id}相当）
+     * データセットからファイルの内容を部分的に取得する。（GET /files/${dataset_id}/${file_id}相当）
      * @param <T> ファイルデータ処理後の型
      * @param datasetId DatasetID
      * @param fileId ファイルID
      * @param from 開始位置指定、指定しない場合null
      * @param to 終了位置指定、指定しない場合null
      * @param f ファイルデータを処理する関数 (引数のDatasetFileContentはこの処理関数中でのみ利用可能)
-     * @return fの変換結果
+     * @return fの処理結果
      * @throws NullPointerException datasetIdまたはfileIdがnullの場合
      * @throws IllegalArgumentException fromまたはtoが0未満の場合
      * @throws DsmoqHttpException ファイルの取得に失敗した場合
@@ -955,6 +869,34 @@ public class DsmoqClient {
             });
         } catch (Exception e) {
             throw new DsmoqHttpException(e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 指定されたHttpResponseのHeader部から、ファイル名を取得する。
+     * @param response HTTPレスポンスオブジェクト
+     * @return ファイル名、取得できなかった場合null
+     */
+    private String getFileNameFromHeader(HttpResponse response) {
+        Header header = response.getFirstHeader("Content-Disposition");
+        if (header == null) {
+            logger.warn(LOG_MARKER, "Content-Disposition not found.");
+            return null;
+        }
+        Pattern p = Pattern.compile("attachment; filename\\*=([^']+)''(.+)");
+        Matcher m = p.matcher(header.getValue());
+        if (!m.find()) {
+            logger.warn(LOG_MARKER, "Illegal format Content-Disposition: {}", header.getValue());
+            return null;
+        }
+        String rawCharset = m.group(1);
+        String rawFileName = m.group(2);
+        try {
+            Charset charset = Charset.forName(rawCharset);
+            return URLDecoder.decode(rawFileName, charset.name());
+        } catch (UnsupportedEncodingException | IllegalCharsetNameException | UnsupportedCharsetException e) {
+            logger.warn(LOG_MARKER, "Unsupported charset: {}", rawCharset);
+            return null;
         }
     }
 
@@ -1612,7 +1554,7 @@ public class DsmoqClient {
     }
 
     /**
-     * 内部で送出される例外を、公開用に翻訳します。
+     * 内部で送出される例外を、公開用に翻訳する。
      * @param e 内部で送出される例外
      * @return 公開用に翻訳された例外
      */
@@ -1630,7 +1572,7 @@ public class DsmoqClient {
     }
 
     /**
-     * 非nullチェックを行います。
+     * 非nullチェックを行う。
      * @param x チェック対象
      * @param position チェック位置
      * @throws NullPointerException 引数がnullの場合
@@ -1642,7 +1584,7 @@ public class DsmoqClient {
         }
     }
     /**
-     * 指定された文字列がディレクトリを指しているかを検査します。
+     * 指定された文字列がディレクトリを指しているかを検査する。
      * @param directory チェック対象
      * @param position チェック位置
      * @throws IllegalArgumentException 引数がディレクトリを指していない場合
@@ -1654,13 +1596,13 @@ public class DsmoqClient {
         }
     }
     /**
-     * 指定された値が基準値以上であることを検査します。
+     * 指定された値が基準値以上であることを検査する。
      * 
      * 値がnullの場合は検査を行いません。
      * @param x チェック対象
      * @param base 基準値
      * @param position チェック位置
-     * @throws IllegalArgumentException 引数が基準値以上でないばあい
+     * @throws IllegalArgumentException 引数が基準値以上でない場合
      */
     private <T extends Comparable<T>> void requireGeq(T x, T base, String position) {
         if (x != null && base.compareTo(x) > 0) {

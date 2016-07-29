@@ -230,15 +230,8 @@ public class SDKTest {
         String datasetId = summaries.stream().findFirst().get().getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
-        Path dir = Paths.get("temp");
-        if (! dir.toFile().exists()) {
-            Files.createDirectory(dir);
-        }
-        File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("README.md"));
-        assertThat(file.exists(), is(true));
-        file.delete();
-        dir.toFile().delete();
+        String fileName = client.downloadFile(datasetId, fileId, content -> content.getName());
+        assertThat(fileName, is("README.md"));
     }
 
     @Test
@@ -250,20 +243,17 @@ public class SDKTest {
         String datasetId = summaries.stream().findFirst().get().getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
-        Path dir = Paths.get("temp");
-        if (! dir.toFile().exists()) {
-            Files.createDirectory(dir);
-        }
-        File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("test.csv"));
-        assertThat(file.exists(), is(true));
-        Path downloaded = Paths.get("temp", "test.csv");
-        // ダウンロードしたファイルの中身が壊れていないかを、byte列の比較で確認する
-        Assert.assertArrayEquals(Files.readAllBytes(downloaded), Files.readAllBytes(original));
-        // ダウンロードしたファイルのファイル・タイプの確認
-        assertThat(Files.probeContentType(downloaded), is(Files.probeContentType(original)));
-        file.delete();
-        dir.toFile().delete();
+        byte[] downloaded = client.downloadFile(datasetId, fileId, content -> {
+            assertThat(content.getName(), is("test.csv"));
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            try {
+                content.writeTo(bos);
+                return bos.toByteArray();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        Assert.assertArrayEquals(downloaded, Files.readAllBytes(original));
     }
 
     @Test
@@ -275,20 +265,17 @@ public class SDKTest {
         String datasetId = summaries.stream().findFirst().get().getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
-        Path dir = Paths.get("temp");
-        if (! dir.toFile().exists()) {
-            Files.createDirectory(dir);
-        }
-        File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("multibyte_utf8_nobom.txt"));
-        assertThat(file.exists(), is(true));
-        Path downloaded = Paths.get("temp", "multibyte_utf8_nobom.txt");
-        // ダウンロードしたファイルの中身が壊れていないかを、byte列の比較で確認する
-        Assert.assertArrayEquals(Files.readAllBytes(downloaded), Files.readAllBytes(original));
-        // ダウンロードしたファイルのファイル・タイプの確認
-        assertThat(Files.probeContentType(downloaded), is(Files.probeContentType(original)));
-        file.delete();
-        dir.toFile().delete();
+        byte[] downloaded = client.downloadFile(datasetId, fileId, content -> {
+            assertThat(content.getName(), is("multibyte_utf8_nobom.txt"));
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            try {
+                content.writeTo(bos);
+                return bos.toByteArray();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        Assert.assertArrayEquals(downloaded, Files.readAllBytes(original));
     }
 
     @Test
@@ -300,20 +287,17 @@ public class SDKTest {
         String datasetId = summaries.stream().findFirst().get().getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
-        Path dir = Paths.get("temp");
-        if (! dir.toFile().exists()) {
-            Files.createDirectory(dir);
-        }
-        File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("multibyte_utf8_bom.txt"));
-        assertThat(file.exists(), is(true));
-        Path downloaded = Paths.get("temp", "multibyte_utf8_bom.txt");
-        // ダウンロードしたファイルの中身が壊れていないかを、byte列の比較で確認する
-        Assert.assertArrayEquals(Files.readAllBytes(downloaded), Files.readAllBytes(original));
-        // ダウンロードしたファイルのファイル・タイプの確認
-        assertThat(Files.probeContentType(downloaded), is(Files.probeContentType(original)));
-        file.delete();
-        dir.toFile().delete();
+        byte[] downloaded = client.downloadFile(datasetId, fileId, content -> {
+            assertThat(content.getName(), is("multibyte_utf8_bom.txt"));
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            try {
+                content.writeTo(bos);
+                return bos.toByteArray();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        Assert.assertArrayEquals(downloaded, Files.readAllBytes(original));
     }
 
     @Test
@@ -325,20 +309,17 @@ public class SDKTest {
         String datasetId = summaries.stream().findFirst().get().getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
-        Path dir = Paths.get("temp");
-        if (! dir.toFile().exists()) {
-            Files.createDirectory(dir);
-        }
-        File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("multibyte_sjis.txt"));
-        assertThat(file.exists(), is(true));
-        Path downloaded = Paths.get("temp", "multibyte_sjis.txt");
-        // ダウンロードしたファイルの中身が壊れていないかを、byte列の比較で確認する
-        Assert.assertArrayEquals(Files.readAllBytes(downloaded), Files.readAllBytes(original));
-        // ダウンロードしたファイルのファイル・タイプの確認
-        assertThat(Files.probeContentType(downloaded), is(Files.probeContentType(original)));
-        file.delete();
-        dir.toFile().delete();
+        byte[] downloaded = client.downloadFile(datasetId, fileId, content -> {
+            assertThat(content.getName(), is("multibyte_sjis.txt"));
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            try {
+                content.writeTo(bos);
+                return bos.toByteArray();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        Assert.assertArrayEquals(downloaded, Files.readAllBytes(original));
     }
 
     @Test
@@ -350,20 +331,17 @@ public class SDKTest {
         String datasetId = summaries.stream().findFirst().get().getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
-        Path dir = Paths.get("temp");
-        if (! dir.toFile().exists()) {
-            Files.createDirectory(dir);
-        }
-        File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("multibyte_euc.txt"));
-        assertThat(file.exists(), is(true));
-        Path downloaded = Paths.get("temp", "multibyte_euc.txt");
-        // ダウンロードしたファイルの中身が壊れていないかを、byte列の比較で確認する
-        Assert.assertArrayEquals(Files.readAllBytes(downloaded), Files.readAllBytes(original));
-        // ダウンロードしたファイルのファイル・タイプの確認
-        assertThat(Files.probeContentType(downloaded), is(Files.probeContentType(original)));
-        file.delete();
-        dir.toFile().delete();
+        byte[] downloaded = client.downloadFile(datasetId, fileId, content -> {
+            assertThat(content.getName(), is("multibyte_euc.txt"));
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            try {
+                content.writeTo(bos);
+                return bos.toByteArray();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        Assert.assertArrayEquals(downloaded, Files.readAllBytes(original));
     }
 
     @Test
@@ -375,20 +353,17 @@ public class SDKTest {
         String datasetId = summaries.stream().findFirst().get().getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
-        Path dir = Paths.get("temp");
-        if (! dir.toFile().exists()) {
-            Files.createDirectory(dir);
-        }
-        File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("test.png"));
-        assertThat(file.exists(), is(true));
-        Path downloaded = Paths.get("temp", "test.png");
-        // ダウンロードしたファイルの中身が壊れていないかを、byte列の比較で確認する
-        Assert.assertArrayEquals(Files.readAllBytes(downloaded), Files.readAllBytes(original));
-        // ダウンロードしたファイルのファイル・タイプの確認
-        assertThat(Files.probeContentType(downloaded), is(Files.probeContentType(original)));
-        file.delete();
-        dir.toFile().delete();
+        byte[] downloaded = client.downloadFile(datasetId, fileId, content -> {
+            assertThat(content.getName(), is("test.png"));
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            try {
+                content.writeTo(bos);
+                return bos.toByteArray();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        Assert.assertArrayEquals(downloaded, Files.readAllBytes(original));
     }
 
     @Test
@@ -400,16 +375,9 @@ public class SDKTest {
         String datasetId = summaries.stream().findFirst().get().getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
-        Path dir = Paths.get("temp");
-        if (! dir.toFile().exists()) {
-            Files.createDirectory(dir);
-        }
-        File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("hoge"));
-        assertThat(file.exists(), is(true));
+        String fileName = client.downloadFile(datasetId, fileId, content -> content.getName());
+        assertThat(fileName, is("hoge"));
         original.delete();
-        file.delete();
-        dir.toFile().delete();
     }
 
     @Test
@@ -421,61 +389,9 @@ public class SDKTest {
         String datasetId = summaries.stream().findFirst().get().getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
-        Path dir = Paths.get("temp");
-        if (! dir.toFile().exists()) {
-            Files.createDirectory(dir);
-        }
-        File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("a.b.txt"));
-        assertThat(file.exists(), is(true));
+        String fileName = client.downloadFile(datasetId, fileId, content -> content.getName());
+        assertThat(fileName, is("a.b.txt"));
         original.delete();
-        file.delete();
-        dir.toFile().delete();
-    }
-
-    @Test
-    public void 同名ファイルが既に存在している場合にファイルをダウンロードできるか() throws IOException {
-        DsmoqClient client = create();
-        client.createDataset(true, false, new File("README.md"));
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
-        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
-        String fileId = files.getResults().get(0).getId();
-        Path dir = Paths.get("temp");
-        if (! dir.toFile().exists()) {
-            Files.createDirectory(dir);
-        }
-        Files.createFile(dir.resolve("README.md")).toFile();
-        File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("README (1).md"));
-        assertThat(file.exists(), is(true));
-        for (File f : dir.toFile().listFiles()) {
-            f.delete();
-        }
-        dir.toFile().delete();
-    }
-
-    @Test
-    public void 同名ファイルが既に存在している場合にファイルをダウンロードできるか2() throws IOException {
-        DsmoqClient client = create();
-        client.createDataset(true, false, new File("README.md"));
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
-        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
-        String fileId = files.getResults().get(0).getId();
-        Path dir = Paths.get("temp");
-        if (! dir.toFile().exists()) {
-            Files.createDirectory(dir);
-        }
-        Files.createFile(dir.resolve("README.md")).toFile();
-        Files.createFile(dir.resolve("README (1).md")).toFile();
-        File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("README (2).md"));
-        assertThat(file.exists(), is(true));
-        for (File f : dir.toFile().listFiles()) {
-            f.delete();
-        }
-        dir.toFile().delete();
     }
 
     @Test
@@ -487,16 +403,9 @@ public class SDKTest {
         String datasetId = summaries.stream().findFirst().get().getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
-        Path dir = Paths.get("temp");
-        if (! dir.toFile().exists()) {
-            Files.createDirectory(dir);
-        }
-        File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("表予申能十ソ.txt"));
-        assertThat(file.exists(), is(true));
+        String fileName = client.downloadFile(datasetId, fileId, content -> content.getName());
+        assertThat(fileName, is("表予申能十ソ.txt"));
         original.delete();
-        file.delete();
-        dir.toFile().delete();
     }
 
     @Test
@@ -519,6 +428,7 @@ public class SDKTest {
         });
         assertThat(data, is("uga,2"));
     }
+
     @Test
     public void ファイルを部分的にダウンロードしOutputStreamで出力できるか() throws IOException {
         DsmoqClient client = create();
