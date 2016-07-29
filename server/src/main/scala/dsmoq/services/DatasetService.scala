@@ -3059,7 +3059,7 @@ object DatasetService extends LazyLogging {
               encoding = encoding)
           } else { null }
 
-          DownloadFileLocalZipped(zis, zippedFile.name, zippedFile.dataSize)
+          DownloadFileLocalZipped(zis, zippedFile.name, zippedFile.fileSize)
         } catch {
           case e: Exception => {
             logger.error(LOG_MARKER, "Error occurred.", e)
@@ -3086,7 +3086,7 @@ object DatasetService extends LazyLogging {
               encoding = encoding)
           } else { null }
 
-          DownloadFileS3Zipped(zis, zippedFile.name, zippedFile.dataSize)
+          DownloadFileS3Zipped(zis, zippedFile.name, zippedFile.fileSize)
         } catch {
           case e: Exception => {
             logger.error(LOG_MARKER, "Error occurred.", e)
