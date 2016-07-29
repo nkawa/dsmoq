@@ -319,6 +319,7 @@ public class AsyncDsmoqClient {
 
     /**
      * データセットからファイルをダウンロードする。（GET /files/${dataset_id}/${file_id}相当）
+     * @param <T> ファイルデータ処理後の型
      * @param datasetId DatasetID
      * @param fileId ファイルID
      * @param f ファイルデータを処理する関数 (引数のDatasetFileはこの処理関数中でのみ利用可能)
@@ -326,6 +327,20 @@ public class AsyncDsmoqClient {
      */
     public <T> CompletableFuture<T> downloadFile(String datasetId, String fileId, Function<DatasetFileContent, T> f) {
         return CompletableFuture.supplyAsync(() -> client.downloadFile(datasetId, fileId, f));
+    }
+
+    /**
+     * データセットからファイルの内容を部分的に取得する。（GET /files/${dataset_id}/${file_id}相当）
+     * @param <T> ファイルデータ処理後の型
+     * @param datasetId DatasetID
+     * @param fileId ファイルID
+     * @param from 開始位置指定、指定しない場合null
+     * @param to 終了位置指定、指定しない場合null
+     * @param f ファイルデータを処理する関数 (引数のDatasetFileContentはこの処理関数中でのみ利用可能)
+     * @return fの処理結果のFuture
+     */
+    public <T> CompletableFuture<T> downloadFileWithRange(String datasetId, String fileId, Long from, Long to, Function<DatasetFileContent, T> f) {
+        return CompletableFuture.supplyAsync(() -> client.downloadFileWithRange(datasetId, fileId, from, to, f));
     }
 
     /**
