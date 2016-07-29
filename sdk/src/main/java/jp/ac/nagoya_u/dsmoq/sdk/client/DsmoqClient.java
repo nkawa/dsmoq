@@ -107,7 +107,7 @@ import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireGreaterOrEqualOrNul
 
 /**
  * dsmoq APIを叩くためのクライアントクラス
- * 個々のAPIとの対比はJavaDocとAPIのドキュメントを比較してみてください。
+ * 個々のWeb APIの仕様については、APIのドキュメントを参照してください。
  */
 public class DsmoqClient {
     private Marker LOG_MARKER = MarkerFactory.getMarker("SDK");
@@ -797,10 +797,10 @@ public class DsmoqClient {
     }
 
     /**
-     * データセットのファイルのファイルサイズを取得する。(HEAD /files/${dataset_id}/${file_id}相当)
+     * データセットに設定されているファイルのサイズを取得する。(HEAD /files/${dataset_id}/${file_id}相当)
      * @param datasetId DatasetID
      * @param fileId ファイルID
-     * @return データセットのファイルのサイズ。取得できなかった場合、nullを返却する。
+     * @return データセットに設定されているファイルのサイズ。取得できなかった場合、nullを返却する。
      * @throws NullPointerException datasetIdまたはfileIdがnullの場合
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
      * @throws TimeoutException 接続がタイムアウトした場合

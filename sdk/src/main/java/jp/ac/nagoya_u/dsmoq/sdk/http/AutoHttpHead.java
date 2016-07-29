@@ -9,18 +9,32 @@ import java.net.URI;
  */
 public class AutoHttpHead extends HttpHead implements AutoCloseable {
 
+    /**
+     * デフォルトコンストラクタ
+     */
     public AutoHttpHead() {
-
+        super();
     }
 
+    /**
+     * コンストラクタ
+     * @param uri HEADを呼び出す対象のURL
+     */
     public AutoHttpHead(URI uri) {
         super(uri);
     }
 
+    /**
+     * コンストラクタ
+     * @param uri HEADを呼び出す対象のURL
+     */
     public AutoHttpHead(String uri) {
         super(uri);
     }
 
+    /**
+     * リクエストの実行をAbortします。
+     */
     @Override
     public void close() {
         abort();

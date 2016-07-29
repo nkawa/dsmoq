@@ -47,9 +47,19 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
+/**
+ * 非同期にdsmoq APIを叩くためのクライアントクラス
+ * 個々のWeb APIの仕様については、APIのドキュメントを参照してください。
+ */
 public class AsyncDsmoqClient {
     private DsmoqClient client;
 
+    /**
+     * クライアントオブジェクトを生成する。
+     * @param baseUrl 基準となるURL
+     * @param apiKey APIキー
+     * @param secretKey シークレットキー
+     */
     public AsyncDsmoqClient(String baseUrl, String apiKey, String secretKey) {
         this.client = new DsmoqClient(baseUrl, apiKey, secretKey);
     }
