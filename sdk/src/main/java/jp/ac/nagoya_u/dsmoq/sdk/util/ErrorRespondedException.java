@@ -33,6 +33,13 @@ public class ErrorRespondedException extends Exception {
             EntityUtils.toString(response.getEntity(), DsmoqClient.DEFAULT_RESPONSE_CHAESET.name())
         );
     }
+    /**
+     * 指定された値を用いて、この例外を構築します。
+     * @param statusCode Status Code
+     * @param reasonPhrase Reason Phrase
+     * @param header Response Header
+     * @param body Response Body
+     */
     public ErrorRespondedException(int statusCode, String reasonPhrase, String header, String body) {
         super(String.format("%d %s - %s", statusCode, reasonPhrase, body));
         this.statusCode = statusCode;

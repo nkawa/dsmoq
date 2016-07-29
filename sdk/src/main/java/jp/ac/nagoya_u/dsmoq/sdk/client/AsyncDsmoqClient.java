@@ -278,13 +278,14 @@ public class AsyncDsmoqClient {
     }
 
     /**
-     * CSVファイルにAttributeを出力する。（GET /api/datasets/${dataset_id}/attributes/export相当）
+     * CSV形式のAttributeを取得する。（GET /api/datasets/${dataset_id}/attributes/export相当）
+     * @param <T> CSVデータ処理後の型
      * @param datasetId DatasetID
-     * @param downloadDirectory 出力先ディレクトリ
-     * @return CSVファイルのFuture
+     * @param f CSVデータを処理する関数 (引数のDatasetFileContentはこの処理関数中でのみ利用可能)
+     * @return fの処理結果
      */
-    public CompletableFuture<File> exportAttribute(String datasetId, String downloadDirectory) {
-        return CompletableFuture.supplyAsync(() -> client.exportAttribute(datasetId, downloadDirectory));
+    public <T> CompletableFuture<T> exportAttribute(String datasetId, Function<DatasetFileContent, T> f) {
+        return CompletableFuture.supplyAsync(() -> client.exportAttribute(datasetId, f));
     }
 
     /**

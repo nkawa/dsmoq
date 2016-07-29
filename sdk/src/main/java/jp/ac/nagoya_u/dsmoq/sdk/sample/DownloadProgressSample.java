@@ -5,6 +5,7 @@ import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient;
 import java.io.*;
 import java.nio.file.Paths;
 
+/** プログレス表示付きのファイルダウンロードのサンプル */
 public class DownloadProgressSample {
     /** 一度に読み込む最大のバイト数 */
     public static int BUFFER_SIZE = 1024 * 1024;
@@ -22,7 +23,8 @@ public class DownloadProgressSample {
             File outputFile = Paths.get(content.getName()).toFile();
             // ファイル出力用のOutputStreamを作成
             try (BufferedOutputStream fos = new BufferedOutputStream(new FileOutputStream(outputFile), BUFFER_SIZE)) {
-                // content.getContent()でファイルデータを表すInputStreamが取得できる
+                // getContentメソッドでファイルデータを表すInputStreamが取得できる
+                // 本例のように逐次プログレスを更新したい場合等に用いるとよい
                 BufferedInputStream is = new BufferedInputStream(content.getContent(), BUFFER_SIZE);
                 // 書き込み用バッファ
                 byte[] buffer = new byte[BUFFER_SIZE];

@@ -102,6 +102,9 @@ import java.util.stream.Collectors;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireNotNull;
+import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireGreaterOrEqualOrNull;
+
 /**
  * dsmoq APIを叩くためのクライアントクラス
  * 個々のAPIとの対比はJavaDocとAPIのドキュメントを比較してみてください。
@@ -714,30 +717,40 @@ public class DsmoqClient {
         }
     }
 
+    /** exportAttributeの際に用いるファイル名 */
+    private static String EXPORT_ATTRIBUTE_CSV_FILENAME = "export.csv";
+
     /**
-     * CSVファイルにAttributeを出力する。（GET /api/datasets/${dataset_id}/attributes/export相当）
+     * CSV形式のAttributeを取得する。（GET /api/datasets/${dataset_id}/attributes/export相当）
+     * @param <T> CSVデータ処理後の型
      * @param datasetId DatasetID
-     * @param downloadDirectory 出力先ディレクトリ
-     * @throws NullPointerException datasetIdまたはdownloadDirectoryがnullの場合
-     * @throws IllegalArgumentException downloadDirectoryがディレクトリを指していない場合
+     * @param f CSVデータを処理する関数 (引数のDatasetFileContentはこの処理関数中でのみ利用可能)
+     * @return fの処理結果
+     * @throws NullPointerException datasetIdまたはfがnullの場合
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
      * @throws TimeoutException 接続がタイムアウトした場合
      * @throws ConnectionLostException 接続が失敗した、または失われた場合
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
-     * @return CSVファイル
      */
-    public File exportAttribute(String datasetId, String downloadDirectory) {
+    public <T> T exportAttribute(String datasetId, Function<DatasetFileContent, T> f) {
         requireNotNull(datasetId, "at datasetId in exportAttribute");
-        requireNotNull(downloadDirectory, "at downloadDirectory in exportAttribute");
-        requireDirectory(downloadDirectory, "at downloadDirectory in exportAttribute");
-        try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/datasets/%s/attributes/export", datasetId))){
+        requireNotNull(f, "at f in exportAttribute");
+        String url = _baseUrl + String.format("/api/datasets/%s/attributes/export", datasetId);
+        logger.debug(LOG_MARKER, "exportAttribute start : [url] = {}", url);
+        try (AutoHttpGet request = new AutoHttpGet(url)){
             addAuthorizationHeader(request);
             return execute(request, response -> {
-                File file = Paths.get(downloadDirectory, "export.csv").toFile();
-                try (OutputStream fos = new BufferedOutputStream(new FileOutputStream(file))) {
-                    response.getEntity().writeTo(fos);
-                }
-                return file;
+                return f.apply(new DatasetFileContent() {
+                    public String getName() {
+                        return EXPORT_ATTRIBUTE_CSV_FILENAME;
+                    }
+                    public InputStream getContent() throws IOException {
+                        return response.getEntity().getContent();
+                    }
+                    public void writeTo(OutputStream s) throws IOException {
+                        response.getEntity().writeTo(s);
+                    }
+                });
             });
         } catch (Exception e) {
             throw translateInnerException(e);
@@ -822,6 +835,7 @@ public class DsmoqClient {
      * @param fileId ファイルID
      * @param f ファイルデータを処理する関数 (引数のDatasetFileはこの処理関数中でのみ利用可能)
      * @return fの処理結果
+     * @throws NullPointerException datasetIdまたはfileIdまたはfがnullの場合
      * @throws DsmoqHttpException ファイルの取得に失敗した場合
      */
     public <T> T downloadFile(String datasetId, String fileId, Function<DatasetFileContent, T> f) {
@@ -837,15 +851,16 @@ public class DsmoqClient {
      * @param to 終了位置指定、指定しない場合null
      * @param f ファイルデータを処理する関数 (引数のDatasetFileContentはこの処理関数中でのみ利用可能)
      * @return fの処理結果
-     * @throws NullPointerException datasetIdまたはfileIdがnullの場合
+     * @throws NullPointerException datasetIdまたはfileIdまたはfがnullの場合
      * @throws IllegalArgumentException fromまたはtoが0未満の場合
      * @throws DsmoqHttpException ファイルの取得に失敗した場合
      */
     public <T> T downloadFileWithRange(String datasetId, String fileId, Long from, Long to, Function<DatasetFileContent, T> f) {
         requireNotNull(datasetId, "at datasetId in downloadFileWithRange");
         requireNotNull(fileId, "at fileId in downloadFileWithRange");
-        requireGeq(from, 0L, "at from in downloadFileWithRange");
-        requireGeq(to, 0L, "at to in downloadFileWithRange");
+        requireNotNull(f, "at f in downloadFileWithRange");
+        requireGreaterOrEqualOrNull(from, 0L, "at from in downloadFileWithRange");
+        requireGreaterOrEqualOrNull(to, 0L, "at to in downloadFileWithRange");
         String url = _baseUrl + String.format("/files/%s/%s", datasetId, fileId);
         logger.debug(LOG_MARKER, "downloadFileWithRange start : [downloadUrl] = {}, [from:to] = {}:{}", url, from, to);
         try (AutoHttpGet request = new AutoHttpGet(url)){
@@ -872,25 +887,33 @@ public class DsmoqClient {
         }
     }
 
+    /** HTTP Response の Content-Disposition ヘッダ */
+    private static final String CONTENT_DISPOSITION_HEADER_NAME = "Content-Disposition";
+    /** HTTP Response の Content-Disposition 正規表現 */
+    private static final Pattern COTENT_DISPOSITION_PATTERN = Pattern.compile("attachment; filename\\*=([^']+)''(.+)");
+    /** HTTP Response の Content-Disposition 正規表現中の文字コード部 */
+    private static final int COTENT_DISPOSITION_PATTERN_CHARSET = 1;
+    /** HTTP Response の Content-Disposition 正規表現中のファイル名部 */
+    private static final int COTENT_DISPOSITION_PATTERN_FILENAME = 2;
+
     /**
      * 指定されたHttpResponseのHeader部から、ファイル名を取得する。
      * @param response HTTPレスポンスオブジェクト
      * @return ファイル名、取得できなかった場合null
      */
     private String getFileNameFromHeader(HttpResponse response) {
-        Header header = response.getFirstHeader("Content-Disposition");
+        Header header = response.getFirstHeader(CONTENT_DISPOSITION_HEADER_NAME);
         if (header == null) {
             logger.warn(LOG_MARKER, "Content-Disposition not found.");
             return null;
         }
-        Pattern p = Pattern.compile("attachment; filename\\*=([^']+)''(.+)");
-        Matcher m = p.matcher(header.getValue());
+        Matcher m = COTENT_DISPOSITION_PATTERN.matcher(header.getValue());
         if (!m.find()) {
             logger.warn(LOG_MARKER, "Illegal format Content-Disposition: {}", header.getValue());
             return null;
         }
-        String rawCharset = m.group(1);
-        String rawFileName = m.group(2);
+        String rawCharset = m.group(COTENT_DISPOSITION_PATTERN_CHARSET);
+        String rawFileName = m.group(COTENT_DISPOSITION_PATTERN_FILENAME);
         try {
             Charset charset = Charset.forName(rawCharset);
             return URLDecoder.decode(rawFileName, charset.name());
@@ -1522,7 +1545,7 @@ public class DsmoqClient {
     /**
      * リクエストを実行し、文字列型のレスポンスを取得する。
      * @param request リクエスト
-     * @param charset レスポンスボディの文字コード
+     * @param charset レスポンスヘッダに文字コード指定がない場合に使用する文字コード
      * @return レスポンスボディ文字列
      * @throws IOException 接続に失敗した場合
      * @throws HttpException レスポンスがHTTPレスポンスとして不正な場合 
@@ -1569,45 +1592,5 @@ public class DsmoqClient {
             return new ConnectionLostException(e.getMessage(), e);
         }
         return new ApiFailedException(e.getMessage(), e);
-    }
-
-    /**
-     * 非nullチェックを行う。
-     * @param x チェック対象
-     * @param position チェック位置
-     * @throws NullPointerException 引数がnullの場合
-     */
-    private <T> void requireNotNull(T x, String position) {
-        if (x == null) {
-            logger.warn(LOG_MARKER, "invalid parameter - null ({})", position);
-            throw new NullPointerException(String.format("invalid parameter - null (%s)", position));
-        }
-    }
-    /**
-     * 指定された文字列がディレクトリを指しているかを検査する。
-     * @param directory チェック対象
-     * @param position チェック位置
-     * @throws IllegalArgumentException 引数がディレクトリを指していない場合
-     */
-    private void requireDirectory(String directory, String position) {
-        if (!Paths.get(directory).toFile().isDirectory()) {
-            logger.warn(LOG_MARKER, "invalid parameter - not a directory ({})", position);
-            throw new IllegalArgumentException(String.format("invalid parameter - not a directory (%s)", position));
-        }
-    }
-    /**
-     * 指定された値が基準値以上であることを検査する。
-     * 
-     * 値がnullの場合は検査を行いません。
-     * @param x チェック対象
-     * @param base 基準値
-     * @param position チェック位置
-     * @throws IllegalArgumentException 引数が基準値以上でない場合
-     */
-    private <T extends Comparable<T>> void requireGeq(T x, T base, String position) {
-        if (x != null && base.compareTo(x) > 0) {
-            logger.warn(LOG_MARKER, "invalid parameter - {} is not bigger than {} ({})", x.toString(), base.toString(), position);
-            throw new IllegalArgumentException(String.format("invalid parameter - %S is not bigger than %s (%s)", x.toString(), base.toString(), position));
-        }
     }
 }

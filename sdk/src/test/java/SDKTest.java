@@ -669,14 +669,22 @@ public class SDKTest {
     }
 
     @Test
-    public void AttributeをExportできるか() {
+    public void AttributeをExportできるか() throws IOException {
         DsmoqClient client = create();
+        Path source = Paths.get("testdata", "test.csv");
         Dataset dataset = client.createDataset(true, false, new File("README.md"));
         String datasetId = dataset.getId();
-        client.importAttribute(datasetId, new File("testdata/test.csv"));
-        File file = client.exportAttribute(datasetId, ".");
-        assertThat(file.exists(), is(true));
-        file.delete();
+        client.importAttribute(datasetId, source.toFile());
+        String data = client.exportAttribute(datasetId, content -> {
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            try {
+                content.writeTo(bos);
+                return new String(bos.toByteArray());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        assertThat(data.replaceAll("\r\n", "\n"), is("aaaaa,1\nfuga,2\n"));
     }
 
     @Test
