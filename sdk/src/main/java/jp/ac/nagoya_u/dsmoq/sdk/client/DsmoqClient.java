@@ -103,6 +103,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireNotNull;
+import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireNotNullAll;
 import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireGreaterOrEqualOrNull;
 
 /**
@@ -110,8 +111,8 @@ import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireGreaterOrEqualOrNul
  * 個々のWeb APIの仕様については、APIのドキュメントを参照してください。
  */
 public class DsmoqClient {
-    private Marker LOG_MARKER = MarkerFactory.getMarker("SDK");
-    private Logger logger = LoggerFactory.getLogger(LOG_MARKER.toString());
+    private static Marker LOG_MARKER = MarkerFactory.getMarker("SDK");
+    private static Logger logger = LoggerFactory.getLogger(LOG_MARKER.toString());
 
     private String _baseUrl;
     private String _apiKey;
@@ -199,9 +200,7 @@ public class DsmoqClient {
      */
     public Dataset createDataset(boolean saveLocal, boolean saveS3, File... files) {
         requireNotNull(files, "at files in createDataset");
-        for (int i = 0; i < files.length; i ++) {
-            requireNotNull(files[i], String.format("at files[%d] in createDataset", i));
-        }
+        requireNotNullAll(files, "at files[%d] in createDataset");
         logger.debug(LOG_MARKER, "createDataset start : [saveLocal] = {}, [saveS3] = {}, [files size] = {}", saveLocal, saveS3, (files != null) ? files.length : "null");
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/datasets"))) {
             addAuthorizationHeader(request);
@@ -268,9 +267,7 @@ public class DsmoqClient {
     public Dataset createDataset(String name, boolean saveLocal, boolean saveS3, File... files) {
         requireNotNull(name, "at name in createDataset");
         requireNotNull(files, "at files in createDataset");
-        for (int i = 0; i < files.length; i ++) {
-            requireNotNull(files[i], String.format("at files[%d] in createDataset", i));
-        }
+        requireNotNullAll(files, "at files[%d] in createDataset");
         logger.debug(LOG_MARKER, "createDataset start : [name] = {}, [saveLocal] = {}, [saveS3] = {}, [files size] = {}", name, saveLocal, saveS3, (files != null) ? files.length : "null");
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/datasets"))) {
             addAuthorizationHeader(request);
@@ -307,9 +304,7 @@ public class DsmoqClient {
     public DatasetAddFiles addFiles(String datasetId, File... files) {
         requireNotNull(datasetId, "at datasetId in addFiles");
         requireNotNull(files, "at files in addFiles");
-        for (int i = 0; i < files.length; i ++) {
-            requireNotNull(files[i], String.format("at files[%d] in addFiles", i));
-        }
+        requireNotNullAll(files, "at files[%d] in addFiles");
         logger.debug(LOG_MARKER, "addFiles start : [datasetId] = {}, [files size] = {}", datasetId, (files != null) ? files.length : "null");
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/files", datasetId)))) {
             addAuthorizationHeader(request);
@@ -445,9 +440,7 @@ public class DsmoqClient {
     public DatasetAddImages addImagesToDataset(String datasetId, File... files) {
         requireNotNull(datasetId, "at datasetId in addImageToDataset");
         requireNotNull(files, "at files in addImageToDataset");
-        for (int i = 0; i < files.length; i ++) {
-            requireNotNull(files[i], String.format("at files[%d] in addImageToDataset", i));
-        }
+        requireNotNullAll(files, "at files[%d] in addImageToDataset");
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/images", datasetId)))) {
             addAuthorizationHeader(request);
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
@@ -585,9 +578,7 @@ public class DsmoqClient {
     public DatasetOwnerships changeAccessLevel(String datasetId, List<SetAccessLevelParam> params) {
         requireNotNull(datasetId, "at datasetId in changeAccessLevel");
         requireNotNull(params, "at params in changeAccessLevel");
-        for (int i = 0; i < params.size(); i ++) {
-            requireNotNull(params.get(i), String.format("at params[%d] in changeAccessLevel", i));
-        }
+        requireNotNullAll(params, "at params[%d] in changeAccessLevel");
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/acl", datasetId)))) {
             addAuthorizationHeader(request);
             List<NameValuePair> p = new ArrayList<>();
@@ -815,11 +806,13 @@ public class DsmoqClient {
             return execute(request, response -> {
                 Header header = response.getFirstHeader("Content-Length");
                 if (header == null) {
+                    logger.warn(LOG_MARKER, "Content-Length not found.");
                     return null;
                 }
                 try {
                     return Long.valueOf(header.getValue());
                 } catch (NumberFormatException e) {
+                    logger.warn(LOG_MARKER, "Invalid Content-Length value. [value]:{}", header.getValue());
                     return null;
                 }
             });
@@ -883,6 +876,7 @@ public class DsmoqClient {
                 });
             });
         } catch (Exception e) {
+            logger.error(LOG_MARKER, "Error occured. [message]:{}", e.getMessage());
             throw new DsmoqHttpException(e.getMessage(), e);
         }
     }
@@ -1123,9 +1117,7 @@ public class DsmoqClient {
     public GroupAddImages addImagesToGroup(String groupId, File... files) {
         requireNotNull(groupId, "at groupId in addImagesToGroup");
         requireNotNull(files, "at files in addImagesToGroup");
-        for (int i = 0; i < files.length; i ++) {
-            requireNotNull(files[i], String.format("at files[%d] in addImagesToGroup", i));
-        }
+        requireNotNullAll(files, "at files[%d] in addImagesToGroup");
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/groups/%s/images", groupId)))) {
             addAuthorizationHeader(request);
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
@@ -1216,9 +1208,7 @@ public class DsmoqClient {
     public void addMember(String groupId, List<AddMemberParam> params) {
         requireNotNull(groupId, "at groupId in addMember");
         requireNotNull(params, "at params in addMember");
-        for (int i = 0; i < params.size(); i ++) {
-            requireNotNull(params.get(i), String.format("at params[%s] in addMember", i));
-        }
+        requireNotNullAll(params, "at params[%s] in addMember");
         try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/groups/%s/members", groupId)))) {
             addAuthorizationHeader(request);
             List<NameValuePair> requestParams = new ArrayList<>();
@@ -1515,6 +1505,7 @@ public class DsmoqClient {
             byte[] result = mac.doFinal((apiKey + "&" + secretKey).getBytes());
             return URLEncoder.encode(Base64.getEncoder().encodeToString(result), "UTF-8");
         } catch (Exception e) {
+            logger.error(LOG_MARKER, "Error occured. [message]:{}", e.getMessage());
             throw new ApiFailedException(e.getMessage(), e);
         }
     }
@@ -1582,6 +1573,7 @@ public class DsmoqClient {
      * @return 公開用に翻訳された例外
      */
     private static RuntimeException translateInnerException(Exception e) {
+        logger.error(LOG_MARKER, "Error occured. [message]:{}", e.getMessage());
         if (e instanceof ErrorRespondedException) {
             return new HttpStatusException(((ErrorRespondedException) e).getStatusCode());
         }

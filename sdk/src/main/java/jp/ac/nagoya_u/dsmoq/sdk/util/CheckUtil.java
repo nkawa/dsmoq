@@ -1,5 +1,7 @@
 package jp.ac.nagoya_u.dsmoq.sdk.util;
 
+import java.util.Collection;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
@@ -22,6 +24,34 @@ public class CheckUtil {
         if (x == null) {
             logger.warn(LOG_MARKER, "invalid parameter - null ({})", position);
             throw new NullPointerException(String.format("invalid parameter - null (%s)", position));
+        }
+    }
+
+    /**
+     * 配列の要素に対して非nullチェックを行う。
+     * @param params チェック対象の配列
+     * @param position チェック位置(String.formatでチェックに違反した要素のインデックスが入ります)
+     * @throws NullPointerException 引数がnullの場合
+     */
+    public static <T> void requireNotNullAll(T[] params, String position) {
+        int i = 0;
+        for (T param: params) {
+            requireNotNull(param, String.format(position, i));
+            i ++;
+        }
+    }
+
+    /**
+     * コレクションの要素に対して非nullチェックを行う。
+     * @param params チェック対象のコレクション
+     * @param position チェック位置(String.formatでチェックに違反した要素のインデックスが入ります)
+     * @throws NullPointerException 引数がnullの場合
+     */
+    public static <T> void requireNotNullAll(Collection<T> params, String position) {
+        int i = 0;
+        for (T param: params) {
+            requireNotNull(param, String.format(position, i));
+            i ++;
         }
     }
 
