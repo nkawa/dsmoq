@@ -62,6 +62,12 @@ public class SDKHeadTest {
         }
     }
 
+    @Test(expected = ConnectionLostException.class)
+    public void getFileSize_サーバーに接続できない() {
+        DsmoqClient client = DsmoqClient.create("http://localhost:8081", "3d2357cd53e8738ae21fbc86e15bd441c497191cf785163541ffa907854d2649", "731cc0646e8012632f58bb7d1912a77e8072c7f128f2d09f0bebc36ac0c1a579");
+        client.getFileSize("", "");
+    }
+
     @Test(expected = NullPointerException.class)
     public void getFileSize_nullチェック1() {
         DsmoqClient client = create();
