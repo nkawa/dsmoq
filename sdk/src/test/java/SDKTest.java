@@ -3,14 +3,18 @@ import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient;
 import jp.ac.nagoya_u.dsmoq.sdk.request.*;
 import jp.ac.nagoya_u.dsmoq.sdk.response.*;
 import jp.ac.nagoya_u.dsmoq.sdk.util.*;
+import org.apache.http.conn.HttpHostConnectException;
 import org.joda.time.DateTime;
-import org.junit.AfterClass;
 import org.junit.After;
-import org.junit.Test;
+import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.core.Is.*;
+import static org.hamcrest.core.IsInstanceOf.*;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -27,6 +31,8 @@ import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
 
 public class SDKTest {
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
 
     @After
     public void tearDown() {
@@ -767,8 +773,41 @@ public class SDKTest {
         assertThat(dataset.getMeta().getDescription(), is("日本語の説明"));
     }
 
+    @Test
+    public void 不正なデータセットを作成しようとすると例外が発生() {
+        thrown.expect(ApiFailedException.class);
+        thrown.expectCause(instanceOf(InputValidationException.class));
+        DsmoqClient client = create();
+        client.createDataset(false, false);
+    }
+
+    @Test
+    public void 存在しないデータセットを取得すると例外が発生() {
+        thrown.expect(ApiFailedException.class);
+        thrown.expectCause(instanceOf(NotFoundException.class));
+        DsmoqClient client = create();
+        Dataset dataset = client.getDataset("1050f556-7fee-4032-81e7-326e5f1b82fb");
+    }
+
+    @Test
+    public void 権限のないのないデータセットを取得すると例外が発生() {
+        thrown.expect(ApiFailedException.class);
+        thrown.expectCause(instanceOf(NotAuthorizedException.class));
+        DsmoqClient client = create();
+        Dataset dataset = client.createDataset("hello", true, false);
+        DsmoqClient client2 = DsmoqClient.create("http://localhost:8080", "3d2357cd53e8738ae21fbc86e15bd441c497191cf785163541ffa907854d2649", "731cc0646e8012632f58bb7d1912a77e8072c7f128f2d09f0bebc36ac0c1a579");
+        client2.getDataset(dataset.getId());
+    }
+
+    @Test
+    public void サーバに接続できない場合例外が発生() {
+        thrown.expect(ConnectionLostException.class);
+        thrown.expectCause(instanceOf(HttpHostConnectException.class));
+        DsmoqClient client = DsmoqClient.create("http://localhost:8081", "3d2357cd53e8738ae21fbc86e15bd441c497191cf785163541ffa907854d2649", "731cc0646e8012632f58bb7d1912a77e8072c7f128f2d09f0bebc36ac0c1a579");
+        client.createDataset("hello", true, false);
+    }
+
     public static DsmoqClient create() {
         return DsmoqClient.create("http://localhost:8080", "7d8d8cf12ef0d12d057b01765779c56a5f8a7e1330a41be189114935660ef1ba", "22698424fa67a56cd6d916988fd824c6f999d18a934831de83e15c3490376372");
     }
 }
-

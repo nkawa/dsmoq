@@ -30,7 +30,7 @@ public class ErrorRespondedException extends Exception {
         this(
             response.getStatusLine().getStatusCode(), response.getStatusLine().getReasonPhrase(),
             Arrays.stream(response.getAllHeaders()).map(Header::toString).collect(Collectors.joining("\n")),
-            EntityUtils.toString(response.getEntity(), DsmoqClient.DEFAULT_RESPONSE_CHAESET.name())
+            response.getEntity() == null ? "" : EntityUtils.toString(response.getEntity(), DsmoqClient.DEFAULT_RESPONSE_CHAESET.name())
         );
     }
     /**
