@@ -174,10 +174,7 @@ class FileController extends ScalatraServlet with SessionTrait with ApiKeyAuthor
             val size = to - from
             val retData = new BoundedInputStream(data, size)
 
-            var contentLength = size
-            if (size > retData.available) {
-              contentLength = retData.available
-            }
+            val contentLength = size
 
             val contentRange = "bytes " + from.toString + "-" + (from + size).toString + "/" + fileSize.toString
 
