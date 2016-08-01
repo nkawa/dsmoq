@@ -3038,7 +3038,7 @@ object DatasetService extends LazyLogging {
         DownloadFileLocalNormal(is, file.name, file.fileSize)
       }
       case FileInfoS3Normal(file, path) => {
-        val url = FileManager.downloadFromS3Url(path.substring(1), file.name)
+        val url = FileManager.generateS3PresignedURL(path.substring(1), file.name, !requireData)
         DownloadFileS3Normal(url)
       }
       case FileInfoLocalZipped(file, path, zippedFile) => {
