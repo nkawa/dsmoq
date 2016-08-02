@@ -326,7 +326,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       json    <- Success(d.getOrElse(SearchRangeParams()))
       _       <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _       <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
-      user    <- getUser(request, false)
+      user    <- getUser(request, true)
       result  <- datasetService.getImages(datasetId, json.offset, json.limit, user)
     } yield {
       result
@@ -388,7 +388,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       json   <- Success(d.getOrElse(SearchRangeParams()))
       _      <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _      <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
-      user   <- getUser(request, false)
+      user   <- getUser(request, true)
       result <- datasetService.searchOwnerships(datasetId, json.offset, json.limit, user)
     } yield {
       result
@@ -490,7 +490,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
     val datasetId = params("datasetId")
     val ret = for {
       _      <- checkUtil.validUuidForUrl("datasetId", datasetId)
-      user   <- getUser(request, false)
+      user   <- getUser(request, true)
       result <- datasetService.exportAttribute(datasetId, user)
     } yield {
       result
@@ -639,7 +639,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       json   <- Success(d.getOrElse(SearchRangeParams()))
       _      <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _      <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
-      user   <- getUser(request, false)
+      user   <- getUser(request, true)
       result <- groupService.getImages(groupId, json.offset, json.limit, user)
     } yield {
       result
@@ -875,7 +875,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
     case Success(x) => AjaxResponse("OK", x)
     case Failure(e) =>
      e match {
-      case e: AccessDeniedException => AjaxResponse("Unauthorized")
+      case e: AccessDeniedException => AjaxResponse("AccessDenied")
       case e: NotAuthorizedException => AjaxResponse("Unauthorized")
       case e: NotFoundException => AjaxResponse("NotFound")
       case InputCheckException(name, message, false) => AjaxResponse("Illegal Argument", CheckError(name, message))

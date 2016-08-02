@@ -1590,8 +1590,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       DB localTx { implicit s =>
         datasetAccessabilityCheck(datasetId, user)
 
-        val notOwnerChanges = acl.filter(x => x.ownerType == OwnerType.User && x.accessLevel != UserAndGroupAccessLevel.OWNER_OR_PROVIDER)
-        if (getOwners(datasetId).filter(x => !notOwnerChanges.contains(x.id)).length == 0) {
+        val notOwnerChanges = acl.filter(x => x.ownerType == OwnerType.User && x.accessLevel != UserAndGroupAccessLevel.OWNER_OR_PROVIDER).map(_.id)
+        val ownerChanges = acl.filter(x => x.ownerType == OwnerType.User && x.accessLevel == UserAndGroupAccessLevel.OWNER_OR_PROVIDER).map(_.id)
+        // 更新後のオーナーの数は元々設定されているオーナーのうち、今回オーナー以外に変更されない件数と、今回オーナーに変更された件数を足したもの
+        val updatedOwnerCount = getOwners(datasetId).filter(x => !notOwnerChanges.contains(x.id)).length + ownerChanges.length
+        if (updatedOwnerCount == 0) {
           throw new BadRequestException(resource.getString(ResourceNames.NO_OWNER))
         }
 
