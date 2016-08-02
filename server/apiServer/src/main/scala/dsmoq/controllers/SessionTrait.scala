@@ -4,10 +4,14 @@ import dsmoq.AppConf
 import dsmoq.services.User
 import org.scalatra.ScalatraServlet
 
+@deprecated(message = "use AuthService", since = "")
 sealed trait SessionUser
+@deprecated(message = "use AuthService", since = "")
 case class SignedInUser(user: User) extends SessionUser
+@deprecated(message = "use AuthService", since = "")
 case class GuestUser(user: User) extends SessionUser
 
+@deprecated(message = "use AuthService", since = "")
 trait SessionTrait extends ScalatraServlet {
   private val SessionKey = "user"
   private val sessionId = "JSESSIONID"
@@ -46,6 +50,7 @@ trait SessionTrait extends ScalatraServlet {
   }
 }
 
+@deprecated(message = "use AuthService", since = "")
 trait SessionUserInfo {
   val userInfo: User
 }
