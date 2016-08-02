@@ -7,12 +7,14 @@ import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetsSummary;
 import jp.ac.nagoya_u.dsmoq.sdk.response.RangeSlice;
 
 import java.io.*;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/** データセット内のファイルを扱うサンプル */
 public class DatasetFileSample {
     public static void main(String[] args) {
         // APIキー、シークレットキーの組み合わせでログインするクライアントを作成する
@@ -37,7 +39,16 @@ public class DatasetFileSample {
                     .filter(x -> x.getName().endsWith(".csv"))
                     .map(x -> x.getId()).collect(Collectors.toList());
             // ダウンロードしてくる
-            List<File> fs = ids.stream().map(x -> client.downloadFile(dataset.getId(), x, ".")).collect(Collectors.toList());
+            List<File> fs = ids.stream().map(x -> client.downloadFile(dataset.getId(), x, content -> {
+                File file = Paths.get(content.getName()).toFile();
+                try (OutputStream fos = new BufferedOutputStream(new FileOutputStream(file))) {
+                    // writeToメソッドで出力先ファイルへ対象ファイルの内容を一気に書き出す
+                    content.writeTo(fos);
+                } catch (IOException e) {
+                    // do something
+                }
+                return file;
+            })).collect(Collectors.toList());
             files.addAll(fs);
         }
 

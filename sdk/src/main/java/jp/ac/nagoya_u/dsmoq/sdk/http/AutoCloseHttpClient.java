@@ -57,6 +57,10 @@ public class AutoCloseHttpClient implements AutoCloseable {
         RedirectStrategy redirectStrategy = DefaultRedirectStrategy.INSTANCE;
         if (redirectStrategy.isRedirected(request, response, context)) {
             HttpUriRequest redirect = redirectStrategy.getRedirect(request, response, context);
+            Header range = request.getFirstHeader("Range");
+            if (range != null) {
+                redirect.setHeader(range);
+            }
             return this.client.execute(redirect, context);
         } else {
             return response;

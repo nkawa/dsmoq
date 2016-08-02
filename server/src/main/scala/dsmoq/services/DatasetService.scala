@@ -3038,7 +3038,7 @@ object DatasetService extends LazyLogging {
         DownloadFileLocalNormal(is, file.name, file.fileSize)
       }
       case FileInfoS3Normal(file, path) => {
-        val url = FileManager.downloadFromS3Url(path.substring(1), file.name)
+        val url = FileManager.generateS3PresignedURL(path.substring(1), file.name, !requireData)
         DownloadFileS3Normal(url)
       }
       case FileInfoLocalZipped(file, path, zippedFile) => {
@@ -3059,7 +3059,7 @@ object DatasetService extends LazyLogging {
               encoding = encoding)
           } else { null }
 
-          DownloadFileLocalZipped(zis, zippedFile.name, zippedFile.dataSize)
+          DownloadFileLocalZipped(zis, zippedFile.name, zippedFile.fileSize)
         } catch {
           case e: Exception => {
             logger.error(LOG_MARKER, "Error occurred.", e)
@@ -3086,7 +3086,7 @@ object DatasetService extends LazyLogging {
               encoding = encoding)
           } else { null }
 
-          DownloadFileS3Zipped(zis, zippedFile.name, zippedFile.dataSize)
+          DownloadFileS3Zipped(zis, zippedFile.name, zippedFile.fileSize)
         } catch {
           case e: Exception => {
             logger.error(LOG_MARKER, "Error occurred.", e)

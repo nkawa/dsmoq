@@ -3,24 +3,36 @@ import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient;
 import jp.ac.nagoya_u.dsmoq.sdk.request.*;
 import jp.ac.nagoya_u.dsmoq.sdk.response.*;
 import jp.ac.nagoya_u.dsmoq.sdk.util.*;
+import org.apache.http.conn.HttpHostConnectException;
 import org.joda.time.DateTime;
-import org.junit.AfterClass;
 import org.junit.After;
-import org.junit.Test;
+import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.core.Is.*;
+import static org.hamcrest.core.IsInstanceOf.*;
 
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipException;
+import java.util.zip.ZipFile;
 
 public class SDKTest {
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
 
     @After
     public void tearDown() {
@@ -54,10 +66,10 @@ public class SDKTest {
     public void データセットを作成して削除できるか() {
         DsmoqClient client = create();
         assertThat(client.getDatasets(new GetDatasetsParam()).getResults().size(), is(0));
-        client.createDataset(true, false, new File("README.md"));
+        Dataset dataset = client.createDataset(true, false, new File("README.md"));
         List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
         assertThat(summaries.size(), is(1));
-        String datasetId = summaries.stream().findFirst().get().getId();
+        String datasetId = dataset.getId();
         client.deleteDataset(datasetId);
         assertThat(client.getDatasets(new GetDatasetsParam()).getResults().size(), is(0));
     }
@@ -65,19 +77,16 @@ public class SDKTest {
     @Test
     public void データセットを一意に特定できるか() {
         DsmoqClient client = create();
-        client.createDataset(true, false, new File("README.md"));
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
-        Dataset dataset = client.getDataset(datasetId);
-        assertThat(dataset.getId(), is(datasetId));
+        Dataset created = client.createDataset(true, false, new File("README.md"));
+        Dataset got = client.getDataset(created.getId());
+        assertThat(got.getId(), is(created.getId()));
     }
 
     @Test
     public void データセットにファイルを追加できるか() {
         DsmoqClient client = create();
-        client.createDataset(true, false, new File("README.md"));
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
+        Dataset dataset = client.createDataset(true, false, new File("README.md"));
+        String datasetId = dataset.getId();
         client.addFiles(datasetId, new File("README.md"), new File("README.md"));
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         assertThat(files.getResults().size(), is(3));
@@ -86,9 +95,8 @@ public class SDKTest {
     @Test
     public void ファイルを更新できるか() {
         DsmoqClient client = create();
-        client.createDataset(true, false, new File("README.md"));
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
+        Dataset dataset = client.createDataset(true, false, new File("README.md"));
+        String datasetId = dataset.getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
         client.updateFile(datasetId, fileId, new File(".gitignore"));
@@ -100,9 +108,8 @@ public class SDKTest {
     @Test
     public void ファイル情報を更新できるか() {
         DsmoqClient client = create();
-        client.createDataset(true, false, new File("README.md"));
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
+        Dataset dataset = client.createDataset(true, false, new File("README.md"));
+        String datasetId = dataset.getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
         UpdateFileMetaParam param = new UpdateFileMetaParam("HOGE.md", "Hoge");
@@ -117,9 +124,8 @@ public class SDKTest {
     @Test
     public void ファイルを削除できるか() {
         DsmoqClient client = create();
-        client.createDataset(true, false, new File("README.md"));
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
+        Dataset dataset = client.createDataset(true, false, new File("README.md"));
+        String datasetId = dataset.getId();
         String fileId = client.getDatasetFiles(datasetId, new GetRangeParam()).getResults().get(0).getId();
         client.deleteFile(datasetId, fileId);
         Dataset dataset2 = client.getDataset(datasetId);
@@ -130,25 +136,23 @@ public class SDKTest {
     @Test
     public void データセットの情報を変更できるか() {
         DsmoqClient client = create();
-        client.createDataset(true, false, new File("README.md"));
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
+        Dataset created = client.createDataset(true, false, new File("README.md"));
+        String datasetId = created.getId();
         UpdateDatasetMetaParam param = new UpdateDatasetMetaParam();
         param.setName("hoge");
         param.setDescription("dummy description");
         param.setLicense("1050f556-7fee-4032-81e7-326e5f1b82fb");
         client.updateDatasetMetaInfo(datasetId, param);
-        Dataset dataset = client.getDataset(datasetId);
-        assertThat(dataset.getMeta().getName(), is("hoge"));
-        assertThat(dataset.getMeta().getDescription(), is("dummy description"));
+        Dataset updated = client.getDataset(datasetId);
+        assertThat(updated.getMeta().getName(), is("hoge"));
+        assertThat(updated.getMeta().getDescription(), is("dummy description"));
     }
 
     @Test
     public void データセットの画像を追加できるか() {
         DsmoqClient client = create();
-        client.createDataset(true, false, new File("README.md"));
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
+        Dataset dataset = client.createDataset(true, false, new File("README.md"));
+        String datasetId = dataset.getId();
         assertThat(client.getDataset(datasetId).getImages().size(), is(1));
         client.addImagesToDataset(datasetId, new File("testdata/test.png"));
         assertThat(client.getDataset(datasetId).getImages().size(), is(2));
@@ -157,37 +161,34 @@ public class SDKTest {
     @Test
     public void データセットの画像を変更できるか() {
         DsmoqClient client = create();
-        client.createDataset(true, false, new File("README.md"));
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
+        Dataset created = client.createDataset(true, false, new File("README.md"));
+        String datasetId = created.getId();
         String primary = client.getDataset(datasetId).getPrimaryImage();
         DatasetAddImages images = client.addImagesToDataset(datasetId, new File("testdata/test.png"));
         Image image = images.getImages().stream().filter(x -> !x.getId().equals(primary)).findFirst().get();
         client.setPrimaryImageToDataset(datasetId, new SetPrimaryImageParam(image.getId()));
-        Dataset dataset = client.getDataset(datasetId);
-        assertThat(dataset.getPrimaryImage(), is(image.getId()));
+        Dataset updated = client.getDataset(datasetId);
+        assertThat(updated.getPrimaryImage(), is(image.getId()));
     }
 
     @Test
     public void データセットのFeaturedDataset画像を変更できるか() {
         DsmoqClient client = create();
-        client.createDataset(true, false, new File("README.md"));
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
+        Dataset created = client.createDataset(true, false, new File("README.md"));
+        String datasetId = created.getId();
         String featured = client.getDataset(datasetId).getFeaturedImage();
         DatasetAddImages images = client.addImagesToDataset(datasetId, new File("testdata/test.png"));
         Image image = images.getImages().stream().filter(x -> !x.getId().equals(featured)).findFirst().get();
         client.setFeaturedImageToDataset(datasetId, image.getId());
-        Dataset dataset = client.getDataset(datasetId);
-        assertThat(dataset.getFeaturedImage(), is(image.getId()));
+        Dataset updated = client.getDataset(datasetId);
+        assertThat(updated.getFeaturedImage(), is(image.getId()));
     }
 
     @Test
     public void データセットの画像を削除できるか() {
         DsmoqClient client = create();
-        client.createDataset(true, false, new File("README.md"));
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
+        Dataset dataset = client.createDataset(true, false, new File("README.md"));
+        String datasetId = dataset.getId();
         DatasetAddImages addImg = client.addImagesToDataset(datasetId, new File("testdata/test.png"));
         assertThat(client.getDataset(datasetId).getImages().size(), is(2));
         client.deleteImageToDataset(datasetId, addImg.getImages().get(0).getId());
@@ -197,9 +198,8 @@ public class SDKTest {
     @Test
     public void データセットの権限を変更できるか() {
         DsmoqClient client = create();
-        client.createDataset(true, false, new File("README.md"));
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
+        Dataset dataset = client.createDataset(true, false, new File("README.md"));
+        String datasetId = dataset.getId();
         String userId = client.getDataset(datasetId).getOwnerShips().stream().findFirst().get().getId();
         SetAccessLevelParam param = new SetAccessLevelParam("023bfa40-e897-4dad-96db-9fd3cf001e81", 1, 3);
         client.changeAccessLevel(datasetId, Arrays.asList(param));
@@ -209,9 +209,8 @@ public class SDKTest {
     @Test
     public void データセットのゲスト権限を変更できるか() {
         DsmoqClient client = create();
-        client.createDataset(true, false, new File("README.md"));
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
+        Dataset dataset = client.createDataset(true, false, new File("README.md"));
+        String datasetId = dataset.getId();
         client.changeGuestAccessLevel(datasetId, new SetGuestAccessLevelParam(3));
         assertThat(client.getDataset(datasetId).getPermission(), is(3));
     }
@@ -219,290 +218,229 @@ public class SDKTest {
     @Test
     public void ファイルをダウンロードできるか() throws IOException {
         DsmoqClient client = create();
-        client.createDataset(true, false, new File("README.md"));
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
+        Dataset dataset = client.createDataset(true, false, new File("README.md"));
+        String datasetId = dataset.getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
-        Path dir = Paths.get("temp");
-        if (! dir.toFile().exists()) {
-            Files.createDirectory(dir);
-        }
-        File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("README.md"));
-        assertThat(file.exists(), is(true));
-        file.delete();
-        dir.toFile().delete();
+        String fileName = client.downloadFile(datasetId, fileId, content -> content.getName());
+        assertThat(fileName, is("README.md"));
     }
 
     @Test
     public void ダウンロードしたファイルの中身が壊れていないか_ASCII() throws IOException {
         DsmoqClient client = create();
         Path original = Paths.get("testdata", "test.csv");
-        client.createDataset(true, false, original.toFile());
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
+        Dataset dataset = client.createDataset(true, false, original.toFile());
+        String datasetId = dataset.getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
-        Path dir = Paths.get("temp");
-        if (! dir.toFile().exists()) {
-            Files.createDirectory(dir);
-        }
-        File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("test.csv"));
-        assertThat(file.exists(), is(true));
-        Path downloaded = Paths.get("temp", "test.csv");
-        // ダウンロードしたファイルの中身が壊れていないかを、byte列の比較で確認する
-        Assert.assertArrayEquals(Files.readAllBytes(downloaded), Files.readAllBytes(original));
-        // ダウンロードしたファイルのファイル・タイプの確認
-        assertThat(Files.probeContentType(downloaded), is(Files.probeContentType(original)));
-        file.delete();
-        dir.toFile().delete();
+        byte[] downloaded = client.downloadFile(datasetId, fileId, content -> {
+            assertThat(content.getName(), is("test.csv"));
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            try {
+                content.writeTo(bos);
+                return bos.toByteArray();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        Assert.assertArrayEquals(downloaded, Files.readAllBytes(original));
     }
 
     @Test
     public void ダウンロードしたファイルの中身が壊れていないか_マルチバイト_UTF8_NoBOM() throws IOException {
         DsmoqClient client = create();
         Path original = Paths.get("testdata", "multibyte_utf8_nobom.txt");
-        client.createDataset(true, false, original.toFile());
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
+        Dataset dataset = client.createDataset(true, false, original.toFile());
+        String datasetId = dataset.getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
-        Path dir = Paths.get("temp");
-        if (! dir.toFile().exists()) {
-            Files.createDirectory(dir);
-        }
-        File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("multibyte_utf8_nobom.txt"));
-        assertThat(file.exists(), is(true));
-        Path downloaded = Paths.get("temp", "multibyte_utf8_nobom.txt");
-        // ダウンロードしたファイルの中身が壊れていないかを、byte列の比較で確認する
-        Assert.assertArrayEquals(Files.readAllBytes(downloaded), Files.readAllBytes(original));
-        // ダウンロードしたファイルのファイル・タイプの確認
-        assertThat(Files.probeContentType(downloaded), is(Files.probeContentType(original)));
-        file.delete();
-        dir.toFile().delete();
+        byte[] downloaded = client.downloadFile(datasetId, fileId, content -> {
+            assertThat(content.getName(), is("multibyte_utf8_nobom.txt"));
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            try {
+                content.writeTo(bos);
+                return bos.toByteArray();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        Assert.assertArrayEquals(downloaded, Files.readAllBytes(original));
     }
 
     @Test
     public void ダウンロードしたファイルの中身が壊れていないか_マルチバイト_UTF8_BOM() throws IOException {
         DsmoqClient client = create();
         Path original = Paths.get("testdata", "multibyte_utf8_bom.txt");
-        client.createDataset(true, false, original.toFile());
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
+        Dataset dataset = client.createDataset(true, false, original.toFile());
+        String datasetId = dataset.getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
-        Path dir = Paths.get("temp");
-        if (! dir.toFile().exists()) {
-            Files.createDirectory(dir);
-        }
-        File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("multibyte_utf8_bom.txt"));
-        assertThat(file.exists(), is(true));
-        Path downloaded = Paths.get("temp", "multibyte_utf8_bom.txt");
-        // ダウンロードしたファイルの中身が壊れていないかを、byte列の比較で確認する
-        Assert.assertArrayEquals(Files.readAllBytes(downloaded), Files.readAllBytes(original));
-        // ダウンロードしたファイルのファイル・タイプの確認
-        assertThat(Files.probeContentType(downloaded), is(Files.probeContentType(original)));
-        file.delete();
-        dir.toFile().delete();
+        byte[] downloaded = client.downloadFile(datasetId, fileId, content -> {
+            assertThat(content.getName(), is("multibyte_utf8_bom.txt"));
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            try {
+                content.writeTo(bos);
+                return bos.toByteArray();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        Assert.assertArrayEquals(downloaded, Files.readAllBytes(original));
     }
 
     @Test
     public void ダウンロードしたファイルの中身が壊れていないか_マルチバイト_SJIS() throws IOException {
         DsmoqClient client = create();
         Path original = Paths.get("testdata", "multibyte_sjis.txt");
-        client.createDataset(true, false, original.toFile());
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
+        Dataset dataset = client.createDataset(true, false, original.toFile());
+        String datasetId = dataset.getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
-        Path dir = Paths.get("temp");
-        if (! dir.toFile().exists()) {
-            Files.createDirectory(dir);
-        }
-        File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("multibyte_sjis.txt"));
-        assertThat(file.exists(), is(true));
-        Path downloaded = Paths.get("temp", "multibyte_sjis.txt");
-        // ダウンロードしたファイルの中身が壊れていないかを、byte列の比較で確認する
-        Assert.assertArrayEquals(Files.readAllBytes(downloaded), Files.readAllBytes(original));
-        // ダウンロードしたファイルのファイル・タイプの確認
-        assertThat(Files.probeContentType(downloaded), is(Files.probeContentType(original)));
-        file.delete();
-        dir.toFile().delete();
+        byte[] downloaded = client.downloadFile(datasetId, fileId, content -> {
+            assertThat(content.getName(), is("multibyte_sjis.txt"));
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            try {
+                content.writeTo(bos);
+                return bos.toByteArray();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        Assert.assertArrayEquals(downloaded, Files.readAllBytes(original));
     }
 
     @Test
     public void ダウンロードしたファイルの中身が壊れていないか_マルチバイト_EUC() throws IOException {
         DsmoqClient client = create();
         Path original = Paths.get("testdata", "multibyte_euc.txt");
-        client.createDataset(true, false, original.toFile());
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
+        Dataset dataset = client.createDataset(true, false, original.toFile());
+        String datasetId = dataset.getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
-        Path dir = Paths.get("temp");
-        if (! dir.toFile().exists()) {
-            Files.createDirectory(dir);
-        }
-        File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("multibyte_euc.txt"));
-        assertThat(file.exists(), is(true));
-        Path downloaded = Paths.get("temp", "multibyte_euc.txt");
-        // ダウンロードしたファイルの中身が壊れていないかを、byte列の比較で確認する
-        Assert.assertArrayEquals(Files.readAllBytes(downloaded), Files.readAllBytes(original));
-        // ダウンロードしたファイルのファイル・タイプの確認
-        assertThat(Files.probeContentType(downloaded), is(Files.probeContentType(original)));
-        file.delete();
-        dir.toFile().delete();
+        byte[] downloaded = client.downloadFile(datasetId, fileId, content -> {
+            assertThat(content.getName(), is("multibyte_euc.txt"));
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            try {
+                content.writeTo(bos);
+                return bos.toByteArray();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        Assert.assertArrayEquals(downloaded, Files.readAllBytes(original));
     }
 
     @Test
     public void ダウンロードしたファイルの中身が壊れていないか_バイナリ() throws IOException {
         DsmoqClient client = create();
         Path original = Paths.get("testdata", "test.png");
-        client.createDataset(true, false, original.toFile());
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
+        Dataset dataset = client.createDataset(true, false, original.toFile());
+        String datasetId = dataset.getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
-        Path dir = Paths.get("temp");
-        if (! dir.toFile().exists()) {
-            Files.createDirectory(dir);
-        }
-        File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("test.png"));
-        assertThat(file.exists(), is(true));
-        Path downloaded = Paths.get("temp", "test.png");
-        // ダウンロードしたファイルの中身が壊れていないかを、byte列の比較で確認する
-        Assert.assertArrayEquals(Files.readAllBytes(downloaded), Files.readAllBytes(original));
-        // ダウンロードしたファイルのファイル・タイプの確認
-        assertThat(Files.probeContentType(downloaded), is(Files.probeContentType(original)));
-        file.delete();
-        dir.toFile().delete();
+        byte[] downloaded = client.downloadFile(datasetId, fileId, content -> {
+            assertThat(content.getName(), is("test.png"));
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            try {
+                content.writeTo(bos);
+                return bos.toByteArray();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        Assert.assertArrayEquals(downloaded, Files.readAllBytes(original));
     }
 
     @Test
     public void 拡張子なしのファイルをダウンロードできるか() throws IOException {
         DsmoqClient client = create();
         File original = Files.createFile(Paths.get("hoge")).toFile();
-        client.createDataset(true, false, new File("hoge"));
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
+        Dataset dataset = client.createDataset(true, false, new File("hoge"));
+        String datasetId = dataset.getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
-        Path dir = Paths.get("temp");
-        if (! dir.toFile().exists()) {
-            Files.createDirectory(dir);
-        }
-        File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("hoge"));
-        assertThat(file.exists(), is(true));
+        String fileName = client.downloadFile(datasetId, fileId, content -> content.getName());
+        assertThat(fileName, is("hoge"));
         original.delete();
-        file.delete();
-        dir.toFile().delete();
     }
 
     @Test
     public void ファイル名にドットを含むファイルをダウンロードできるか() throws IOException {
         DsmoqClient client = create();
         File original = Files.createFile(Paths.get("a.b.txt")).toFile();
-        client.createDataset(true, false, new File("a.b.txt"));
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
+        Dataset dataset = client.createDataset(true, false, new File("a.b.txt"));
+        String datasetId = dataset.getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
-        Path dir = Paths.get("temp");
-        if (! dir.toFile().exists()) {
-            Files.createDirectory(dir);
-        }
-        File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("a.b.txt"));
-        assertThat(file.exists(), is(true));
+        String fileName = client.downloadFile(datasetId, fileId, content -> content.getName());
+        assertThat(fileName, is("a.b.txt"));
         original.delete();
-        file.delete();
-        dir.toFile().delete();
-    }
-
-    @Test
-    public void 同名ファイルが既に存在している場合にファイルをダウンロードできるか() throws IOException {
-        DsmoqClient client = create();
-        client.createDataset(true, false, new File("README.md"));
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
-        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
-        String fileId = files.getResults().get(0).getId();
-        Path dir = Paths.get("temp");
-        if (! dir.toFile().exists()) {
-            Files.createDirectory(dir);
-        }
-        Files.createFile(dir.resolve("README.md")).toFile();
-        File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("README (1).md"));
-        assertThat(file.exists(), is(true));
-        for (File f : dir.toFile().listFiles()) {
-            f.delete();
-        }
-        dir.toFile().delete();
-    }
-
-    @Test
-    public void 同名ファイルが既に存在している場合にファイルをダウンロードできるか2() throws IOException {
-        DsmoqClient client = create();
-        client.createDataset(true, false, new File("README.md"));
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
-        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
-        String fileId = files.getResults().get(0).getId();
-        Path dir = Paths.get("temp");
-        if (! dir.toFile().exists()) {
-            Files.createDirectory(dir);
-        }
-        Files.createFile(dir.resolve("README.md")).toFile();
-        Files.createFile(dir.resolve("README (1).md")).toFile();
-        File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("README (2).md"));
-        assertThat(file.exists(), is(true));
-        for (File f : dir.toFile().listFiles()) {
-            f.delete();
-        }
-        dir.toFile().delete();
     }
 
     @Test
     public void マルチバイトのファイル名のファイルをダウンロードできるか() throws IOException {
         DsmoqClient client = create();
         File original = Files.createFile(Paths.get("表予申能十ソ.txt")).toFile();
-        client.createDataset(true, false, new File("表予申能十ソ.txt"));
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
+        Dataset dataset = client.createDataset(true, false, new File("表予申能十ソ.txt"));
+        String datasetId = dataset.getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
-        Path dir = Paths.get("temp");
-        if (! dir.toFile().exists()) {
-            Files.createDirectory(dir);
-        }
-        File file = client.downloadFile(datasetId, fileId, "temp");
-        assertThat(file.getName(), is("表予申能十ソ.txt"));
-        assertThat(file.exists(), is(true));
+        String fileName = client.downloadFile(datasetId, fileId, content -> content.getName());
+        assertThat(fileName, is("表予申能十ソ.txt"));
         original.delete();
-        file.delete();
-        dir.toFile().delete();
+    }
+
+    @Test
+    public void ファイルを部分的にダウンロードしInputStreamで取得できるか() throws IOException {
+        DsmoqClient client = create();
+        Path original = Paths.get("testdata", "abc.txt");
+        Dataset dataset = client.createDataset(true, false, original.toFile());
+        String datasetId = dataset.getId();
+        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
+        String fileId = files.getResults().get(0).getId(); 
+        String data = client.downloadFileWithRange(datasetId, fileId, 9L, 14L, content -> {
+            assertThat(content.getName(), is("abc.txt"));
+            try {
+                BufferedReader in = new BufferedReader(new InputStreamReader(content.getContent()));
+                return in.readLine();
+            } catch (IOException e) {
+                throw new IllegalStateException(e);
+            }
+        });
+        assertThat(data, is("jklmn"));
+    }
+
+    @Test
+    public void ファイルを部分的にダウンロードしOutputStreamで出力できるか() throws IOException {
+        DsmoqClient client = create();
+        Path original = Paths.get("testdata", "abc.txt");
+        Dataset dataset = client.createDataset(true, false, original.toFile());
+        String datasetId = dataset.getId();
+        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
+        String fileId = files.getResults().get(0).getId(); 
+        String data = client.downloadFileWithRange(datasetId, fileId, 9L, 14L, content -> {
+            assertThat(content.getName(), is("abc.txt"));
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            try {
+                content.writeTo(bos);
+                return bos.toString();
+            } catch (IOException e) {
+                throw new IllegalStateException(e);
+            }
+        });
+        assertThat(data, is("jklmn"));
     }
 
     @Test
     public void 保存先を変更できるか() {
         DsmoqClient client = create();
-        client.createDataset(true, false, new File("README.md"));
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
+        Dataset created = client.createDataset(true, false, new File("README.md"));
+        String datasetId = created.getId();
         client.changeDatasetStorage(datasetId, new ChangeStorageParam(true, true));
-        Dataset dataset = client.getDataset(datasetId);
-        assertThat(dataset.getLocalState(), is(1));
-        assertThat(dataset.getS3State(), is(2));
+        Dataset updated = client.getDataset(datasetId);
+        assertThat(updated.getLocalState(), is(1));
+        assertThat(updated.getS3State(), is(2));
     }
 
     @Test
@@ -711,14 +649,22 @@ public class SDKTest {
     }
 
     @Test
-    public void AttributeをExportできるか() {
+    public void AttributeをExportできるか() throws IOException {
         DsmoqClient client = create();
+        Path source = Paths.get("testdata", "test.csv");
         Dataset dataset = client.createDataset(true, false, new File("README.md"));
         String datasetId = dataset.getId();
-        client.importAttribute(datasetId, new File("testdata/test.csv"));
-        File file = client.exportAttribute(datasetId, ".");
-        assertThat(file.exists(), is(true));
-        file.delete();
+        client.importAttribute(datasetId, source.toFile());
+        String data = client.exportAttribute(datasetId, content -> {
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            try {
+                content.writeTo(bos);
+                return new String(bos.toByteArray());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        assertThat(data.replaceAll("\r\n", "\n"), is("aaaaa,1\nfuga,2\n"));
     }
 
     @Test
@@ -736,6 +682,34 @@ public class SDKTest {
         DsmoqClient client = create();
         List<StatisticsDetail> stats = client.getStatistics(new StatisticsParam(Optional.of(new DateTime()), Optional.of(new DateTime())));
         assertThat(stats.size(), is(0));
+    }
+
+    @Test
+    public void HEADリクエスト_Local通常ファイル() {
+        DsmoqClient client = create();
+        File file = new File("README.md");
+        Dataset dataset = client.createDataset(true, false, file);
+        String datasetId = dataset.getId();
+        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
+        String fileId = files.getResults().get(0).getId();
+        Long contentLength = client.getFileSize(datasetId, fileId);
+        assertThat(contentLength, is(file.length()));
+    }
+
+    @Test
+    public void HEADリクエスト_LocalZIP内ファイル() throws ZipException, IOException {
+        DsmoqClient client = create();
+        File file = new File("testdata/test.zip");
+        Dataset dataset = client.createDataset(true, false, file);
+        String datasetId = dataset.getId();
+        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
+        String fileId = files.getResults().get(0).getId();
+        RangeSlice<DatasetZipedFile> zFiles = client.getDatasetZippedFiles(datasetId, fileId, new GetRangeParam());
+        String zFileId = zFiles.getResults().get(0).getId();
+        ZipFile zf = new ZipFile(file);
+        ZipEntry zEntry = zf.entries().nextElement();
+        Long contentLength = client.getFileSize(datasetId, zFileId);
+        assertThat(contentLength, is(zEntry.getSize()));
     }
 
     @Test
@@ -760,21 +734,53 @@ public class SDKTest {
     @Test
     public void マルチバイト文字を含むResponseを取り扱えるか() {
         DsmoqClient client = create();
-        client.createDataset(true, false, new File("README.md"));
-        List<DatasetsSummary> summaries = client.getDatasets(new GetDatasetsParam()).getResults();
-        String datasetId = summaries.stream().findFirst().get().getId();
+        Dataset created = client.createDataset(true, false, new File("README.md"));
+        String datasetId = created.getId();
         UpdateDatasetMetaParam param = new UpdateDatasetMetaParam();
         param.setName("ほげ");
         param.setDescription("日本語の説明");
         param.setLicense("1050f556-7fee-4032-81e7-326e5f1b82fb");
         client.updateDatasetMetaInfo(datasetId, param);
-        Dataset dataset = client.getDataset(datasetId);
-        assertThat(dataset.getMeta().getName(), is("ほげ"));
-        assertThat(dataset.getMeta().getDescription(), is("日本語の説明"));
+        Dataset updated = client.getDataset(datasetId);
+        assertThat(updated.getMeta().getName(), is("ほげ"));
+        assertThat(updated.getMeta().getDescription(), is("日本語の説明"));
+    }
+
+    @Test
+    public void 不正なデータセットを作成しようとすると例外が発生() {
+        thrown.expect(ApiFailedException.class);
+        thrown.expectCause(instanceOf(InputValidationException.class));
+        DsmoqClient client = create();
+        client.createDataset(false, false);
+    }
+
+    @Test
+    public void 存在しないデータセットを取得すると例外が発生() {
+        thrown.expect(ApiFailedException.class);
+        thrown.expectCause(instanceOf(NotFoundException.class));
+        DsmoqClient client = create();
+        Dataset dataset = client.getDataset("1050f556-7fee-4032-81e7-326e5f1b82fb");
+    }
+
+    @Test
+    public void 権限のないのないデータセットを取得すると例外が発生() {
+        thrown.expect(ApiFailedException.class);
+        thrown.expectCause(instanceOf(NotAuthorizedException.class));
+        DsmoqClient client = create();
+        Dataset dataset = client.createDataset("hello", true, false);
+        DsmoqClient client2 = DsmoqClient.create("http://localhost:8080", "3d2357cd53e8738ae21fbc86e15bd441c497191cf785163541ffa907854d2649", "731cc0646e8012632f58bb7d1912a77e8072c7f128f2d09f0bebc36ac0c1a579");
+        client2.getDataset(dataset.getId());
+    }
+
+    @Test
+    public void サーバに接続できない場合例外が発生() {
+        thrown.expect(ConnectionLostException.class);
+        thrown.expectCause(instanceOf(HttpHostConnectException.class));
+        DsmoqClient client = DsmoqClient.create("http://localhost:8081", "3d2357cd53e8738ae21fbc86e15bd441c497191cf785163541ffa907854d2649", "731cc0646e8012632f58bb7d1912a77e8072c7f128f2d09f0bebc36ac0c1a579");
+        client.createDataset("hello", true, false);
     }
 
     public static DsmoqClient create() {
         return DsmoqClient.create("http://localhost:8080", "7d8d8cf12ef0d12d057b01765779c56a5f8a7e1330a41be189114935660ef1ba", "22698424fa67a56cd6d916988fd824c6f999d18a934831de83e15c3490376372");
     }
 }
-
