@@ -5,4 +5,4 @@ package dsmoq.exceptions
  *
  * @param message エラーメッセージ
  */
-class NotAuthorizedException(message: String = "") extends Exception(message)
+class NotAuthorizedException(message: String) extends Exception(message)

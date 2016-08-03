@@ -296,7 +296,7 @@ class GroupService(resource: ResourceBundle) {
           throw new BadRequestException(resource.getString(ResourceNames.ALREADY_REGISTERED_GROUP_NAME).format(trimmedName))
         }
 
-        if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
+        if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException("")
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -354,7 +354,7 @@ class GroupService(resource: ResourceBundle) {
       CheckUtil.checkNull(user, "user")
       DB localTx { implicit s =>
         val group = getGroup(groupId)
-        if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
+        if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException("")
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -426,7 +426,7 @@ class GroupService(resource: ResourceBundle) {
 
       DB localTx { implicit s =>
         val group = getGroup(groupId)
-        if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
+        if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException("")
 
         // 登録処理（既に登録されているユーザが送られてきた場合は無視する）
         val myself = persistence.User.find(user.id).get
@@ -654,12 +654,12 @@ class GroupService(resource: ResourceBundle) {
    * @return
    */
   def deleteGroup(groupId: String, user: User) = {
-    if (user.isGuest) throw new NotAuthorizedException
+    if (user.isGuest) throw new NotAuthorizedException("")
 
     try {
       val result = DB localTx { implicit s =>
         getGroup(groupId)
-        if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
+        if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException("")
         deleteGroupById(groupId, user)
       }
       Success(result)
@@ -695,7 +695,7 @@ class GroupService(resource: ResourceBundle) {
     try {
       DB localTx { implicit s =>
         getGroup(groupId)
-        if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
+        if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException("")
         if (!existsGroupImage(groupId, imageId)) throw new NotFoundException
 
         val myself = persistence.User.find(user.id).get
@@ -750,7 +750,7 @@ class GroupService(resource: ResourceBundle) {
     try {
       val primaryImage = DB localTx { implicit s =>
         val group = getGroup(groupId)
-        if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException
+        if (!isGroupAdministrator(user, groupId)) throw new NotAuthorizedException("")
         if (!existsGroupImage(groupId, imageId)) throw new NotFoundException
         val cantDeleteImages = Seq(AppConf.defaultGroupImageId)
         if (cantDeleteImages.contains(imageId)) throw new BadRequestException(resource.getString(ResourceNames.CANT_DELETE_DEFAULTIMAGE))

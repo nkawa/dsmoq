@@ -3,7 +3,7 @@ package dsmoq.controllers
 import com.typesafe.scalalogging.LazyLogging
 import dsmoq.exceptions.{AccessDeniedException, NotAuthorizedException, NotFoundException}
 import dsmoq.services.DatasetService.{DownloadFileLocalNormal, DownloadFileLocalZipped, DownloadFileS3Normal, DownloadFileS3Zipped}
-import dsmoq.services.{AuthService, DatasetService, User}
+import dsmoq.services.{DatasetService, User}
 import org.apache.commons.io.input.BoundedInputStream
 import org.scalatra.ScalatraServlet
 import org.slf4j.MarkerFactory
@@ -13,12 +13,7 @@ import javax.servlet.http.HttpServletRequest
 
 import scala.util.{Failure, Success, Try}
 
-class FileController(resource: ResourceBundle) extends ScalatraServlet with LazyLogging {
-
-  /**
-   * AuthServiceのインスタンス
-   */
-  val authService = new AuthService(resource, this)
+class FileController(val resource: ResourceBundle) extends ScalatraServlet with LazyLogging with AuthTrait {
 
   /**
    * DatasetServiceのインスタンス
@@ -47,7 +42,7 @@ class FileController(resource: ResourceBundle) extends ScalatraServlet with Lazy
     // HEADリクエストではボディ要素として、バイナリは返さない。
     // このため、ストリームが設定されていない形でDownloadFileを取得する。
     val result = for {
-      user <- authService.getUser(allowGuest = true)
+      user <- getUser(allowGuest = true)
       fileInfo <- datasetService.getDownloadFileWithoutStream(datasetId, id, user)
     } yield {
       fileInfo
@@ -108,7 +103,7 @@ class FileController(resource: ResourceBundle) extends ScalatraServlet with Lazy
     logger.info(LOG_MARKER, "Receive get request, datasetId={}, id={}", datasetId, id)
 
     val result = for {
-      user <- authService.getUser(allowGuest = true)
+      user <- getUser(allowGuest = true)
       fileInfo <- datasetService.getDownloadFileWithStream(datasetId, id, user)
     } yield {
       fileInfo

@@ -131,14 +131,9 @@ object ResourceNames {
   val NOT_ALLOW_GUEST = "not_allow_guest"
 
   /**
-   * AuthorizationヘッダにAPIキーを設定してください
+   * Authorizationヘッダが不正です
    */
-  val REQUIRE_APIKEY = "require_apikey"
-
-  /**
-   * Authorizationヘッダにシグネチャを設定してください
-   */
-  val REQUIRE_SIGNATURE = "require_signature"
+  val INVALID_AUTHORIZATION_HEADER = "invalid_authorization_header"
 
   /**
    * AuthorizationヘッダにAPIキー・シグネチャを設定してください
