@@ -882,7 +882,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       case Success(x) => AjaxResponse("OK", x)
       case Failure(e) =>
        e match {
-        case e: AccessDeniedException => AjaxResponse("Unauthorized")
+        case e: AccessDeniedException => AjaxResponse("AccessDenied")
         case e: NotAuthorizedException => AjaxResponse("Unauthorized")
         case e: NotFoundException => AjaxResponse("NotFound")
         case InputCheckException(name, message, false) => AjaxResponse("Illegal Argument", CheckError(name, message))
