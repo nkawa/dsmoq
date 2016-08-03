@@ -295,7 +295,7 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             val userId = "023bfa40-e897-4dad-96db-9fd3cf001e79"
             val params = Map("d" -> compact(render(("role" -> JInt(GroupMemberRole.Member)))))
             put(s"/api/groups/${groupId}/members/${userId}", params) {
-              status should be(200)
+              status should be(400)
               val result = parse(body).extract[AjaxResponse[Any]]
               result.status should be("BadRequest")
             }
@@ -332,7 +332,7 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             val groupId = createGroup()
             val userId = "023bfa40-e897-4dad-96db-9fd3cf001e79"
             delete(s"/api/groups/${groupId}/members/${userId}") {
-              status should be(200)
+              status should be(400)
               val result = parse(body).extract[AjaxResponse[Any]]
               result.status should be("BadRequest")
             }

@@ -37,6 +37,7 @@ class ResponseFormatSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter
   protected implicit val jsonFormats: Formats = DefaultFormats
 
   private val dummyFile = new File("../README.md")
+  private val dummyImage = new File("../../client/www/dummy/images/nagoya.jpg")
   private val testUserName = "dummy1"
   private val dummyUserName = "dummy4"
   private val testUserId = "023bfa40-e897-4dad-96db-9fd3cf001e79" // dummy1
@@ -83,7 +84,7 @@ class ResponseFormatSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter
         session {
           signIn()
           val datasetId = createDataset()
-          val files = Map("images" -> dummyFile)
+          val files = Map("images" -> dummyImage)
           post(s"/api/datasets/${datasetId}/images", Map.empty, files) {
             status should be(200)
             parse(body).extract[AjaxResponse[DatasetAddImages]]
@@ -94,7 +95,8 @@ class ResponseFormatSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter
         session {
           signIn()
           val groupId = createGroup()
-          val files = Map("images" -> dummyFile)
+          val files = Map("images" -> dummyImage)
+          println(dummyFile.exists)
           post(s"/api/groups/${groupId}/images", Map.empty, files) {
             status should be(200)
             parse(body).extract[AjaxResponse[GroupAddImages]]
@@ -106,7 +108,7 @@ class ResponseFormatSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter
           signIn()
           val datasetId = createDataset()
           val params = Map("d" -> compact(render(("accessLevel" -> JInt(DefaultAccessLevel.FullPublic)))))
-          post(s"/api/datasets/${datasetId}/guest_access", params) {
+          put(s"/api/datasets/${datasetId}/guest_access", params) {
             status should be(200)
             parse(body).extract[AjaxResponse[DatasetGuestAccessLevel]]
           }
@@ -123,7 +125,7 @@ class ResponseFormatSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter
               ("license" -> AppConf.defaultLicenseId)
             ))
           )
-          post(s"/api/datasets/${datasetId}/metadata", params) {
+          put(s"/api/datasets/${datasetId}/metadata", params) {
             status should be(200)
             parse(body).extract[AjaxResponse[DatasetMetaData]]
           }

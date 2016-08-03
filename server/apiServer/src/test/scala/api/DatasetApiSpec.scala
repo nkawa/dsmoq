@@ -3291,7 +3291,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             val datasetId = createDataset()
             val params = Map("d" -> compact(render(Seq(("id" -> testUserId) ~ ("ownerType" -> JInt(1)) ~ ("accessLevel" -> JInt(0))))))
             post(s"/api/datasets/${datasetId}/acl", params) {
-              status should be(200)
+              status should be(400)
               val result = parse(body).extract[AjaxResponse[Any]]
               result.status should be("BadRequest")
             }
@@ -3336,7 +3336,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               ("id" -> "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04") ~ ("ownerType" -> JInt(1)) ~ ("accessLevel" -> JInt(0))
             ))))
             post(s"/api/datasets/${datasetId}/acl", removeParams) {
-              status should be(200)
+              status should be(400)
               val result = parse(body).extract[AjaxResponse[Any]]
               result.status should be("BadRequest")
             }

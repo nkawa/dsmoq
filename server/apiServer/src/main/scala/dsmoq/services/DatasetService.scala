@@ -725,7 +725,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     // FIXME チェック時、user権限はUserAccessLevelクラス, groupの場合はGroupAccessLevelクラスの定数を使用する
     // (UserAndGroupAccessLevel.DENY 定数を削除する)
     if (permission == UserAndGroupAccessLevel.DENY) {
-      throw new AccessDeniedException
+      throw new AccessDeniedException(resource.getString(ResourceNames.NO_ACCESS_PERMISSION))
     }
     permission
   }
@@ -1876,7 +1876,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       // 実装時間の都合と現段階の実装でも問題がない(値が同じ)ため対応していない
       getPermission(datasetId, groups)
     }
-    if (permission < UserAndGroupAllowDownload) {
+    if (permission < UserAndGroupAccessLevel.ALLOW_DOWNLOAD) {
       return Failure(new AccessDeniedException(resource.getString(ResourceNames.NO_DOWNLOAD_PERMISSION)))
     }
     Success(())
