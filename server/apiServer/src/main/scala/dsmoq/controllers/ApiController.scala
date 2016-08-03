@@ -109,7 +109,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
   // --------------------------------------------------------------------------
   get("/profile") {
     val ret = for {
-      user   <- authService.getUser()
+      user   <- authService.getUser(allowGuest = true)
       result <- accountService.getUserProfile(user)
     } yield {
       result
@@ -206,7 +206,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       _      <- checkUtil.contains("d.orderby", json.orderby, Seq("attribute"))
       _      <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _      <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
-      user   <- authService.getUser()
+      user   <- authService.getUser(allowGuest = true)
       result <- datasetService.search(json.query, json.owners, json.groups, json.attributes, json.limit, json.offset, json.orderby, user)
     } yield {
       result
@@ -218,7 +218,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
     val id = params("datasetId")
     val ret = for {
       _      <- checkUtil.validUuidForUrl("datasetId", id)
-      user   <- authService.getUser()
+      user   <- authService.getUser(allowGuest = true)
       result <- datasetService.get(id, user)
       _      <- SystemService.writeDatasetAccessLog(result.id, user)
     } yield {
@@ -326,7 +326,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       json    <- Success(d.getOrElse(SearchRangeParams()))
       _       <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _       <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
-      user    <- authService.getUser(allowGuest = false)
+      user    <- authService.getUser(allowGuest = true)
       result  <- datasetService.getImages(datasetId, json.offset, json.limit, user)
     } yield {
       result
@@ -388,7 +388,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       json   <- Success(d.getOrElse(SearchRangeParams()))
       _      <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _      <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
-      user   <- authService.getUser(allowGuest = false)
+      user   <- authService.getUser(allowGuest = true)
       result <- datasetService.searchOwnerships(datasetId, json.offset, json.limit, user)
     } yield {
       result
@@ -490,7 +490,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
     val datasetId = params("datasetId")
     val ret = for {
       _      <- checkUtil.validUuidForUrl("datasetId", datasetId)
-      user   <- authService.getUser(allowGuest = false)
+      user   <- authService.getUser(allowGuest = true)
       result <- datasetService.exportAttribute(datasetId, user)
     } yield {
       result
@@ -527,7 +527,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       json   <- Success(d.getOrElse(SearchRangeParams(Some(dsmoq.AppConf.fileLimit), Some(0))))
       _      <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _      <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
-      user   <- authService.getUser()
+      user   <- authService.getUser(allowGuest = true)
       result <- datasetService.getDatasetFiles(datasetId, json.limit, json.offset, user)
     } yield {
       result
@@ -545,7 +545,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       json   <- Success(d.getOrElse(SearchRangeParams(Some(dsmoq.AppConf.fileLimit), Some(0))))
       _      <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _      <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
-      user   <- authService.getUser()
+      user   <- authService.getUser(allowGuest = true)
       result <- datasetService.getDatasetZippedFiles(datasetId, fileId, json.limit, json.offset, user)
     } yield {
       result
@@ -563,7 +563,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       _      <- checkUtil.validUuidForForm("d.user", json.user)
       _      <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _      <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
-      user   <- authService.getUser()
+      user   <- authService.getUser(allowGuest = true)
       result <- groupService.search(json.query, json.user, json.limit, json.offset, user)
     } yield {
       result
@@ -575,7 +575,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
     val groupId = params("groupId")
     val ret = for {
       _      <- checkUtil.validUuidForUrl("groupId", groupId)
-      user   <- authService.getUser()
+      user   <- authService.getUser(allowGuest = true)
       result <- groupService.get(groupId, user)
     } yield {
       result
@@ -591,7 +591,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       json   <- Success(d.getOrElse(GetGroupMembersParams()))
       _      <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _      <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
-      user   <- authService.getUser()
+      user   <- authService.getUser(allowGuest = true)
       result <- groupService.getGroupMembers(groupId, json.limit, json.offset, user)
     } yield {
       result
@@ -639,7 +639,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       json   <- Success(d.getOrElse(SearchRangeParams()))
       _      <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _      <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
-      user   <- authService.getUser(allowGuest = false)
+      user   <- authService.getUser(allowGuest = true)
       result <- groupService.getImages(groupId, json.offset, json.limit, user)
     } yield {
       result

@@ -126,10 +126,10 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
           } else {
             get("/api/datasets/" + params._1) {
               println(body)
-              // Unauthorized
+              // AccessDenied 
               status should be(200)
               val result = parse(body).extract[AjaxResponse[Any]]
-              result.status should be("Unauthorized")
+              result.status should be("AccessDenied")
             }
           }
         }
@@ -150,10 +150,10 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
             }
           } else {
             get("/api/datasets/" + params._1) {
-              // Unauthorized
+              // AccessDenied 
               status should be(200)
               val result = parse(body).extract[AjaxResponse[Any]]
-              result.status should be("Unauthorized")
+              result.status should be("AccessDenied")
             }
           }
         }
@@ -174,10 +174,10 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
             }
           } else {
             get("/api/datasets/" + params._1) {
-              // Unauthorized
+              // AccessDenied 
               status should be(200)
               val result = parse(body).extract[AjaxResponse[Any]]
-              result.status should be("Unauthorized")
+              result.status should be("AccessDenied")
             }
           }
         }

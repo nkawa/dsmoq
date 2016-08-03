@@ -47,7 +47,7 @@ class FileController(resource: ResourceBundle) extends ScalatraServlet with Lazy
     // HEADリクエストではボディ要素として、バイナリは返さない。
     // このため、ストリームが設定されていない形でDownloadFileを取得する。
     val result = for {
-      user <- authService.getUser()
+      user <- authService.getUser(allowGuest = true)
       fileInfo <- datasetService.getDownloadFileWithoutStream(datasetId, id, user)
     } yield {
       fileInfo
@@ -108,7 +108,7 @@ class FileController(resource: ResourceBundle) extends ScalatraServlet with Lazy
     logger.info(LOG_MARKER, "Receive get request, datasetId={}, id={}", datasetId, id)
 
     val result = for {
-      user <- authService.getUser()
+      user <- authService.getUser(allowGuest = true)
       fileInfo <- datasetService.getDownloadFileWithStream(datasetId, id, user)
     } yield {
       fileInfo

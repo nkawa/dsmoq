@@ -124,7 +124,7 @@ class AuthService(resource: ResourceBundle, servlet: ScalatraServlet) extends La
    *           Authorizationヘッダからのユーザ取得に失敗した場合、
    *           またはallowGuestがfalseで取得したユーザがゲストユーザの場合
    */
-  def getUser(allowGuest: Boolean = true): Try[User] = {
+  def getUser(allowGuest: Boolean): Try[User] = {
     val ret = getUser(servlet.request)
     if (allowGuest) {
       ret

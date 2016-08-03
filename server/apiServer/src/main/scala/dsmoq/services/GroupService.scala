@@ -508,7 +508,7 @@ class GroupService(resource: ResourceBundle) {
 
       DB localTx { implicit s =>
         // 更新によってマネージャが0人になる場合をエラーとしている
-        if (getOtherManagerCount(groupId, userId) == 0) {
+        if (getOtherManagerCount(groupId, userId) == 0 && role != GroupMemberRole.Manager) {
           throw new BadRequestException(resource.getString(ResourceNames.NO_MANAGER))
         }
         (for {
@@ -635,14 +635,16 @@ class GroupService(resource: ResourceBundle) {
     val g = persistence.Group.g
     // テーブルMembersのエイリアス
     val m = persistence.Member.m
-    withSQL {
+    val count = withSQL {
       select(sqls.count(m.id))
         .from(persistence.Member as m)
-        .innerJoin(persistence.Group as g).on(sqls.eq(g.id, m.groupId))
+        .innerJoin(persistence.Group as g).on(sqls.eq(g.id, m.groupId).and.eq(g.groupType, GroupType.Public))
         .where.ne(m.userId, sqls.uuid(userId))
         .and.eq(m.groupId, sqls.uuid(groupId))
         .and.eq(m.role, GroupMemberRole.Manager)
     }.map(rs => rs.int(1)).single.apply.getOrElse(0)
+    println(count)
+    count
   }
 
   /**
