@@ -34,7 +34,7 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   private val dummyFile = new File("../README.md")
   private val dummyImage = new File("../../client/www/dummy/images/nagoya.jpg")
   private val dummyUserUUID = "eb7a596d-e50c-483f-bbc7-50019eea64d7"  // dummy 4
-  private val dummyUserLoginParams = Map("id" -> "dummy4", "password" -> "password")
+  private val dummyUserLoginParams = Map("d" -> compact(render(("id" -> "dummy4") ~ ("password" -> "password"))))
 
   override def beforeAll() {
     super.beforeAll()
@@ -283,6 +283,144 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             println(groupId)
             val result = parse(body).extract[AjaxResponse[RangeSlice[MemberSummary]]]
             assert(!result.data.results.map(_.id).contains(dummyUserUUID))
+          }
+        }
+      }
+
+      "PUT /api/groups/:group_id/members/:user_id" - {
+        "マネージャが1人から0人に変更される場合" in {
+          session {
+            signIn()
+            val groupId = createGroup()
+            val userId = "023bfa40-e897-4dad-96db-9fd3cf001e79"
+            val params = Map("d" -> compact(render(("role" -> JInt(GroupMemberRole.Member)))))
+            put(s"/api/groups/${groupId}/members/${userId}", params) {
+              status should be(200)
+              val result = parse(body).extract[AjaxResponse[Any]]
+              result.status should be("BadRequest")
+            }
+          }
+        }
+
+        "マネージャが2人から1人に変更される場合" in {
+          session {
+            signIn()
+            val groupId = createGroup()
+            // マネージャ追加1人
+            val addParams = Map("d" -> compact(render(List(("userId" -> "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04") ~ ("role" -> JInt(GroupMemberRole.Manager))))))
+            post(s"/api/groups/${groupId}/members", addParams) {
+              status should be(200)
+              val result = parse(body).extract[AjaxResponse[Any]]
+              result.status should be("OK")
+            }
+            val userId = "023bfa40-e897-4dad-96db-9fd3cf001e79"
+            // マネージャ除去1人
+            val params = Map("d" -> compact(render(("role" -> JInt(GroupMemberRole.Member)))))
+            put(s"/api/groups/${groupId}/members/${userId}", params) {
+              status should be(200)
+              val result = parse(body).extract[AjaxResponse[Any]]
+              result.status should be("OK")
+            }
+          }
+        }
+      }
+
+      "DELETE /api/groups/:group_id/members/:user_id" - {
+        "マネージャが一人もいなくなる場合" in {
+          session {
+            signIn()
+            val groupId = createGroup()
+            val userId = "023bfa40-e897-4dad-96db-9fd3cf001e79"
+            delete(s"/api/groups/${groupId}/members/${userId}") {
+              status should be(200)
+              val result = parse(body).extract[AjaxResponse[Any]]
+              result.status should be("BadRequest")
+            }
+          }
+        }
+
+        "マネージャが一人残る場合" in {
+          session {
+            signIn()
+            val groupId = createGroup()
+            // マネージャ追加1人
+            val addParams = Map("d" -> compact(render(List(("userId" -> "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04") ~ ("role" -> JInt(GroupMemberRole.Manager))))))
+            post(s"/api/groups/${groupId}/members", addParams) {
+              status should be(200)
+              val result = parse(body).extract[AjaxResponse[Any]]
+              result.status should be("OK")
+            }
+            val userId = "023bfa40-e897-4dad-96db-9fd3cf001e79"
+            // マネージャ除去1人
+            delete(s"/api/groups/${groupId}/members/${userId}") {
+              status should be(200)
+              val result = parse(body).extract[AjaxResponse[Any]]
+              result.status should be("OK")
+            }
+          }
+        }
+      }
+
+      "GET /api/groups/:group_id/images" - {
+        "GuestUser" in {
+          session {
+            signIn()
+            val groupId = createGroup()
+            post("/api/signout") { checkStatus() }
+            get(s"/api/groups/${groupId}/images") {
+              status should be(200)
+              val result = parse(body).extract[AjaxResponse[Any]]
+              result.status should be("OK")
+            }
+          }
+        }
+        "未所属LoginUser" in {
+          session {
+            signIn()
+            val groupId = createGroup()
+            post("/api/signout") { checkStatus() }
+            post("/api/signin", dummyUserLoginParams) { checkStatus() }
+            get(s"/api/groups/${groupId}/images") {
+              status should be(200)
+              val result = parse(body).extract[AjaxResponse[Any]]
+              result.status should be("OK")
+            }
+          }
+        }
+        "MemberのLoginUser" in {
+          session {
+            signIn()
+            val groupId = createGroup()
+            // メンバー追加1人
+            val addParams = Map("d" -> compact(render(List(("userId" -> dummyUserUUID) ~ ("role" -> JInt(GroupMemberRole.Member))))))
+            post(s"/api/groups/${groupId}/members", addParams) {
+              checkStatus()
+            }
+            post("/api/signout") { checkStatus() }
+            post("/api/signin", dummyUserLoginParams) { checkStatus() }
+            get(s"/api/groups/${groupId}/images") {
+              status should be(200)
+              val result = parse(body).extract[AjaxResponse[Any]]
+              result.status should be("OK")
+            }
+          }
+        }
+        "ManagerのLoginUser" in {
+          session {
+            signIn()
+            val groupId = createGroup()
+            // メンバー追加1人
+            val addParams = Map("d" -> compact(render(List(("userId" -> dummyUserUUID) ~ ("role" -> JInt(GroupMemberRole.Manager))))))
+            post(s"/api/groups/${groupId}/members", addParams) {
+              checkStatus()
+            }
+            post("/api/signout") { checkStatus() }
+            post("/api/signin", dummyUserLoginParams) { checkStatus() }
+            get(s"/api/groups/${groupId}/images") {
+              status should be(200)
+              val result = parse(body).extract[AjaxResponse[Any]]
+              result.status should be("OK")
+            }
           }
         }
       }
