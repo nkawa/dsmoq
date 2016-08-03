@@ -211,7 +211,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       _         <- checkUtil.contains("saveLocal", saveLocal, Seq("true", "false"))
       _         <- checkUtil.contains("saveS3", saveS3, Seq("true", "false"))
       _         <- checkUtil.invokeSeq(files) { x => checkUtil.checkNonZeroByteFile("file[]", x) }
-      _         <- checkUtil.invoke("saveLocal, saveS3", saveLocal.toBoolean || saveS3.toBoolean, resource.getString(ResourceNames.checkS3OrLocal))
+      _         <- checkUtil.invoke("saveLocal, saveS3", saveLocal.toBoolean || saveS3.toBoolean, resource.getString(ResourceNames.CHECK_S3_OR_LOCAL))
       user      <- getUser(request, false)
       result    <- datasetService.create(files, saveLocal.toBoolean, saveS3.toBoolean, name, user)
     } yield {
@@ -330,7 +330,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
           _  <- checkUtil.nonEmptyTrimmedSpacesForForm("d.attributes.value", x.value)
         } yield {}
       }
-      _           <- checkUtil.invoke("d.attribute", json.attributes.filter(_.name == "featured").length < 2, resource.getString(ResourceNames.featureAttributeIsOnlyOne))
+      _           <- checkUtil.invoke("d.attribute", json.attributes.filter(_.name == "featured").length < 2, resource.getString(ResourceNames.FEATURE_ATTRIBUTE_IS_ONLY_ONE))
       user        <- getUser(request, false)
       result      <- datasetService.modifyDatasetMeta(datasetId, name, json.description, license, json.attributes, user)
     } yield {
@@ -347,7 +347,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       json    <- Success(d.getOrElse(SearchRangeParams()))
       _       <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _       <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
-      user    <- getUser(request, false)
+      user    <- getUser(request, true)
       result  <- datasetService.getImages(datasetId, json.offset, json.limit, user)
     } yield {
       result
@@ -409,7 +409,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       json   <- Success(d.getOrElse(SearchRangeParams()))
       _      <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _      <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
-      user   <- getUser(request, false)
+      user   <- getUser(request, true)
       result <- datasetService.searchOwnerships(datasetId, json.offset, json.limit, user)
     } yield {
       result
@@ -474,7 +474,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       json      <- jsonOptToTry(d)
       saveLocal <- checkUtil.requireForForm("d.saveLocal", json.saveLocal)
       saveS3    <- checkUtil.requireForForm("d.saveS3", json.saveS3)
-      _         <- checkUtil.invoke("saveLocal, saveS3", saveLocal || saveS3, resource.getString(ResourceNames.checkS3OrLocal))
+      _         <- checkUtil.invoke("saveLocal, saveS3", saveLocal || saveS3, resource.getString(ResourceNames.CHECK_S3_OR_LOCAL))
       user      <- getUser(request, false)
       result    <- datasetService.modifyDatasetStorage(datasetId, saveLocal, saveS3, user)
     } yield {
@@ -511,7 +511,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
     val datasetId = params("datasetId")
     val ret = for {
       _      <- checkUtil.validUuidForUrl("datasetId", datasetId)
-      user   <- getUser(request, false)
+      user   <- getUser(request, true)
       result <- datasetService.exportAttribute(datasetId, user)
     } yield {
       result
@@ -521,7 +521,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
           response.setHeader("Content-Disposition", "attachment; filename=" + x.getName)
           response.setHeader("Content-Type", "application/octet-stream;charset=binary")
           x
-      case Failure(e) => toAjaxResponse(ret)
+      case Failure(_) => toAjaxResponse(ret)
     }
   }
 
@@ -660,7 +660,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       json   <- Success(d.getOrElse(SearchRangeParams()))
       _      <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _      <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
-      user   <- getUser(request, false)
+      user   <- getUser(request, true)
       result <- groupService.getImages(groupId, json.offset, json.limit, user)
     } yield {
       result
@@ -727,8 +727,10 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
         } yield {}
       }
       user    <- getUser(request, false)
-      _       <- groupService.addMembers(groupId, json, user)
-    } yield {}
+      result  <- groupService.addMembers(groupId, json, user)
+    } yield {
+      result
+    }
     toAjaxResponse(ret)
   }
 
@@ -736,15 +738,17 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
     val groupId = params("groupId")
     val userId = params("userId")
     val ret = for {
-      _    <- checkUtil.validUuidForUrl("groupId", groupId)
-      _    <- checkUtil.validUuidForUrl("userId", userId)
-      d    <- getJsonValue[SetGroupMemberRoleParams]
-      json <- jsonOptToTry(d)
-      role <- checkUtil.requireForForm("d.role", json.role)
-      _    <- checkUtil.contains("d.role", role, Seq(0, 1, 2))
-      user <- getUser(request, false)
-      _    <- groupService.updateMemberRole(groupId, userId, role, user)
-    } yield {}
+      _      <- checkUtil.validUuidForUrl("groupId", groupId)
+      _      <- checkUtil.validUuidForUrl("userId", userId)
+      d      <- getJsonValue[SetGroupMemberRoleParams]
+      json   <- jsonOptToTry(d)
+      role   <- checkUtil.requireForForm("d.role", json.role)
+      _      <- checkUtil.contains("d.role", role, Seq(0, 1, 2))
+      user   <- getUser(request, false)
+      result <- groupService.updateMemberRole(groupId, userId, role, user)
+    } yield {
+      result
+    }
     toAjaxResponse(ret)
   }
 
@@ -922,7 +926,7 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
 
   private def jsonOptToTry[T](obj: Option[T]): Try[T] = {
     obj match {
-      case None => Failure(new InputCheckException("d", resource.getString(ResourceNames.jsonParameterRequired), false))
+      case None => Failure(new InputCheckException("d", resource.getString(ResourceNames.JSON_PARAMETER_REQUIRED), false))
       case Some(x) => Success(x)
     }
   }
@@ -933,11 +937,11 @@ class ApiController(resource: ResourceBundle) extends ScalatraServlet
       case Some(x) => {
         try {
           JsonMethods.parse(x).extractOpt[T] match {
-            case None => Failure(new InputCheckException("d", resource.getString(ResourceNames.invalidJsonFormat), false))
+            case None => Failure(new InputCheckException("d", resource.getString(ResourceNames.INVALID_JSON_FORMAT), false))
             case Some(obj) => Success(Some(obj))
           }
         } catch {
-          case e: Exception => Failure(new InputCheckException("d", resource.getString(ResourceNames.invalidJsonFormat), false))
+          case e: Exception => Failure(new InputCheckException("d", resource.getString(ResourceNames.INVALID_JSON_FORMAT), false))
         }
       }
     }

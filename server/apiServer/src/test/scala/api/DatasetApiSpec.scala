@@ -3270,6 +3270,122 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           }
         }
       }
+
+      "POST /api/datasets/:dataset_id/acl" - {
+        "オーナー変更がない場合" in {
+          session {
+            signIn()
+            val datasetId = createDataset()
+            val params = Map("d" -> compact(render(Seq(("id" -> testUserId) ~ ("ownerType" -> JInt(1)) ~ ("accessLevel" -> JInt(3))))))
+            post(s"/api/datasets/${datasetId}/acl", params) {
+              status should be(200)
+              val result = parse(body).extract[AjaxResponse[Any]]
+              result.status should be("OK")
+            }
+          }
+        }
+
+        "オーナーが1人から0人に変更される場合" in {
+          session {
+            signIn()
+            val datasetId = createDataset()
+            val params = Map("d" -> compact(render(Seq(("id" -> testUserId) ~ ("ownerType" -> JInt(1)) ~ ("accessLevel" -> JInt(0))))))
+            post(s"/api/datasets/${datasetId}/acl", params) {
+              status should be(200)
+              val result = parse(body).extract[AjaxResponse[Any]]
+              result.status should be("BadRequest")
+            }
+          }
+        }
+
+        "オーナーが2人から1人に変更される場合" in {
+          session {
+            signIn()
+            val datasetId = createDataset()
+            // オーナー1人追加
+            val addParams = Map("d" -> compact(render(Seq(("id" -> "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04") ~ ("ownerType" -> JInt(1)) ~ ("accessLevel" -> JInt(3))))))
+            post(s"/api/datasets/${datasetId}/acl", addParams) {
+              status should be(200)
+              val result = parse(body).extract[AjaxResponse[Any]]
+              result.status should be("OK")
+            }
+            // オーナー1人除去
+            val removeParams = Map("d" -> compact(render(Seq(("id" -> testUserId) ~ ("ownerType" -> JInt(1)) ~ ("accessLevel" -> JInt(0))))))
+            post(s"/api/datasets/${datasetId}/acl", removeParams) {
+              status should be(200)
+              val result = parse(body).extract[AjaxResponse[Any]]
+              result.status should be("OK")
+            }
+          }
+        }
+
+        "オーナーが2人から0人に変更される場合" in {
+          session {
+            signIn()
+            val datasetId = createDataset()
+            // オーナー1人追加
+            val addParams = Map("d" -> compact(render(Seq(("id" -> "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04") ~ ("ownerType" -> JInt(1)) ~ ("accessLevel" -> JInt(3))))))
+            post(s"/api/datasets/${datasetId}/acl", addParams) {
+              status should be(200)
+              val result = parse(body).extract[AjaxResponse[Any]]
+              result.status should be("OK")
+            }
+            // オーナー2人除去
+            val removeParams = Map("d" -> compact(render(Seq(
+              ("id" -> testUserId) ~ ("ownerType" -> JInt(1)) ~ ("accessLevel" -> JInt(0)),
+              ("id" -> "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04") ~ ("ownerType" -> JInt(1)) ~ ("accessLevel" -> JInt(0))
+            ))))
+            post(s"/api/datasets/${datasetId}/acl", removeParams) {
+              status should be(200)
+              val result = parse(body).extract[AjaxResponse[Any]]
+              result.status should be("BadRequest")
+            }
+          }
+        }
+
+        "オーナーが1人から1人追加、1人除去される場合" in {
+          session {
+            signIn()
+            val datasetId = createDataset()
+            // オーナー1人追加、1人除去
+            val changeParams = Map("d" -> compact(render(Seq(
+              ("id" -> testUserId) ~ ("ownerType" -> JInt(1)) ~ ("accessLevel" -> JInt(0)),
+              ("id" -> "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04") ~ ("ownerType" -> JInt(1)) ~ ("accessLevel" -> JInt(3))
+            ))))
+            post(s"/api/datasets/${datasetId}/acl", changeParams) {
+              status should be(200)
+              val result = parse(body).extract[AjaxResponse[Any]]
+              result.status should be("OK")
+            }
+          }
+        }
+
+        "オーナーが2人から2人追加、2人除去される場合" in {
+          session {
+            signIn()
+            val datasetId = createDataset()
+            // オーナー1人追加
+            val addParams = Map("d" -> compact(render(Seq(("id" -> "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04") ~ ("ownerType" -> JInt(1)) ~ ("accessLevel" -> JInt(3))))))
+            post(s"/api/datasets/${datasetId}/acl", addParams) {
+              status should be(200)
+              val result = parse(body).extract[AjaxResponse[Any]]
+              result.status should be("OK")
+            }
+            // オーナー2人追加、2人除去
+            val changeParams = Map("d" -> compact(render(Seq(
+              ("id" -> "4aaefd45-2fe5-4ce0-b156-3141613f69a6") ~ ("ownerType" -> JInt(1)) ~ ("accessLevel" -> JInt(3)),
+              ("id" -> "eb7a596d-e50c-483f-bbc7-50019eea64d7") ~ ("ownerType" -> JInt(1)) ~ ("accessLevel" -> JInt(3)),
+              ("id" -> testUserId) ~ ("ownerType" -> JInt(1)) ~ ("accessLevel" -> JInt(0)),
+              ("id" -> "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04") ~ ("ownerType" -> JInt(1)) ~ ("accessLevel" -> JInt(0))
+            ))))
+            post(s"/api/datasets/${datasetId}/acl", changeParams) {
+              status should be(200)
+              val result = parse(body).extract[AjaxResponse[Any]]
+              result.status should be("OK")
+            }
+          }
+        }
+      }
     }
   }
 
