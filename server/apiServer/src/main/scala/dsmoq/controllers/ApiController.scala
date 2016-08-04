@@ -55,6 +55,12 @@ class ApiController(val resource: ResourceBundle) extends ScalatraServlet
     contentType = formats("json")
   }
 
+  after() {
+    if (!hasAuthorizationHeader) {
+      response.setHeader("isGuest", getUserFromSession.isGuest.toString)
+    }
+  }
+
   get("/*") {
     AjaxResponse("NotFound")
   }
@@ -499,9 +505,9 @@ class ApiController(val resource: ResourceBundle) extends ScalatraServlet
     }
     ret match {
       case Success(x) =>
-          response.setHeader("Content-Disposition", "attachment; filename=" + x.getName)
-          response.setHeader("Content-Type", "application/octet-stream;charset=binary")
-          x
+        response.setHeader("Content-Disposition", "attachment; filename=" + x.getName)
+        response.setHeader("Content-Type", "application/octet-stream;charset=binary")
+        x
       case Failure(_) => toAjaxResponse(ret)
     }
   }
