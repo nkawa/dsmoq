@@ -3,7 +3,7 @@ package dsmoq.controllers
 import com.typesafe.scalalogging.LazyLogging
 import dsmoq.exceptions.{AccessDeniedException, NotAuthorizedException, NotFoundException}
 import dsmoq.services.DatasetService.{DownloadFileLocalNormal, DownloadFileLocalZipped, DownloadFileS3Normal, DownloadFileS3Zipped}
-import dsmoq.services.{AccountService, DatasetService, User}
+import dsmoq.services.{DatasetService, User}
 import org.apache.commons.io.input.BoundedInputStream
 import org.scalatra.ScalatraServlet
 import org.slf4j.MarkerFactory
@@ -13,12 +13,7 @@ import javax.servlet.http.HttpServletRequest
 
 import scala.util.{Failure, Success, Try}
 
-class FileController(resource: ResourceBundle) extends ScalatraServlet with SessionTrait with ApiKeyAuthorizationTrait with LazyLogging {
-
-  /**
-   * AccountServiceのインスタンス
-   */
-  val accountService = new AccountService(resource)
+class FileController(val resource: ResourceBundle) extends ScalatraServlet with LazyLogging with AuthTrait {
 
   /**
    * DatasetServiceのインスタンス
@@ -29,6 +24,7 @@ class FileController(resource: ResourceBundle) extends ScalatraServlet with Sess
     * ログマーカー
     */
   val LOG_MARKER = MarkerFactory.getMarker("FILE_LOG")
+
   /**
     * Rangeヘッダから開始、終了位置を取得するための正規表現
     */
@@ -46,7 +42,7 @@ class FileController(resource: ResourceBundle) extends ScalatraServlet with Sess
     // HEADリクエストではボディ要素として、バイナリは返さない。
     // このため、ストリームが設定されていない形でDownloadFileを取得する。
     val result = for {
-      user <- getUser(request)
+      user <- getUser(allowGuest = true)
       fileInfo <- datasetService.getDownloadFileWithoutStream(datasetId, id, user)
     } yield {
       fileInfo
@@ -107,7 +103,7 @@ class FileController(resource: ResourceBundle) extends ScalatraServlet with Sess
     logger.info(LOG_MARKER, "Receive get request, datasetId={}, id={}", datasetId, id)
 
     val result = for {
-      user <- getUser(request)
+      user <- getUser(allowGuest = true)
       fileInfo <- datasetService.getDownloadFileWithStream(datasetId, id, user)
     } yield {
       fileInfo
@@ -237,19 +233,6 @@ class FileController(resource: ResourceBundle) extends ScalatraServlet with Sess
           case _: NotAuthorizedException => halt(status = 403, reason = "Forbidden", body = "Unauthorized") // 403 Forbidden (401 Unauthorized はブラウザ標準の認証処理が走るので不可)
           case _: AccessDeniedException => halt(status = 403, reason = "Forbidden", body = "Access Denied") // 403 Forbidden
           case _: Exception => halt(status = 500, reason = "Internal Server Error", body = "Internal Server Error") // 500 Internal Server Error
-        }
-      }
-    }
-  }
-
-  private def getUser(request: HttpServletRequest): Try[User] = {
-    Try {
-      userFromHeader(request) match {
-        case ApiUser(user) => user 
-        case ApiAuthorizationFailed => throw new NotAuthorizedException
-        case NoAuthorizationHeader => signedInUser match {
-          case SignedInUser(user) => user
-          case GuestUser(user) => user
         }
       }
     }

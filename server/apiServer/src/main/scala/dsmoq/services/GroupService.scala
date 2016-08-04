@@ -370,7 +370,6 @@ class GroupService(resource: ResourceBundle) {
       DB localTx { implicit s =>
         val group = getGroup(groupId)
         if (!isGroupAdministrator(user, groupId)) throw new AccessDeniedException(resource.getString(ResourceNames.NO_UPDATE_PERMISSION))
-
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
         val primaryImage = getPrimaryImageId(groupId)
@@ -446,7 +445,6 @@ class GroupService(resource: ResourceBundle) {
       DB localTx { implicit s =>
         val group = getGroup(groupId)
         if (!isGroupAdministrator(user, groupId)) throw new AccessDeniedException(resource.getString(ResourceNames.NO_UPDATE_PERMISSION))
-
         // 登録処理（既に登録されているユーザが送られてきた場合は無視する）
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()

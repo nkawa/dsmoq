@@ -1,8 +1,8 @@
 package dsmoq.exceptions
 
 /**
- * ログイン失敗、ゲストアクセス不可能なAPIにアクセスした場合などに送出する例外
+ * 認証失敗時に送出する例外
  *
  * @param message エラーメッセージ
  */
-case class NotAuthorizedException(message: String = "") extends Exception(message)
+class NotAuthorizedException(message: String) extends Exception(message)
