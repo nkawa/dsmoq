@@ -74,6 +74,10 @@ class Frame {
                     //updateProfile(Service.instance.profile);
                 case ProfileUpdated:
                     //updateProfile(Service.instance.profile);
+                case SessionTimeout:
+                    navigation.update(Navigation.Reload);
+                    updateProfile(Service.instance.profile);
+                    Notification.show("info", "signouted due to session timeout.");
             }
         });
         

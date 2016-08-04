@@ -358,25 +358,30 @@ class Service extends Stream<ServiceEvent> {
             { d: Json.stringify(data) };
         }
 
-        return JQuery.ajax(url, {type: str, dataType: "json", cache: false, data: d}).toPromise()
-            .flatMap(function (response: ApiResponse) {
-                return switch (response.status) {
-                    case ApiStatus.OK:
-                        Promise.fulfilled(cast response.data);
-                    case ApiStatus.NotFound:
-                        Promise.rejected(new ServiceError("NotFound", NotFound));
-                    case ApiStatus.BadRequest:
-                        Promise.rejected(new ServiceError(response.status, BadRequest, response.data));
-                    case ApiStatus.Unauthorized:
-                        if (!profile.isGuest) {
-                            profile = guest();
-                            update(SignedOut);
-                        }
-                        Promise.rejected(new ServiceError(response.status, Unauthorized));
-                    case _:
-                        Promise.rejected(new ServiceError("Unknown", Unknown));
+        var xhr = JQuery.ajax(url, {type: str, dataType: "json", cache: false, data: d});
+        return xhr.toPromise().flatMap(function (response: ApiResponse) {
+            if (!profile.isGuest) {
+                if (response.status == ApiStatus.Unauthorized) {
+                    profile = guest();
+                    update(SignedOut);
+                } else if (xhr.getResponseHeader("isGuest") == "true") {
+                    profile = guest();
+                    update(SessionTimeout);
                 }
-            });
+            }
+            return switch (response.status) {
+                case ApiStatus.OK:
+                    Promise.fulfilled(cast response.data);
+                case ApiStatus.NotFound:
+                    Promise.rejected(new ServiceError("NotFound", NotFound));
+                case ApiStatus.BadRequest:
+                    Promise.rejected(new ServiceError(response.status, BadRequest, response.data));
+                case ApiStatus.Unauthorized:
+                    Promise.rejected(new ServiceError(response.status, Unauthorized));
+                case _:
+                    Promise.rejected(new ServiceError("Unknown", Unknown));
+            }
+        });
     }
 
     function sendForm<T>(url: String, form: JqHtml, ?optData: {}): Promise<T> {
@@ -414,6 +419,7 @@ enum ServiceEvent {
     SignedIn;
     SignedOut;
     ProfileUpdated;
+    SessionTimeout;
 }
 
 @:enum abstract ServiceErrorType(String) to String {
