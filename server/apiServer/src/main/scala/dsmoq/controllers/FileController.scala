@@ -243,12 +243,14 @@ class FileController(resource: ResourceBundle) extends ScalatraServlet with Sess
   }
 
   private def getUser(request: HttpServletRequest): Try[User] = {
-    userFromHeader(request) match {
-      case ApiUser(user) => Success(user)
-      case ApiAuthorizationFailed => Failure(new NotAuthorizedException)
-      case NoAuthorizationHeader => signedInUser match {
-        case SignedInUser(user) => Success(user)
-        case GuestUser(user) => Success(user)
+    Try {
+      userFromHeader(request) match {
+        case ApiUser(user) => user 
+        case ApiAuthorizationFailed => throw new NotAuthorizedException
+        case NoAuthorizationHeader => signedInUser match {
+          case SignedInUser(user) => user
+          case GuestUser(user) => user
+        }
       }
     }
   }

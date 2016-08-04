@@ -144,4 +144,9 @@ object ResourceNames {
    * グループにはマネージャーが最低一人は必要です
    */
   val NO_MANAGER = "no_manager"
+
+  /**
+   * 対象のユーザには更新権限がありません
+   */
+  val NO_UPDATE_PERMISSION = "no_update_permission"
 }

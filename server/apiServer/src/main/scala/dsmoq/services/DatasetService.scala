@@ -731,6 +731,21 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   }
 
   /**
+   * 指定したデータセットの存在をチェックします。
+   * @param datasetId データセットID
+   * @param session DBセッション
+   * @return 取得したデータセット情報
+   * @throws NotFoundException データセットが存在しなかった場合
+   */
+  private def checkDatasetExisitence(datasetId: String)(implicit session: DBSession): persistence.Dataset = {
+    // データセットが存在しない場合例外
+    getDataset(datasetId) match {
+      case Some(x) => x
+      case None => throw new NotFoundException
+    }
+  }
+
+  /**
    * 指定したデータセットの詳細情報を取得します。
  *
    * @param id データセットID
@@ -742,11 +757,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(id, "id")
       CheckUtil.checkNull(user, "user")
       DB readOnly { implicit s =>
-        // データセットが存在しない場合例外
-        val dataset = getDataset(id) match {
-          case Some(x) => x
-          case None => throw new NotFoundException
-        }
+        val dataset = checkDatasetExisitence(id)
         val permission = checkReadPermission(id, user)
         val guestAccessLevel = getGuestAccessLevel(id)
         val owners = getAllOwnerships(id, user)
@@ -800,8 +811,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(user, "user")
       DB localTx { implicit s =>
         datasetAccessabilityCheck(id, user)
-
-        val dataset = getDataset(id).get
+        val dataset = checkDatasetExisitence(id)
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
         val f = files.map(f => {
@@ -897,7 +907,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         val timestamp = DateTime.now()
         val historyId = UUID.randomUUID.toString
 
-        val dataset = getDataset(datasetId).get
+        val dataset = checkDatasetExisitence(datasetId)
         updateFileNameAndSize(
           fileId,
           historyId,
@@ -967,8 +977,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   }
 
   private def fileAccessabilityCheck(datasetId: String, fileId: String, user: User)(implicit s: DBSession) {
-    datasetAccessabilityCheck(datasetId, user)
     if (!existsFile(datasetId, fileId)) throw new NotFoundException
+    datasetAccessabilityCheck(datasetId, user)
   }
 
   private def datasetAccessabilityCheck(datasetId: String, user: User)(implicit s: DBSession) {
@@ -1121,7 +1131,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
-        val dataset = getDataset(id).get
+        val dataset = checkDatasetExisitence(id)
 
         // S3 to local
         val taskId = if (dataset.localState == SaveStatus.NOT_SAVED && (dataset.s3State == SaveStatus.SAVED || dataset.s3State == SaveStatus.SYNCHRONIZING) && saveLocal) {
@@ -1206,13 +1216,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       val trimmedAttributes = attributes.map(x => x.name -> StringUtil.trimAllSpaces(x.value))
 
       DB localTx { implicit s =>
+        datasetAccessabilityCheck(id, user)
         persistence.License.find(license) match {
           case None => throw new BadRequestException(resource.getString(ResourceNames.INVALID_LICENSEID).format(license))
           case Some(_) => // do nothing
         }
-
-        datasetAccessabilityCheck(id, user)
-
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
 
@@ -1362,6 +1370,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(images, "images")
       CheckUtil.checkNull(user, "user")
       DB localTx { implicit s =>
+        checkDatasetExisitence(datasetId)
         if (!isOwner(user.id, datasetId)) throw new AccessDeniedException(resource.getString(ResourceNames.ONLY_ALLOW_DATASET_OWNER))
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -2715,6 +2724,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(datasetId, "datasetId")
       CheckUtil.checkNull(user, "user")
       DB readOnly { implicit s =>
+        checkDatasetExisitence(datasetId)
         checkReadPermission(datasetId, user)
         val a = persistence.Annotation.a
         val da = persistence.DatasetAnnotation.da
@@ -2755,6 +2765,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(limit, "limit")
       CheckUtil.checkNull(user, "user")
       DB readOnly { implicit s =>
+        checkDatasetExisitence(datasetId)
         checkReadPermission(datasetId, user)
         val o = persistence.Ownership.o
         val u = persistence.User.u
@@ -2879,6 +2890,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(limit, "limit")
       CheckUtil.checkNull(user, "user")
       DB readOnly { implicit s =>
+        checkDatasetExisitence(datasetId)
         checkReadPermission(datasetId, user)
         val di = persistence.DatasetImage.di
         val i = persistence.Image.i
@@ -3149,10 +3161,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(offset, "offset")
       CheckUtil.checkNull(user, "user")
       DB readOnly { implicit s =>
-        val dataset = getDataset(datasetId) match {
-          case Some(x) => x
-          case None => throw new NotFoundException
-        }
+        val dataset = checkDatasetExisitence(datasetId)
         checkReadPermission(datasetId, user)
         val validatedLimit = limit.map{ x =>
           if(x < 0) { 0 } else if (AppConf.fileLimit < x) { AppConf.fileLimit } else { x }
@@ -3190,10 +3199,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(offset, "offset")
       CheckUtil.checkNull(user, "user")
       DB readOnly { implicit s =>
-        val dataset = getDataset(datasetId) match {
-          case Some(x) => x
-          case None => throw new NotFoundException
-        }
+        val dataset = checkDatasetExisitence(datasetId)
         val history = persistence.File.find(fileId).flatMap(file => persistence.FileHistory.find(file.historyId)) match {
           case Some(x) => 
             if (x.isZip) { x }
