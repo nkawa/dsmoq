@@ -2,7 +2,7 @@ package dsmoq.controllers
 
 import java.util.ResourceBundle
 import javax.servlet.http.HttpServletRequest
-import scala.util.{Try, Success, Failure}
+import scala.util.{ Try, Success, Failure }
 import org.scalatra.ScalatraServlet
 
 import com.typesafe.scalalogging.LazyLogging
@@ -11,14 +11,14 @@ import org.slf4j.MarkerFactory
 import dsmoq.AppConf
 import dsmoq.ResourceNames
 import dsmoq.exceptions.NotAuthorizedException
-import dsmoq.services.{AccountService, CheckUtil, User}
+import dsmoq.services.{ AccountService, CheckUtil, User }
 
 /**
  * 認証処理、セッション操作を取り扱うトレイト
  */
 trait AuthTrait { this: ScalatraServlet with LazyLogging =>
   import AuthTrait._
-  
+
   def resource: ResourceBundle
 
   /**
@@ -28,7 +28,7 @@ trait AuthTrait { this: ScalatraServlet with LazyLogging =>
 
   /**
    * セッションに登録されたユーザ情報を更新する。
-   * 
+   *
    * Authorizationヘッダに認証情報がある場合、セッションの更新は行わない。
    * @param user 更新するユーザ情報
    * @return
@@ -49,7 +49,7 @@ trait AuthTrait { this: ScalatraServlet with LazyLogging =>
 
   /**
    * セッションをinvalidateし、クッキーからセッションIDを取り除く。
-   * 
+   *
    * Authorizationヘッダに認証情報がある場合、セッションの更新は行わない。
    */
   def clearSession(): Unit = {
@@ -77,7 +77,7 @@ trait AuthTrait { this: ScalatraServlet with LazyLogging =>
 
   /**
    * セッションからユーザを取得する。
-   * 
+   *
    * @return セッションからユーザを取得できた場合そのユーザ、取得できなかった場合ゲストユーザ
    */
   def getUserFromSession(): User = {
@@ -205,7 +205,7 @@ object AuthTrait {
    * HTTPヘッダからAuthorizationヘッダ内のAPIキー、シグネチャを取得する。
    *
    * @param request HTTPリクエスト
-   * @return Authorizationヘッダの情報 
+   * @return Authorizationヘッダの情報
    * @throws NullPointerException 引数がnullの場合
    */
   private def getAuthorizationHeaderInfo(request: HttpServletRequest): AuthorizationHeaderInfo = {
