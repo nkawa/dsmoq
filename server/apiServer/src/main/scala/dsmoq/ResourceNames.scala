@@ -124,4 +124,24 @@ object ResourceNames {
    * グループにはマネージャーが最低一人は必要です
    */
   val NO_MANAGER = "no_manager"
+
+  /**
+   * この操作はゲストユーザには許可されていません
+   */
+  val NOT_ALLOW_GUEST = "not_allow_guest"
+
+  /**
+   * Authorizationヘッダが不正です
+   */
+  val INVALID_AUTHORIZATION_HEADER = "invalid_authorization_header"
+
+  /**
+   * AuthorizationヘッダにAPIキー・シグネチャを設定してください
+   */
+  val REQUIRE_APIKEY_AND_SIGNATURE = "require_apikey_and_signature"
+
+  /**
+   * APIキー・シグネチャのいずれかが不正です
+   */
+  val INVALID_APIKEY_OR_SIGNATURE = "invalid_apikey_or_signature"
 }
