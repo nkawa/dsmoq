@@ -76,8 +76,10 @@ class ApiController(val resource: ResourceBundle) extends ScalatraServlet
     contentType = formats("json")
   }
 
+  // 各ハンドラの後処理として、共通レスポンスヘッダの設定を行う
   after() {
     if (!hasAuthorizationHeader) {
+      // APIキーでの認証でない(セッションでの認証)なら、isGuestヘッダを付与する
       response.setHeader("isGuest", getUserFromSession.isGuest.toString)
     }
   }
