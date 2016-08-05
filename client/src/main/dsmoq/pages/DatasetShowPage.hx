@@ -2,6 +2,7 @@ package dsmoq.pages;
 
 import dsmoq.Async;
 import dsmoq.Page;
+import dsmoq.models.ApiStatus;
 import dsmoq.models.DatasetFile;
 import dsmoq.models.DatasetGuestAccessLevel;
 import dsmoq.models.DatasetPermission;
@@ -94,34 +95,43 @@ class DatasetShowPage {
                 setDatasetFiles(data, id, data.fileLimit, 0).then(function (_) {
                     setTopMoreClickEvent(html, navigation, binding, data, id);
                     setZipClickEvent(html, navigation, data, id);
-                }, function (err) {
-                    switch (err.name) {
-                        case ServiceErrorType.Unauthorized:
-                            navigation.fulfill(Navigation.Navigate(Page.Top));
-                        case ServiceErrorType.NotFound:
-                            navigation.fulfill(Navigation.Navigate(Page.Top));
-                        default:
-                            trace(err);
+                }, function (err: Dynamic) {
+                    switch (err.status) {
+                        case 403: // Forbidden
+                            switch (err.responseJSON.status) {
+                                case ApiStatus.AccessDenied:
+                                    navigation.fulfill(Navigation.Navigate(Page.Top));
+                                case ApiStatus.Unauthorized:
+                                    navigation.fulfill(Navigation.Navigate(Page.Top));
+                            }
+                        case 404: // NotFound
+                            switch (err.responseJSON.status) {
+                                case ApiStatus.NotFound:
+                                    navigation.fulfill(Navigation.Navigate(Page.Top));
+                            }
+                        case _: // その他(500系など)
                             html.html("Network error");
                     }
                 });
                 setTopMoreClickEvent(html, navigation, binding, data, id);
             });
             
-        }, function (err) {
-            switch (err.name) {
-                case ServiceErrorType.Unauthorized:
-                    html.html("Permission denied");
-                case ServiceErrorType.NotFound:
-                    html.html("Not found");
-                default:
-                    html.html("Network error");
-            }
+        }, function (err: Dynamic) {
+            html.html(err.responseJSON.status);
         });
 
         return navigation.promise;
     }
-    
+   
+    /**
+     * データセットのファイル一覧を取得し、画面に設定する。
+     *
+     * @param data 画面で保持するbindingのデータ
+     * @param datasetId データセットID
+     * @param limit データセットのファイルの取得Limit
+     * @param offset データセットのファイルの取得位置
+     * @return データセットのファイル一覧取得のPromise
+     */
     static function setDatasetFiles(data: Dynamic, datasetId: String, limit: Int, offset: Int): Promise<RangeSlice<DatasetFile>> {
         JsViews.observable(data.root).setProperty("useProgress", true);
         return Service.instance.getDatasetFiles(datasetId, { limit: limit, offset: offset }).then(function (res) {
@@ -140,6 +150,16 @@ class DatasetShowPage {
         });
     }
 
+    /**
+     * データセットのZIP内ファイル一覧を取得し、画面に設定する。
+     *
+     * @param data 画面で保持するbindingのデータ
+     * @param datasetId データセットID
+     * @param index データセットのファイル中の、ZIPファイルのindex
+     * @param limit データセットのファイルの取得Limit
+     * @param offset データセットのファイルの取得位置
+     * @return データセットのZIP内ファイル一覧取得のPromise
+     */
     static function setDatasetZippedFiles(data: Dynamic, datasetId: String, index: Int, limit: Int, offset: Int): Promise<RangeSlice<DatasetZipedFile>> {
         JsViews.observable(data.root.files[index]).setProperty("useProgress", true);
         return Service.instance.getDatasetZippedFiles(datasetId, data.root.files[index].file.id, { limit: limit, offset: offset }).then(function (res) {
@@ -158,6 +178,14 @@ class DatasetShowPage {
         return index;
     }
     
+    /**
+     * ZIPファイルを展開したときのイベントを設定する。
+     *
+     * @param html
+     * @param navigation
+     * @param data
+     * @param datasetId データセットID
+     */
     static function setZipClickEvent(html: Html, navigation: PromiseBroker<Navigation<Page>>, data: Dynamic, datasetId: String): Void {
         html.find(".accordion-zip-item").on("click", function (e) {
             var index: Int = getIndex(e.target);
@@ -171,22 +199,43 @@ class DatasetShowPage {
             }
             setDatasetZippedFiles(data, datasetId, index, data.fileLimit, 0).then(function(_) {
                 setZipMoreClickEvent(html, navigation, data, datasetId, index);
-            }, function(err) {
-                switch (err.name) {
-                    case ServiceErrorType.Unauthorized:
-                        navigation.fulfill(Navigation.Navigate(Page.Top));
-                    case ServiceErrorType.NotFound:
-                        navigation.fulfill(Navigation.Navigate(Page.Top));
-                    case ServiceErrorType.BadRequest:
-                        var detail = cast(cast(err, ServiceError).detail, String);
-                        Notification.show("error", detail);
-                    default:
-                        trace(err);
+            }, function(err: Dynamic) {
+                switch (err.status) {
+                    case 400: // BadRequest
+                        switch (err.responseJSON.status) {
+                            case ApiStatus.BadRequest:
+                                navigation.fulfill(Navigation.Navigate(Page.Top));
+                            case _:
+                                html.html(err.responseJSON.status);
+                        }
+                    case 403: // Forbidden
+                        switch (err.responseJSON.status) {
+                            case ApiStatus.AccessDenied:
+                                navigation.fulfill(Navigation.Navigate(Page.Top));
+                            case ApiStatus.Unauthorized:
+                                navigation.fulfill(Navigation.Navigate(Page.Top));
+                        }
+                    case 404: // NotFound
+                        switch (err.responseJSON.status) {
+                            case ApiStatus.NotFound:
+                                navigation.fulfill(Navigation.Navigate(Page.Top));
+                        }
+                    case _: // その他(500系など)
                         html.html("Network error");
                 }
             });
         });
     }
+
+    /**
+     * ファイルのmore file表示をクリックしたときのイベントを設定する。
+     *
+     * @param html
+     * @param navigation
+     * @param binding
+     * @param data
+     * @param datasetId データセットID
+     */
     static function setTopMoreClickEvent(html: Html, navigation: PromiseBroker<Navigation<Page>>, binding: Observable, data: Dynamic, datasetId: String): Void {
         html.find(".more-head-item").on("click", function (_) {
             binding.setProperty("data.root.useProgress", true);
@@ -194,37 +243,65 @@ class DatasetShowPage {
                 binding.setProperty("data.root.useProgress", false);
                 setTopMoreClickEvent(html, navigation, binding, data, datasetId);
                 setZipClickEvent(html, navigation, data, datasetId);
-            }, function (err) {
-                switch (err.name) {
-                    case ServiceErrorType.Unauthorized:
-                        navigation.fulfill(Navigation.Navigate(Page.Top));
-                    case ServiceErrorType.NotFound:
-                        navigation.fulfill(Navigation.Navigate(Page.Top));
-                    default:
-                        trace(err);
+            }, function (err: Dynamic) {
+                switch (err.status) {
+                    case 403: // Forbidden
+                        switch (err.responseJSON.status) {
+                            case ApiStatus.AccessDenied:
+                                navigation.fulfill(Navigation.Navigate(Page.Top));
+                            case ApiStatus.Unauthorized:
+                                navigation.fulfill(Navigation.Navigate(Page.Top));
+                        }
+                    case 404: // NotFound
+                        switch (err.responseJSON.status) {
+                            case ApiStatus.NotFound:
+                                navigation.fulfill(Navigation.Navigate(Page.Top));
+                        }
+                    case _: // その他(500系など)
                         html.html("Network error");
                 }
             });
         });
     }
 
+    /**
+     * ZIPファイルのmore file表示をクリックしたときのイベントを設定する。
+     *
+     * @param html
+     * @param navigation
+     * @param binding
+     * @param data
+     * @param datasetId データセットID
+     * @param index データセットのファイル中の、ZIPファイルのindex
+     */
     static function setZipMoreClickEvent(html: Html, navigation: PromiseBroker<Navigation<Page>>, data: Dynamic, datasetId: String, index: Int): Void {
         html.find(".more-zip-item").on("click", function (_) {
             JsViews.observable(data.root.files[index]).setProperty("useProgress", true);
             setDatasetZippedFiles(data, datasetId, index, data.fileLimit, data.root.files[index].zippedFiles.length).then(function (_) {
                 JsViews.observable(data.root.files[index]).setProperty("useProgress", false);
                 setZipMoreClickEvent(html, navigation, data, datasetId, index);
-            }, function (err) {
-                switch (err.name) {
-                    case ServiceErrorType.Unauthorized:
-                        navigation.fulfill(Navigation.Navigate(Page.Top));
-                    case ServiceErrorType.NotFound:
-                        navigation.fulfill(Navigation.Navigate(Page.Top));
-                    case ServiceErrorType.BadRequest:
-                        var detail = cast(cast(err, ServiceError).detail, String);
-                        Notification.show("error", detail);
-                    default:
-                        trace(err);
+            }, function (err: Dynamic) {
+                switch (err.status) {
+                    case 400: // BadRequest
+                        switch (err.responseJSON.status) {
+                            case ApiStatus.BadRequest:
+                                navigation.fulfill(Navigation.Navigate(Page.Top));
+                            case _:
+                                html.html(err.responseJSON.status);
+                        }
+                    case 403: // Forbidden
+                        switch (err.responseJSON.status) {
+                            case ApiStatus.AccessDenied:
+                                navigation.fulfill(Navigation.Navigate(Page.Top));
+                            case ApiStatus.Unauthorized:
+                                navigation.fulfill(Navigation.Navigate(Page.Top));
+                        }
+                    case 404: // NotFound
+                        switch (err.responseJSON.status) {
+                            case ApiStatus.NotFound:
+                                navigation.fulfill(Navigation.Navigate(Page.Top));
+                        }
+                    case _: // その他(500系など)
                         html.html("Network error");
                 }
             });

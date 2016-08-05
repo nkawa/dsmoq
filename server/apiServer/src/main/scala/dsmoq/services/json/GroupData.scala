@@ -72,4 +72,11 @@ object GroupData {
                                url: String,
                                isPrimary: Boolean
                                )
+  /**
+   * グループに設定した画像IDを返却するためのJSON型
+   * @param imageId 画像ID
+   */
+  case class ChangeGroupImage(
+    imageId: String
+  )
 }

@@ -2,15 +2,22 @@ package dsmoq.services
 
 import java.util.ResourceBundle
 
-import dsmoq.exceptions._
+import dsmoq.exceptions.{AccessDeniedException, NotFoundException}
 import dsmoq.persistence.GroupType
 import dsmoq.{persistence, AppConf}
-import scalikejdbc._
+import scalikejdbc.{DB, DBSession, select, sqls, withSQL}
+import scalikejdbc.interpolation.Implicits._
 import scala.util.Try
+import dsmoq.ResourceNames
 import dsmoq.logic.ImageSaveLogic
 import dsmoq.persistence.GroupAccessLevel
 import dsmoq.persistence.PostgresqlHelper._
 
+/**
+ * 画像ファイル取得操作を取り扱うサービスクラス
+ *
+ * @param resource リソースバンドルのインスタンス
+ */
 class ImageService(resource: ResourceBundle) {
 
   /**
@@ -58,7 +65,7 @@ class ImageService(resource: ResourceBundle) {
         val groups = getJoinedGroups(user)
         if (getPermission(datasetId, groups) == GroupAccessLevel.Deny) {
           // 指定したユーザが所属しているグループが、指定したデータセットに対してアクセス権を持っていない場合、アクセス権がないとして処理を打ち切る
-          throw new AccessDeniedException
+          throw new AccessDeniedException(resource.getString(ResourceNames.NO_ACCESS_PERMISSION))
         }
         getFile(imageId, size)
       }

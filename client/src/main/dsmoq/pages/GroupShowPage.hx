@@ -2,6 +2,7 @@ package dsmoq.pages;
 
 import conduitbox.Navigation;
 import dsmoq.Async;
+import dsmoq.models.ApiStatus;
 import dsmoq.models.Service;
 import dsmoq.models.TagDetail;
 import dsmoq.Page;
@@ -48,12 +49,8 @@ class GroupShowPage {
                         b.setProperty("total", x.summary.total);
                         b.setProperty("items", x.results);
                         b.setProperty("pages", Math.ceil(x.summary.total / 20));
-                    }, function (e) {
-                        Notification.show("error", "error happened");
                     });
                 });
-            }, function (err) {
-                Notification.show("error", "error happened");
             });
 
 			Service.instance.getTags().then(function(x) {
@@ -75,15 +72,9 @@ class GroupShowPage {
 							b.setProperty("total", x.summary.total);
 							b.setProperty("items", x.results);
 							b.setProperty("pages", Math.ceil(x.summary.total / 20));
-						}, function (e) {
-							Notification.show("error", "error happened");
 						});
 					});
-				}, function (err) {
-					Notification.show("error", "error happened");
 				});
-            }, function (err) {
-                Notification.show("error", "error happened");				
 			});
 
 
@@ -97,20 +88,10 @@ class GroupShowPage {
                 Service.instance.deleteGroup(id).then(function (_) {
                     Notification.show("success", "delete successful");
                     navigation.fulfill(Navigation.Navigate(Page.GroupList(1, "")));
-                }, function (err) {
-                    Notification.show("error", "error happened");
                 });
             });
-        }, function (err) {
-            trace(err);
-            root.html(switch (err.name) {
-                case ServiceErrorType.Unauthorized:
-                    "Permission denied";
-                case ServiceErrorType.NotFound:
-                    "Not found";
-                case _:
-                    "Network Error";
-            });
+        }, function (err: Dynamic) {
+            root.html(err.responseJSON.status);
         });
 
         return navigation.promise;

@@ -116,6 +116,26 @@ object ResourceNames {
   val REQUIRE_NON_MINUS = "require_non_minus"
 
   /**
+   * 対象のユーザにはアクセス権がありません
+   */
+  val NO_ACCESS_PERMISSION = "no_access_permission"
+
+  /**
+   * 対象のユーザにはダウンロード権がありません
+   */
+  val NO_DOWNLOAD_PERMISSION = "no_download_permission"
+
+  /**
+   * この操作はデータセットのオーナーにのみ許可されています
+   */
+  val ONLY_ALLOW_DATASET_OWNER = "only_allow_dataset_owner"
+
+  /**
+   * メールアドレスが許可された形式でありません
+   */
+  val INVALID_EMAIL_FORMAT = "invalid_email_format"
+
+  /**
    * データセットにはオーナーが最低一人は必要です
    */
   val NO_OWNER = "no_owner"
@@ -144,4 +164,9 @@ object ResourceNames {
    * APIキー・シグネチャのいずれかが不正です
    */
   val INVALID_APIKEY_OR_SIGNATURE = "invalid_apikey_or_signature"
+
+  /**
+   * 対象のユーザには更新権限がありません
+   */
+  val NO_UPDATE_PERMISSION = "no_update_permission"
 }

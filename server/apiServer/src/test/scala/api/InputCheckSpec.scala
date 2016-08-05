@@ -380,13 +380,24 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
       "GET /api/datasets/:dataset_id/attributes/export" in {
         // この項目のテストはレスポンス形式修正後に可能になる
-//        session {
-//          signIn()
-//          val datasetId = createDataset().id
-//          // UUIDチェック(dataset_id)
-//          val generator = (x: String) => s"/api/datasets/${x}/attributes/export"
-//          uuidCheckForUrl(GET, generator, datasetId)
-//        }
+        session {
+          signIn()
+          val datasetId = createDataset().id
+          // UUIDチェック(dataset_id)
+          val urlGenerator = (x: String) => s"/api/datasets/${x}/attributes/export"
+          val zeroSpaceUrl = urlGenerator("")
+          val moreSpaceUrl = urlGenerator(URLEncoder.encode("   ", "UTF-8"))
+          val invalidUrl = urlGenerator("test")
+          val validUrl = urlGenerator(datasetId)
+          get(zeroSpaceUrl) { parse(body).extract[AjaxResponse[Any]].status should be("NotFound") }
+          get(moreSpaceUrl) { parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") }
+          get(invalidUrl) { parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") }
+          get(validUrl) {
+            status should be(200)
+            // bodyの確認の代わりに、正常ケースで付与されるContent-Dispositionヘッダの有無で正常動作か否かを判定している
+            response.header.get("Content-Disposition").isDefined should be(true)
+          }
+        }
       }
 
       "POST /api/datasets/:dataset_id/attributes/import" in {
@@ -1691,7 +1702,7 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         put(zeroSpaceUrl, param, files) { parse(body).extract[AjaxResponse[Any]].status should be("NotFound") }
         put(moreSpaceUrl, param, files) { parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") }
         put(invalidUrl, param, files) { parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") }
-        put(validUrl, param, files) { println(body); parse(body).extract[AjaxResponse[Any]].status should be("OK") }
+        put(validUrl, param, files) { parse(body).extract[AjaxResponse[Any]].status should be("OK") }
       }
       case POST => {
         post(zeroSpaceUrl, param, files) { parse(body).extract[AjaxResponse[Any]].status should be("NotFound") }

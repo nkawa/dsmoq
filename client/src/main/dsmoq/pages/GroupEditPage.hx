@@ -1,6 +1,7 @@
 package dsmoq.pages;
 
 import conduitbox.Navigation;
+import dsmoq.models.ApiStatus;
 import dsmoq.models.GroupImage;
 import dsmoq.models.GroupMember;
 import dsmoq.models.GroupRole;
@@ -41,12 +42,8 @@ class GroupEditPage {
                 case _:
                     Promise.rejected(new ServiceError("", ServiceErrorType.Unauthorized));
             }
-        }).thenError(function (err) {
-            root.html(switch (err.name) {
-                case ServiceErrorType.NotFound: "Not found";
-                case ServiceErrorType.Unauthorized: "Permission denied";
-                default: "Network error";
-            });
+        }).thenError(function (err: Dynamic) {
+            root.html(err.responseJSON.status);
         }).then(function (res) {
             var data = {
                 myself: Service.instance.profile,
@@ -57,49 +54,49 @@ class GroupEditPage {
             var binding = JsViews.observable(data);
             rootBinding.setProperty("data", Async.Completed(data));
 
-			// CKEditor setting
-			var editor = CKEditor.replace("description");
-			editor.setData(data.group.description);
-			editor.on("change", function(evt) {
-				var text = editor.getData(false);
-				binding.setProperty('group.description', text);
-			});
-			
-			onClose.then(function(_) { 
-				editor.destroy();
-			} );
+            // CKEditor setting
+            var editor = CKEditor.replace("description");
+            editor.setData(data.group.description);
+            editor.on("change", function(evt) {
+                var text = editor.getData(false);
+                binding.setProperty('group.description', text);
+            });
+            
+            onClose.then(function(_) { 
+                editor.destroy();
+            } );
 
-			editor.on("on-click-dialog-button", function(evt) {
-				JQuery._(".cke_dialog_background_cover").css("z-index", "1000");
-				JQuery._(".cke_dialog ").css("z-index", "1010");
-				showSelectImageDialog(id, binding).then(function(image) {
-					JQuery._('.url-text input[type="text"]').val(image.url);
-					editor.fireOnce("on-close-dialog", image);
-				});
-			} );
-			
-			
+            editor.on("on-click-dialog-button", function(evt) {
+                JQuery._(".cke_dialog_background_cover").css("z-index", "1000");
+                JQuery._(".cke_dialog ").css("z-index", "1010");
+                showSelectImageDialog(id, binding).then(function(image) {
+                    JQuery._('.url-text input[type="text"]').val(image.url);
+                    editor.fireOnce("on-close-dialog", image);
+                });
+            } );
+            
+            
             function loadGroupMember() {
                 Service.instance.getGroupMembers(id).then(function (x) {
-					var members = {
-						index: Math.ceil(x.summary.offset / 20),
-						total: x.summary.total,
-						items: x.results,
-						pages: Math.ceil(x.summary.total / 20)
-					};	
-					binding.setProperty("members", Async.Completed(members));
-					JsViews.observe(members, "index", function (_, _) {
-						var i = members.index;
-						Service.instance.getGroupMembers(id, { offset: 20 * i, limit: 20 } ).then(function (x) {
-							var b = JsViews.observable(members);
-							b.setProperty("index", i);
-							b.setProperty("total", x.summary.total);
-							b.setProperty("items", x.results);
-							b.setProperty("pages", Math.ceil(x.summary.total / 20));
-						}, function (e) {
-							Notification.show("error", "error happened");
-						});
-					});
+                    var members = {
+                        index: Math.ceil(x.summary.offset / 20),
+                        total: x.summary.total,
+                        items: x.results,
+                        pages: Math.ceil(x.summary.total / 20)
+                    };    
+                    binding.setProperty("members", Async.Completed(members));
+                    JsViews.observe(members, "index", function (_, _) {
+                        var i = members.index;
+                        Service.instance.getGroupMembers(id, { offset: 20 * i, limit: 20 } ).then(function (x) {
+                            var b = JsViews.observable(members);
+                            b.setProperty("index", i);
+                            b.setProperty("total", x.summary.total);
+                            b.setProperty("items", x.results);
+                            b.setProperty("pages", Math.ceil(x.summary.total / 20));
+                        }, function (e) {
+                            Notification.show("error", "error happened");
+                        });
+                    });
                 });
             }
 
@@ -111,14 +108,15 @@ class GroupEditPage {
                 root.find("#group-basics").find("input,textarea").attr("disabled", true);
                 Service.instance.updateGroupBasics(id, data.group.name, data.group.description).then(function (_) {
                     Notification.show("success", "save successful");
-                }, function (err) {
-                    switch (err.name) {
-                        case ServiceErrorType.BadRequest:
-                            for (x in cast(err, ServiceError).detail) {
-                                binding.setProperty('groupErrors.${x.name}', x.message);
+                }, function (err: Dynamic) {
+                    switch (err.status) {
+                        case 400: // BadRequest
+                            switch (err.responseJSON.status) {
+                                case ApiStatus.IllegalArgument:
+                                    var name = StringTools.replace(err.responseJSON.data.key, "d\\.", "");
+                                    binding.setProperty('groupErrors.${name}', StringTools.replace(err.responseJSON.data.value, "d.", ""));
                             }
                     }
-                    Notification.show("error", "error happened");
                 }, function () {
                     BootstrapButton.reset(root.find("#group-basics-submit"));
                     root.find("#group-basics").find("input,textarea").removeAttr("disabled");
@@ -126,28 +124,18 @@ class GroupEditPage {
             });
 
             // icon tab -------------------------
-			root.find("#group-icon-select").on("click", function (_) {
-				showSelectImageDialog(id, binding).then(function(image) {
-					Service.instance.setGroupPrimaryImage(id, image.id).then(
-					    function (_) {
-							binding.setProperty("group.primaryImage.id", image.id);
-							binding.setProperty("group.primaryImage.url", image.url);
-							Notification.show("success", "save successful");
-						},
-						function (e) {
-							switch (e.name) {
-								case ServiceErrorType.NotFound:
-									Notification.show("error", "group not found");
-								case ServiceErrorType.Unauthorized: 
-									Notification.show("error", "permission denied");
-								default:
-									Notification.show("error", "error happened");
-							}
-						}
-					);
-				});				
+            root.find("#group-icon-select").on("click", function (_) {
+                showSelectImageDialog(id, binding).then(function(image) {
+                    Service.instance.setGroupPrimaryImage(id, image.id).then(
+                        function (_) {
+                            binding.setProperty("group.primaryImage.id", image.id);
+                            binding.setProperty("group.primaryImage.url", image.url);
+                            Notification.show("success", "save successful");
+                        }
+                    );
+                });                
             });
-			
+            
             // members tab ----------------------
             root.find("#group-members").on("click", "#add-member-menu-item", function (_) {
                 showAddMemberDialog().then(function (members) {
@@ -158,18 +146,6 @@ class GroupEditPage {
                         Notification.show("success", "save successful");
                     }, function (err) {
                         ViewTools.hideLoading("body");
-						switch (err.name) {
-							case ServiceErrorType.BadRequest:
-								for (x in cast(err, ServiceError).detail) {
-									Notification.show("error", x.message);
-								}								
-							case ServiceErrorType.NotFound:
-								Notification.show("error", "group not found");
-							case ServiceErrorType.Unauthorized: 
-								Notification.show("error", "permission denied");
-							default:
-								Notification.show("error", "error happened");
-						}
                     });
                 });
             });
@@ -191,19 +167,6 @@ class GroupEditPage {
                     getMemberByElement(e.currentTarget).iter(function (member) {
                         Service.instance.updateGroupMemberRole(id, member.id, member.role).then(function (_) {
                             Notification.show("success", "save successful");
-                        }, function (e) {
-							switch (e.name) {
-								case ServiceErrorType.BadRequest:
-									for (x in cast(e, ServiceError).detail) {
-										Notification.show("error", x.message);
-									}								
-								case ServiceErrorType.NotFound:
-									Notification.show("error", "group not found");
-								case ServiceErrorType.Unauthorized: 
-									Notification.show("error", "permission denied");
-								default:
-									Notification.show("error", "error happened");
-							}
                         });
                     });
                 });
@@ -222,12 +185,6 @@ class GroupEditPage {
                                     Notification.show("success", "remove successful");
                                 }, function (err) {
                                     ViewTools.hideLoading("body");
-									switch (err.name) {	
-										case ServiceErrorType.NotFound:
-											Notification.show("error", "member not found");
-										default:
-											Notification.show("error", "error happened");
-									}
                                 });
                         }
                     });
@@ -286,7 +243,7 @@ class GroupEditPage {
                     var user: User = e.target.item;
                     var ids = data.selectedIds.copy();
                     var b = JsViews.observable(data.selectedIds);
-					// 選択した場合、管理情報にデータを追加
+                    // 選択した場合、管理情報にデータを追加
                     if (args.value) {
                         if (ids.indexOf(user.id) < 0) {
                             ids.push(user.id);
@@ -332,8 +289,15 @@ class GroupEditPage {
             });
         });
     }
-	
-	static function showSelectImageDialog(id: String, rootBinding: Observable) {
+    
+    /**
+     * 画像選択ダイアログを表示する。
+     *
+     * @param id グループID
+     * @param rootBinding
+     * @return モーダルダイアログを表示するPromise
+     */
+    static function showSelectImageDialog(id: String, rootBinding: Observable) {
         var data = {
             offset: 0,
             hasPrev: false,
@@ -361,19 +325,19 @@ class GroupEditPage {
                     JsViews.observable(data.items).refresh(list);
                 });
             }
-			
+            
             function filterSelectedOwner() {
                 return data.items
                             .filter(function (x) return x.selected)
                             .map(function (x) return x.item);
             }
-			
-			function getUrl(id: String) {
-				return data.items.filter(function(x) {
-					return x.item.id == id;
-				}).map(function(x) return x.item.url)[0];
-			}
-			
+            
+            function getUrl(id: String) {
+                return data.items.filter(function(x) {
+                    return x.item.id == id;
+                }).map(function(x) return x.item.url)[0];
+            }
+            
             JsViews.observable(data.items).observeAll(function (e, args) {
                 if (args.path == "selected") {
                     var image: GroupImage = e.target.item;
@@ -394,102 +358,86 @@ class GroupEditPage {
 
             var binding = JsViews.observable(data.selectedIds).refresh([]);
             searchImageCandidate();
-			
-			html.find("#image-form input").on("change", function(_) {
-				var isPrevEnabled = html.find("#image-list-prev").attr("disabled") != "disabled";
-				var isNextEnabled = html.find("#image-list-next").attr("disabled") != "disabled";
-				
-				// ApplyとDeleteをDisableにするために必要
-				var b = JsViews.observable(data.selectedIds);
-				b.refresh([]);
-				html.find("#image-list-prev").attr("disabled", "disabled");
-				html.find("#image-list-next").attr("disabled", "disabled");
-				html.find("#select-image-dialog-cancel").attr("disabled", "disabled");
-				html.find("#upload-image").attr("disabled", "disabled");
-				// 直接Loadingを指定すると、内部のinput要素までloading-textで置き換わるため、模倣している。
-				// メッセージは内部のdivに担当させ、disableのみを#upload-imageボタンに設定する
-				BootstrapButton.setLoading(html.find("#upload-image > div"));
-				Service.instance.addGroupImages(id, html.find("#image-form")).then(
-				    function (_) {
+            
+            html.find("#image-form input").on("change", function(_) {
+                var isPrevEnabled = html.find("#image-list-prev").attr("disabled") != "disabled";
+                var isNextEnabled = html.find("#image-list-next").attr("disabled") != "disabled";
+                
+                // ApplyとDeleteをDisableにするために必要
+                var b = JsViews.observable(data.selectedIds);
+                b.refresh([]);
+                html.find("#image-list-prev").attr("disabled", "disabled");
+                html.find("#image-list-next").attr("disabled", "disabled");
+                html.find("#select-image-dialog-cancel").attr("disabled", "disabled");
+                html.find("#upload-image").attr("disabled", "disabled");
+                // 直接Loadingを指定すると、内部のinput要素までloading-textで置き換わるため、模倣している。
+                // メッセージは内部のdivに担当させ、disableのみを#upload-imageボタンに設定する
+                BootstrapButton.setLoading(html.find("#upload-image > div"));
+                Service.instance.addGroupImages(id, html.find("#image-form")).then(
+                    function (_) {
                         Notification.show("success", "save successful");
-						searchImageCandidate();
-						html.find("#image-form input").val("");
+                        searchImageCandidate();
+                        html.find("#image-form input").val("");
                     },
                     function (e) {
-						switch (e.name) {
-							case ServiceErrorType.NotFound:
-								Notification.show("error", "not found");
-							case ServiceErrorType.Unauthorized: 
-								Notification.show("error", "permission denied");
-							default:
-								Notification.show("error", "error happened");
-						}
+                        // Service内でNotificationを出力するようにしたため、この箇所でのNotification出力は不要。
+                        // このfunctionはfinally時に呼び出されるfunctionを指定するための引数の数合わせです。
                     },
-					function () {
-						BootstrapButton.reset(html.find("#upload-image > div"));
-						html.find("#upload-image").removeAttr("disabled");
+                    function () {
+                        BootstrapButton.reset(html.find("#upload-image > div"));
+                        html.find("#upload-image").removeAttr("disabled");
 
-						if (isPrevEnabled) {
-							html.find("#image-list-prev").removeAttr("disabled");
-						}
-						if (isNextEnabled) {
-							html.find("#image-list-next").removeAttr("disabled");
-						}
-						html.find("#select-image-dialog-cancel").removeAttr("disabled");
-					});
-			});
-			
-			html.find("#delete-image").on("click", function(_) { 
-				var isPrevEnabled = html.find("#image-list-prev").attr("disabled") != "disabled";
-				var isNextEnabled = html.find("#image-list-next").attr("disabled") != "disabled";
+                        if (isPrevEnabled) {
+                            html.find("#image-list-prev").removeAttr("disabled");
+                        }
+                        if (isNextEnabled) {
+                            html.find("#image-list-next").removeAttr("disabled");
+                        }
+                        html.find("#select-image-dialog-cancel").removeAttr("disabled");
+                    });
+            });
+            
+            html.find("#delete-image").on("click", function(_) { 
+                var isPrevEnabled = html.find("#image-list-prev").attr("disabled") != "disabled";
+                var isNextEnabled = html.find("#image-list-next").attr("disabled") != "disabled";
 
-				html.find("#upload-image").attr("disabled", "disabled");
-				html.find("#image-list-prev").attr("disabled", "disabled");
-				html.find("#image-list-next").attr("disabled", "disabled");
-				html.find("#select-image-dialog-cancel").attr("disabled", "disabled");
-				var selected = html.find("input:checked").val();
-				// 直接Loadingを指定すると、完了後に#delete-imageがアクティブになってしまうため、模倣している。
-				// メッセージは内部のdivに担当させ、disableのみを#delete-imageボタンに設定する
-				html.find("#delete-image").attr("disabled", "disabled");
-				BootstrapButton.setLoading(html.find("#delete-image > div"));
-				// ApplyをDisableにするために必要
-				var b = JsViews.observable(data.selectedIds);
-				b.refresh([]);
-				Service.instance.removeGroupImage(id, selected).then(
-				    function (ids) {
+                html.find("#upload-image").attr("disabled", "disabled");
+                html.find("#image-list-prev").attr("disabled", "disabled");
+                html.find("#image-list-next").attr("disabled", "disabled");
+                html.find("#select-image-dialog-cancel").attr("disabled", "disabled");
+                var selected = html.find("input:checked").val();
+                // 直接Loadingを指定すると、完了後に#delete-imageがアクティブになってしまうため、模倣している。
+                // メッセージは内部のdivに担当させ、disableのみを#delete-imageボタンに設定する
+                html.find("#delete-image").attr("disabled", "disabled");
+                BootstrapButton.setLoading(html.find("#delete-image > div"));
+                // ApplyをDisableにするために必要
+                var b = JsViews.observable(data.selectedIds);
+                b.refresh([]);
+                Service.instance.removeGroupImage(id, selected).then(
+                    function (ids) {
                         Notification.show("success", "delete successful");
-						searchImageCandidate();
-						binding.refresh([]);
-						rootBinding.setProperty("group.primaryImage.id", ids.primaryImage);
-						rootBinding.setProperty("group.primaryImage.url", getUrl(ids.primaryImage));
+                        searchImageCandidate();
+                        binding.refresh([]);
+                        rootBinding.setProperty("group.primaryImage.id", ids.primaryImage);
+                        rootBinding.setProperty("group.primaryImage.url", getUrl(ids.primaryImage));
                     },
                     function (e) {
-						switch (e.name) {
-							case ServiceErrorType.BadRequest:
-								for (x in cast(e, ServiceError).detail) {
-									Notification.show("error", x.message);
-								}
-							case ServiceErrorType.NotFound:
-								Notification.show("error", "not found");
-							case ServiceErrorType.Unauthorized: 
-								Notification.show("error", "permission denied");
-							default:
-								Notification.show("error", "error happened");
-						}
+                        // Service内でNotificationを出力するようにしたため、この箇所でのNotification出力は不要。
+                        // このfunctionはfinally時に呼び出されるfunctionを指定するための引数の数合わせです。
                     },
-					function () {
-						BootstrapButton.reset(html.find("#delete-image > div"));
-						html.find("#upload-image").removeAttr("disabled");
-						if (isPrevEnabled) {
-							html.find("#image-list-prev").removeAttr("disabled");
-						}
-						if (isNextEnabled) {
-							html.find("#image-list-next").removeAttr("disabled");
-						}
-						html.find("#select-image-dialog-cancel").removeAttr("disabled");
-					});
-			} );
-			
+                    function () {
+                        BootstrapButton.reset(html.find("#delete-image > div"));
+                        html.find("#upload-image").removeAttr("disabled");
+                        if (isPrevEnabled) {
+                            html.find("#image-list-prev").removeAttr("disabled");
+                        }
+                        if (isNextEnabled) {
+                            html.find("#image-list-next").removeAttr("disabled");
+                        }
+                        html.find("#select-image-dialog-cancel").removeAttr("disabled");
+                    });
+            } );
+            
             html.find("#image-list-prev").on("click", function (_) {
                 var offset = data.offset - ImageCandicateSize;
                 searchImageCandidate(offset);

@@ -189,13 +189,13 @@ class AuthenticationSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter
   private def datasetExpected(sessionUser: Boolean, allowGuest: Boolean, headers: Map[String, String]): Unit = {
     headers.get("Authorization") match {
       case None | Some("") => {
-        checkAjaxStatus(200, Some(if (sessionUser || allowGuest) "OK" else"AccessDenied"))
+        checkAjaxStatus(if (sessionUser || allowGuest) 200 else 403, Some(if (sessionUser || allowGuest) "OK" else"AccessDenied"))
       }
       case Some(v) if v.startsWith("api_key=5dac067a4c91de87ee04db3e3c34034e84eb4a599165bcc9741bb9a91e8212cb,signature=nFGVWB7iGxemC2D0wQ177hjla7Q") => {
         checkAjaxStatus()
       }
       case Some(_) => {
-        checkAjaxStatus(200, Some("Unauthorized"))
+        checkAjaxStatus(403, Some("Unauthorized"))
       }
     }
   }

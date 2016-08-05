@@ -9,9 +9,11 @@ import com.google.api.services.oauth2.Oauth2
 import org.joda.time.DateTime
 import java.util.ResourceBundle
 import java.util.UUID
-import scalikejdbc._
+import scalikejdbc.{DB, DBSession, update, select, sqls, withSQL}
+import scalikejdbc.interpolation.Implicits._
 import com.google.api.services.oauth2.model.Userinfoplus
 import scala.util.{Failure, Success}
+import dsmoq.ResourceNames
 import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.exceptions.AccessDeniedException
 import scala.collection.JavaConversions._
@@ -19,6 +21,11 @@ import scala.collection.JavaConversions._
 import com.typesafe.scalalogging.LazyLogging
 import org.slf4j.MarkerFactory
 
+/**
+ * GoogleAccountを取り扱うサービスクラス
+ *
+ * @param resource リソースバンドルのインスタンス
+ */
 class GoogleAccountService(resource: ResourceBundle) extends LazyLogging {
 
   /**
@@ -31,6 +38,14 @@ class GoogleAccountService(resource: ResourceBundle) extends LazyLogging {
       .setState(location).toURL.toString
   }
   
+  /**
+   * GoogleアカウントでOAuth認証を行います。
+   *
+   * @param authenticationCode 認証コード
+   * @return
+   *        Success(Googleアカウント情報) 成功時
+   *        Failure(AccessDeniedException) 設定された正規表現とメールアドレスがマッチしない場合
+   */
   def loginWithGoogle(authenticationCode: String) = {
     try {
       val googleAccount = getGoogleAccount(authenticationCode)
@@ -43,7 +58,7 @@ class GoogleAccountService(resource: ResourceBundle) extends LazyLogging {
       if (! matched) {
         // 設定された正規表現とメールアドレスがマッチしない場合
         logger.error(LOG_MARKER, "Login failed: access denied. [id] = {}, [email] = {}", googleAccount.getId, googleAccount.getEmail)
-        throw new AccessDeniedException
+        throw new AccessDeniedException(resource.getString(ResourceNames.INVALID_EMAIL_FORMAT))
       }
 
       logger.info(LOG_MARKER, "Allowed address: [id] = {}, [email] = {}", googleAccount.getId, googleAccount.getEmail)
