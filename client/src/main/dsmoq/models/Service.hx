@@ -12,6 +12,8 @@ import hxgnd.Stream;
 import hxgnd.js.JQuery;
 import hxgnd.js.JqHtml;
 
+import dsmoq.pages.Notification;
+
 class Service extends Stream<ServiceEvent> {
     public static inline var QueryLimit: UInt = 20;
 
@@ -312,7 +314,7 @@ class Service extends Stream<ServiceEvent> {
     }
     
     public function setDatasetImageFeatured(datasetId: String, imageId: String): Promise<Unit> {
-        return send(Put, '/api/datasets/$datasetId/images/$imageId/featured');
+        return send(Put, '/api/datasets/$datasetId/images/featured', { imageId: imageId });
     }
     
     public function getTags() : Promise<Array<TagDetail>> {
@@ -349,6 +351,14 @@ class Service extends Stream<ServiceEvent> {
         }
     }
 
+    /**
+     * AJAXを送信する。
+     *
+     * @param method HTTPメソッド
+     * @param url 送信するAPIのURL
+     * @param data 送信するデータ
+     * @return 処理結果のPromise
+     */
     function send<T>(method: RequestMethod, url: String, ?data: {}): Promise<T> {
         var str: String = method;
 
@@ -358,32 +368,59 @@ class Service extends Stream<ServiceEvent> {
             { d: Json.stringify(data) };
         }
 
-        var xhr = JQuery.ajax(url, {type: str, dataType: "json", cache: false, data: d});
-        return xhr.toPromise().flatMap(function (response: ApiResponse) {
-            if (!profile.isGuest) {
-                if (response.status == ApiStatus.Unauthorized) {
-                    profile = guest();
-                    update(SignedOut);
-                } else if (xhr.getResponseHeader("isGuest") == "true") {
-                    profile = guest();
-                    update(SessionTimeout);
-                }
+        var xhr = JQuery.ajax(url, { type: str, dataType: "json", cache: false, data: d });
+        return xhr.fail(function(err: Dynamic) {
+            trace(err);
+            switch (err.status) {
+                case 400: // BadRequest
+                    switch (err.responseJSON.status) {
+                        case ApiStatus.IllegalArgument:
+                            Notification.show("error", trimD(err.responseJSON.data.value));
+                        case _:
+                            Notification.show("error", trimD(err.responseJSON.data));
+                    }
+                case 404: // NotFound
+                    Notification.show("error", "NotFound");
+                case 403: // Forbidden
+                    switch (err.responseJSON.status) {
+                        case ApiStatus.Unauthorized:
+                            if (!profile.isGuest) {
+                                // ログインしている状態でUnauthorizedを受け取った場合、
+                                // セッションタイムアウトによってサーバー側ではログアウトしているが、
+                                // クライアント側ではログイン情報が更新されていない。
+                                // その為、クライアント側のログイン情報をゲスト化する必要がある。
+                                profile = guest();
+                                // サインアウト処理(TOPへリダイレクト)を行う
+                                update(SignedOut);
+                            }
+                    }
+                    Notification.show("error", trimD(err.responseJSON.data));
+                case _: // その他(500系など)
+                    Notification.show("error", "error happened");
             }
-            return switch (response.status) {
-                case ApiStatus.OK:
-                    Promise.fulfilled(cast response.data);
-                case ApiStatus.NotFound:
-                    Promise.rejected(new ServiceError("NotFound", NotFound));
-                case ApiStatus.BadRequest:
-                    Promise.rejected(new ServiceError(response.status, BadRequest, response.data));
-                case ApiStatus.Unauthorized:
-                    Promise.rejected(new ServiceError(response.status, Unauthorized));
-                case _:
-                    Promise.rejected(new ServiceError("Unknown", Unknown));
+        }).toPromise().flatMap(function (response: ApiResponse) {
+            trace(response);
+            if (!profile.isGuest && xhr.getResponseHeader("isGuest") == "true") {
+                // ログインしている状態でisGuestヘッダがtrueの場合、
+                // セッションタイムアウトによってサーバー側ではログアウトしているが、
+                // クライアント側ではログイン情報が更新されていない。
+                // その為、クライアント側のログイン情報をゲスト化する必要がある。
+                profile = guest();
+                // タイムアウト処理(再描画)を行う
+                update(SessionTimeout);
             }
+            return Promise.fulfilled(cast response.data);
         });
     }
 
+    /**
+     * FormをPOSTする。
+     *
+     * @param url 送信先のAPIのURL
+     * @param form 送信するForm
+     * @param optData 送信するデータ
+     * @return 処理結果のPromise
+     */
     function sendForm<T>(url: String, form: JqHtml, ?optData: {}): Promise<T> {
         return new Promise(function (ctx) {
             untyped form.ajaxSubmit({
@@ -392,26 +429,56 @@ class Service extends Stream<ServiceEvent> {
                 dataType: "json",
                 data: optData,
                 success: function (response) {
+                    trace(response);
                     switch (response.status) {
                         case ApiStatus.OK:
                             ctx.fulfill(cast response.data);
-                        case ApiStatus.NotFound:
-                            ctx.rejected(new ServiceError("NotFound", NotFound));
-                        case ApiStatus.BadRequest:
-                            ctx.reject(new ServiceError(response.status, BadRequest, response.data));
-                        case ApiStatus.Unauthorized:
-                            if (!profile.isGuest) {
-                                profile = guest();
-                                update(SignedOut);
-                            }
-                            ctx.reject(new ServiceError(response.status, Unauthorized));
                         case _:
                             ctx.reject(new ServiceError("Unknown", Unknown));
                     }
                 },
-                error: ctx.reject
+                error: function(err) {
+                    trace(err);
+                    ctx.reject(cast err);
+                    switch (err.status) {
+                        case 400: // BadRequest
+                            switch (err.responseJSON.status) {
+                                case ApiStatus.IllegalArgument:
+                                    Notification.show("error", trimD(err.responseJSON.data.value));
+                                case _:
+                                    Notification.show("error", trimD(err.responseJSON.data));
+                            }
+                        case 404: // NotFound
+                            Notification.show("error", "NotFound");
+                        case 403: // Forbidden
+                            switch (err.responseJSON.status) {
+                                case ApiStatus.Unauthorized:
+                                    if (!profile.isGuest) {
+                                        // ログインしている状態でUnauthorizedを受け取った場合、
+                                        // セッションタイムアウトによってサーバー側ではログアウトしているが、
+                                        // クライアント側ではログイン情報が更新されていない。
+                                        // その為、クライアント側のログイン情報をゲスト化する必要がある。
+                                        profile = guest();
+                                        update(SignedOut);
+                                    }
+                            }
+                            Notification.show("error", trimD(err.responseJSON.data));
+                        case _: // その他(500系など)
+                            Notification.show("error", "error happened");
+                    }
+                }
             });
         });
+    }
+
+    /**
+     * パラメータから"d."を削り、表示用に整形する。
+     *
+     * @param str 整形対象
+     * @return 整形後の文字列
+     */
+    function trimD(str: String): String {
+        return StringTools.replace(str, "d.", "");
     }
 }
 
@@ -450,12 +517,4 @@ class ServiceError extends Error {
 private typedef ApiResponse = {
     var status: ApiStatus;
     var data: Dynamic;
-}
-
-@:enum private abstract ApiStatus(String) to String {
-    var OK = "OK";
-    var NotFound = "NotFound";
-    var BadRequest = "BadRequest";
-    var Unauthorized = "Unauthorized";
-    var Error = "Error";
 }

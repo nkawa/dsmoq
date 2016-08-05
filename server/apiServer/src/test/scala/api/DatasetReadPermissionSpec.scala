@@ -131,7 +131,7 @@ class DatasetReadPermissionSpec extends FreeSpec with ScalatraSuite with BeforeA
             val fileId = getFileId(datasetId, dummyZipFile)
             post("/api/signout") { checkStatus() }
             get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles") {
-              status should be(200)
+              status should be(403)
               val result = parse(body).extract[AjaxResponse[Any]]
               result.status should be("AccessDenied")
             }
@@ -146,7 +146,7 @@ class DatasetReadPermissionSpec extends FreeSpec with ScalatraSuite with BeforeA
             post("/api/signout") { checkStatus() }
             post("/api/signin", dummyUserLoginParams) { checkStatus() }
             get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles") {
-              status should be(200)
+              status should be(403)
               val result = parse(body).extract[AjaxResponse[Any]]
               result.status should be("AccessDenied")
             }
@@ -218,7 +218,7 @@ class DatasetReadPermissionSpec extends FreeSpec with ScalatraSuite with BeforeA
             val fileId = getFileId(datasetId, dummyZipFile)
             post("/api/signout") { checkStatus() }
             get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles") {
-              status should be(200)
+              status should be(403)
               val result = parse(body).extract[AjaxResponse[Any]]
               result.status should be("AccessDenied")
             }
@@ -233,7 +233,7 @@ class DatasetReadPermissionSpec extends FreeSpec with ScalatraSuite with BeforeA
             post("/api/signout") { checkStatus() }
             post("/api/signin", dummyUserLoginParams) { checkStatus() }
             get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles") {
-              status should be(200)
+              status should be(403)
               val result = parse(body).extract[AjaxResponse[Any]]
               result.status should be("AccessDenied")
             }
@@ -247,7 +247,7 @@ class DatasetReadPermissionSpec extends FreeSpec with ScalatraSuite with BeforeA
             val fileId = getFileId(datasetId, dummyZipFile)
             post("/api/signout") { checkStatus() }
             get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles") {
-              status should be(200)
+              status should be(403)
               val result = parse(body).extract[AjaxResponse[Any]]
               result.status should be("AccessDenied")
             }
@@ -262,7 +262,7 @@ class DatasetReadPermissionSpec extends FreeSpec with ScalatraSuite with BeforeA
             post("/api/signout") { checkStatus() }
             post("/api/signin", dummyUserLoginParams) { checkStatus() }
             get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles") {
-              status should be(200)
+              status should be(403)
               val result = parse(body).extract[AjaxResponse[Any]]
               result.status should be("AccessDenied")
             }
@@ -414,7 +414,7 @@ class DatasetReadPermissionSpec extends FreeSpec with ScalatraSuite with BeforeA
         val datasetId = createPermissionedDataset(Some(DefaultAccessLevel.Deny), UserAccessLevel.Deny, GroupAccessLevel.Deny)
         post("/api/signout") { checkStatus() }
         get(getUrl(datasetId)) {
-          status should be(200)
+          status should be(403)
           val result = parse(body).extract[AjaxResponse[Any]]
           result.status should be("AccessDenied")
         }
@@ -428,7 +428,7 @@ class DatasetReadPermissionSpec extends FreeSpec with ScalatraSuite with BeforeA
         post("/api/signout") { checkStatus() }
         post("/api/signin", dummyUserLoginParams) { checkStatus() }
         get(getUrl(datasetId)) {
-          status should be(200)
+          status should be(403)
           val result = parse(body).extract[AjaxResponse[Any]]
           result.status should be("AccessDenied")
         }
@@ -487,7 +487,7 @@ class DatasetReadPermissionSpec extends FreeSpec with ScalatraSuite with BeforeA
         val datasetId = createPermissionedDataset(None, UserAccessLevel.Deny, GroupAccessLevel.Deny)
         post("/api/signout") { checkStatus() }
         get(getUrl(datasetId)) {
-          status should be(200)
+          status should be(403)
           val result = parse(body).extract[AjaxResponse[Any]]
           result.status should be("AccessDenied")
         }
@@ -501,7 +501,7 @@ class DatasetReadPermissionSpec extends FreeSpec with ScalatraSuite with BeforeA
         post("/api/signout") { checkStatus() }
         post("/api/signin", dummyUserLoginParams) { checkStatus() }
         get(getUrl(datasetId)) {
-          status should be(200)
+          status should be(403)
           val result = parse(body).extract[AjaxResponse[Any]]
           result.status should be("AccessDenied")
         }
@@ -514,7 +514,7 @@ class DatasetReadPermissionSpec extends FreeSpec with ScalatraSuite with BeforeA
         val datasetId = createDataset()
         post("/api/signout") { checkStatus() }
         get(getUrl(datasetId)) {
-          status should be(200)
+          status should be(403)
           val result = parse(body).extract[AjaxResponse[Any]]
           result.status should be("AccessDenied")
         }
@@ -528,7 +528,7 @@ class DatasetReadPermissionSpec extends FreeSpec with ScalatraSuite with BeforeA
         post("/api/signout") { checkStatus() }
         post("/api/signin", dummyUserLoginParams) { checkStatus() }
         get(getUrl(datasetId)) {
-          status should be(200)
+          status should be(403)
           val result = parse(body).extract[AjaxResponse[Any]]
           result.status should be("AccessDenied")
         }

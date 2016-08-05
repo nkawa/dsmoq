@@ -6,11 +6,13 @@ import dsmoq.models.DatasetImage;
 import dsmoq.models.DatasetPermission;
 import dsmoq.models.Profile;
 import dsmoq.models.Service;
+import dsmoq.models.ApiStatus;
 import dsmoq.views.AutoComplete;
 import dsmoq.models.GroupRole;
 import dsmoq.models.SuggestedOwner;
 import dsmoq.View;
 import dsmoq.views.ViewTools;
+import haxe.Json;
 import haxe.ds.Option;
 import haxe.Resource;
 import hxgnd.ArrayTools;
@@ -50,7 +52,8 @@ class DatasetEditPage {
         function setAttributeTypeahead(root: JqHtml) {
             AutoComplete.initialize(root.find(".attribute-typeahead"), {
                 url: function (query: String) {
-                    return '/api/suggests/attributes?query=${query}';
+                    var d = Json.stringify({query: StringTools.urlEncode(query)});
+                    return '/api/suggests/attributes?d=${d}';
                 },
                 filter: function (data: Dynamic) {
                     return if (data.status == "OK" && Std.is(data.data, Array)) {
@@ -82,12 +85,8 @@ class DatasetEditPage {
                     Promise.rejected(new ServiceError("", ServiceErrorType.Unauthorized));
             }
         })
-        .thenError(function (err) {
-            root.html(switch (err.name) {
-                case ServiceErrorType.NotFound: "Not found";
-                case ServiceErrorType.Unauthorized: "Permission denied";
-                default: "Network error";
-            });
+        .thenError(function (err: Dynamic) {
+            root.html(err.responseJSON.status);
         });
 
         promise.then(function (x) {
@@ -156,7 +155,8 @@ class DatasetEditPage {
             setAttributeTypeahead(root);
             AutoComplete.initialize(root.find("#dataset-owner-typeahead"), {
                 url: function (query: String) {
-                    return '/api/suggests/users_and_groups?query=${query}';
+                    var d = Json.stringify({query: StringTools.urlEncode(query)});
+                    return '/api/suggests/users_and_groups?d=${d}';
                 },
                 path: "name",
                 filter: function (data: Dynamic) {
@@ -210,18 +210,22 @@ class DatasetEditPage {
                         binding.setProperty('dataset.errors.meta.attributes', "");
                         Notification.show("success", "save successful");
                     },
-                    function (e) {
-                        switch (e.name) {
-                            case ServiceErrorType.BadRequest:
-                                binding.setProperty('dataset.errors.meta.name', "");
-                                binding.setProperty('dataset.errors.meta.description', "");
-                                binding.setProperty('dataset.errors.meta.license', "");
-                                binding.setProperty('dataset.errors.meta.attributes', "");
-                                for (x in cast(e, ServiceError).detail) {
-                                    binding.setProperty('dataset.errors.meta.${x.name}', x.message);
+                    function (e: Dynamic) {
+                        switch (e.status) {
+                            case 400: // BadRequest
+                                switch (e.responseJSON.status) {
+                                    case ApiStatus.IllegalArgument:
+                                        binding.setProperty('dataset.errors.meta.name', "");
+                                        binding.setProperty('dataset.errors.meta.description', "");
+                                        binding.setProperty('dataset.errors.meta.license', "");
+                                        binding.setProperty('dataset.errors.meta.attributes', "");
+                                        var name = StringTools.replace(e.responseJSON.data.key, "d\\.", "");
+                                        binding.setProperty('dataset.errors.meta.${name}', StringTools.replace(e.responseJSON.data.value, "d.", ""));
+                                    case ApiStatus.BadRequest:
+                                        binding.setProperty('dataset.errors.meta.license', "");
+                                        binding.setProperty('dataset.errors.meta.license', StringTools.replace(e.responseJSON.data, "d.", ""));
                                 }
                         }
-                        Notification.show("error", "error happened");
                     },
                     function () {
                         BootstrapButton.reset(root.find("#dataset-basics-submit"));
@@ -263,15 +267,15 @@ class DatasetEditPage {
                             binding.setProperty('dataset.errors.icon', "");
                             Notification.show("success", "save successful");
                         },
-                        function (e) {
-                            switch (e.name) {
-                                case ServiceErrorType.BadRequest:
-                                    binding.setProperty('dataset.errors.icon', "");
-                                    for (x in cast(e, ServiceError).detail) {
-                                        if (x.name == "file") binding.setProperty('dataset.errors.icon', x.message);
+                        function (e: Dynamic) {
+                            switch (e.status) {
+                                case 400: //BadRequest
+                                    switch (e.responseJSON.status) {
+                                        case ApiStatus.IllegalArgument :
+                                            binding.setProperty('dataset.errors.icon', "");
+                                            binding.setProperty('dataset.errors.icon', StringTools.replace(e.responseJSON.data.value, "d.", ""));
                                     }
                             }
-                            Notification.show("error", "error happened");
                         }
                     );
                 });
@@ -303,17 +307,8 @@ class DatasetEditPage {
                         JsViews.observable(data.dataset.updatedFiles).refresh(res);
                     },
                     function (e) {
-                        // FIXME: エラーレスポンスの変更に追従する
-                        switch (e.name) {
-                            case ServiceErrorType.BadRequest:
-                                Notification.show("error", "file is empty");
-                            case ServiceErrorType.NotFound:
-                                Notification.show("error", "dataset not found");
-                            case ServiceErrorType.Unauthorized:
-                                Notification.show("error", "permission denied");
-                            default:
-                                Notification.show("error", "error happened");
-                        }
+                        // Service内でNotificationを出力するようにしたため、この箇所でのNotification出力は不要。
+                        // このfunctionはfinally時に呼び出されるfunctionを指定するための引数の数合わせです。
                     },
                     function () {
                         BootstrapButton.reset(root.find(submitId));
@@ -373,8 +368,6 @@ class DatasetEditPage {
                             b.setProperty("total", x.summary.total);
                             b.setProperty("items", x.results);
                             b.setProperty("pages", Math.ceil(x.summary.total / 20));
-                        }, function (e) {
-                            Notification.show("error", "error happened");
                         });
                     });
                 });
@@ -408,14 +401,6 @@ class DatasetEditPage {
                         Notification.show("success", "save successful");
                     }, function (err) {
                         ViewTools.hideLoading("body");
-                        switch (err.name) {
-                            case ServiceErrorType.NotFound:
-                                Notification.show("error", "dataset not found");
-                            case ServiceErrorType.Unauthorized:
-                                Notification.show("error", "permission denied");
-                            default:
-                                Notification.show("error", "error happened");
-                        }
                     });
                 });
             });
@@ -433,15 +418,6 @@ class DatasetEditPage {
                         ).then(function (_) {
                             Notification.show("success", "save successful");
                             loadOwnerships();
-                        }, function (e) {
-                            switch (e.name) {
-                                case ServiceErrorType.NotFound:
-                                    Notification.show("error", "dataset not found");
-                                case ServiceErrorType.Unauthorized:
-                                    Notification.show("error", "permission denied");
-                                default:
-                                    Notification.show("error", "error happened");
-                            }
                         });
                     });
                 });
@@ -463,14 +439,6 @@ class DatasetEditPage {
                                     Notification.show("success", "remove successful");
                                 }, function (err) {
                                     ViewTools.hideLoading("body");
-                                    switch (err.name) {
-                                        case ServiceErrorType.NotFound:
-                                            Notification.show("error", "dataset not found");
-                                        case ServiceErrorType.Unauthorized:
-                                            Notification.show("error", "permission denied");
-                                        default:
-                                            Notification.show("error", "error happened");
-                                    }
                                 }
                             );
                         }
@@ -486,14 +454,8 @@ class DatasetEditPage {
                         Notification.show("success", "save successful");
                     },
                     function (e) {
-                        switch (e.name) {
-                            case ServiceErrorType.NotFound:
-                                Notification.show("error", "dataset not found");
-                            case ServiceErrorType.Unauthorized:
-                                Notification.show("error", "permission denied");
-                            default:
-                                Notification.show("error", "error happened");
-                        }
+                        // Service内でNotificationを出力するようにしたため、この箇所でのNotification出力は不要。
+                        // このfunctionはfinally時に呼び出されるfunctionを指定するための引数の数合わせです。
                     },
                     function () {
                         BootstrapButton.reset(root.find("#dataset-guest-access-submit"));
@@ -510,16 +472,8 @@ class DatasetEditPage {
                         Notification.show("success", "save successful");
                     },
                     function (e) {
-                        switch (e.name) {
-                            case ServiceErrorType.BadRequest:
-                                Notification.show("error", "select check box");
-                            case ServiceErrorType.NotFound:
-                                Notification.show("error", "dataset not found");
-                            case ServiceErrorType.Unauthorized:
-                                Notification.show("error", "permission denied");
-                            default:
-                                Notification.show("error", "error happened");
-                        }
+                        // Service内でNotificationを出力するようにしたため、この箇所でのNotification出力は不要。
+                        // このfunctionはfinally時に呼び出されるfunctionを指定するための引数の数合わせです。
                     },
                     function () {
                         BootstrapButton.reset(root.find("#dataset-storage-submit"));
@@ -536,9 +490,6 @@ class DatasetEditPage {
                             binding.setProperty("dataset.featuredImage.id", image.id);
                             binding.setProperty("dataset.featuredImage.url", image.url);
                             Notification.show("success", "save successful");
-                        },
-                        function (e) {
-                            Notification.show("error", "error happened");
                         }
                     );
                 });
@@ -548,6 +499,12 @@ class DatasetEditPage {
         return navigation.promise;
     }
 
+    /**
+     * オーナーを追加するダイアログを表示する。
+     *
+     * @param myself ログインユーザ情報
+     * @return モーダルダイアログを表示するPromise
+     */
     static function showAddOwnerDialog(myself: Profile) {
         var data = {
             query: "",
@@ -641,6 +598,13 @@ class DatasetEditPage {
         });
     }
     
+    /**
+     * 画像を選択するダイアログを表示する。
+     *
+     * @param id データセットID
+     * @param rootBinding JsViewsのObservable
+     * @return モーダルダイアログを表示するPromise
+     */
     static function showSelectImageDialog(id: String, rootBinding: Observable) {
         var data = {
             offset: 0,
@@ -727,14 +691,8 @@ class DatasetEditPage {
 
                     },
                     function (e) {
-                        switch (e.name) {
-                            case ServiceErrorType.NotFound:
-                                Notification.show("error", "not found");
-                            case ServiceErrorType.Unauthorized:
-                                Notification.show("error", "permission denied");
-                            default:
-                                Notification.show("error", "error happened");
-                        }
+                        // Service内でNotificationを出力するようにしたため、この箇所でのNotification出力は不要。
+                        // このfunctionはfinally時に呼び出されるfunctionを指定するための引数の数合わせです。
                     },
                     function () {
                         BootstrapButton.reset(html.find("#upload-image > div"));
@@ -777,18 +735,8 @@ class DatasetEditPage {
                         rootBinding.setProperty("dataset.featuredImage.url", getUrl(ids.featuredImage));
                     },
                     function (e) {
-                        switch (e.name) {
-                            case ServiceErrorType.BadRequest:
-                                for (x in cast(e, ServiceError).detail) {
-                                    Notification.show("error", x.message);
-                                }
-                            case ServiceErrorType.NotFound:
-                                Notification.show("error", "not found");
-                            case ServiceErrorType.Unauthorized:
-                                Notification.show("error", "permission denied");
-                            default:
-                                Notification.show("error", "error happened");
-                        }
+                        // Service内でNotificationを出力するようにしたため、この箇所でのNotification出力は不要。
+                        // このfunctionはfinally時に呼び出されるfunctionを指定するための引数の数合わせです。
                     },
                     function() {
                         BootstrapButton.reset(html.find("#delete-image > div"));
@@ -846,16 +794,24 @@ class DatasetEditPage {
             JsViews.observable(data.dataset.files.items).refresh(res.results);
             setFileCount(data, res.summary.total);
             JsViews.observable(data.dataset.files).setProperty("useProgress", false);
-        }, function (err) {
-            // FIXME: エラーレスポンスの変更に追従する
+        }, function (err: Dynamic) {
             JsViews.observable(data.dataset.files).setProperty("useProgress", false);
-            switch (err.name) {
-                case ServiceErrorType.Unauthorized:
-                    navigation.fulfill(Navigation.Navigate(Page.Top));
-                case ServiceErrorType.NotFound:
-                    navigation.fulfill(Navigation.Navigate(Page.Top));
-                default:
-                    trace(err);
+            switch (err.status) {
+                case 400: // BadRequest
+                    switch (err.responseJSON.status) {
+                        case ApiStatus.BadRequest: navigation.fulfill(Navigation.Navigate(Page.Top));
+                        case ApiStatus.IllegalArgument: navigation.fulfill(Navigation.Navigate(Page.Top));
+                    }
+                case 403: // Forbidden
+                    switch (err.responseJSON.status) {
+                        case ApiStatus.Unauthorized: navigation.fulfill(Navigation.Navigate(Page.Top));
+                        case ApiStatus.AccessDenied: navigation.fulfill(Navigation.Navigate(Page.Top));
+                    }
+                case 404: // NotFound
+                    switch (err.responseJSON.status) {
+                        case ApiStatus.NotFound: navigation.fulfill(Navigation.Navigate(Page.Top));
+                    }
+                case _: // その他(500系など)
                     root.html("Network error");
             }
         });
@@ -955,14 +911,8 @@ class DatasetEditPage {
                         JsViews.observable(data.dataset.updatedFiles).refresh([res]);
                     },
                     function (e) {
-                        // FIXME: エラーレスポンスの変更に追従する
-                        switch (e.name) {
-                            case ServiceErrorType.BadRequest:
-                                for (x in cast(e, ServiceError).detail) {
-                                    binding.setProperty('errors.${x.name}', x.message);
-                                }
-                        }
-                        Notification.show("error", "error happened");
+                        // Service内でNotificationを出力するようにしたため、この箇所でのNotification出力は不要。
+                        // このfunctionはfinally時に呼び出されるfunctionを指定するための引数の数合わせです。
                     },
                     function () {
                         btns.removeAttr("disabled");
@@ -1009,17 +959,8 @@ class DatasetEditPage {
                         JsViews.observable(data.dataset.updatedFiles).refresh([res]);
                     },
                     function (e) {
-                        // FIXME: エラーレスポンスの変更に追従する
-                        switch (e.name) {
-                            case ServiceErrorType.BadRequest:
-                                Notification.show("error", "file is empty");
-                            case ServiceErrorType.NotFound:
-                                Notification.show("error", "dataset not found");
-                            case ServiceErrorType.Unauthorized:
-                                Notification.show("error", "permission denied");
-                            default:
-                                Notification.show("error", "error happened");
-                        }
+                        // Service内でNotificationを出力するようにしたため、この箇所でのNotification出力は不要。
+                        // このfunctionはfinally時に呼び出されるfunctionを指定するための引数の数合わせです。
                     },
                     function () {
                         btns.removeAttr("disabled");
@@ -1044,17 +985,8 @@ class DatasetEditPage {
                     loadFiles(data, root, navigation);
                 },
                 function (e) {
-                    // FIXME: エラーレスポンスの変更に追従する
-                    if (e.message != "Canceled") {
-                        switch (e.name) {
-                            case ServiceErrorType.NotFound:
-                                Notification.show("error", "dataset not found");
-                            case ServiceErrorType.Unauthorized:
-                                Notification.show("error", "permission denied");
-                            default:
-                                Notification.show("error", "error happened");
-                        }
-                    }
+                    // Service内でNotificationを出力するようにしたため、この箇所でのNotification出力は不要。
+                    // このfunctionはfinally時に呼び出されるfunctionを指定するための引数の数合わせです。
                 },
                 function () {
                     btns.removeAttr("disabled");

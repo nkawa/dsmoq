@@ -1,7 +1,7 @@
 package dsmoq.services
 
 import java.io.{
-  ByteArrayInputStream, FileOutputStream,
+  ByteArrayInputStream, Closeable, FileOutputStream,
   InputStream, InputStreamReader,
   SequenceInputStream
 }
@@ -28,7 +28,8 @@ import org.json4s.JsonDSL._
 import org.json4s.jackson.JsonMethods.{compact, render}
 import org.json4s.{JInt, JBool}
 import org.scalatra.servlet.FileItem
-import scalikejdbc._
+import scalikejdbc.{DB, DBSession, delete, update, select, SelectSQLBuilder, sqls, SubQuery, withSQL}
+import scalikejdbc.interpolation.Implicits._
 
 import dsmoq.AppConf
 import dsmoq.ResourceNames
@@ -47,6 +48,11 @@ import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.services.json.{DatasetData, Image, RangeSlice, RangeSliceSummary}
 import dsmoq.services.json.DatasetData.{DatasetOwnership, DatasetZipedFile, CopiedDataset, DatasetTask}
 
+/**
+ * データセット関連の操作を取り扱うサービスクラス
+ *
+ * @param resource リソースバンドルのインスタンス
+ */
 class DatasetService(resource: ResourceBundle) extends LazyLogging {
 
   /**
@@ -719,9 +725,24 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     // FIXME チェック時、user権限はUserAccessLevelクラス, groupの場合はGroupAccessLevelクラスの定数を使用する
     // (UserAndGroupAccessLevel.DENY 定数を削除する)
     if (permission == UserAndGroupAccessLevel.DENY) {
-      throw new AccessDeniedException
+      throw new AccessDeniedException(resource.getString(ResourceNames.NO_ACCESS_PERMISSION))
     }
     permission
+  }
+
+  /**
+   * 指定したデータセットの存在をチェックします。
+   * @param datasetId データセットID
+   * @param session DBセッション
+   * @return 取得したデータセット情報
+   * @throws NotFoundException データセットが存在しなかった場合
+   */
+  private def checkDatasetExisitence(datasetId: String)(implicit session: DBSession): persistence.Dataset = {
+    // データセットが存在しない場合例外
+    getDataset(datasetId) match {
+      case Some(x) => x
+      case None => throw new NotFoundException
+    }
   }
 
   /**
@@ -736,11 +757,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(id, "id")
       CheckUtil.checkNull(user, "user")
       DB readOnly { implicit s =>
-        // データセットが存在しない場合例外
-        val dataset = getDataset(id) match {
-          case Some(x) => x
-          case None => throw new NotFoundException
-        }
+        val dataset = checkDatasetExisitence(id)
         val permission = checkReadPermission(id, user)
         val guestAccessLevel = getGuestAccessLevel(id)
         val owners = getAllOwnerships(id, user)
@@ -794,8 +811,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(user, "user")
       DB localTx { implicit s =>
         datasetAccessabilityCheck(id, user)
-
-        val dataset = getDataset(id).get
+        val dataset = checkDatasetExisitence(id)
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
         val f = files.map(f => {
@@ -891,7 +907,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         val timestamp = DateTime.now()
         val historyId = UUID.randomUUID.toString
 
-        val dataset = getDataset(datasetId).get
+        val dataset = checkDatasetExisitence(datasetId)
         updateFileNameAndSize(
           fileId,
           historyId,
@@ -961,14 +977,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   }
 
   private def fileAccessabilityCheck(datasetId: String, fileId: String, user: User)(implicit s: DBSession) {
-    datasetAccessabilityCheck(datasetId, user)
     if (!existsFile(datasetId, fileId)) throw new NotFoundException
+    datasetAccessabilityCheck(datasetId, user)
   }
 
   private def datasetAccessabilityCheck(datasetId: String, user: User)(implicit s: DBSession) {
     getDataset(datasetId) match {
       case Some(x) =>
-        if (!isOwner(user.id, datasetId)) throw new AccessDeniedException
+        if (!isOwner(user.id, datasetId)) throw new AccessDeniedException(resource.getString(ResourceNames.ONLY_ALLOW_DATASET_OWNER))
       case None =>
         throw new NotFoundException
     }
@@ -1115,7 +1131,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
-        val dataset = getDataset(id).get
+        val dataset = checkDatasetExisitence(id)
 
         // S3 to local
         val taskId = if (dataset.localState == SaveStatus.NOT_SAVED && (dataset.s3State == SaveStatus.SAVED || dataset.s3State == SaveStatus.SYNCHRONIZING) && saveLocal) {
@@ -1200,13 +1216,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       val trimmedAttributes = attributes.map(x => x.name -> StringUtil.trimAllSpaces(x.value))
 
       DB localTx { implicit s =>
+        datasetAccessabilityCheck(id, user)
         persistence.License.find(license) match {
           case None => throw new BadRequestException(resource.getString(ResourceNames.INVALID_LICENSEID).format(license))
           case Some(_) => // do nothing
         }
-
-        datasetAccessabilityCheck(id, user)
-
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
 
@@ -1356,8 +1370,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(images, "images")
       CheckUtil.checkNull(user, "user")
       DB localTx { implicit s =>
-        if (!isOwner(user.id, datasetId)) throw new AccessDeniedException
-
+        checkDatasetExisitence(datasetId)
+        if (!isOwner(user.id, datasetId)) throw new AccessDeniedException(resource.getString(ResourceNames.ONLY_ALLOW_DATASET_OWNER))
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
         val primaryImage = getPrimaryImageId(datasetId)
@@ -1415,17 +1429,24 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
 
   /**
    * 指定したデータセットのプライマリ画像を変更します。
- *
-   * @param datasetId
-   * @param imageId
-   * @param user
+   *
+   * @param datasetId データセットID
+   * @param imageId 画像ID
+   * @param user ログインユーザ情報
    * @return
+   *        Success(DatasetData.ChangeDatasetImage) 変更後の画像ID
+   *        Failure(NullPointerException) 引数がnullの場合
+   *        Failure(NotFoundException) データセット、または画像が見つからない場合
+   *        Failure(AccessDeniedException) ログインユーザに編集権限がない場合
    */
-  def changePrimaryImage(datasetId: String, imageId: String, user: User): Try[Unit] = {
+  def changePrimaryImage(datasetId: String, imageId: String, user: User): Try[DatasetData.ChangeDatasetImage] = {
     try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(imageId, "imageId")
+      CheckUtil.checkNull(user, "user")
       DB localTx { implicit s =>
-        datasetAccessabilityCheck(datasetId, user)
         if (!existsImage(datasetId, imageId)) throw new NotFoundException
+        datasetAccessabilityCheck(datasetId, user)
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -1434,7 +1455,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         // 対象以外のイメージをPrimary以外に変更
         turnOffPrimaryOtherImage(datasetId, imageId, myself, timestamp)
 
-        Success(Unit)
+        Success(DatasetData.ChangeDatasetImage(imageId))
       }
     } catch {
       case e: Throwable => Failure(e)
@@ -1872,7 +1893,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       getPermission(datasetId, groups)
     }
     if (permission < UserAndGroupAccessLevel.ALLOW_DOWNLOAD) {
-      return Failure(new AccessDeniedException)
+      return Failure(new AccessDeniedException(resource.getString(ResourceNames.NO_DOWNLOAD_PERMISSION)))
     }
     Success(())
   }
@@ -2685,7 +2706,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
-  private def use[T1 <: Closable, T2](resource: T1)(f: T1 => T2): T2 = {
+  private def use[T1 <: Closeable, T2](resource: T1)(f: T1 => T2): T2 = {
     try {
       f(resource)
     } finally {
@@ -2710,6 +2731,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(datasetId, "datasetId")
       CheckUtil.checkNull(user, "user")
       DB readOnly { implicit s =>
+        checkDatasetExisitence(datasetId)
         checkReadPermission(datasetId, user)
         val a = persistence.Annotation.a
         val da = persistence.DatasetAnnotation.da
@@ -2750,6 +2772,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(limit, "limit")
       CheckUtil.checkNull(user, "user")
       DB readOnly { implicit s =>
+        checkDatasetExisitence(datasetId)
         checkReadPermission(datasetId, user)
         val o = persistence.Ownership.o
         val u = persistence.User.u
@@ -2874,6 +2897,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(limit, "limit")
       CheckUtil.checkNull(user, "user")
       DB readOnly { implicit s =>
+        checkDatasetExisitence(datasetId)
         checkReadPermission(datasetId, user)
         val di = persistence.DatasetImage.di
         val i = persistence.Image.i
@@ -2923,11 +2947,26 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
-  def changeFeaturedImage(datasetId: String, imageId: String, user: User): Try[Unit] = {
+  /**
+   * 指定したデータセットのFeatured画像を変更します。
+   *
+   * @param datasetId データセットID
+   * @param imageId 画像ID
+   * @param user ログインユーザ情報
+   * @return
+   *        Success(DatasetData.ChangeDatasetImage) 変更後の画像ID
+   *        Failure(NullPointerException) 引数がnullの場合
+   *        Failure(NotFoundException) データセット、または画像が見つからない場合
+   *        Failure(AccessDeniedException) ログインユーザに編集権限がない場合
+   */
+  def changeFeaturedImage(datasetId: String, imageId: String, user: User): Try[DatasetData.ChangeDatasetImage] = {
     try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(imageId, "imageId")
+      CheckUtil.checkNull(user, "user")
       DB localTx { implicit s =>
-        datasetAccessabilityCheck(datasetId, user)
         if (!existsImage(datasetId, imageId)) throw new NotFoundException
+        datasetAccessabilityCheck(datasetId, user)
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -2936,7 +2975,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         // 対象以外のイメージをFeatured以外に変更
         turnOffFeaturedOtherImage(datasetId, imageId, myself, timestamp)
 
-        Success(Unit)
+        Success(DatasetData.ChangeDatasetImage(imageId))
       }
     } catch {
       case e: Throwable => Failure(e)
@@ -3144,10 +3183,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(offset, "offset")
       CheckUtil.checkNull(user, "user")
       DB readOnly { implicit s =>
-        val dataset = getDataset(datasetId) match {
-          case Some(x) => x
-          case None => throw new NotFoundException
-        }
+        val dataset = checkDatasetExisitence(datasetId)
         checkReadPermission(datasetId, user)
         val validatedLimit = limit.map{ x =>
           if(x < 0) { 0 } else if (AppConf.fileLimit < x) { AppConf.fileLimit } else { x }
@@ -3185,10 +3221,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(offset, "offset")
       CheckUtil.checkNull(user, "user")
       DB readOnly { implicit s =>
-        val dataset = getDataset(datasetId) match {
-          case Some(x) => x
-          case None => throw new NotFoundException
-        }
+        val dataset = checkDatasetExisitence(datasetId)
         val history = persistence.File.find(fileId).flatMap(file => persistence.FileHistory.find(file.historyId)) match {
           case Some(x) => 
             if (x.isZip) { x }

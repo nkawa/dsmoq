@@ -125,9 +125,8 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
             }
           } else {
             get("/api/datasets/" + params._1) {
-              println(body)
               // AccessDenied 
-              status should be(200)
+              status should be(403)
               val result = parse(body).extract[AjaxResponse[Any]]
               result.status should be("AccessDenied")
             }
@@ -151,7 +150,7 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
           } else {
             get("/api/datasets/" + params._1) {
               // AccessDenied 
-              status should be(200)
+              status should be(403)
               val result = parse(body).extract[AjaxResponse[Any]]
               result.status should be("AccessDenied")
             }
@@ -175,7 +174,7 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
           } else {
             get("/api/datasets/" + params._1) {
               // AccessDenied 
-              status should be(200)
+              status should be(403)
               val result = parse(body).extract[AjaxResponse[Any]]
               result.status should be("AccessDenied")
             }

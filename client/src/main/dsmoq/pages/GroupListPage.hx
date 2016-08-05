@@ -40,8 +40,6 @@ class GroupListPage {
                     items: x.results,
                     pages: Math.ceil(x.summary.total / 20)
                 }));
-            }, function (err) {
-                Notification.show("error", "error happened");
             });
         }
 

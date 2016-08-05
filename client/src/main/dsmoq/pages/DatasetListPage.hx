@@ -20,6 +20,12 @@ import js.html.KeyboardEvent;
 import js.Lib;
 
 class DatasetListPage {
+
+    /**
+     * 1ページあたりに表示するデータセットの件数
+     */
+    static inline var DATASET_LIMIT_PER_PAGE: Int = 20;
+
     public static function render(root: Html, onClose: Promise<Unit>, pageNum: Int, query: String, filters: Dynamic): Promise<Navigation<Page>> {
         var navigation = new PromiseBroker();
         var condition = {
@@ -30,7 +36,7 @@ class DatasetListPage {
         var binding = JsViews.observable({
             condition: condition,
             result: Async.Pending,
-			tag: new Array<TagDetail>()
+            tag: new Array<TagDetail>()
         });
 
         View.getTemplate("dataset/list").link(root, binding.data());
@@ -48,33 +54,28 @@ class DatasetListPage {
 
             binding.setProperty("result", Async.Pending);
 
-			Service.instance.getTags().then(function(x) {
-				binding.setProperty("tag", x);
-				Service.instance.findDatasets({
-					query: (condition.query != "") ? condition.query : null,
-					owners: owners,
-					groups: groups,
-					attributes: attrs,
-					offset: 20 * condition.index,
-					limit: 20
-				}).then(function (x) {
-					binding.setProperty("result", Async.Completed({
-						total: x.summary.total,
-						items: x.results,
-						pages: Math.ceil(x.summary.total / 20)
-					}));
-				}, function (err) {
-					trace(err);
-					Notification.show("error", "error happened");
-				});
-            }, function (err) {
-                Notification.show("error", "error happened");
-			});
+            Service.instance.getTags().then(function(x) {
+                binding.setProperty("tag", x);
+                Service.instance.findDatasets({
+                    query: (condition.query != "") ? condition.query : null,
+                    owners: owners,
+                    groups: groups,
+                    attributes: attrs,
+                    offset: DATASET_LIMIT_PER_PAGE * condition.index,
+                    limit: DATASET_LIMIT_PER_PAGE
+                }).then(function (x) {
+                    binding.setProperty("result", Async.Completed({
+                        total: x.summary.total,
+                        items: x.results,
+                        pages: Math.ceil(x.summary.total / DATASET_LIMIT_PER_PAGE)
+                    }));
+                });
+            });
         }
 
         // observe binding
         JsViews.observe(condition, "filters", function (_, _) {
-			navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, StringTools.urlEncode(condition.query), condition.filters)));
+            navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, StringTools.urlEncode(condition.query), condition.filters)));
         });
         JsViews.observe(condition, "index", function (_, args) {
             var page = args.value + 1;
@@ -83,13 +84,13 @@ class DatasetListPage {
 
         // init search form
         JQuery._("#search-button").on("click", function (_) {
-			navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, StringTools.urlEncode(condition.query), condition.filters)));
+            navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, StringTools.urlEncode(condition.query), condition.filters)));
         });
 
-		JQuery._("#search-form").on("submit", function (_) {
-			navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, StringTools.urlEncode(condition.query), condition.filters)));
-			return false;
-		});
+        JQuery._("#search-form").on("submit", function (_) {
+            navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, StringTools.urlEncode(condition.query), condition.filters)));
+            return false;
+        });
 
         BootstrapPopover.initialize("#add-filter-button", {
             content: JQuery._("#filter-add-form").children(),
@@ -109,7 +110,7 @@ class DatasetListPage {
             JQuery._("#filter-owner-input").val("");
             AutoComplete.initialize("#filter-owner-input", {
                 url: function (query: String) {
-					var d = Json.stringify({query: StringTools.urlEncode(query)});
+                    var d = Json.stringify({query: StringTools.urlEncode(query)});
                     return '/api/suggests/users_and_groups?d=${d}';
                 },
                 path: "name",
@@ -128,8 +129,8 @@ class DatasetListPage {
             });
             JQuery._("#filter-owner-apply").on("click", function (_) {
                 var item = AutoComplete.getCompletedItem("#filter-owner-input");
-				var name = JQuery._("#filter-owner-input").val();
-				var filter = if(item == null) { name: name, fullname: name, dataType: 1 } else item;
+                var name = JQuery._("#filter-owner-input").val();
+                var filter = if(item == null) { name: name, fullname: name, dataType: 1 } else item;
                 JsViews.observable(binding.data().condition.filters).insert({
                     type: 'owner',
                     item: filter
@@ -143,8 +144,8 @@ class DatasetListPage {
             JQuery._("#filter-attribute-value-input").val("");
             AutoComplete.initialize("#filter-attribute-name-input", {
                 url: function (query: String) {
-					var q = StringTools.urlEncode(query);
-                    return '/api/suggests/attributes?query=${q}';
+                    var d = Json.stringify({query: StringTools.urlEncode(query)});
+                    return '/api/suggests/attributes?d=${d}';
                 },
                 filter: function (data: Dynamic) {
                     return if (data.status == "OK" && Std.is(data.data, Array)) {
@@ -161,7 +162,7 @@ class DatasetListPage {
             });
             JQuery._("#filter-attribute-apply").on("click", function (_) {
                 var item = AutoComplete.getCompletedItem("#filter-attribute-name-input");
-				var name = if(item == null) JQuery._("#filter-attribute-name-input").val() else item;
+                var name = if(item == null) JQuery._("#filter-attribute-name-input").val() else item;
                 JsViews.observable(binding.data().condition.filters).insert({
                     type: "attribute",
                     item: { name: StringTools.urlEncode(name), value: StringTools.urlEncode(JQuery._("#filter-attribute-value-input").val()) }

@@ -129,4 +129,12 @@ object DatasetData {
   case class DatasetGuestAccessLevel(
     defaultAccessLevel: Int
   )
+
+  /**
+   * データセットに設定した画像IDを返却するためのJSON型
+   * @param imageId 画像ID
+   */
+  case class ChangeDatasetImage(
+    imageId: String
+  )
 }

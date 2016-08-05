@@ -1,6 +1,7 @@
 package dsmoq.pages;
 
 import conduitbox.Navigation;
+import dsmoq.models.ApiStatus;
 import dsmoq.models.Service;
 import dsmoq.Page;
 import dsmoq.views.ViewTools;
@@ -91,20 +92,24 @@ class ProfilePage {
                         binding.setProperty("basics.errors.image", "");
                         Notification.show("success", "save successful");
                     },
-                    function (e) {
-                        switch (e.name) {
-                            case ServiceErrorType.BadRequest:
-                                binding.setProperty("basics.errors.name", "");
-                                binding.setProperty("basics.errors.fullname", "");
-                                binding.setProperty("basics.errors.organization", "");
-                                binding.setProperty("basics.errors.title", "");
-                                binding.setProperty("basics.errors.description", "");
-                                binding.setProperty("basics.errors.image", "");
-                                for (x in cast(e, ServiceError).detail) {
-                                    binding.setProperty('basics.errors.${x.name}', x.message);
+                    function (e: Dynamic) {
+                        switch (e.status) {
+                            case 400: // BadRequest
+                                switch (e.responseJSON.status) {
+                                    case ApiStatus.IllegalArgument:
+                                        binding.setProperty("basics.errors.name", "");
+                                        binding.setProperty("basics.errors.fullname", "");
+                                        binding.setProperty("basics.errors.organization", "");
+                                        binding.setProperty("basics.errors.title", "");
+                                        binding.setProperty("basics.errors.description", "");
+                                        binding.setProperty("basics.errors.image", "");
+                                        var name = StringTools.replace(e.responseJSON.data.key, "d.", "");
+                                        binding.setProperty('basics.errors.${name}', StringTools.replace(e.responseJSON.data.value, "d.", ""));
+                                    case ApiStatus.BadRequest:
+                                        binding.setProperty("basics.errors.name", "");
+                                        binding.setProperty('basics.errors.name', StringTools.replace(e.responseJSON.data, "d.", ""));
                                 }
                         }
-                        Notification.show("error", "error happened");
                     },
                     function () {
                         BootstrapButton.reset(root.find("#basics-form-submit"));
@@ -122,15 +127,16 @@ class ProfilePage {
                     binding.setProperty("icon.errors.image", "");
                     ViewTools.hideLoading("body");
                     Notification.show("success", "save successful");
-                }, function (e) {
-                    switch (e.name) {
-                        case ServiceErrorType.BadRequest:
-                            for (x in cast(e, ServiceError).detail) {
-                                binding.setProperty('email.errors.${x.name}', x.message);
+                }, function (e: Dynamic) {
+                    switch (e.status) {
+                        case 400: // BadRequest
+                            switch (e.responseJSON.status) {
+                                case ApiStatus.IllegalArgument:
+                                    binding.setProperty("icon.errors.image", "");
+                                    binding.setProperty('icon.errors.image', StringTools.replace(e.responseJSON.data.value, "d.", ""));
                             }
                     }
                     ViewTools.hideLoading("body");
-                    Notification.show("error", "error happened");
                 });
             });
 
@@ -141,14 +147,18 @@ class ProfilePage {
                         binding.setProperty("email.errors.email", "");
                         Notification.show("success", "save successful");
                     },
-                    function (e) {
-                        switch (e.name) {
-                            case ServiceErrorType.BadRequest:
-                                for (x in cast(e, ServiceError).detail) {
-                                    binding.setProperty('email.errors.${x.name}', x.message);
+                    function (e: Dynamic) {
+                        switch (e.status) {
+                            case 400: // BadRequest
+                                switch (e.responseJSON.status) {
+                                    case ApiStatus.IllegalArgument:
+                                        binding.setProperty("email.errors.email", "");
+                                        binding.setProperty('email.errors.email', StringTools.replace(e.responseJSON.data.value, "d.", ""));
+                                    case ApiStatus.BadRequest:
+                                        binding.setProperty("email.errors.email", "");
+                                        binding.setProperty('email.errors.email', StringTools.replace(e.responseJSON.data.value, "d.", ""));
                                 }
                         }
-                        Notification.show("error", "error happened");
                     }, function () {
                         BootstrapButton.reset(root.find("#email-form-submit"));
                         if (isGoogleUser) {
@@ -175,22 +185,24 @@ class ProfilePage {
                         binding.setProperty("password.errors.verifyValue", "");
                         Notification.show("success", "save successful");
                     },
-                    function (e) {
-                        switch (e.name) {
-                            case ServiceErrorType.BadRequest:
-                                binding.setProperty("password.errors.currentValue", "");
-                                binding.setProperty("password.errors.newValue", "");
-                                binding.setProperty("password.errors.verifyValue", "");
-                                for (x in cast(e, ServiceError).detail) {
-                                    var name = switch (x.name) {
-                                        case "new_password": "newValue";
-                                        case "current_password": "currentValue";
-                                        case _: x.name;
-                                    }
-                                    binding.setProperty('password.errors.${name}', x.message);
+                    function (e: Dynamic) {
+                        switch (e.status) {
+                            case 400: // BadRequest
+                                switch (e.responseJSON.status) {
+                                    case ApiStatus.IllegalArgument:
+                                        binding.setProperty("password.errors.currentValue", "");
+                                        binding.setProperty("password.errors.newValue", "");
+                                        var name = switch (e.responseJSON.data.key) {
+                                            case "d.currentPassword": "newValue";
+                                            case "d.newPassword": "currentValue";
+                                            case _: e.responseJSON.data.key;
+                                        };
+                                        binding.setProperty('password.errors.${name}', StringTools.replace(e.responseJSON.data.value, "d.", ""));
+                                    case ApiStatus.BadRequest:
+                                        binding.setProperty("password.errors.verifyValue", "");
+                                        binding.setProperty('password.errors.verifyValue', StringTools.replace(e.responseJSON.data.value, "d.", ""));
                                 }
                         }
-                        Notification.show("error", "error happened");
                     },
                     function () {
                         BootstrapButton.reset(root.find("#password-form-submit"));
