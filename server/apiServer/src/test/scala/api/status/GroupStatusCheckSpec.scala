@@ -1228,7 +1228,7 @@ class GroupStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAft
             val groupId = createGroup().id
             addMember(groupId, dummyUserId)
             val userId = dummyUserId
-            val params = Map("d" -> compact(render(("role" -> JInt(3)))))
+            val params = Map("d" -> compact(render(("role" -> JInt(2)))))
             signOut()
             dummySignIn()
             put(s"/api/groups/${groupId}/members/${userId}", params) {

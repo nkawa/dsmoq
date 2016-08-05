@@ -1429,17 +1429,24 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
 
   /**
    * 指定したデータセットのプライマリ画像を変更します。
- *
-   * @param datasetId
-   * @param imageId
-   * @param user
+   *
+   * @param datasetId データセットID
+   * @param imageId 画像ID
+   * @param user ログインユーザ情報
    * @return
+   *        Success(DatasetData.ChangeDatasetImage) 変更後の画像ID
+   *        Failure(NullPointerException) 引数がnullの場合
+   *        Failure(NotFoundException) データセット、または画像が見つからない場合
+   *        Failure(AccessDeniedException) ログインユーザに編集権限がない場合
    */
-  def changePrimaryImage(datasetId: String, imageId: String, user: User): Try[Unit] = {
+  def changePrimaryImage(datasetId: String, imageId: String, user: User): Try[DatasetData.ChangeDatasetImage] = {
     try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(imageId, "imageId")
+      CheckUtil.checkNull(user, "user")
       DB localTx { implicit s =>
-        datasetAccessabilityCheck(datasetId, user)
         if (!existsImage(datasetId, imageId)) throw new NotFoundException
+        datasetAccessabilityCheck(datasetId, user)
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -1448,7 +1455,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         // 対象以外のイメージをPrimary以外に変更
         turnOffPrimaryOtherImage(datasetId, imageId, myself, timestamp)
 
-        Success(Unit)
+        Success(DatasetData.ChangeDatasetImage(imageId))
       }
     } catch {
       case e: Throwable => Failure(e)
@@ -2940,11 +2947,26 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
-  def changeFeaturedImage(datasetId: String, imageId: String, user: User): Try[Unit] = {
+  /**
+   * 指定したデータセットのFeatured画像を変更します。
+   *
+   * @param datasetId データセットID
+   * @param imageId 画像ID
+   * @param user ログインユーザ情報
+   * @return
+   *        Success(DatasetData.ChangeDatasetImage) 変更後の画像ID
+   *        Failure(NullPointerException) 引数がnullの場合
+   *        Failure(NotFoundException) データセット、または画像が見つからない場合
+   *        Failure(AccessDeniedException) ログインユーザに編集権限がない場合
+   */
+  def changeFeaturedImage(datasetId: String, imageId: String, user: User): Try[DatasetData.ChangeDatasetImage] = {
     try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(imageId, "imageId")
+      CheckUtil.checkNull(user, "user")
       DB localTx { implicit s =>
-        datasetAccessabilityCheck(datasetId, user)
         if (!existsImage(datasetId, imageId)) throw new NotFoundException
+        datasetAccessabilityCheck(datasetId, user)
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -2953,7 +2975,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         // 対象以外のイメージをFeatured以外に変更
         turnOffFeaturedOtherImage(datasetId, imageId, myself, timestamp)
 
-        Success(Unit)
+        Success(DatasetData.ChangeDatasetImage(imageId))
       }
     } catch {
       case e: Throwable => Failure(e)

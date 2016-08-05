@@ -538,8 +538,10 @@ class ApiController(val resource: ResourceBundle) extends ScalatraServlet
       _       <- checkUtil.validUuidForForm("d.imageId", imageId)
       _       <- checkUtil.validUuidForUrl("datasetId", datasetId)
       user    <- getUser(allowGuest = false)
-      _       <- datasetService.changeFeaturedImage(datasetId, imageId, user)
-    } yield {}
+      result  <- datasetService.changeFeaturedImage(datasetId, imageId, user)
+    } yield {
+      result
+    }
     toActionResult(ret)
   }
 
@@ -696,8 +698,10 @@ class ApiController(val resource: ResourceBundle) extends ScalatraServlet
       _       <- checkUtil.validUuidForForm("d.imageId", imageId)
       _       <- checkUtil.validUuidForUrl("groupId", groupId)
       user    <- getUser(allowGuest = false)
-      _       <- groupService.changePrimaryImage(groupId, imageId, user)
-    } yield {}
+      result  <- groupService.changePrimaryImage(groupId, imageId, user)
+    } yield {
+      result
+    }
     toActionResult(ret)
   }
 

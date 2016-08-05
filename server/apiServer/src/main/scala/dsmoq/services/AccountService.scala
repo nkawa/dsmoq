@@ -374,7 +374,7 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
             isDeleted = false
           ))
         }
-        case None => None
+        case _ => None
       }
     }
   }

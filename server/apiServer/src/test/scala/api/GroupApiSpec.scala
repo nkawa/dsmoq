@@ -280,7 +280,6 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
           get("/api/groups/" + groupId + "/members") {
             checkStatus()
-            println(groupId)
             val result = parse(body).extract[AjaxResponse[RangeSlice[MemberSummary]]]
             assert(!result.data.results.map(_.id).contains(dummyUserUUID))
           }

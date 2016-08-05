@@ -96,7 +96,6 @@ class ResponseFormatSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter
           signIn()
           val groupId = createGroup()
           val files = Map("images" -> dummyImage)
-          println(dummyFile.exists)
           post(s"/api/groups/${groupId}/images", Map.empty, files) {
             status should be(200)
             parse(body).extract[AjaxResponse[GroupAddImages]]

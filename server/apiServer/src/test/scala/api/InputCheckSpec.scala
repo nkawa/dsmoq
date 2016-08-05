@@ -1702,7 +1702,7 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         put(zeroSpaceUrl, param, files) { parse(body).extract[AjaxResponse[Any]].status should be("NotFound") }
         put(moreSpaceUrl, param, files) { parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") }
         put(invalidUrl, param, files) { parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") }
-        put(validUrl, param, files) { println(body); parse(body).extract[AjaxResponse[Any]].status should be("OK") }
+        put(validUrl, param, files) { parse(body).extract[AjaxResponse[Any]].status should be("OK") }
       }
       case POST => {
         post(zeroSpaceUrl, param, files) { parse(body).extract[AjaxResponse[Any]].status should be("NotFound") }

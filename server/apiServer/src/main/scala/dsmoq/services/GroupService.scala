@@ -719,12 +719,12 @@ class GroupService(resource: ResourceBundle) {
    * @param imageId 画像ID
    * @param user ログインユーザ情報
    * @return
-   *        Sucess(Unit) 画像変更が成功した場合
+   *        Success(GroupData.ChangeGroupImage) 変更後の画像ID
    *        Failure(NullPointerException) 引数がnullの場合
    *        Failure(NotFoundException) グループ、または画像が見つからない場合
    *        Failure(AccessDeniedException) ログインユーザがグループのマネージャでない場合
    */
-  def changePrimaryImage(groupId: String, imageId: String, user: User): Try[Unit] = {
+  def changePrimaryImage(groupId: String, imageId: String, user: User): Try[GroupData.ChangeGroupImage] = {
     try {
       CheckUtil.checkNull(groupId, "groupId")
       CheckUtil.checkNull(imageId, "imageId")
@@ -739,7 +739,7 @@ class GroupService(resource: ResourceBundle) {
         turnGroupImageToPrimary(groupId, imageId, myself, timestamp)
         // 対象以外のイメージをPrimary以外に
         turnOffPrimaryOtherGroupImage(groupId, imageId, myself, timestamp)
-        Success(Unit)
+        Success(GroupData.ChangeGroupImage(imageId))
       }
     } catch {
       case e: Throwable => Failure(e)

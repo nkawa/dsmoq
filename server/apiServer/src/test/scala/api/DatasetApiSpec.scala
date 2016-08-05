@@ -95,7 +95,6 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           get("/api/datasets", params) {
             status should be(200)
             val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
-            println(result.data.summary)
             result.data.summary.count should be(10)
             assert(result.data.results.map(_.id).contains(datasetId))
           }
@@ -271,7 +270,6 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           val anotherFile = new File("build.sbt")
           val anotherFileParam = Map("file" -> anotherFile)
           val url = post("/api/datasets/" + datasetId + "/files/" + fileId, Map.empty, anotherFileParam) {
-            println(body)
             checkStatus()
             val result = parse(body).extract[AjaxResponse[DatasetFile]]
             result.data.id should be(fileId)
@@ -596,7 +594,6 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             )))
           )
           post("/api/datasets/" + datasetId + "/acl", params) {
-            println(body)
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Seq[DatasetOwnership]]]
             assert(result.data.map(_.id) contains(groupId))
@@ -756,9 +753,6 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           get("/api/datasets/" + datasetId) {
             status should be(200)
             val result = parse(body).extract[AjaxResponse[Dataset]].data.ownerships
-            // debug write
-            println(datasetId)
-            println(body)
 
             val loginUserId = "023bfa40-e897-4dad-96db-9fd3cf001e79"
             // ログインユーザーのowner権限、ownerのuser、ownerのグループ、full public(read)のユーザー、
