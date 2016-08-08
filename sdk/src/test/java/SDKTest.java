@@ -211,8 +211,9 @@ public class SDKTest {
         DsmoqClient client = create();
         Dataset dataset = client.createDataset(true, false, new File("README.md"));
         String datasetId = dataset.getId();
-        client.changeGuestAccessLevel(datasetId, new SetGuestAccessLevelParam(3));
-        assertThat(client.getDataset(datasetId).getPermission(), is(3));
+        assertThat(dataset.getDefaultAccessLevel(), is(0));
+        client.changeGuestAccessLevel(datasetId, new SetGuestAccessLevelParam(2));
+        assertThat(client.getDataset(datasetId).getDefaultAccessLevel(), is(2));
     }
 
     @Test
@@ -355,40 +356,34 @@ public class SDKTest {
     @Test
     public void 拡張子なしのファイルをダウンロードできるか() throws IOException {
         DsmoqClient client = create();
-        File original = Files.createFile(Paths.get("hoge")).toFile();
-        Dataset dataset = client.createDataset(true, false, new File("hoge"));
+        Dataset dataset = client.createDataset(true, false, new File("testdata/hoge"));
         String datasetId = dataset.getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
         String fileName = client.downloadFile(datasetId, fileId, content -> content.getName());
         assertThat(fileName, is("hoge"));
-        original.delete();
     }
 
     @Test
     public void ファイル名にドットを含むファイルをダウンロードできるか() throws IOException {
         DsmoqClient client = create();
-        File original = Files.createFile(Paths.get("a.b.txt")).toFile();
-        Dataset dataset = client.createDataset(true, false, new File("a.b.txt"));
+        Dataset dataset = client.createDataset(true, false, new File("testdata/a.b.txt"));
         String datasetId = dataset.getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
         String fileName = client.downloadFile(datasetId, fileId, content -> content.getName());
         assertThat(fileName, is("a.b.txt"));
-        original.delete();
     }
 
     @Test
     public void マルチバイトのファイル名のファイルをダウンロードできるか() throws IOException {
         DsmoqClient client = create();
-        File original = Files.createFile(Paths.get("表予申能十ソ.txt")).toFile();
-        Dataset dataset = client.createDataset(true, false, new File("表予申能十ソ.txt"));
+        Dataset dataset = client.createDataset(true, false, new File("testdata/表予申能十ソ.txt"));
         String datasetId = dataset.getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
         String fileName = client.downloadFile(datasetId, fileId, content -> content.getName());
         assertThat(fileName, is("表予申能十ソ.txt"));
-        original.delete();
     }
 
     @Test
@@ -748,24 +743,21 @@ public class SDKTest {
 
     @Test
     public void 不正なデータセットを作成しようとすると例外が発生() {
-        thrown.expect(ApiFailedException.class);
-        thrown.expectCause(instanceOf(InputValidationException.class));
+        thrown.expect(HttpStatusException.class);
         DsmoqClient client = create();
-        client.createDataset(false, false);
+        client.createDataset(false, false, new File("README.md"));
     }
 
     @Test
     public void 存在しないデータセットを取得すると例外が発生() {
-        thrown.expect(ApiFailedException.class);
-        thrown.expectCause(instanceOf(NotFoundException.class));
+        thrown.expect(HttpStatusException.class);
         DsmoqClient client = create();
         Dataset dataset = client.getDataset("1050f556-7fee-4032-81e7-326e5f1b82fb");
     }
 
     @Test
     public void 権限のないのないデータセットを取得すると例外が発生() {
-        thrown.expect(ApiFailedException.class);
-        thrown.expectCause(instanceOf(NotAuthorizedException.class));
+        thrown.expect(HttpStatusException.class);
         DsmoqClient client = create();
         Dataset dataset = client.createDataset("hello", true, false);
         DsmoqClient client2 = DsmoqClient.create("http://localhost:8080", "3d2357cd53e8738ae21fbc86e15bd441c497191cf785163541ffa907854d2649", "731cc0646e8012632f58bb7d1912a77e8072c7f128f2d09f0bebc36ac0c1a579");

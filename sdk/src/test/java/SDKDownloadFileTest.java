@@ -218,10 +218,8 @@ public class SDKDownloadFileTest {
     }
 
     private void checkFileName(String originalFileName) throws IOException {
-        File original = Files.createFile(Paths.get(originalFileName)).toFile();
         DsmoqClient client = create();
-        Dataset dataset = client.createDataset(true, false, new File(originalFileName));
-        original.delete();
+        Dataset dataset = client.createDataset(true, false, new File("testdata/" + originalFileName));
         String datasetId = dataset.getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();

@@ -15,6 +15,7 @@ import jp.ac.nagoya_u.dsmoq.sdk.request.GetGroupsParam;
 import jp.ac.nagoya_u.dsmoq.sdk.request.GetMembersParam;
 import jp.ac.nagoya_u.dsmoq.sdk.request.GetRangeParam;
 import jp.ac.nagoya_u.dsmoq.sdk.request.SetAccessLevelParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.SetFeaturedImageToDatasetParam;
 import jp.ac.nagoya_u.dsmoq.sdk.request.SetGuestAccessLevelParam;
 import jp.ac.nagoya_u.dsmoq.sdk.request.SetMemberRoleParam;
 import jp.ac.nagoya_u.dsmoq.sdk.request.SetPrimaryImageParam;
@@ -102,6 +103,7 @@ import java.util.stream.Collectors;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireNotEmpty;
 import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireNotNull;
 import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireNotNullAll;
 import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireGreaterOrEqualOrNull;
@@ -193,6 +195,7 @@ public class DsmoqClient {
      * @param files Datasetに設定するファイル(複数可)
      * @return 作成したDataset
      * @throws NullPointerException files、あるいはfilesの要素のいずれかがnullの場合
+     * @throws NoSuchElementException filesの要素が存在しない場合
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
      * @throws TimeoutException 接続がタイムアウトした場合
      * @throws ConnectionLostException 接続が失敗した、または失われた場合
@@ -200,25 +203,9 @@ public class DsmoqClient {
      */
     public Dataset createDataset(boolean saveLocal, boolean saveS3, File... files) {
         requireNotNull(files, "at files in createDataset");
+        requireNotEmpty(files, "at files in createDataset");
         requireNotNullAll(files, "at files[%d] in createDataset");
-        logger.debug(LOG_MARKER, "createDataset start : [saveLocal] = {}, [saveS3] = {}, [files size] = {}", saveLocal, saveS3, (files != null) ? files.length : "null");
-        try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/datasets"))) {
-            addAuthorizationHeader(request);
-            MultipartEntityBuilder builder = MultipartEntityBuilder.create();
-            // MultipartEntityBuilderのモード互換モードを設定
-            builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
-            // MultipartEntityBuilderの文字コードにutf-8を設定
-            builder.setCharset(StandardCharsets.UTF_8);
-            Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("file[]", file));
-            builder.addTextBody("saveLocal", saveLocal ? "true" : "false");
-            builder.addTextBody("saveS3", saveS3 ? "true" : "false");
-            request.setEntity(builder.build());
-            String json = executeWithStringResponse(request);
-            logger.debug(LOG_MARKER, "createDataset end : receive json = {}", json);
-            return JsonUtil.toDataset(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return createDataset(files[0].getName(), saveLocal, saveS3, files);
     }
 
     /**
@@ -234,21 +221,7 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public Dataset createDataset(String name, boolean saveLocal, boolean saveS3) {
-        requireNotNull(name, "at name in createDataset");
-        logger.debug(LOG_MARKER, "createDataset start : [name] = {}, [saveLocal] = {}, [saveS3] = {}", name, saveLocal, saveS3);
-        try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/datasets"))) {
-            addAuthorizationHeader(request);
-            MultipartEntityBuilder builder = MultipartEntityBuilder.create();
-            builder.addTextBody("name", name, TEXT_PLAIN_UTF8);
-            builder.addTextBody("saveLocal", saveLocal ? "true" : "false");
-            builder.addTextBody("saveS3", saveS3 ? "true" : "false");
-            request.setEntity(builder.build());
-            String json = executeWithStringResponse(request);
-            logger.debug(LOG_MARKER, "createDataset end : receive json = {}", json);
-            return JsonUtil.toDataset(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return createDataset(name, saveLocal, saveS3, new File[0]);
     }
 
     /**
@@ -394,8 +367,7 @@ public class DsmoqClient {
         requireNotNull(fileId, "at fileId in deleteFile");
         try (AutoHttpDelete request = new AutoHttpDelete((_baseUrl + String.format("/api/datasets/%s/files/%s", datasetId, fileId)))) {
             addAuthorizationHeader(request);
-            String json = executeWithStringResponse(request);
-            JsonUtil.statusCheck(json);
+            executeWithStringResponse(request);
         } catch (Exception e) {
             throw translateInnerException(e);
         }
@@ -419,8 +391,7 @@ public class DsmoqClient {
             List<NameValuePair> params = new ArrayList<>();
             params.add(new BasicNameValuePair("d", param.toJsonString()));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
-            String json = executeWithStringResponse(request);
-            JsonUtil.statusCheck(json);
+            executeWithStringResponse(request);
         } catch (Exception e) {
             throw translateInnerException(e);
         }
@@ -471,8 +442,7 @@ public class DsmoqClient {
             List<NameValuePair> params = new ArrayList<>();
             params.add(new BasicNameValuePair("d", param.toJsonString()));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
-            String json = executeWithStringResponse(request);
-            JsonUtil.statusCheck(json);
+            executeWithStringResponse(request);
         } catch (Exception e) {
             throw translateInnerException(e);
         }
@@ -609,8 +579,7 @@ public class DsmoqClient {
             List<NameValuePair> params = new ArrayList<>();
             params.add(new BasicNameValuePair("d", param.toJsonString()));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
-            String json = executeWithStringResponse(request);
-            JsonUtil.statusCheck(json);
+            executeWithStringResponse(request);
         } catch (Exception e) {
             throw translateInnerException(e);
         }
@@ -629,8 +598,7 @@ public class DsmoqClient {
         requireNotNull(datasetId, "at datasetId in deleteDataset");
         try (AutoHttpDelete request = new AutoHttpDelete(_baseUrl + String.format("/api/datasets/%s", datasetId))) {
             addAuthorizationHeader(request);
-            String json = executeWithStringResponse(request);
-            JsonUtil.statusCheck(json);
+            executeWithStringResponse(request);
         } catch (Exception e) {
             throw translateInnerException(e);
         }
@@ -701,8 +669,7 @@ public class DsmoqClient {
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             builder.addBinaryBody("file", file);
             request.setEntity(builder.build());
-            String json = executeWithStringResponse(request);
-            JsonUtil.statusCheck(json);
+            executeWithStringResponse(request);
         } catch (Exception e) {
             throw translateInnerException(e);
         }
@@ -749,7 +716,7 @@ public class DsmoqClient {
     }
 
     /**
-     * データセットに一覧で表示するFeatured Dataset画像を設定する。（PUT /api/datasets/${dataset_id}/image/${image_id}/featured相当）
+     * データセットに一覧で表示するFeatured Dataset画像を設定する。（PUT /api/datasets/${dataset_id}/images/featured相当）
      * @param datasetId DatasetID
      * @param imageId 指定する画像ID
      * @throws NullPointerException datasetId、imageIdのいずれかがnullの場合
@@ -761,10 +728,12 @@ public class DsmoqClient {
     public void setFeaturedImageToDataset(String datasetId, String imageId) {
         requireNotNull(datasetId, "at datasetId in setFeaturedImageToDataset");
         requireNotNull(imageId, "at imageId in setFeaturedImageToDataset");
-        try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/datasets/%s/images/%s/featured", datasetId, imageId))) {
+        try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/datasets/%s/images/featured", datasetId))) {
             addAuthorizationHeader(request);
-            String json = executeWithStringResponse(request);
-            JsonUtil.statusCheck(json);
+            List<NameValuePair> params = new ArrayList<>();
+            params.add(new BasicNameValuePair("d", new SetFeaturedImageToDatasetParam(imageId).toJsonString()));
+            request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
+            executeWithStringResponse(request);
         } catch (Exception e) {
             throw translateInnerException(e);
         }
@@ -1148,8 +1117,7 @@ public class DsmoqClient {
             List<NameValuePair> params = new ArrayList<>();
             params.add(new BasicNameValuePair("d", param.toJsonString()));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
-            String json = executeWithStringResponse(request);
-            JsonUtil.statusCheck(json);
+            executeWithStringResponse(request);
         } catch (Exception e) {
             throw translateInnerException(e);
         }
@@ -1214,8 +1182,7 @@ public class DsmoqClient {
             List<NameValuePair> requestParams = new ArrayList<>();
             requestParams.add(new BasicNameValuePair("d", AddMemberParam.toJsonString(params)));
             request.setEntity(new UrlEncodedFormEntity(requestParams, StandardCharsets.UTF_8));
-            String json = executeWithStringResponse(request);
-            JsonUtil.statusCheck(json);
+            executeWithStringResponse(request);
         } catch (Exception e) {
             throw translateInnerException(e);
         }
@@ -1241,8 +1208,7 @@ public class DsmoqClient {
             List<NameValuePair> params = new ArrayList<>();
             params.add(new BasicNameValuePair("d", param.toJsonString()));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
-            String json = executeWithStringResponse(request);
-            JsonUtil.statusCheck(json);
+            executeWithStringResponse(request);
         } catch (Exception e) {
             throw translateInnerException(e);
         }
@@ -1263,8 +1229,7 @@ public class DsmoqClient {
         requireNotNull(userId, "at userId in deleteMember");
         try (AutoHttpDelete request = new AutoHttpDelete((_baseUrl + String.format("/api/groups/%s/members/%s", groupId, userId)))) {
             addAuthorizationHeader(request);
-            String json = executeWithStringResponse(request);
-            JsonUtil.statusCheck(json);
+            executeWithStringResponse(request);
         } catch (Exception e) {
             throw translateInnerException(e);
         }
@@ -1283,8 +1248,7 @@ public class DsmoqClient {
         requireNotNull(groupId, "at groupId in deleteGroup");
         try (AutoHttpDelete request = new AutoHttpDelete((_baseUrl + String.format("/api/groups/%s", groupId)))) {
             addAuthorizationHeader(request);
-            String json = executeWithStringResponse(request);
-            JsonUtil.statusCheck(json);
+            executeWithStringResponse(request);
         } catch (Exception e) {
             throw translateInnerException(e);
         }
@@ -1396,8 +1360,7 @@ public class DsmoqClient {
             List<NameValuePair> params = new ArrayList<>();
             params.add(new BasicNameValuePair("d", param.toJsonString()));
             request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
-            String json = executeWithStringResponse(request);
-            JsonUtil.statusCheck(json);
+            executeWithStringResponse(request);
         } catch (Exception e) {
             throw translateInnerException(e);
         }
@@ -1572,10 +1535,10 @@ public class DsmoqClient {
      * @param e 内部で送出される例外
      * @return 公開用に翻訳された例外
      */
-    private static RuntimeException translateInnerException(Exception e) {
+    private RuntimeException translateInnerException(Exception e) {
         logger.error(LOG_MARKER, "Error occured. [message]:{}", e.getMessage());
         if (e instanceof ErrorRespondedException) {
-            return new HttpStatusException(((ErrorRespondedException) e).getStatusCode());
+            return new HttpStatusException(((ErrorRespondedException) e).getStatusCode(), e);
         }
         if (e instanceof SocketTimeoutException) {
             return new TimeoutException(e.getMessage(), e);

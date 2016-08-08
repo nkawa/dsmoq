@@ -1,6 +1,7 @@
 package jp.ac.nagoya_u.dsmoq.sdk.util;
 
 import java.util.Collection;
+import java.util.NoSuchElementException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,6 +53,32 @@ public class CheckUtil {
         for (T param: params) {
             requireNotNull(param, String.format(position, i));
             i ++;
+        }
+    }
+
+    /**
+     * コレクションの要素に対して非空チェックを行う。
+     * @param params チェック対象のコレクション
+     * @param position チェック位置(String.formatでチェックに違反した要素のインデックスが入ります)
+     * @throws NoSuchElementException 引数が空の場合
+     */
+    public static <T> void requireNotEmpty(Collection<T> params, String position) {
+        if (params != null && params.isEmpty()) {
+            logger.warn(LOG_MARKER, "invalid parameter - empty ({})", position);
+            throw new NoSuchElementException(String.format("invalid parameter - empty (%s)", position));
+        }
+    }
+
+    /**
+     * 配列の要素に対して非空チェックを行う。
+     * @param params チェック対象の配列
+     * @param position チェック位置(String.formatでチェックに違反した要素のインデックスが入ります)
+     * @throws NoSuchElementException 引数が空の場合
+     */
+    public static <T> void requireNotEmpty(T[] params, String position) {
+        if (params != null && params.length == 0) {
+            logger.warn(LOG_MARKER, "invalid parameter - empty ({})", position);
+            throw new NoSuchElementException(String.format("invalid parameter - empty (%s)", position));
         }
     }
 
