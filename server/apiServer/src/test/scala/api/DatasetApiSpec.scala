@@ -2402,7 +2402,6 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             }
           }
         }
-        ""
       }
       "ZIPファイル情報取得API" - {
         "datasetId無効" in {
