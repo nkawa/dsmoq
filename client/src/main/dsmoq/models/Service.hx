@@ -368,7 +368,20 @@ class Service extends Stream<ServiceEvent> {
             { d: Json.stringify(data) };
         }
 
-        return JQuery.ajax(url, { type: str, dataType: "json", cache: false, data: d } )
+        var xhr = JQuery.ajax(url, { type: str, dataType: "json", cache: false, data: d });
+        return xhr.always(function() {
+            if (!profile.isGuest) {
+                if (xhr.getResponseHeader("isGuest") == "true") {
+                    // ログインしている状態でisGuestヘッダがtrueの場合、
+                    // セッションタイムアウトによってサーバー側ではログアウトしているが、
+                    // クライアント側ではログイン情報が更新されていない。
+                    // その為、クライアント側のログイン情報をゲスト化する必要がある。
+                    profile = guest();
+                    // タイムアウト処理(再描画)を行う
+                    update(SessionTimeout);
+                }
+            }
+        })
         .fail(function(err: Dynamic) {
             trace(err);
             switch (err.status) {
@@ -390,6 +403,7 @@ class Service extends Stream<ServiceEvent> {
                                 // クライアント側ではログイン情報が更新されていない。
                                 // その為、クライアント側のログイン情報をゲスト化する必要がある。
                                 profile = guest();
+                                // サインアウト処理(TOPへリダイレクト)を行う
                                 update(SignedOut);
                             }
                     }
@@ -397,8 +411,7 @@ class Service extends Stream<ServiceEvent> {
                 case _: // その他(500系など)
                     Notification.show("error", "error happened");
             }
-        }).toPromise()
-        .flatMap(function (response: ApiResponse) {
+        }).toPromise().flatMap(function (response: ApiResponse) {
             trace(response);
             return Promise.fulfilled(cast response.data);
         });
@@ -477,6 +490,7 @@ enum ServiceEvent {
     SignedIn;
     SignedOut;
     ProfileUpdated;
+    SessionTimeout;
 }
 
 @:enum abstract ServiceErrorType(String) to String {

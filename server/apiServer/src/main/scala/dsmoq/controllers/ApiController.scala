@@ -76,6 +76,14 @@ class ApiController(val resource: ResourceBundle) extends ScalatraServlet
     contentType = formats("json")
   }
 
+  // 各ハンドラの後処理として、共通レスポンスヘッダの設定を行う
+  after() {
+    if (!hasAuthorizationHeader) {
+      // APIキーでの認証でない(セッションでの認証)なら、isGuestヘッダを付与する
+      response.setHeader("isGuest", getUserFromSession.isGuest.toString)
+    }
+  }
+
   get("/*") {
     NotFound(AjaxResponse("NotFound")) // 404
   }
@@ -521,10 +529,11 @@ class ApiController(val resource: ResourceBundle) extends ScalatraServlet
     }
     ret match {
       case Success(x) =>
-          response.setHeader("Content-Disposition", "attachment; filename=" + x.getName)
-          response.setHeader("Content-Type", "application/octet-stream;charset=binary")
-          x
-      case Failure(_) => toActionResult(ret)
+        response.setHeader("Content-Disposition", "attachment; filename=" + x.getName)
+        response.setHeader("Content-Type", "application/octet-stream;charset=binary")
+        x
+      case Failure(_) =>
+        toActionResult(ret)
     }
   }
 

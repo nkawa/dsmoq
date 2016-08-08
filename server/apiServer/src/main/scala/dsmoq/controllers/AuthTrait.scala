@@ -100,12 +100,12 @@ trait AuthTrait { this: ScalatraServlet with LazyLogging =>
    *
    * Authorizationヘッダからのユーザ取得に成功した場合、そのユーザを返す。
    * Authorizationヘッダがない場合は、セッションから取得したユーザを返す。
-   * Authorizationヘッダがない、かつセッションからユーザを取得できながった場合、ゲストユーザを返す。
+   * Authorizationヘッダがない、かつセッションからユーザを取得できながった場合、ゲストユーザを許可するならゲストユーザを返す。
    * @param allowGuest ゲストユーザを許可するか
    * @return
    *   Success(User) 取得したユーザ
    *   Failure(NullPointerException) Sevletから取得したrequestがnullの場合
-   *   Failure(NotAuthorizedException) Authorizationヘッダからのユーザ取得に失敗した場合、またはallowGuestがfalseで取得したユーザがゲストユーザの場合
+   *   Failure(NotAuthorizedException) Authorizationヘッダからのユーザ取得に失敗した場合、またはゲストユーザを許可せずユーザが取得できなかった場合
    */
   def getUser(allowGuest: Boolean): Try[User] = {
     val ret = getUser(request)

@@ -156,16 +156,18 @@ class AuthenticationSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter
         sessionUser <- Seq(true, false)
         allowGuest <- Seq(true, false)
         headers <- testHeaders
+      } {
+        authenticationCheckForDataset(sessionUser, allowGuest, headers)(datasetExpected(sessionUser, allowGuest, headers))
       }
-      authenticationCheckForDataset(sessionUser, allowGuest, headers)(datasetExpected(sessionUser, allowGuest, headers))
     }
     "to file" - {
       for {
         sessionUser <- Seq(true, false)
         allowGuest <- Seq(true, false)
         headers <- testHeaders
+      } {
+        authenticationCheckForFile(sessionUser, allowGuest, headers)(fileExpected(sessionUser, allowGuest, headers))
       }
-      authenticationCheckForFile(sessionUser, allowGuest, headers)(fileExpected(sessionUser, allowGuest, headers))
     }
   }
 
