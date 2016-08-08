@@ -6,6 +6,7 @@ import java.util.Calendar
 
 import scala.language.reflectiveCalls
 
+import com.amazonaws.HttpMethod
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model.{ResponseHeaderOverrides, GetObjectRequest, GeneratePresignedUrlRequest}
@@ -42,7 +43,14 @@ object FileManager {
     obj.getObjectContent()
   }
 
-  def downloadFromS3Url(filePath: String, fileName: String): String = {
+  /**
+   * S3の署名付きURLを生成する。
+   * @param filePath S3上における対象ファイルのファイルパス
+   * @param fileName 対象ファイル名
+   * @param isHead HEADリクエストか否か
+   * @return 署名付きURL
+   */
+  def generateS3PresignedURL(filePath: String, fileName: String, isHead: Boolean): String = {
     val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
     val client = new AmazonS3Client(cre)
     // 有効期限(3分)
@@ -54,8 +62,12 @@ object FileManager {
     val response = new ResponseHeaderOverrides
     response.setContentDisposition("attachment; filename*=UTF-8''" + java.net.URLEncoder.encode(fileName.split(Array[Char]('\\', '/')).last,"UTF-8"))
 
+    val request = new GeneratePresignedUrlRequest(AppConf.s3UploadRoot, filePath).withExpiration(limit).withResponseHeaders(response)
+    if (isHead) {
+      request.setMethod(HttpMethod.HEAD)
+    }
     // URLを生成
-    val url = client.generatePresignedUrl(new GeneratePresignedUrlRequest(AppConf.s3UploadRoot, filePath).withExpiration(limit).withResponseHeaders(response))
+    val url = client.generatePresignedUrl(request)
     url.toString
   }
 
