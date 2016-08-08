@@ -369,7 +369,20 @@ class Service extends Stream<ServiceEvent> {
         }
 
         var xhr = JQuery.ajax(url, { type: str, dataType: "json", cache: false, data: d });
-        return xhr.fail(function(err: Dynamic) {
+        return xhr.always(function() {
+            if (!profile.isGuest) {
+                if (xhr.getResponseHeader("isGuest") == "true") {
+                    // ログインしている状態でisGuestヘッダがtrueの場合、
+                    // セッションタイムアウトによってサーバー側ではログアウトしているが、
+                    // クライアント側ではログイン情報が更新されていない。
+                    // その為、クライアント側のログイン情報をゲスト化する必要がある。
+                    profile = guest();
+                    // タイムアウト処理(再描画)を行う
+                    update(SessionTimeout);
+                }
+            }
+        })
+        .fail(function(err: Dynamic) {
             trace(err);
             switch (err.status) {
                 case 400: // BadRequest
@@ -400,15 +413,6 @@ class Service extends Stream<ServiceEvent> {
             }
         }).toPromise().flatMap(function (response: ApiResponse) {
             trace(response);
-            if (!profile.isGuest && xhr.getResponseHeader("isGuest") == "true") {
-                // ログインしている状態でisGuestヘッダがtrueの場合、
-                // セッションタイムアウトによってサーバー側ではログアウトしているが、
-                // クライアント側ではログイン情報が更新されていない。
-                // その為、クライアント側のログイン情報をゲスト化する必要がある。
-                profile = guest();
-                // タイムアウト処理(再描画)を行う
-                update(SessionTimeout);
-            }
             return Promise.fulfilled(cast response.data);
         });
     }
