@@ -7,7 +7,7 @@
         <New class="org.eclipse.jetty.server.session.HashSessionManager">
           <Set name="storeDirectory">../tmp/session</Set>
           <Set name="savePeriod">5</Set>
-          <Set name="maxInactiveInterval">-1</Set>
+          <Set name="maxInactiveInterval">604800</Set>
         </New>
       </Arg>
     </New>
