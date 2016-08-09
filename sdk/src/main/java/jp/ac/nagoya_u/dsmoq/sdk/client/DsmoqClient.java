@@ -54,6 +54,7 @@ import jp.ac.nagoya_u.dsmoq.sdk.util.ErrorRespondedException;
 import jp.ac.nagoya_u.dsmoq.sdk.util.ExceptionSupplier;
 import jp.ac.nagoya_u.dsmoq.sdk.util.HttpStatusException;
 import jp.ac.nagoya_u.dsmoq.sdk.util.JsonUtil;
+import jp.ac.nagoya_u.dsmoq.sdk.util.ResourceNames;
 import jp.ac.nagoya_u.dsmoq.sdk.util.ResponseFunction;
 import jp.ac.nagoya_u.dsmoq.sdk.util.TimeoutException;
 import org.apache.http.Header;
@@ -95,6 +96,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashSet;
 import java.util.List;
+import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -117,6 +119,7 @@ import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireGreaterOrEqualOrNul
 public class DsmoqClient {
     private static Marker LOG_MARKER = MarkerFactory.getMarker("SDK");
     private static Logger logger = LoggerFactory.getLogger(LOG_MARKER.toString());
+    private static ResourceBundle resource = ResourceBundle.getBundle("message");
 
     private String _baseUrl;
     private String _apiKey;
@@ -1442,7 +1445,7 @@ public class DsmoqClient {
             byte[] result = mac.doFinal((apiKey + "&" + secretKey).getBytes());
             return URLEncoder.encode(Base64.getEncoder().encodeToString(result), "UTF-8");
         } catch (Exception e) {
-            logger.error(LOG_MARKER, "Error occured. [message]:{}", e.getMessage());
+            logger.error(LOG_MARKER, resource.getString(ResourceNames.ERROR_OCCURED), e.getMessage());
             throw new ApiFailedException(e.getMessage(), e);
         }
     }
@@ -1505,7 +1508,7 @@ public class DsmoqClient {
      * @return 公開用に翻訳された例外
      */
     private RuntimeException translateInnerException(Exception e) {
-        logger.error(LOG_MARKER, "Error occured. [message]:{}", e.getMessage());
+        logger.error(LOG_MARKER, resource.getString(ResourceNames.ERROR_OCCURED), e.getMessage());
         if (e instanceof ErrorRespondedException) {
             return new HttpStatusException(((ErrorRespondedException) e).getStatusCode(), e);
         }
