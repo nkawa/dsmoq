@@ -50,18 +50,18 @@ import jp.ac.nagoya_u.dsmoq.sdk.response.TaskStatus;
 import jp.ac.nagoya_u.dsmoq.sdk.response.User;
 import jp.ac.nagoya_u.dsmoq.sdk.util.ApiFailedException;
 import jp.ac.nagoya_u.dsmoq.sdk.util.ConnectionLostException;
-import jp.ac.nagoya_u.dsmoq.sdk.util.DsmoqHttpException;
 import jp.ac.nagoya_u.dsmoq.sdk.util.ErrorRespondedException;
+import jp.ac.nagoya_u.dsmoq.sdk.util.ExceptionSupplier;
 import jp.ac.nagoya_u.dsmoq.sdk.util.HttpStatusException;
 import jp.ac.nagoya_u.dsmoq.sdk.util.JsonUtil;
 import jp.ac.nagoya_u.dsmoq.sdk.util.ResponseFunction;
 import jp.ac.nagoya_u.dsmoq.sdk.util.TimeoutException;
 import org.apache.http.Header;
+import org.apache.http.HttpEntity;
 import org.apache.http.HttpException;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.conn.HttpHostConnectException;
 import org.apache.http.entity.ContentType;
@@ -96,7 +96,9 @@ import java.util.Base64;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -140,7 +142,7 @@ public class DsmoqClient {
      * @param apiKey APIキー
      * @param secretKey シークレットキー
      */
-    public DsmoqClient(String baseUrl, String apiKey, String secretKey) {
+    private DsmoqClient(String baseUrl, String apiKey, String secretKey) {
         this._apiKey = apiKey;
         this._secretKey = secretKey;
         this._baseUrl = baseUrl;
@@ -158,13 +160,7 @@ public class DsmoqClient {
      */
     public RangeSlice<DatasetsSummary> getDatasets(GetDatasetsParam param) {
         requireNotNull(param, "at param in getDatasets");
-        try (AutoHttpGet request = new AutoHttpGet(_baseUrl + "/api/datasets?d=" + URLEncoder.encode(param.toJsonString(), "UTF-8"))){
-            addAuthorizationHeader(request);
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toDatasets(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return get("/api/datasets", param.toJsonString(), JsonUtil::toDatasets);
     }
 
     /**
@@ -179,20 +175,15 @@ public class DsmoqClient {
      */
     public Dataset getDataset(String datasetId) {
         requireNotNull(datasetId, "at datasetId in getDataset");
-        try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/datasets/%s", datasetId))){
-            addAuthorizationHeader(request);
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toDataset(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return get("/api/datasets/" + datasetId, JsonUtil::toDataset);
     }
 
     /**
      * Datasetを作成する。(POST /api/datasets相当)
+     * 作成されるDatasetの名前は、最初に指定されたファイル名となる。
      * @param saveLocal ローカルに保存するか否か
      * @param saveS3 Amazon S3に保存するか否か
-     * @param files Datasetに設定するファイル(複数可)
+     * @param files Datasetに設定するファイル(複数可、最低1要素必須)
      * @return 作成したDataset
      * @throws NullPointerException files、あるいはfilesの要素のいずれかがnullの場合
      * @throws NoSuchElementException filesの要素が存在しない場合
@@ -242,8 +233,7 @@ public class DsmoqClient {
         requireNotNull(files, "at files in createDataset");
         requireNotNullAll(files, "at files[%d] in createDataset");
         logger.debug(LOG_MARKER, "createDataset start : [name] = {}, [saveLocal] = {}, [saveS3] = {}, [files size] = {}", name, saveLocal, saveS3, (files != null) ? files.length : "null");
-        try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/datasets"))) {
-            addAuthorizationHeader(request);
+        Supplier<HttpEntity> entity = () -> {
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             // MultipartEntityBuilderのモード互換モードを設定
             builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
@@ -254,13 +244,10 @@ public class DsmoqClient {
             Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("file[]", file));
             builder.addTextBody("saveLocal", saveLocal ? "true" : "false");
             builder.addTextBody("saveS3", saveS3 ? "true" : "false");
-            request.setEntity(builder.build());
-            String json = executeWithStringResponse(request);
-            logger.debug(LOG_MARKER, "createDataset end : receive json = {}", json);
-            return JsonUtil.toDataset(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+            return builder.build();
+        };
+//        logger.debug(LOG_MARKER, "createDataset end : receive json = {}", json);
+        return post("/api/datasets", entity, JsonUtil::toDataset);
     }
 
     /**
@@ -279,21 +266,17 @@ public class DsmoqClient {
         requireNotNull(files, "at files in addFiles");
         requireNotNullAll(files, "at files[%d] in addFiles");
         logger.debug(LOG_MARKER, "addFiles start : [datasetId] = {}, [files size] = {}", datasetId, (files != null) ? files.length : "null");
-        try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/files", datasetId)))) {
-            addAuthorizationHeader(request);
+        Supplier<HttpEntity> entity = () -> {
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             // MultipartEntityBuilderのモード互換モードを設定
             builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
             // MultipartEntityBuilderの文字コードにutf-8を設定
             builder.setCharset(StandardCharsets.UTF_8);
             Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("files", file));
-            request.setEntity(builder.build());
-            String json = executeWithStringResponse(request);
-            logger.debug(LOG_MARKER, "addFiles end : receive json = {}", json);
-            return JsonUtil.toDatasetAddFiles(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+            return builder.build();
+        };
+//        logger.debug(LOG_MARKER, "addFiles end : receive json = {}", json);
+        return post("/api/datasets/" + datasetId + "/files", entity, JsonUtil::toDatasetAddFiles);
     }
 
     /**
@@ -312,16 +295,12 @@ public class DsmoqClient {
         requireNotNull(datasetId, "at datasetId in updateFile");
         requireNotNull(fileId, "at fileId in updateFile");
         requireNotNull(file, "at file in updateFile");
-        try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/files/%s", datasetId, fileId)))) {
-            addAuthorizationHeader(request);
+        Supplier<HttpEntity> entity = () -> {
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             builder.addBinaryBody("file", file);
-            request.setEntity(builder.build());
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toDatasetFile(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+            return builder.build();
+        };
+        return post("/api/datasets/" + datasetId + "/files/" + fileId, entity, JsonUtil::toDatasetFile);
     }
 
     /**
@@ -340,16 +319,7 @@ public class DsmoqClient {
         requireNotNull(datasetId, "at datasetId in updateFileMetaInfo");
         requireNotNull(fileId, "at fileId in updateFileMetaInfo");
         requireNotNull(param, "at param in updateFileMetaInfo");
-        try (AutoHttpPut request = new AutoHttpPut((_baseUrl + String.format("/api/datasets/%s/files/%s/metadata", datasetId, fileId)))) {
-            addAuthorizationHeader(request);
-            List<NameValuePair> params = new ArrayList<>();
-            params.add(new BasicNameValuePair("d", param.toJsonString()));
-            request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toDatasetFile(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return put("/api/datasets/" + datasetId + "/files/" + fileId + "/metadata", param.toJsonString(), JsonUtil::toDatasetFile);
     }
 
     /**
@@ -365,12 +335,7 @@ public class DsmoqClient {
     public void deleteFile(String datasetId, String fileId) {
         requireNotNull(datasetId, "at datasetId in deleteFile");
         requireNotNull(fileId, "at fileId in deleteFile");
-        try (AutoHttpDelete request = new AutoHttpDelete((_baseUrl + String.format("/api/datasets/%s/files/%s", datasetId, fileId)))) {
-            addAuthorizationHeader(request);
-            executeWithStringResponse(request);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        delete("/api/datasets/" + datasetId + "/files/" + fileId, x -> x);
     }
 
     /**
@@ -386,15 +351,7 @@ public class DsmoqClient {
     public void updateDatasetMetaInfo(String datasetId, UpdateDatasetMetaParam param) {
         requireNotNull(datasetId, "at datasetId in updateDatasetMetaInfo");
         requireNotNull(param, "at param in updateDatasetMetaInfo");
-        try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/datasets/%s/metadata", datasetId))) {
-            addAuthorizationHeader(request);
-            List<NameValuePair> params = new ArrayList<>();
-            params.add(new BasicNameValuePair("d", param.toJsonString()));
-            request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
-            executeWithStringResponse(request);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        put("/api/datasets/" + datasetId + "/metadata", param.toJsonString(), x -> x);
     }
 
     /**
@@ -412,16 +369,12 @@ public class DsmoqClient {
         requireNotNull(datasetId, "at datasetId in addImageToDataset");
         requireNotNull(files, "at files in addImageToDataset");
         requireNotNullAll(files, "at files[%d] in addImageToDataset");
-        try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/images", datasetId)))) {
-            addAuthorizationHeader(request);
+        Supplier<HttpEntity> entity = () -> {
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("images", file));
-            request.setEntity(builder.build());
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toDatasetAddImages(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+            return builder.build();
+        };
+        return post("/api/datasets/" + datasetId + "/images", entity, JsonUtil::toDatasetAddImages);
     }
 
     /**
@@ -437,15 +390,7 @@ public class DsmoqClient {
     public void setPrimaryImageToDataset(String datasetId, SetPrimaryImageParam param) {
         requireNotNull(datasetId, "at datasetId in setPrimaryImageToDataset");
         requireNotNull(param, "at param in setPrimaryImageToDataset");
-        try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/datasets/%s/images/primary", datasetId))) {
-            addAuthorizationHeader(request);
-            List<NameValuePair> params = new ArrayList<>();
-            params.add(new BasicNameValuePair("d", param.toJsonString()));
-            request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
-            executeWithStringResponse(request);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        put("/api/datasets/" + datasetId + "/images/primary", param.toJsonString(), x -> x);
     }
 
     /**
@@ -479,13 +424,7 @@ public class DsmoqClient {
     public DatasetDeleteImage deleteImageToDataset(String datasetId, String imageId) {
         requireNotNull(datasetId, "at datasetId in deleteImageToDataset");
         requireNotNull(imageId, "at imageId in deleteImageToDataset");
-        try (AutoHttpDelete request = new AutoHttpDelete(_baseUrl + String.format("/api/datasets/%s/images/%s", datasetId, imageId))) {
-            addAuthorizationHeader(request);
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toDatasetDeleteImage(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return delete("/api/datasets/" + datasetId + "/images/" + imageId, JsonUtil::toDatasetDeleteImage);
     }
 
     /**
@@ -502,13 +441,7 @@ public class DsmoqClient {
     public RangeSlice<DatasetGetImage> getDatasetImage(String datasetId, GetRangeParam param) {
         requireNotNull(datasetId, "at datasetId in getDatasetImage");
         requireNotNull(param, "at param in getDatasetImage");
-        try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/datasets/%s/images?d=", datasetId) + URLEncoder.encode(param.toJsonString(), "UTF-8"))){
-            addAuthorizationHeader(request);
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toDatasetGetImage(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return get("/api/datasets/" + datasetId + "/images", param.toJsonString(), JsonUtil::toDatasetGetImage);
     }
 
     /**
@@ -525,13 +458,7 @@ public class DsmoqClient {
     public RangeSlice<DatasetOwnership> getAccessLevel(String datasetId, GetRangeParam param) {
         requireNotNull(datasetId, "at datasetId in getAccessLevel");
         requireNotNull(param, "at param in getAccessLevel");
-        try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/datasets/%s/acl?d=", datasetId) + URLEncoder.encode(param.toJsonString(), "UTF-8"))){
-            addAuthorizationHeader(request);
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toDatasetOwnership(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return get("/api/datasets/" + datasetId + "/acl", param.toJsonString(), JsonUtil::toDatasetOwnership);
     }
 
     /**
@@ -549,16 +476,7 @@ public class DsmoqClient {
         requireNotNull(datasetId, "at datasetId in changeAccessLevel");
         requireNotNull(params, "at params in changeAccessLevel");
         requireNotNullAll(params, "at params[%d] in changeAccessLevel");
-        try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/acl", datasetId)))) {
-            addAuthorizationHeader(request);
-            List<NameValuePair> p = new ArrayList<>();
-            p.add(new BasicNameValuePair("d", SetAccessLevelParam.toJsonString(params)));
-            request.setEntity(new UrlEncodedFormEntity(p, StandardCharsets.UTF_8));
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toDatasetOwnerships(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return post("/api/datasets/" + datasetId + "/acl", SetAccessLevelParam.toJsonString(params), JsonUtil::toDatasetOwnerships);
     }
 
     /**
@@ -574,15 +492,7 @@ public class DsmoqClient {
     public void changeGuestAccessLevel(String datasetId, SetGuestAccessLevelParam param) {
         requireNotNull(datasetId, "at datasetId in changeGuestAccessLevel");
         requireNotNull(param, "at param in changeGuestAccessLevel");
-        try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/datasets/%s/guest_access", datasetId))) {
-            addAuthorizationHeader(request);
-            List<NameValuePair> params = new ArrayList<>();
-            params.add(new BasicNameValuePair("d", param.toJsonString()));
-            request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
-            executeWithStringResponse(request);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        put("/api/datasets/" + datasetId + "/guest_access", param.toJsonString(), x -> x);
     }
 
     /**
@@ -596,12 +506,7 @@ public class DsmoqClient {
      */
     public void deleteDataset(String datasetId) {
         requireNotNull(datasetId, "at datasetId in deleteDataset");
-        try (AutoHttpDelete request = new AutoHttpDelete(_baseUrl + String.format("/api/datasets/%s", datasetId))) {
-            addAuthorizationHeader(request);
-            executeWithStringResponse(request);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        delete("/api/datasets/" + datasetId, x -> x);
     }
 
     /**
@@ -618,16 +523,7 @@ public class DsmoqClient {
     public DatasetTask changeDatasetStorage(String datasetId, ChangeStorageParam param) {
         requireNotNull(datasetId, "at datasetId in changeDatasetStorage");
         requireNotNull(param, "at param in changeDatasetStorage");
-        try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/datasets/%s/storage", datasetId))) {
-            addAuthorizationHeader(request);
-            List<NameValuePair> params = new ArrayList<>();
-            params.add(new BasicNameValuePair("d", param.toJsonString()));
-            request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toDatasetTask(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return put("/api/datasets/" + datasetId  + "/storage", param.toJsonString(), JsonUtil::toDatasetTask);
     }
 
     /**
@@ -642,13 +538,7 @@ public class DsmoqClient {
      */
     public String copyDataset(String datasetId) {
         requireNotNull(datasetId, "at datasetId in copyDataset");
-        try (AutoHttpPost request = new AutoHttpPost(_baseUrl + String.format("/api/datasets/%s/copy", datasetId))) {
-            addAuthorizationHeader(request);
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toCopiedDataset(json).getDatasetId();
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return post("/api/datasets/" + datasetId + "/copy", json -> JsonUtil.toCopiedDataset(json).getDatasetId());
     }
 
     /**
@@ -664,15 +554,12 @@ public class DsmoqClient {
     public void importAttribute(String datasetId, File file) {
         requireNotNull(datasetId, "at datasetId in importAttribute");
         requireNotNull(file, "at file in importAttribute");
-        try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/datasets/%s/attributes/import", datasetId)))) {
-            addAuthorizationHeader(request);
+        Supplier<HttpEntity> entity = () -> {
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             builder.addBinaryBody("file", file);
-            request.setEntity(builder.build());
-            executeWithStringResponse(request);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+            return builder.build();
+        };
+        post("/api/datasets/" + datasetId + "/attributes/import", entity, x -> x);
     }
 
     /** exportAttributeの際に用いるファイル名 */
@@ -691,28 +578,22 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public <T> T exportAttribute(String datasetId, Function<DatasetFileContent, T> f) {
+        logger.debug(LOG_MARKER, "exportAttribute start : [datasetId] = {}", datasetId);
         requireNotNull(datasetId, "at datasetId in exportAttribute");
         requireNotNull(f, "at f in exportAttribute");
-        String url = _baseUrl + String.format("/api/datasets/%s/attributes/export", datasetId);
-        logger.debug(LOG_MARKER, "exportAttribute start : [url] = {}", url);
-        try (AutoHttpGet request = new AutoHttpGet(url)){
-            addAuthorizationHeader(request);
-            return execute(request, response -> {
-                return f.apply(new DatasetFileContent() {
-                    public String getName() {
-                        return EXPORT_ATTRIBUTE_CSV_FILENAME;
-                    }
-                    public InputStream getContent() throws IOException {
-                        return response.getEntity().getContent();
-                    }
-                    public void writeTo(OutputStream s) throws IOException {
-                        response.getEntity().writeTo(s);
-                    }
-                });
+        return get("/api/datasets/" + datasetId + "/attributes/export", (HttpResponse response) -> {
+            return f.apply(new DatasetFileContent() {
+                public String getName() {
+                    return EXPORT_ATTRIBUTE_CSV_FILENAME;
+                }
+                public InputStream getContent() throws IOException {
+                    return response.getEntity().getContent();
+                }
+                public void writeTo(OutputStream s) throws IOException {
+                    response.getEntity().writeTo(s);
+                }
             });
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        });
     }
 
     /**
@@ -728,15 +609,7 @@ public class DsmoqClient {
     public void setFeaturedImageToDataset(String datasetId, String imageId) {
         requireNotNull(datasetId, "at datasetId in setFeaturedImageToDataset");
         requireNotNull(imageId, "at imageId in setFeaturedImageToDataset");
-        try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/datasets/%s/images/featured", datasetId))) {
-            addAuthorizationHeader(request);
-            List<NameValuePair> params = new ArrayList<>();
-            params.add(new BasicNameValuePair("d", new SetFeaturedImageToDatasetParam(imageId).toJsonString()));
-            request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
-            executeWithStringResponse(request);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        put("/api/datasets/" + datasetId + "/images/featured", new SetFeaturedImageToDatasetParam(imageId).toJsonString(), x -> x);
     }
 
     /**
@@ -770,24 +643,19 @@ public class DsmoqClient {
     public Long getFileSize(String datasetId, String fileId) {
         requireNotNull(datasetId, "at datasetId in headFile");
         requireNotNull(fileId, "at fileId in headFile");
-        try (AutoHttpHead request = new AutoHttpHead(String.format("%s/files/%s/%s", _baseUrl, datasetId, fileId))) {
-            addAuthorizationHeader(request);
-            return execute(request, response -> {
-                Header header = response.getFirstHeader("Content-Length");
-                if (header == null) {
-                    logger.warn(LOG_MARKER, "Content-Length not found.");
-                    return null;
-                }
-                try {
-                    return Long.valueOf(header.getValue());
-                } catch (NumberFormatException e) {
-                    logger.warn(LOG_MARKER, "Invalid Content-Length value. [value]:{}", header.getValue());
-                    return null;
-                }
-            });
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return head("/files/" + datasetId + "/" + fileId, response -> {
+            Header header = response.getFirstHeader("Content-Length");
+            if (header == null) {
+                logger.warn(LOG_MARKER, "Content-Length not found.");
+                return null;
+            }
+            try {
+                return Long.valueOf(header.getValue());
+            } catch (NumberFormatException e) {
+                logger.warn(LOG_MARKER, "Invalid Content-Length value. [value]:{}", header.getValue());
+                return null;
+            }
+        });
     }
 
     /**
@@ -798,7 +666,10 @@ public class DsmoqClient {
      * @param f ファイルデータを処理する関数 (引数のDatasetFileはこの処理関数中でのみ利用可能)
      * @return fの処理結果
      * @throws NullPointerException datasetIdまたはfileIdまたはfがnullの場合
-     * @throws DsmoqHttpException ファイルの取得に失敗した場合
+     * @throws HttpStatusException エラーレスポンスが返ってきた場合
+     * @throws TimeoutException 接続がタイムアウトした場合
+     * @throws ConnectionLostException 接続が失敗した、または失われた場合
+     * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public <T> T downloadFile(String datasetId, String fileId, Function<DatasetFileContent, T> f) {
         return downloadFileWithRange(datasetId, fileId, null, null, f);
@@ -815,22 +686,26 @@ public class DsmoqClient {
      * @return fの処理結果
      * @throws NullPointerException datasetIdまたはfileIdまたはfがnullの場合
      * @throws IllegalArgumentException fromまたはtoが0未満の場合
-     * @throws DsmoqHttpException ファイルの取得に失敗した場合
+     * @throws HttpStatusException エラーレスポンスが返ってきた場合
+     * @throws TimeoutException 接続がタイムアウトした場合
+     * @throws ConnectionLostException 接続が失敗した、または失われた場合
+     * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public <T> T downloadFileWithRange(String datasetId, String fileId, Long from, Long to, Function<DatasetFileContent, T> f) {
+        logger.debug(LOG_MARKER, "downloadFileWithRange start : [datasetId/fileId] = {}/{}, [from:to] = {}:{}", datasetId, fileId, from, to);
         requireNotNull(datasetId, "at datasetId in downloadFileWithRange");
         requireNotNull(fileId, "at fileId in downloadFileWithRange");
         requireNotNull(f, "at f in downloadFileWithRange");
         requireGreaterOrEqualOrNull(from, 0L, "at from in downloadFileWithRange");
         requireGreaterOrEqualOrNull(to, 0L, "at to in downloadFileWithRange");
-        String url = _baseUrl + String.format("/files/%s/%s", datasetId, fileId);
-        logger.debug(LOG_MARKER, "downloadFileWithRange start : [downloadUrl] = {}, [from:to] = {}:{}", url, from, to);
-        try (AutoHttpGet request = new AutoHttpGet(url)){
-            addAuthorizationHeader(request);
-            if (from != null || to != null) {
-                request.setHeader("Range", String.format("bytes=%s-%s", from == null ? "" : from.toString(), to == null ? "" : to.toString()));
-            }
-            return execute(request, response -> {
+        return get(
+            "/files/" + datasetId + "/" + fileId,
+            request -> {
+                if (from != null || to != null) {
+                    request.setHeader("Range", String.format("bytes=%s-%s", from == null ? "" : from.toString(), to == null ? "" : to.toString()));
+                }
+            },
+            response -> {
                 String filename = getFileNameFromHeader(response);
                 return f.apply(new DatasetFileContent() {
                     public String getName() {
@@ -843,11 +718,8 @@ public class DsmoqClient {
                         response.getEntity().writeTo(s);
                     }
                 });
-            });
-        } catch (Exception e) {
-            logger.error(LOG_MARKER, "Error occured. [message]:{}", e.getMessage());
-            throw new DsmoqHttpException(e.getMessage(), e);
-        }
+            }
+        );
     }
 
     /** HTTP Response の Content-Disposition ヘッダ */
@@ -900,13 +772,7 @@ public class DsmoqClient {
     public RangeSlice<DatasetFile> getDatasetFiles(String datasetId, GetRangeParam param) {
         requireNotNull(datasetId, "at datasetId in getDatasetFiles");
         requireNotNull(param, "at param in getDatasetFiles");
-        try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/datasets/%s/files?d=", datasetId) + URLEncoder.encode(param.toJsonString(), "UTF-8"))){
-            addAuthorizationHeader(request);
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toDatasetFiles(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return get("/api/datasets/" + datasetId + "/files", param.toJsonString(), JsonUtil::toDatasetFiles);
     }
 
     /**
@@ -925,13 +791,7 @@ public class DsmoqClient {
         requireNotNull(datasetId, "at datasetId in getDatasetZippedFiles");
         requireNotNull(fileId, "at fileId in getDatasetZippedFiles");
         requireNotNull(param, "at param in getDatasetZippedFiles");
-        try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/datasets/%s/files/%s/zippedfiles?d=", datasetId, fileId) + URLEncoder.encode(param.toJsonString(), "UTF-8"))){
-            addAuthorizationHeader(request);
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toDatasetZippedFiles(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return get("/api/datasets/" + datasetId + "/files/" + fileId + "/zippedfiles", param.toJsonString(), JsonUtil::toDatasetZippedFiles);
     }
 
     /**
@@ -946,13 +806,7 @@ public class DsmoqClient {
      */
     public RangeSlice<GroupsSummary> getGroups(GetGroupsParam param) {
         requireNotNull(param, "at param in getGroups");
-        try (AutoHttpGet request = new AutoHttpGet(_baseUrl + "/api/groups?d=" + URLEncoder.encode(param.toJsonString(), "UTF-8"))){
-            addAuthorizationHeader(request);
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toGroups(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return get("/api/groups", param.toJsonString(), JsonUtil::toGroups);
     }
 
     /**
@@ -967,13 +821,7 @@ public class DsmoqClient {
      */
     public Group getGroup(String groupId) {
         requireNotNull(groupId, "at groupId in getGroup");
-        try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/groups/%s", groupId))){
-            addAuthorizationHeader(request);
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toGroup(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return get("/api/groups/" + groupId, JsonUtil::toGroup);
     }
 
     /**
@@ -990,13 +838,7 @@ public class DsmoqClient {
     public RangeSlice<MemberSummary> getMembers(String groupId, GetMembersParam param) {
         requireNotNull(groupId, "at groupId in getMembers");
         requireNotNull(param, "at param in getMembers");
-        try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/groups/%s/members?d=%s", groupId, URLEncoder.encode(param.toJsonString(), "UTF-8")))){
-            addAuthorizationHeader(request);
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toMembers(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return get("/api/groups/" + groupId + "/members", param.toJsonString(), JsonUtil::toMembers);
     }
 
     /**
@@ -1011,16 +853,7 @@ public class DsmoqClient {
      */
     public Group createGroup(CreateGroupParam param) {
         requireNotNull(param, "at param in getMembers");
-        try (AutoHttpPost request = new AutoHttpPost(_baseUrl + "/api/groups")) {
-            addAuthorizationHeader(request);
-            List<NameValuePair> params = new ArrayList<>();
-            params.add(new BasicNameValuePair("d", param.toJsonString()));
-            request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toGroup(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return post("/api/groups", param.toJsonString(), JsonUtil::toGroup);
     }
 
     /**
@@ -1037,16 +870,7 @@ public class DsmoqClient {
     public Group updateGroup(String groupId, UpdateGroupParam param) {
         requireNotNull(groupId, "at groupId in updateGroup");
         requireNotNull(param, "at param in updateGroup");
-        try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/groups/%s", groupId))) {
-            addAuthorizationHeader(request);
-            List<NameValuePair> params = new ArrayList<>();
-            params.add(new BasicNameValuePair("d", param.toJsonString()));
-            request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toGroup(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return put("/api/groups/" + groupId, param.toJsonString(), JsonUtil::toGroup);
     }
 
     /**
@@ -1063,13 +887,7 @@ public class DsmoqClient {
     public RangeSlice<GroupGetImage> getGroupImage(String groupId, GetRangeParam param) {
         requireNotNull(groupId, "at groupId in getGroupImage");
         requireNotNull(param, "at param in getGroupImage");
-        try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/groups/%s/images?d=", groupId) + URLEncoder.encode(param.toJsonString(), "UTF-8"))){
-            addAuthorizationHeader(request);
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toGroupGetImage(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return get("/api/groups/" + groupId + "/images", param.toJsonString(), JsonUtil::toGroupGetImage);
     }
 
     /**
@@ -1087,16 +905,12 @@ public class DsmoqClient {
         requireNotNull(groupId, "at groupId in addImagesToGroup");
         requireNotNull(files, "at files in addImagesToGroup");
         requireNotNullAll(files, "at files[%d] in addImagesToGroup");
-        try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/groups/%s/images", groupId)))) {
-            addAuthorizationHeader(request);
+        Supplier<HttpEntity> entity = () -> {
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("images", file));
-            request.setEntity(builder.build());
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toGroupAddImages(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+            return builder.build();
+        };
+        return post("/api/groups/" + groupId + "/images", entity, JsonUtil::toGroupAddImages);
     }
 
     /**
@@ -1112,15 +926,7 @@ public class DsmoqClient {
     public void setPrimaryImageToGroup(String groupId, SetPrimaryImageParam param) {
         requireNotNull(groupId, "at groupId in setPrimaryImageToGroup");
         requireNotNull(param, "at param in setPrimaryImageToGroup");
-        try (AutoHttpPut request = new AutoHttpPut(_baseUrl + String.format("/api/groups/%s/images/primary", groupId))) {
-            addAuthorizationHeader(request);
-            List<NameValuePair> params = new ArrayList<>();
-            params.add(new BasicNameValuePair("d", param.toJsonString()));
-            request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
-            executeWithStringResponse(request);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        put("/api/groups/" + groupId + "/images/primary", param.toJsonString(), x -> x);
     }
 
     /**
@@ -1154,13 +960,7 @@ public class DsmoqClient {
     public GroupDeleteImage deleteImageToGroup(String groupId, String imageId) {
         requireNotNull(groupId, "at groupId in deleteImageToGroup");
         requireNotNull(imageId, "at imageId in deleteImageToGroup");
-        try (AutoHttpDelete request = new AutoHttpDelete(_baseUrl + String.format("/api/groups/%s/images/%s", groupId, imageId))) {
-            addAuthorizationHeader(request);
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toGroupDeleteImage(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return delete("/api/groups/" + groupId + "/images/" + imageId, JsonUtil::toGroupDeleteImage);
     }
 
     /**
@@ -1177,15 +977,7 @@ public class DsmoqClient {
         requireNotNull(groupId, "at groupId in addMember");
         requireNotNull(params, "at params in addMember");
         requireNotNullAll(params, "at params[%s] in addMember");
-        try (AutoHttpPost request = new AutoHttpPost((_baseUrl + String.format("/api/groups/%s/members", groupId)))) {
-            addAuthorizationHeader(request);
-            List<NameValuePair> requestParams = new ArrayList<>();
-            requestParams.add(new BasicNameValuePair("d", AddMemberParam.toJsonString(params)));
-            request.setEntity(new UrlEncodedFormEntity(requestParams, StandardCharsets.UTF_8));
-            executeWithStringResponse(request);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        post("/api/groups/" + groupId + "/members", AddMemberParam.toJsonString(params), x -> x);
     }
 
     /**
@@ -1203,15 +995,7 @@ public class DsmoqClient {
         requireNotNull(groupId, "at groupId in setMemberRole");
         requireNotNull(userId, "at userId in setMemberRole");
         requireNotNull(param, "at param in setMemberRole");
-        try (AutoHttpPut request = new AutoHttpPut((_baseUrl + String.format("/api/groups/%s/members/%s", groupId, userId)))) {
-            addAuthorizationHeader(request);
-            List<NameValuePair> params = new ArrayList<>();
-            params.add(new BasicNameValuePair("d", param.toJsonString()));
-            request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
-            executeWithStringResponse(request);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        put("/api/groups/" + groupId + "/members/" + userId, param.toJsonString(), x -> x);
     }
 
     /**
@@ -1227,12 +1011,7 @@ public class DsmoqClient {
     public void deleteMember(String groupId, String userId) {
         requireNotNull(groupId, "at groupId in deleteMember");
         requireNotNull(userId, "at userId in deleteMember");
-        try (AutoHttpDelete request = new AutoHttpDelete((_baseUrl + String.format("/api/groups/%s/members/%s", groupId, userId)))) {
-            addAuthorizationHeader(request);
-            executeWithStringResponse(request);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        delete("/api/groups/" + groupId + "/members/" + userId, x -> x);
     }
 
     /**
@@ -1246,12 +1025,7 @@ public class DsmoqClient {
      */
     public void deleteGroup(String groupId) {
         requireNotNull(groupId, "at groupId in deleteGroup");
-        try (AutoHttpDelete request = new AutoHttpDelete((_baseUrl + String.format("/api/groups/%s", groupId)))) {
-            addAuthorizationHeader(request);
-            executeWithStringResponse(request);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        delete("/api/groups/" + groupId, x -> x);
     }
 
     /**
@@ -1263,13 +1037,7 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public User getProfile() {
-        try (AutoHttpGet request = new AutoHttpGet(_baseUrl + "/api/profile")){
-            addAuthorizationHeader(request);
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toUser(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return get("/api/profile", JsonUtil::toUser);
     }
 
     /**
@@ -1284,16 +1052,7 @@ public class DsmoqClient {
      */
     public User updateProfile(UpdateProfileParam param) {
         requireNotNull(param, "at param in updateProfile");
-        try (AutoHttpPut request = new AutoHttpPut((_baseUrl + "/api/profile"))) {
-            addAuthorizationHeader(request);
-            List<NameValuePair> params = new ArrayList<>();
-            params.add(new BasicNameValuePair("d", param.toJsonString()));
-            request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toUser(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return put("/api/profile", param.toJsonString(), JsonUtil::toUser);
     }
 
     /**
@@ -1308,16 +1067,12 @@ public class DsmoqClient {
      */
     public User updateProfileIcon(File file) {
         requireNotNull(file, "at file in updateProfileIcon");
-        try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/profile/image"))) {
-            addAuthorizationHeader(request);
+        Supplier<HttpEntity> entity = () -> {
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             builder.addBinaryBody("icon", file);
-            request.setEntity(builder.build());
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toUser(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+            return builder.build();
+        };
+        return post("/api/profile/image", entity, JsonUtil::toUser);
     }
 
     /**
@@ -1332,16 +1087,7 @@ public class DsmoqClient {
      */
     public User updateEmail(UpdateEmailParam param) {
         requireNotNull(param, "at param in updateEmail");
-        try (AutoHttpPost request = new AutoHttpPost((_baseUrl + "/api/profile/email_change_requests"))) {
-            addAuthorizationHeader(request);
-            List<NameValuePair> params = new ArrayList<>();
-            params.add(new BasicNameValuePair("d", param.toJsonString()));
-            request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toUser(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return post("/api/profile/email_change_requests", param.toJsonString(), JsonUtil::toUser);
     }
 
     /**
@@ -1355,15 +1101,7 @@ public class DsmoqClient {
      */
     public void changePassword(ChangePasswordParam param) {
         requireNotNull(param, "at param in changePassword");
-        try (AutoHttpPut request = new AutoHttpPut((_baseUrl + "/api/profile/password"))) {
-            addAuthorizationHeader(request);
-            List<NameValuePair> params = new ArrayList<>();
-            params.add(new BasicNameValuePair("d", param.toJsonString()));
-            request.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
-            executeWithStringResponse(request);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        put("/api/profile/password", param.toJsonString(), x -> x);
     }
 
     /**
@@ -1375,13 +1113,7 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public List<User> getAccounts() {
-        try (AutoHttpGet request = new AutoHttpGet(_baseUrl + "/api/accounts")){
-            addAuthorizationHeader(request);
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toUsers(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return get("/api/accounts", JsonUtil::toUsers);
     }
 
     /**
@@ -1393,13 +1125,7 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public List<License> getLicenses() {
-        try (AutoHttpGet request = new AutoHttpGet(_baseUrl + "/api/licenses")){
-            addAuthorizationHeader(request);
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toLicenses(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return get("/api/licenses", JsonUtil::toLicenses);
     }
 
     /**
@@ -1414,13 +1140,7 @@ public class DsmoqClient {
      */
     public TaskStatus getTaskStatus(String taskId) {
         requireNotNull(taskId, "at taskId in getTaskStatus");
-        try (AutoHttpGet request = new AutoHttpGet(_baseUrl + String.format("/api/tasks/%s", taskId))){
-            addAuthorizationHeader(request);
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toTaskStatus(json);
-        } catch (Exception e) {
-            throw translateInnerException(e);
-        }
+        return get("/api/tasks/" + taskId, JsonUtil::toTaskStatus);
     }
 
     /**
@@ -1435,20 +1155,274 @@ public class DsmoqClient {
      */
     public List<StatisticsDetail> getStatistics(StatisticsParam param) {
         requireNotNull(param, "at param in getStatistics");
-        try (AutoHttpGet request = new AutoHttpGet(_baseUrl + "/api/statistics?d=" + URLEncoder.encode(param.toJsonString(), "UTF-8"))){
-            addAuthorizationHeader(request);
-            String json = executeWithStringResponse(request);
-            return JsonUtil.toStatistics(json);
+        return get("/api/statistics", param.toJsonString(), JsonUtil::toStatistics);
+    }
+
+    /**
+     * リクエストを送信する。
+     * @param request リクエストのサプライヤ
+     * @param ext リクエストに対する追加処理
+     * @param f レスポンス変換関数
+     * @return fの変換結果
+     * @throws HttpStatusException エラーレスポンスが返ってきた場合
+     * @throws TimeoutException 接続がタイムアウトした場合
+     * @throws ConnectionLostException 接続が失敗した、または失われた場合
+     * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
+     */
+    private <T extends HttpUriRequest & AutoCloseable, R> R send(ExceptionSupplier<T> request, Consumer<T> ext, ResponseFunction<R> f) {
+        try (T req = request.get()) {
+            addAuthorizationHeader(req);
+            if (ext != null) {
+                ext.accept(req);
+            }
+            return execute(req, f);
         } catch (Exception e) {
             throw translateInnerException(e);
         }
     }
 
     /**
+     * HEADリクエストを送信する。
+     * @param url 送信先URL
+     * @param f レスポンス変換関数
+     * @return fの変換結果
+     * @throws HttpStatusException エラーレスポンスが返ってきた場合
+     * @throws TimeoutException 接続がタイムアウトした場合
+     * @throws ConnectionLostException 接続が失敗した、または失われた場合
+     * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
+     */
+    private <T> T head(String url, ResponseFunction<T> f) {
+        return send(() -> new AutoHttpHead(_baseUrl + url), null, f);
+    }
+
+    /**
+     * GETリクエストを送信する。
+     * @param url 送信先URL
+     * @param ext リクエストに対する追加処理
+     * @param f レスポンス変換関数
+     * @return fの変換結果
+     * @throws HttpStatusException エラーレスポンスが返ってきた場合
+     * @throws TimeoutException 接続がタイムアウトした場合
+     * @throws ConnectionLostException 接続が失敗した、または失われた場合
+     * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
+     */
+    private <T> T get(String url, Consumer<AutoHttpGet> ext, ResponseFunction<T> f) {
+        return send(() -> new AutoHttpGet(_baseUrl + url), ext, f);
+    }
+
+    /**
+     * GETリクエストを送信する。
+     * @param url 送信先URL
+     * @param f レスポンス変換関数
+     * @return fの変換結果
+     * @throws HttpStatusException エラーレスポンスが返ってきた場合
+     * @throws TimeoutException 接続がタイムアウトした場合
+     * @throws ConnectionLostException 接続が失敗した、または失われた場合
+     * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
+     */
+    private <T> T get(String url, ResponseFunction<T> f) {
+        return get(url, null, f);
+    }
+
+    /**
+     * GETリクエストを送信する。
+     * @param url 送信先URL
+     * @param f レスポンスボディ変換関数
+     * @return fの変換結果
+     * @throws HttpStatusException エラーレスポンスが返ってきた場合
+     * @throws TimeoutException 接続がタイムアウトした場合
+     * @throws ConnectionLostException 接続が失敗した、または失われた場合
+     * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
+     */
+    private <T> T get(String url, Function<String, T> f) {
+        return get(url, (HttpResponse response) -> f.apply(responseToString(response)));
+    }
+
+    /**
+     * GETリクエストを送信する。
+     * @param url 送信先URL
+     * @param jsonParam リクエストに付与するJSONパラメータ
+     * @param f レスポンスボディ変換関数
+     * @return fの変換結果
+     * @throws HttpStatusException エラーレスポンスが返ってきた場合
+     * @throws TimeoutException 接続がタイムアウトした場合
+     * @throws ConnectionLostException 接続が失敗した、または失われた場合
+     * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
+     */
+    private <T> T get(String url, String jsonParam, Function<String, T> f) {
+        return send(
+            () -> new AutoHttpGet(_baseUrl + url + "?d=" + URLEncoder.encode(jsonParam, StandardCharsets.UTF_8.name())),
+            null,
+            (HttpResponse response) -> f.apply(responseToString(response))
+        );
+    }
+
+    /**
+     * POSTリクエストを送信する。
+     * @param url 送信先URL
+     * @param ext リクエストに対する追加処理
+     * @param f レスポンスボディ変換関数
+     * @return fの変換結果
+     * @throws HttpStatusException エラーレスポンスが返ってきた場合
+     * @throws TimeoutException 接続がタイムアウトした場合
+     * @throws ConnectionLostException 接続が失敗した、または失われた場合
+     * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
+     */
+    private <T> T post(String url, Consumer<AutoHttpPost> ext, Function<String, T> f) {
+        return send(
+            () -> new AutoHttpPost(_baseUrl + url),
+            ext,
+            (HttpResponse response) -> f.apply(responseToString(response))
+        );
+    }
+
+    /**
+     * POSTリクエストを送信する。
+     * @param url 送信先URL
+     * @param entity リクエストボディのサプライヤ
+     * @param f レスポンスボディ変換関数
+     * @return fの変換結果
+     * @throws HttpStatusException エラーレスポンスが返ってきた場合
+     * @throws TimeoutException 接続がタイムアウトした場合
+     * @throws ConnectionLostException 接続が失敗した、または失われた場合
+     * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
+     */
+    private <T> T post(String url, Supplier<HttpEntity> entity, Function<String, T> f) {
+        Consumer<AutoHttpPost> ext = entity == null ? null : req -> {
+            req.setEntity(entity.get());
+        };
+        return post(url, ext, f);
+    }
+
+    /**
+     * POSTリクエストを送信する。
+     * @param url 送信先URL
+     * @param f レスポンスボディ変換関数
+     * @return fの変換結果
+     * @throws HttpStatusException エラーレスポンスが返ってきた場合
+     * @throws TimeoutException 接続がタイムアウトした場合
+     * @throws ConnectionLostException 接続が失敗した、または失われた場合
+     * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
+     */
+    private <T> T post(String url, Function<String, T> f) {
+        return post(url, (Supplier<HttpEntity>) null, f);
+    }
+
+    /**
+     * POSTリクエストを送信する。
+     * @param url 送信先URL
+     * @param jsonParam リクエストボディに付与するJSONパラメータ
+     * @param f レスポンスボディ変換関数
+     * @return fの変換結果
+     * @throws HttpStatusException エラーレスポンスが返ってきた場合
+     * @throws TimeoutException 接続がタイムアウトした場合
+     * @throws ConnectionLostException 接続が失敗した、または失われた場合
+     * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
+     */
+    private <T> T post(String url, String jsonParam, Function<String, T> f) {
+        return post(url, () -> toHttpEntity(jsonParam), f);
+    }
+
+    /**
+     * PUTリクエストを送信する。
+     * @param url 送信先URL
+     * @param ext リクエストに対する追加処理
+     * @param f レスポンスボディ変換関数
+     * @return fの変換結果
+     * @throws HttpStatusException エラーレスポンスが返ってきた場合
+     * @throws TimeoutException 接続がタイムアウトした場合
+     * @throws ConnectionLostException 接続が失敗した、または失われた場合
+     * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
+     */
+    private <T> T put(String url, Consumer<AutoHttpPut> ext, Function<String, T> f) {
+        return send(
+            () -> new AutoHttpPut(_baseUrl + url),
+            ext,
+            (HttpResponse response) -> f.apply(responseToString(response))
+        );
+    }
+
+    /**
+     * PUTリクエストを送信する。
+     * @param url 送信先URL
+     * @param entity リクエストボディのサプライヤ
+     * @param f レスポンスボディ変換関数
+     * @return fの変換結果
+     * @throws HttpStatusException エラーレスポンスが返ってきた場合
+     * @throws TimeoutException 接続がタイムアウトした場合
+     * @throws ConnectionLostException 接続が失敗した、または失われた場合
+     * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
+     */
+    private <T> T put(String url, Supplier<HttpEntity> entity, Function<String, T> f) {
+        Consumer<AutoHttpPut> ext = entity == null ? null : req -> {
+            req.setEntity(entity.get());
+        };
+        return put(url, ext, f);
+    }
+
+    /**
+     * PUTリクエストを送信する。
+     * @param url 送信先URL
+     * @param f レスポンスボディ変換関数
+     * @return fの変換結果
+     * @throws HttpStatusException エラーレスポンスが返ってきた場合
+     * @throws TimeoutException 接続がタイムアウトした場合
+     * @throws ConnectionLostException 接続が失敗した、または失われた場合
+     * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
+     */
+    private <T> T put(String url, Function<String, T> f) {
+        return put(url, (Supplier<HttpEntity>) null, f);
+    }
+
+    /**
+     * PUTリクエストを送信する。
+     * @param url 送信先URL
+     * @param jsonParam リクエストボディに付与するJSONパラメータ
+     * @param f レスポンスボディ変換関数
+     * @return fの変換結果
+     * @throws HttpStatusException エラーレスポンスが返ってきた場合
+     * @throws TimeoutException 接続がタイムアウトした場合
+     * @throws ConnectionLostException 接続が失敗した、または失われた場合
+     * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
+     */
+    private <T> T put(String url, String jsonParam, Function<String, T> f) {
+        return put(url, () -> toHttpEntity(jsonParam), f);
+    }
+
+    /**
+     * DELETEリクエストを送信する。
+     * @param url 送信先URL
+     * @param f レスポンスボディ変換関数
+     * @return fの変換結果
+     * @throws HttpStatusException エラーレスポンスが返ってきた場合
+     * @throws TimeoutException 接続がタイムアウトした場合
+     * @throws ConnectionLostException 接続が失敗した、または失われた場合
+     * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
+     */
+    private <T> T delete(String url, Function<String, T> f) {
+        return send(
+            () -> new AutoHttpDelete(_baseUrl + url),
+            null,
+            (HttpResponse response) -> f.apply(responseToString(response))
+        );
+    }
+
+    /**
+     * JSONパラメータをリクエストボディ用に変換する。
+     * @param jsonParam 変換するJSON文字列
+     * @return 変換結果
+     */
+    private static HttpEntity toHttpEntity(String jsonParam) {
+        List<NameValuePair> params = new ArrayList<>();
+        params.add(new BasicNameValuePair("d", jsonParam));
+        return new UrlEncodedFormEntity(params, StandardCharsets.UTF_8);
+    }
+
+    /**
      * Authorizationヘッダを追加する。
      * @param request リクエストオブジェクト
      */
-    void addAuthorizationHeader(HttpRequestBase request) {
+    void addAuthorizationHeader(HttpUriRequest request) {
         if (! _apiKey.isEmpty() && ! _secretKey.isEmpty()) {
             request.addHeader("Authorization", String.format("api_key=%s, signature=%s",  _apiKey, getSignature(_apiKey, _secretKey)));
         }
@@ -1473,47 +1447,34 @@ public class DsmoqClient {
         }
     }
 
-    /**
-     * HTTPクライアントを取得する。
-     * @return HTTPクライアント
-     */
-    private AutoCloseHttpClient createHttpClient() {
-        return new AutoCloseHttpClient();
-    }
-
     /** デフォルトのレスポンスボディ文字コード */
     public static final Charset DEFAULT_RESPONSE_CHAESET = StandardCharsets.UTF_8;
     
     /**
-     * リクエストを実行し、文字列型のレスポンスを取得する。
-     * @param request リクエスト
-     * @return レスポンスボディ文字列
-     * @throws IOException 接続に失敗した場合
-     * @throws HttpException レスポンスがHTTPレスポンスとして不正な場合 
-     * @throws ErrorRespondedException エラーレスポンスが返ってきた場合
+     * レスポンスからレスポンスボディの文字列表現を取得する。
+     * レスポンスヘッダに文字コード指定がない場合、デフォルトの文字コード(UTF-8)を使用する
+     * @param response レスポンス
+     * @return レスポンスボディの文字列表現
      */
-    private String executeWithStringResponse(HttpUriRequest request) throws IOException, HttpException, ErrorRespondedException {
-        return executeWithStringResponse(request, DEFAULT_RESPONSE_CHAESET.name());
+    private String responseToString(HttpResponse response) throws IOException {
+        return responseToString(response, DEFAULT_RESPONSE_CHAESET.name());
     }
-
+    
     /**
-     * リクエストを実行し、文字列型のレスポンスを取得する。
-     * @param request リクエスト
+     * レスポンスからレスポンスボディの文字列表現を取得する。
+     * @param response レスポンス
      * @param charset レスポンスヘッダに文字コード指定がない場合に使用する文字コード
-     * @return レスポンスボディ文字列
-     * @throws IOException 接続に失敗した場合
-     * @throws HttpException レスポンスがHTTPレスポンスとして不正な場合 
-     * @throws ErrorRespondedException エラーレスポンスが返ってきた場合
+     * @return レスポンスボディの文字列表現
      */
-    private String executeWithStringResponse(HttpUriRequest request, String charset) throws IOException, HttpException, ErrorRespondedException {
-        return execute(request, response -> EntityUtils.toString(response.getEntity(), charset));
+    private String responseToString(HttpResponse response, String charset) throws IOException {
+        return EntityUtils.toString(response.getEntity(), charset);
     }
 
     /**
      * リクエストを実行する。
      * @param <T> レスポンス変換後の型
      * @param request リクエスト
-     * @param f レスポンスボディ変換関数
+     * @param f レスポンス変換関数
      * @return fの変換結果
      * @throws IOException 接続に失敗した場合
      * @throws HttpException レスポンスがHTTPレスポンスとして不正な場合 
@@ -1528,6 +1489,14 @@ public class DsmoqClient {
             }
             return f.apply(response);
         }
+    }
+
+    /**
+     * HTTPクライアントを取得する。
+     * @return HTTPクライアント
+     */
+    private AutoCloseHttpClient createHttpClient() {
+        return new AutoCloseHttpClient();
     }
 
     /**

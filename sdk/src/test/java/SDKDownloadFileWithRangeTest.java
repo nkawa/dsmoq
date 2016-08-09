@@ -94,7 +94,7 @@ public class SDKDownloadFileWithRangeTest {
 
     @Test
     public void downloadFileWithRangeでサーバに接続できない場合例外が発生() {
-        thrown.expect(DsmoqHttpException.class);
+        thrown.expect(ConnectionLostException.class);
         thrown.expectCause(instanceOf(HttpHostConnectException.class));
         DsmoqClient client = DsmoqClient.create("http://localhost:8081", "3d2357cd53e8738ae21fbc86e15bd441c497191cf785163541ffa907854d2649", "731cc0646e8012632f58bb7d1912a77e8072c7f128f2d09f0bebc36ac0c1a579");
         client.downloadFileWithRange("", "", null, null, content -> null);
@@ -102,7 +102,7 @@ public class SDKDownloadFileWithRangeTest {
 
     @Test
     public void downloadFileWithRangeでdatasetIdが空文字列の場合例外が発生() {
-        thrown.expect(DsmoqHttpException.class);
+        thrown.expect(HttpStatusException.class);
         thrown.expectCause(instanceOf(ErrorRespondedException.class));
         DsmoqClient client = create();
         Dataset dataset = client.createDataset(true, false, new File("README.md"));
@@ -113,7 +113,7 @@ public class SDKDownloadFileWithRangeTest {
 
     @Test
     public void downloadFileWithRangeでfileIdが空文字列の場合例外が発生() {
-        thrown.expect(DsmoqHttpException.class);
+        thrown.expect(HttpStatusException.class);
         thrown.expectCause(instanceOf(ErrorRespondedException.class));
         DsmoqClient client = create();
         Dataset dataset = client.createDataset(true, false, new File("README.md"));
@@ -122,7 +122,7 @@ public class SDKDownloadFileWithRangeTest {
 
     @Test
     public void downloadFileWithRangeでdatasetIdで指定した対象が存在しない場合例外が発生() {
-        thrown.expect(DsmoqHttpException.class);
+        thrown.expect(HttpStatusException.class);
         thrown.expectCause(instanceOf(ErrorRespondedException.class));
         DsmoqClient client = create();
         Dataset dataset = client.createDataset(true, false, new File("README.md"));
@@ -133,7 +133,7 @@ public class SDKDownloadFileWithRangeTest {
 
     @Test
     public void downloadFileWithRangeでfileIdで指定した対象が存在しない場合例外が発生() {
-        thrown.expect(DsmoqHttpException.class);
+        thrown.expect(HttpStatusException.class);
         thrown.expectCause(instanceOf(ErrorRespondedException.class));
         DsmoqClient client = create();
         Dataset dataset = client.createDataset(true, false, new File("README.md"));
@@ -142,7 +142,7 @@ public class SDKDownloadFileWithRangeTest {
 
     @Test
     public void downloadFileWithRangeで権限のないのないファイルを指定すると例外が発生() {
-        thrown.expect(DsmoqHttpException.class);
+        thrown.expect(HttpStatusException.class);
         thrown.expectCause(instanceOf(ErrorRespondedException.class));
         DsmoqClient client = create();
         Dataset dataset = client.createDataset(true, false, new File("README.md"));
@@ -270,7 +270,7 @@ public class SDKDownloadFileWithRangeTest {
     }
     @Test
     public void downloadFileWithRange_サイズ1_from_null_to_0で例外が発生() throws IOException {
-        thrown.expect(DsmoqHttpException.class);
+        thrown.expect(HttpStatusException.class);
         thrown.expectCause(instanceOf(ErrorRespondedException.class));
         downloadByteTestData(1, null, 0L);
     }
@@ -301,19 +301,19 @@ public class SDKDownloadFileWithRangeTest {
     }
     @Test
     public void downloadFileWithRange_サイズ2_from_0_to_3で例外が発生() throws IOException {
-        thrown.expect(DsmoqHttpException.class);
+        thrown.expect(HttpStatusException.class);
         thrown.expectCause(instanceOf(ErrorRespondedException.class));
         downloadByteTestData(2, 0L, 3L);
     }
     @Test
     public void downloadFileWithRange_サイズ2_from_3_to_3で例外が発生() throws IOException {
-        thrown.expect(DsmoqHttpException.class);
+        thrown.expect(HttpStatusException.class);
         thrown.expectCause(instanceOf(ErrorRespondedException.class));
         downloadByteTestData(2, 3L, 3L);
     }
     @Test
     public void downloadFileWithRange_サイズ2_from_1_to_0で例外が発生() throws IOException {
-        thrown.expect(DsmoqHttpException.class);
+        thrown.expect(HttpStatusException.class);
         thrown.expectCause(instanceOf(ErrorRespondedException.class));
         downloadByteTestData(2, 1L, 0L);
     }
