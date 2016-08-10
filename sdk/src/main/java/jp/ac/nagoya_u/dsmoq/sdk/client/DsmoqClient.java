@@ -162,7 +162,8 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public RangeSlice<DatasetsSummary> getDatasets(GetDatasetsParam param) {
-        requireNotNull(param, "at param in getDatasets");
+        logger.debug(LOG_MARKER, "DsmoqClient#getDatasets start : [param] = {}", param);
+        requireNotNull(param, "at param in DsmoqClient#getDatasets");
         return get("/api/datasets", param.toJsonString(), JsonUtil::toDatasets);
     }
 
@@ -177,7 +178,8 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public Dataset getDataset(String datasetId) {
-        requireNotNull(datasetId, "at datasetId in getDataset");
+        logger.debug(LOG_MARKER, "DsmoqClient#getDataset start : [datasetId] = {}", datasetId);
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#getDataset");
         return get("/api/datasets/" + datasetId, JsonUtil::toDataset);
     }
 
@@ -196,9 +198,10 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public Dataset createDataset(boolean saveLocal, boolean saveS3, File... files) {
-        requireNotNull(files, "at files in createDataset");
-        requireNotEmpty(files, "at files in createDataset");
-        requireNotNullAll(files, "at files[%d] in createDataset");
+        logger.debug(LOG_MARKER, "DsmoqClient#createDataset start : [saveLocal] = {}, [saveS3] = {}, [file num] = {}", saveLocal, saveS3, (files == null) ? "null" : files.length);
+        requireNotNull(files, "at files in DsmoqClient#createDataset");
+        requireNotEmpty(files, "at files in DsmoqClient#createDataset");
+        requireNotNullAll(files, "at files[%d] in DsmoqClient#createDataset");
         return createDataset(files[0].getName(), saveLocal, saveS3, files);
     }
 
@@ -215,6 +218,8 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public Dataset createDataset(String name, boolean saveLocal, boolean saveS3) {
+        logger.debug(LOG_MARKER, "DsmoqClient#createDataset start : [name] = {}, [saveLocal] = {}, [saveS3] = {}", name, saveLocal, saveS3);
+        requireNotNull(name, "at name in DsmoqClient#createDataset");
         return createDataset(name, saveLocal, saveS3, new File[0]);
     }
 
@@ -232,10 +237,10 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public Dataset createDataset(String name, boolean saveLocal, boolean saveS3, File... files) {
-        requireNotNull(name, "at name in createDataset");
-        requireNotNull(files, "at files in createDataset");
-        requireNotNullAll(files, "at files[%d] in createDataset");
-        logger.debug(LOG_MARKER, "createDataset start : [name] = {}, [saveLocal] = {}, [saveS3] = {}, [files size] = {}", name, saveLocal, saveS3, (files != null) ? files.length : "null");
+        logger.debug(LOG_MARKER, "DsmoqClient#createDataset start : [name] = {}, [saveLocal] = {}, [saveS3] = {}, [files size] = {}", name, saveLocal, saveS3, (files == null) ? "null" : files.length);
+        requireNotNull(name, "at name in DsmoqClient#createDataset");
+        requireNotNull(files, "at files in DsmoqClient#createDataset");
+        requireNotNullAll(files, "at files[%d] in DsmoqClient#createDataset");
         Supplier<HttpEntity> entity = () -> {
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             // MultipartEntityBuilderのモード互換モードを設定
@@ -249,7 +254,6 @@ public class DsmoqClient {
             builder.addTextBody("saveS3", saveS3 ? "true" : "false");
             return builder.build();
         };
-//        logger.debug(LOG_MARKER, "createDataset end : receive json = {}", json);
         return post("/api/datasets", entity, JsonUtil::toDataset);
     }
 
@@ -265,10 +269,10 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public DatasetAddFiles addFiles(String datasetId, File... files) {
-        requireNotNull(datasetId, "at datasetId in addFiles");
-        requireNotNull(files, "at files in addFiles");
-        requireNotNullAll(files, "at files[%d] in addFiles");
-        logger.debug(LOG_MARKER, "addFiles start : [datasetId] = {}, [files size] = {}", datasetId, (files != null) ? files.length : "null");
+        logger.debug(LOG_MARKER, "DsmoqClient#addFiles start : [datasetId] = {}, [file num] = {}", datasetId, (files == null) ? "null" : files.length);
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#addFiles");
+        requireNotNull(files, "at files in DsmoqClient#addFiles");
+        requireNotNullAll(files, "at files[%d] in DsmoqClient#addFiles");
         Supplier<HttpEntity> entity = () -> {
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             // MultipartEntityBuilderのモード互換モードを設定
@@ -278,7 +282,6 @@ public class DsmoqClient {
             Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("files", file));
             return builder.build();
         };
-//        logger.debug(LOG_MARKER, "addFiles end : receive json = {}", json);
         return post("/api/datasets/" + datasetId + "/files", entity, JsonUtil::toDatasetAddFiles);
     }
 
@@ -295,9 +298,10 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public DatasetFile updateFile(String datasetId, String fileId, File file) {
-        requireNotNull(datasetId, "at datasetId in updateFile");
-        requireNotNull(fileId, "at fileId in updateFile");
-        requireNotNull(file, "at file in updateFile");
+        logger.debug(LOG_MARKER, "DsmoqClient#updateFile start : [datasetId] = {}, [fileId] = {}, [file] = {}", datasetId, fileId, (file == null) ? "null" : file.getName());
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#updateFile");
+        requireNotNull(fileId, "at fileId in DsmoqClient#updateFile");
+        requireNotNull(file, "at file in DsmoqClient#updateFile");
         Supplier<HttpEntity> entity = () -> {
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             builder.addBinaryBody("file", file);
@@ -319,9 +323,10 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public DatasetFile updateFileMetaInfo(String datasetId, String fileId, UpdateFileMetaParam param) {
-        requireNotNull(datasetId, "at datasetId in updateFileMetaInfo");
-        requireNotNull(fileId, "at fileId in updateFileMetaInfo");
-        requireNotNull(param, "at param in updateFileMetaInfo");
+        logger.debug(LOG_MARKER, "DsmoqClient#updateFileMetaInfo start : [datasetId] = {}, [fileId] = {}, [param] = {}", datasetId, fileId, param);
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#updateFileMetaInfo");
+        requireNotNull(fileId, "at fileId in DsmoqClient#updateFileMetaInfo");
+        requireNotNull(param, "at param in DsmoqClient#updateFileMetaInfo");
         return put("/api/datasets/" + datasetId + "/files/" + fileId + "/metadata", param.toJsonString(), JsonUtil::toDatasetFile);
     }
 
@@ -336,8 +341,9 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public void deleteFile(String datasetId, String fileId) {
-        requireNotNull(datasetId, "at datasetId in deleteFile");
-        requireNotNull(fileId, "at fileId in deleteFile");
+        logger.debug(LOG_MARKER, "DsmoqClient#deleteFile start : [datasetId] = {}, [fileId] = {}", datasetId, fileId);
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#deleteFile");
+        requireNotNull(fileId, "at fileId in DsmoqClient#deleteFile");
         delete("/api/datasets/" + datasetId + "/files/" + fileId, x -> x);
     }
 
@@ -352,8 +358,9 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public void updateDatasetMetaInfo(String datasetId, UpdateDatasetMetaParam param) {
-        requireNotNull(datasetId, "at datasetId in updateDatasetMetaInfo");
-        requireNotNull(param, "at param in updateDatasetMetaInfo");
+        logger.debug(LOG_MARKER, "DsmoqClient#updateDatasetMetaInfo start : [datasetId] = {}, [param] = {}", datasetId, param);
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#updateDatasetMetaInfo");
+        requireNotNull(param, "at param in DsmoqClient#updateDatasetMetaInfo");
         put("/api/datasets/" + datasetId + "/metadata", param.toJsonString(), x -> x);
     }
 
@@ -369,9 +376,10 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public DatasetAddImages addImagesToDataset(String datasetId, File... files) {
-        requireNotNull(datasetId, "at datasetId in addImageToDataset");
-        requireNotNull(files, "at files in addImageToDataset");
-        requireNotNullAll(files, "at files[%d] in addImageToDataset");
+        logger.debug(LOG_MARKER, "DsmoqClient#addImagesToDataset start : [datasetId] = {}, [file num] = {}", datasetId, (files == null) ? "null" : files.length);
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#addImagesToDataset");
+        requireNotNull(files, "at files in DsmoqClient#addImagesToDataset");
+        requireNotNullAll(files, "at files[%d] in DsmoqClient#addImagesToDataset");
         Supplier<HttpEntity> entity = () -> {
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("images", file));
@@ -391,8 +399,9 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public void setPrimaryImageToDataset(String datasetId, SetPrimaryImageParam param) {
-        requireNotNull(datasetId, "at datasetId in setPrimaryImageToDataset");
-        requireNotNull(param, "at param in setPrimaryImageToDataset");
+        logger.debug(LOG_MARKER, "DsmoqClient#setPrimaryImageToDataset start : [datasetId] = {}, [param] = {}", datasetId, param);
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#setPrimaryImageToDataset");
+        requireNotNull(param, "at param in DsmoqClient#setPrimaryImageToDataset");
         put("/api/datasets/" + datasetId + "/images/primary", param.toJsonString(), x -> x);
     }
 
@@ -407,8 +416,9 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public void setPrimaryImageToDataset(String datasetId, File file) {
-        requireNotNull(datasetId, "at datasetId in setPrimaryImageToDataset");
-        requireNotNull(file, "at file in setPrimaryImageToDataset");
+        logger.debug(LOG_MARKER, "DsmoqClient#setPrimaryImageToDataset start : [datasetId] = {}, [file] = {}", datasetId, (file == null) ? "null" : file.getName());
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#setPrimaryImageToDataset");
+        requireNotNull(file, "at file in DsmoqClient#setPrimaryImageToDataset");
         DatasetAddImages image = addImagesToDataset(datasetId, file);
         setPrimaryImageToDataset(datasetId, new SetPrimaryImageParam(image.getImages().get(0).getId()));
     }
@@ -425,8 +435,9 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public DatasetDeleteImage deleteImageToDataset(String datasetId, String imageId) {
-        requireNotNull(datasetId, "at datasetId in deleteImageToDataset");
-        requireNotNull(imageId, "at imageId in deleteImageToDataset");
+        logger.debug(LOG_MARKER, "DsmoqClient#deleteImageToDataset start : [datasetId] = {}, [imageId] = {}", datasetId, imageId);
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#deleteImageToDataset");
+        requireNotNull(imageId, "at imageId in DsmoqClient#deleteImageToDataset");
         return delete("/api/datasets/" + datasetId + "/images/" + imageId, JsonUtil::toDatasetDeleteImage);
     }
 
@@ -442,8 +453,9 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public RangeSlice<DatasetGetImage> getDatasetImage(String datasetId, GetRangeParam param) {
-        requireNotNull(datasetId, "at datasetId in getDatasetImage");
-        requireNotNull(param, "at param in getDatasetImage");
+        logger.debug(LOG_MARKER, "DsmoqClient#getDatasetImage start : [datasetId] = {}, [param] = {}", datasetId, param);
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#getDatasetImage");
+        requireNotNull(param, "at param in DsmoqClient#getDatasetImage");
         return get("/api/datasets/" + datasetId + "/images", param.toJsonString(), JsonUtil::toDatasetGetImage);
     }
 
@@ -459,8 +471,9 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public RangeSlice<DatasetOwnership> getAccessLevel(String datasetId, GetRangeParam param) {
-        requireNotNull(datasetId, "at datasetId in getAccessLevel");
-        requireNotNull(param, "at param in getAccessLevel");
+        logger.debug(LOG_MARKER, "DsmoqClient#getAccessLevel start : [datasetId] = {}, [param] = {}", datasetId, param);
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#getAccessLevel");
+        requireNotNull(param, "at param in DsmoqClient#getAccessLevel");
         return get("/api/datasets/" + datasetId + "/acl", param.toJsonString(), JsonUtil::toDatasetOwnership);
     }
 
@@ -476,9 +489,10 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public DatasetOwnerships changeAccessLevel(String datasetId, List<SetAccessLevelParam> params) {
-        requireNotNull(datasetId, "at datasetId in changeAccessLevel");
-        requireNotNull(params, "at params in changeAccessLevel");
-        requireNotNullAll(params, "at params[%d] in changeAccessLevel");
+        logger.debug(LOG_MARKER, "DsmoqClient#changeAccessLevel start : [datasetId] = {}, [params] = {}", datasetId, params);
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#changeAccessLevel");
+        requireNotNull(params, "at params in DsmoqClient#changeAccessLevel");
+        requireNotNullAll(params, "at params[%d] in DsmoqClient#changeAccessLevel");
         return post("/api/datasets/" + datasetId + "/acl", SetAccessLevelParam.toJsonString(params), JsonUtil::toDatasetOwnerships);
     }
 
@@ -493,8 +507,9 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public void changeGuestAccessLevel(String datasetId, SetGuestAccessLevelParam param) {
-        requireNotNull(datasetId, "at datasetId in changeGuestAccessLevel");
-        requireNotNull(param, "at param in changeGuestAccessLevel");
+        logger.debug(LOG_MARKER, "DsmoqClient#changeGuestAccessLevel start : [datasetId] = {}, [param] = {}", datasetId, param);
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#changeGuestAccessLevel");
+        requireNotNull(param, "at param in DsmoqClient#changeGuestAccessLevel");
         put("/api/datasets/" + datasetId + "/guest_access", param.toJsonString(), x -> x);
     }
 
@@ -508,7 +523,8 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public void deleteDataset(String datasetId) {
-        requireNotNull(datasetId, "at datasetId in deleteDataset");
+        logger.debug(LOG_MARKER, "DsmoqClient#deleteDataset start : [datasetId] = {}", datasetId);
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#deleteDataset");
         delete("/api/datasets/" + datasetId, x -> x);
     }
 
@@ -524,8 +540,9 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public DatasetTask changeDatasetStorage(String datasetId, ChangeStorageParam param) {
-        requireNotNull(datasetId, "at datasetId in changeDatasetStorage");
-        requireNotNull(param, "at param in changeDatasetStorage");
+        logger.debug(LOG_MARKER, "DsmoqClient#changeDatasetStorage start : [datasetId] = {}, [param] = {}", datasetId, param);
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#changeDatasetStorage");
+        requireNotNull(param, "at param in DsmoqClient#changeDatasetStorage");
         return put("/api/datasets/" + datasetId  + "/storage", param.toJsonString(), JsonUtil::toDatasetTask);
     }
 
@@ -540,7 +557,8 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public String copyDataset(String datasetId) {
-        requireNotNull(datasetId, "at datasetId in copyDataset");
+        logger.debug(LOG_MARKER, "DsmoqClient#copyDataset start : [datasetId] = {}", datasetId);
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#copyDataset");
         return post("/api/datasets/" + datasetId + "/copy", json -> JsonUtil.toCopiedDataset(json).getDatasetId());
     }
 
@@ -555,8 +573,9 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public void importAttribute(String datasetId, File file) {
-        requireNotNull(datasetId, "at datasetId in importAttribute");
-        requireNotNull(file, "at file in importAttribute");
+        logger.debug(LOG_MARKER, "DsmoqClient#importAttribute start : [datasetId] = {}, [file] = {}", datasetId, (file == null) ? "null" : file.getName());
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#importAttribute");
+        requireNotNull(file, "at file in DsmoqClient#importAttribute");
         Supplier<HttpEntity> entity = () -> {
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             builder.addBinaryBody("file", file);
@@ -581,9 +600,9 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public <T> T exportAttribute(String datasetId, Function<DatasetFileContent, T> f) {
-        logger.debug(LOG_MARKER, "exportAttribute start : [datasetId] = {}", datasetId);
-        requireNotNull(datasetId, "at datasetId in exportAttribute");
-        requireNotNull(f, "at f in exportAttribute");
+        logger.debug(LOG_MARKER, "DsmoqClient#exportAttribute start : [datasetId] = {}", datasetId);
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#exportAttribute");
+        requireNotNull(f, "at f in DsmoqClient#exportAttribute");
         return get("/api/datasets/" + datasetId + "/attributes/export", (HttpResponse response) -> {
             return f.apply(new DatasetFileContent() {
                 public String getName() {
@@ -610,8 +629,9 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public void setFeaturedImageToDataset(String datasetId, String imageId) {
-        requireNotNull(datasetId, "at datasetId in setFeaturedImageToDataset");
-        requireNotNull(imageId, "at imageId in setFeaturedImageToDataset");
+        logger.debug(LOG_MARKER, "DsmoqClient#setFeaturedImageToDataset start : [datasetId] = {}, [imageId] = {}", datasetId, imageId);
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#setFeaturedImageToDataset");
+        requireNotNull(imageId, "at imageId in DsmoqClient#setFeaturedImageToDataset");
         put("/api/datasets/" + datasetId + "/images/featured", new SetFeaturedImageToDatasetParam(imageId).toJsonString(), x -> x);
     }
 
@@ -626,11 +646,15 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public void setFeaturedImageToDataset(String datasetId, File file) {
-        requireNotNull(datasetId, "at datasetId in setFeaturedImageToDataset");
-        requireNotNull(file, "at file in setFeaturedImageToDataset");
+        logger.debug(LOG_MARKER, "DsmoqClient#setFeaturedImageToDataset start : [datasetId] = {}, [file] = {}", datasetId, (file == null) ? "null" : file.getName());
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#setFeaturedImageToDataset");
+        requireNotNull(file, "at file in DsmoqClient#setFeaturedImageToDataset");
         DatasetAddImages image = addImagesToDataset(datasetId, file);
         setFeaturedImageToDataset(datasetId, image.getImages().get(0).getId());
     }
+
+    /** HTTP Response の Content-Disposition ヘッダ */
+    private static final String CONTENT_LENGTH_HEADER_NAME = "Content-Length";
 
     /**
      * データセットに設定されているファイルのサイズを取得する。(HEAD /files/${dataset_id}/${file_id}相当)
@@ -644,18 +668,19 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public Long getFileSize(String datasetId, String fileId) {
-        requireNotNull(datasetId, "at datasetId in headFile");
-        requireNotNull(fileId, "at fileId in headFile");
+        logger.debug(LOG_MARKER, "DsmoqClient#getFileSize start : [datasetId] = {}, [fileId] = {}", datasetId, fileId);
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#getFileSize");
+        requireNotNull(fileId, "at fileId in DsmoqClient#getFileSize");
         return head("/files/" + datasetId + "/" + fileId, response -> {
-            Header header = response.getFirstHeader("Content-Length");
+            Header header = response.getFirstHeader(CONTENT_LENGTH_HEADER_NAME);
             if (header == null) {
-                logger.warn(LOG_MARKER, "Content-Length not found.");
+                logger.warn(LOG_MARKER, resource.getString(ResourceNames.LOG_CONTENT_LENGTH_NOT_FOUND));
                 return null;
             }
             try {
                 return Long.valueOf(header.getValue());
             } catch (NumberFormatException e) {
-                logger.warn(LOG_MARKER, "Invalid Content-Length value. [value]:{}", header.getValue());
+                logger.warn(LOG_MARKER, resource.getString(ResourceNames.LOG_INVALID_CONTENT_LENGTH), header.getValue(), e);
                 return null;
             }
         });
@@ -675,8 +700,15 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public <T> T downloadFile(String datasetId, String fileId, Function<DatasetFileContent, T> f) {
+        logger.debug(LOG_MARKER, "DsmoqClient#downloadFile start : [datasetId] = {}, [fileId] = {}", datasetId, fileId);
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#downloadFile");
+        requireNotNull(fileId, "at fileId in DsmoqClient#downloadFile");
+        requireNotNull(f, "at f in DsmoqClient#downloadFile");
         return downloadFileWithRange(datasetId, fileId, null, null, f);
     }
+
+    /** HTTP Response の Content-Disposition ヘッダ */
+    private static final String RANGE_HEADER_NAME = "Range";
 
     /**
      * データセットからファイルの内容を部分的に取得する。（GET /files/${dataset_id}/${file_id}相当）
@@ -695,17 +727,17 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public <T> T downloadFileWithRange(String datasetId, String fileId, Long from, Long to, Function<DatasetFileContent, T> f) {
-        logger.debug(LOG_MARKER, "downloadFileWithRange start : [datasetId/fileId] = {}/{}, [from:to] = {}:{}", datasetId, fileId, from, to);
-        requireNotNull(datasetId, "at datasetId in downloadFileWithRange");
-        requireNotNull(fileId, "at fileId in downloadFileWithRange");
-        requireNotNull(f, "at f in downloadFileWithRange");
-        requireGreaterOrEqualOrNull(from, 0L, "at from in downloadFileWithRange");
-        requireGreaterOrEqualOrNull(to, 0L, "at to in downloadFileWithRange");
+        logger.debug(LOG_MARKER, "DsmoqClient#downloadFileWithRange start : [datasetId] = {}, [fileId] = {}, [from:to] = {}:{}", datasetId, fileId, from, to);
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#downloadFileWithRange");
+        requireNotNull(fileId, "at fileId in DsmoqClient#downloadFileWithRange");
+        requireNotNull(f, "at f in DsmoqClient#downloadFileWithRange");
+        requireGreaterOrEqualOrNull(from, 0L, "at from in DsmoqClient#downloadFileWithRange");
+        requireGreaterOrEqualOrNull(to, 0L, "at to in DsmoqClient#downloadFileWithRange");
         return get(
             "/files/" + datasetId + "/" + fileId,
             request -> {
                 if (from != null || to != null) {
-                    request.setHeader("Range", String.format("bytes=%s-%s", from == null ? "" : from.toString(), to == null ? "" : to.toString()));
+                    request.setHeader(RANGE_HEADER_NAME, String.format("bytes=%s-%s", from == null ? "" : from.toString(), to == null ? "" : to.toString()));
                 }
             },
             response -> {
@@ -742,12 +774,12 @@ public class DsmoqClient {
     private String getFileNameFromHeader(HttpResponse response) {
         Header header = response.getFirstHeader(CONTENT_DISPOSITION_HEADER_NAME);
         if (header == null) {
-            logger.warn(LOG_MARKER, "Content-Disposition not found.");
+            logger.warn(LOG_MARKER, resource.getString(ResourceNames.LOG_CONTENT_DISPOSITION_NOT_FOUND));
             return null;
         }
         Matcher m = COTENT_DISPOSITION_PATTERN.matcher(header.getValue());
         if (!m.find()) {
-            logger.warn(LOG_MARKER, "Illegal format Content-Disposition: {}", header.getValue());
+            logger.warn(LOG_MARKER, resource.getString(ResourceNames.LOG_ILLEGAL_FORMAT_CONTENT_DISPOSITION), header.getValue());
             return null;
         }
         String rawCharset = m.group(COTENT_DISPOSITION_PATTERN_CHARSET);
@@ -756,7 +788,7 @@ public class DsmoqClient {
             Charset charset = Charset.forName(rawCharset);
             return URLDecoder.decode(rawFileName, charset.name());
         } catch (UnsupportedEncodingException | IllegalCharsetNameException | UnsupportedCharsetException e) {
-            logger.warn(LOG_MARKER, "Unsupported charset: {}", rawCharset);
+            logger.warn(LOG_MARKER, resource.getString(ResourceNames.LOG_UNSUPPORTED_CHARSET), rawCharset, e);
             return null;
         }
     }
@@ -773,8 +805,9 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public RangeSlice<DatasetFile> getDatasetFiles(String datasetId, GetRangeParam param) {
-        requireNotNull(datasetId, "at datasetId in getDatasetFiles");
-        requireNotNull(param, "at param in getDatasetFiles");
+        logger.debug(LOG_MARKER, "DsmoqClient#getDatasetFiles start : [datasetId] = {}, [param] = {}", datasetId, param);
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#getDatasetFiles");
+        requireNotNull(param, "at param in DsmoqClient#getDatasetFiles");
         return get("/api/datasets/" + datasetId + "/files", param.toJsonString(), JsonUtil::toDatasetFiles);
     }
 
@@ -791,9 +824,10 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public RangeSlice<DatasetZipedFile> getDatasetZippedFiles(String datasetId, String fileId, GetRangeParam param) {
-        requireNotNull(datasetId, "at datasetId in getDatasetZippedFiles");
-        requireNotNull(fileId, "at fileId in getDatasetZippedFiles");
-        requireNotNull(param, "at param in getDatasetZippedFiles");
+        logger.debug(LOG_MARKER, "DsmoqClient#getDatasetZippedFiles start : [datasetId] = {}, [fileId] = {}, [param] = {}", datasetId, fileId, param);
+        requireNotNull(datasetId, "at datasetId in DsmoqClient#getDatasetZippedFiles");
+        requireNotNull(fileId, "at fileId in DsmoqClient#getDatasetZippedFiles");
+        requireNotNull(param, "at param in DsmoqClient#getDatasetZippedFiles");
         return get("/api/datasets/" + datasetId + "/files/" + fileId + "/zippedfiles", param.toJsonString(), JsonUtil::toDatasetZippedFiles);
     }
 
@@ -808,7 +842,8 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public RangeSlice<GroupsSummary> getGroups(GetGroupsParam param) {
-        requireNotNull(param, "at param in getGroups");
+        logger.debug(LOG_MARKER, "DsmoqClient#getGroups start : [param] = {}", param);
+        requireNotNull(param, "at param in DsmoqClient#getGroups");
         return get("/api/groups", param.toJsonString(), JsonUtil::toGroups);
     }
 
@@ -823,7 +858,8 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public Group getGroup(String groupId) {
-        requireNotNull(groupId, "at groupId in getGroup");
+        logger.debug(LOG_MARKER, "DsmoqClient#getGroup start : [groupId] = {}", groupId);
+        requireNotNull(groupId, "at groupId in DsmoqClient#getGroup");
         return get("/api/groups/" + groupId, JsonUtil::toGroup);
     }
 
@@ -839,8 +875,9 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public RangeSlice<MemberSummary> getMembers(String groupId, GetMembersParam param) {
-        requireNotNull(groupId, "at groupId in getMembers");
-        requireNotNull(param, "at param in getMembers");
+        logger.debug(LOG_MARKER, "DsmoqClient#getMembers start : [groupId] = {}, [param] = {}", groupId, param);
+        requireNotNull(groupId, "at groupId in DsmoqClient#getMembers");
+        requireNotNull(param, "at param in DsmoqClient#getMembers");
         return get("/api/groups/" + groupId + "/members", param.toJsonString(), JsonUtil::toMembers);
     }
 
@@ -855,7 +892,8 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public Group createGroup(CreateGroupParam param) {
-        requireNotNull(param, "at param in getMembers");
+        logger.debug(LOG_MARKER, "DsmoqClient#createGroup start : [param] = {}", param);
+        requireNotNull(param, "at param in DsmoqClient#createGroup");
         return post("/api/groups", param.toJsonString(), JsonUtil::toGroup);
     }
 
@@ -871,8 +909,9 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public Group updateGroup(String groupId, UpdateGroupParam param) {
-        requireNotNull(groupId, "at groupId in updateGroup");
-        requireNotNull(param, "at param in updateGroup");
+        logger.debug(LOG_MARKER, "DsmoqClient#updateGroup start : [groupId] = {}, [param] = {}", groupId, param);
+        requireNotNull(groupId, "at groupId in DsmoqClient#updateGroup");
+        requireNotNull(param, "at param in DsmoqClient#updateGroup");
         return put("/api/groups/" + groupId, param.toJsonString(), JsonUtil::toGroup);
     }
 
@@ -888,8 +927,9 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public RangeSlice<GroupGetImage> getGroupImage(String groupId, GetRangeParam param) {
-        requireNotNull(groupId, "at groupId in getGroupImage");
-        requireNotNull(param, "at param in getGroupImage");
+        logger.debug(LOG_MARKER, "DsmoqClient#getGroupImage start : [groupId] = {}, [param] = {}", groupId, param);
+        requireNotNull(groupId, "at groupId in DsmoqClient#getGroupImage");
+        requireNotNull(param, "at param in DsmoqClient#getGroupImage");
         return get("/api/groups/" + groupId + "/images", param.toJsonString(), JsonUtil::toGroupGetImage);
     }
 
@@ -905,9 +945,10 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public GroupAddImages addImagesToGroup(String groupId, File... files) {
-        requireNotNull(groupId, "at groupId in addImagesToGroup");
-        requireNotNull(files, "at files in addImagesToGroup");
-        requireNotNullAll(files, "at files[%d] in addImagesToGroup");
+        logger.debug(LOG_MARKER, "DsmoqClient#addImagesToGroup start : [groupId] = {}, [file num] = {}", groupId, (files == null) ? "null" : files.length);
+        requireNotNull(groupId, "at groupId in DsmoqClient#addImagesToGroup");
+        requireNotNull(files, "at files in DsmoqClient#addImagesToGroup");
+        requireNotNullAll(files, "at files[%d] in DsmoqClient#addImagesToGroup");
         Supplier<HttpEntity> entity = () -> {
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("images", file));
@@ -927,8 +968,9 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public void setPrimaryImageToGroup(String groupId, SetPrimaryImageParam param) {
-        requireNotNull(groupId, "at groupId in setPrimaryImageToGroup");
-        requireNotNull(param, "at param in setPrimaryImageToGroup");
+        logger.debug(LOG_MARKER, "DsmoqClient#setPrimaryImageToGroup start : [groupId] = {}, [param] = {}", groupId, param);
+        requireNotNull(groupId, "at groupId in DsmoqClient#setPrimaryImageToGroup");
+        requireNotNull(param, "at param in DsmoqClient#setPrimaryImageToGroup");
         put("/api/groups/" + groupId + "/images/primary", param.toJsonString(), x -> x);
     }
 
@@ -943,8 +985,9 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public void setPrimaryImageToGroup(String groupId, File file) {
-        requireNotNull(groupId, "at groupId in setPrimaryImageToGroup");
-        requireNotNull(file, "at file in setPrimaryImageToGroup");
+        logger.debug(LOG_MARKER, "DsmoqClient#setPrimaryImageToGroup start : [groupId] = {}, [file] = {}", groupId, (file == null) ? "null" : file.getName());
+        requireNotNull(groupId, "at groupId in DsmoqClient#setPrimaryImageToGroup");
+        requireNotNull(file, "at file in DsmoqClient#setPrimaryImageToGroup");
         GroupAddImages image = addImagesToGroup(groupId, file);
         setPrimaryImageToGroup(groupId, new SetPrimaryImageParam(image.getImages().get(0).getId()));
     }
@@ -961,8 +1004,9 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public GroupDeleteImage deleteImageToGroup(String groupId, String imageId) {
-        requireNotNull(groupId, "at groupId in deleteImageToGroup");
-        requireNotNull(imageId, "at imageId in deleteImageToGroup");
+        logger.debug(LOG_MARKER, "DsmoqClient#deleteImageToGroup start : [groupId] = {}, [imageId] = {}", groupId, imageId);
+        requireNotNull(groupId, "at groupId in DsmoqClient#deleteImageToGroup");
+        requireNotNull(imageId, "at imageId in DsmoqClient#deleteImageToGroup");
         return delete("/api/groups/" + groupId + "/images/" + imageId, JsonUtil::toGroupDeleteImage);
     }
 
@@ -977,9 +1021,10 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public void addMember(String groupId, List<AddMemberParam> params) {
-        requireNotNull(groupId, "at groupId in addMember");
-        requireNotNull(params, "at params in addMember");
-        requireNotNullAll(params, "at params[%s] in addMember");
+        logger.debug(LOG_MARKER, "DsmoqClient#addMember start : [groupId] = {}, [params] = {}", groupId, params);
+        requireNotNull(groupId, "at groupId in DsmoqClient#addMember");
+        requireNotNull(params, "at params in DsmoqClient#addMember");
+        requireNotNullAll(params, "at params[%s] in DsmoqClient#addMember");
         post("/api/groups/" + groupId + "/members", AddMemberParam.toJsonString(params), x -> x);
     }
 
@@ -995,9 +1040,10 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public void setMemberRole(String groupId, String userId, SetMemberRoleParam param) {
-        requireNotNull(groupId, "at groupId in setMemberRole");
-        requireNotNull(userId, "at userId in setMemberRole");
-        requireNotNull(param, "at param in setMemberRole");
+        logger.debug(LOG_MARKER, "DsmoqClient#setMemberRole start : [groupId] = {}, [userId] = {}, [param] = {}", groupId, userId, param);
+        requireNotNull(groupId, "at groupId in DsmoqClient#setMemberRole");
+        requireNotNull(userId, "at userId in DsmoqClient#setMemberRole");
+        requireNotNull(param, "at param in DsmoqClient#setMemberRole");
         put("/api/groups/" + groupId + "/members/" + userId, param.toJsonString(), x -> x);
     }
 
@@ -1012,8 +1058,9 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public void deleteMember(String groupId, String userId) {
-        requireNotNull(groupId, "at groupId in deleteMember");
-        requireNotNull(userId, "at userId in deleteMember");
+        logger.debug(LOG_MARKER, "DsmoqClient#deleteMember start : [groupId] = {}, [userId] = {}", groupId, userId);
+        requireNotNull(groupId, "at groupId in DsmoqClient#deleteMember");
+        requireNotNull(userId, "at userId in DsmoqClient#deleteMember");
         delete("/api/groups/" + groupId + "/members/" + userId, x -> x);
     }
 
@@ -1027,7 +1074,8 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public void deleteGroup(String groupId) {
-        requireNotNull(groupId, "at groupId in deleteGroup");
+        logger.debug(LOG_MARKER, "DsmoqClient#deleteGroup start : [groupId] = {}", groupId);
+        requireNotNull(groupId, "at groupId in DsmoqClient#deleteGroup");
         delete("/api/groups/" + groupId, x -> x);
     }
 
@@ -1040,6 +1088,7 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public User getProfile() {
+        logger.debug(LOG_MARKER, "DsmoqClient#getProfile start");
         return get("/api/profile", JsonUtil::toUser);
     }
 
@@ -1054,7 +1103,8 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public User updateProfile(UpdateProfileParam param) {
-        requireNotNull(param, "at param in updateProfile");
+        logger.debug(LOG_MARKER, "DsmoqClient#updateProfile start : [param] = {}", param);
+        requireNotNull(param, "at param in DsmoqClient#updateProfile");
         return put("/api/profile", param.toJsonString(), JsonUtil::toUser);
     }
 
@@ -1069,7 +1119,8 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public User updateProfileIcon(File file) {
-        requireNotNull(file, "at file in updateProfileIcon");
+        logger.debug(LOG_MARKER, "DsmoqClient#updateProfileIcon start : [file] = {}", (file == null) ? "null" : file.getName());
+        requireNotNull(file, "at file in DsmoqClient#updateProfileIcon");
         Supplier<HttpEntity> entity = () -> {
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             builder.addBinaryBody("icon", file);
@@ -1089,7 +1140,8 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public User updateEmail(UpdateEmailParam param) {
-        requireNotNull(param, "at param in updateEmail");
+        logger.debug(LOG_MARKER, "DsmoqClient#updateEmail start : [param] = {}", param);
+        requireNotNull(param, "at param in DsmoqClient#updateEmail");
         return post("/api/profile/email_change_requests", param.toJsonString(), JsonUtil::toUser);
     }
 
@@ -1103,7 +1155,8 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public void changePassword(ChangePasswordParam param) {
-        requireNotNull(param, "at param in changePassword");
+        logger.debug(LOG_MARKER, "DsmoqClient#changePassword start : [param] = {}", param);
+        requireNotNull(param, "at param in DsmoqClient#changePassword");
         put("/api/profile/password", param.toJsonString(), x -> x);
     }
 
@@ -1116,6 +1169,7 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public List<User> getAccounts() {
+        logger.debug(LOG_MARKER, "DsmoqClient#getAccounts start");
         return get("/api/accounts", JsonUtil::toUsers);
     }
 
@@ -1128,6 +1182,7 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public List<License> getLicenses() {
+        logger.debug(LOG_MARKER, "DsmoqClient#getLicenses start");
         return get("/api/licenses", JsonUtil::toLicenses);
     }
 
@@ -1142,7 +1197,8 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public TaskStatus getTaskStatus(String taskId) {
-        requireNotNull(taskId, "at taskId in getTaskStatus");
+        logger.debug(LOG_MARKER, "DsmoqClient#getTaskStatus start : [taskId] = {}", taskId);
+        requireNotNull(taskId, "at taskId in DsmoqClient#getTaskStatus");
         return get("/api/tasks/" + taskId, JsonUtil::toTaskStatus);
     }
 
@@ -1157,7 +1213,8 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public List<StatisticsDetail> getStatistics(StatisticsParam param) {
-        requireNotNull(param, "at param in getStatistics");
+        logger.debug(LOG_MARKER, "DsmoqClient#getStatistics start : [param] = {}", param);
+        requireNotNull(param, "at param in DsmoqClient#getStatistics");
         return get("/api/statistics", param.toJsonString(), JsonUtil::toStatistics);
     }
 
@@ -1410,6 +1467,9 @@ public class DsmoqClient {
         );
     }
 
+    /** JSONパラメータを乗せるリクエストボディのパラメータ名 */
+    private static final String REQUEST_JSON_PARAM_NAME = "d";
+
     /**
      * JSONパラメータをリクエストボディ用に変換する。
      * @param jsonParam 変換するJSON文字列
@@ -1417,9 +1477,12 @@ public class DsmoqClient {
      */
     private static HttpEntity toHttpEntity(String jsonParam) {
         List<NameValuePair> params = new ArrayList<>();
-        params.add(new BasicNameValuePair("d", jsonParam));
+        params.add(new BasicNameValuePair(REQUEST_JSON_PARAM_NAME, jsonParam));
         return new UrlEncodedFormEntity(params, StandardCharsets.UTF_8);
     }
+
+    /** HTTP Request の Authorization ヘッダ */
+    private static final String AUTHORIZATION_HEADER_NAME = "Authorization";
 
     /**
      * Authorizationヘッダを追加する。
@@ -1427,9 +1490,12 @@ public class DsmoqClient {
      */
     void addAuthorizationHeader(HttpUriRequest request) {
         if (! _apiKey.isEmpty() && ! _secretKey.isEmpty()) {
-            request.addHeader("Authorization", String.format("api_key=%s, signature=%s",  _apiKey, getSignature(_apiKey, _secretKey)));
+            request.addHeader(AUTHORIZATION_HEADER_NAME, String.format("api_key=%s, signature=%s",  _apiKey, getSignature(_apiKey, _secretKey)));
         }
     }
+
+    /** 認証文字列の生成に利用するハッシュアルゴリズム */
+    private static final String HASH_ALGORITHM = "HmacSHA1";
 
     /**
      * 認証文字列を作成する。
@@ -1439,13 +1505,13 @@ public class DsmoqClient {
      */
     private String getSignature(String apiKey, String secretKey) {
         try {
-            SecretKeySpec sk = new SecretKeySpec(secretKey.getBytes(), "HmacSHA1");
-            Mac mac = Mac.getInstance("HmacSHA1");
+            SecretKeySpec sk = new SecretKeySpec(secretKey.getBytes(), HASH_ALGORITHM);
+            Mac mac = Mac.getInstance(HASH_ALGORITHM);
             mac.init(sk);
             byte[] result = mac.doFinal((apiKey + "&" + secretKey).getBytes());
-            return URLEncoder.encode(Base64.getEncoder().encodeToString(result), "UTF-8");
+            return URLEncoder.encode(Base64.getEncoder().encodeToString(result), StandardCharsets.UTF_8.name());
         } catch (Exception e) {
-            logger.error(LOG_MARKER, resource.getString(ResourceNames.ERROR_OCCURED), e.getMessage());
+            logger.error(LOG_MARKER, resource.getString(ResourceNames.LOG_ERROR_OCCURED), e.getMessage());
             throw new ApiFailedException(e.getMessage(), e);
         }
     }
@@ -1470,7 +1536,9 @@ public class DsmoqClient {
      * @return レスポンスボディの文字列表現
      */
     private String responseToString(HttpResponse response, String charset) throws IOException {
-        return EntityUtils.toString(response.getEntity(), charset);
+        String str = EntityUtils.toString(response.getEntity(), charset);
+        logger.debug(LOG_MARKER, "response body = {}", str);
+        return str;
     }
 
     /**
@@ -1486,12 +1554,20 @@ public class DsmoqClient {
     private <T> T execute(HttpUriRequest request, ResponseFunction<T> f) throws IOException, HttpException, ErrorRespondedException {
         try (AutoCloseHttpClient client = createHttpClient()) {
             HttpResponse response = client.execute(request);
-            int status = response.getStatusLine().getStatusCode();
-            if (status >= 400) {
+            if (isErrorStatus(response.getStatusLine().getStatusCode())) {
                 throw new ErrorRespondedException(response);
             }
             return f.apply(response);
         }
+    }
+
+    /**
+     * 指定されたHTTPステータスコードが、エラーレスポンスを表すかを返す。
+     * @param statusCode HTTPステータスコード
+     * @return statusCodeがエラーレスポンスを表す場合true、そうでなければfalse
+     */
+    private static boolean isErrorStatus(int statusCode) {
+        return statusCode >= 400;
     }
 
     /**
@@ -1508,7 +1584,7 @@ public class DsmoqClient {
      * @return 公開用に翻訳された例外
      */
     private RuntimeException translateInnerException(Exception e) {
-        logger.error(LOG_MARKER, resource.getString(ResourceNames.ERROR_OCCURED), e.getMessage());
+        logger.error(LOG_MARKER, resource.getString(ResourceNames.LOG_ERROR_OCCURED), e.getMessage());
         if (e instanceof ErrorRespondedException) {
             return new HttpStatusException(((ErrorRespondedException) e).getStatusCode(), e);
         }

@@ -2,6 +2,7 @@ package jp.ac.nagoya_u.dsmoq.sdk.util;
 
 import java.util.Collection;
 import java.util.NoSuchElementException;
+import java.util.ResourceBundle;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,6 +12,7 @@ import org.slf4j.MarkerFactory;
 public class CheckUtil {
     private static Marker LOG_MARKER = MarkerFactory.getMarker("SDK");
     private static Logger logger = LoggerFactory.getLogger(LOG_MARKER.toString());
+    private static ResourceBundle resource = ResourceBundle.getBundle("message");
 
     private CheckUtil() {
     }
@@ -23,8 +25,8 @@ public class CheckUtil {
      */
     public static <T> void requireNotNull(T x, String position) {
         if (x == null) {
-            logger.warn(LOG_MARKER, "invalid parameter - null ({})", position);
-            throw new NullPointerException(String.format("invalid parameter - null (%s)", position));
+            logger.warn(LOG_MARKER, resource.getString(ResourceNames.LOG_INVALID_NULL), position);
+            throw new NullPointerException(String.format(resource.getString(ResourceNames.ERR_INVALID_NULL), position));
         }
     }
 
@@ -64,8 +66,8 @@ public class CheckUtil {
      */
     public static <T> void requireNotEmpty(Collection<T> params, String position) {
         if (params != null && params.isEmpty()) {
-            logger.warn(LOG_MARKER, "invalid parameter - empty ({})", position);
-            throw new NoSuchElementException(String.format("invalid parameter - empty (%s)", position));
+            logger.warn(LOG_MARKER, resource.getString(ResourceNames.LOG_INVALID_EMPTY), position);
+            throw new NoSuchElementException(String.format(resource.getString(ResourceNames.ERR_INVALID_EMPTY), position));
         }
     }
 
@@ -77,8 +79,8 @@ public class CheckUtil {
      */
     public static <T> void requireNotEmpty(T[] params, String position) {
         if (params != null && params.length == 0) {
-            logger.warn(LOG_MARKER, "invalid parameter - empty ({})", position);
-            throw new NoSuchElementException(String.format("invalid parameter - empty (%s)", position));
+            logger.warn(LOG_MARKER, resource.getString(ResourceNames.LOG_INVALID_EMPTY), position);
+            throw new NoSuchElementException(String.format(resource.getString(ResourceNames.ERR_INVALID_EMPTY), position));
         }
     }
 
@@ -93,8 +95,8 @@ public class CheckUtil {
      */
     public static <T extends Comparable<T>> void requireGreaterOrEqualOrNull(T x, T base, String position) {
         if (x != null && base.compareTo(x) > 0) {
-            logger.warn(LOG_MARKER, "invalid parameter - {} is not bigger than {} ({})", x.toString(), base.toString(), position);
-            throw new IllegalArgumentException(String.format("invalid parameter - %S is not bigger than %s (%s)", x.toString(), base.toString(), position));
+            logger.warn(LOG_MARKER, resource.getString(ResourceNames.LOG_INVALID_NOT_GREATER_OR_EQUAL), x.toString(), base.toString(), position);
+            throw new IllegalArgumentException(String.format(resource.getString(ResourceNames.LOG_INVALID_NOT_GREATER_OR_EQUAL), x.toString(), base.toString(), position));
         }
     }
 }
