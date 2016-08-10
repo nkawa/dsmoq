@@ -24,35 +24,38 @@ import java.io.IOException;
 import java.util.ResourceBundle;
 
 public class AutoCloseHttpClient implements AutoCloseable {
+    /** HTTP Request の Accept-Encoding ヘッダ */
+    private static final String ACCEPT_ENCODING_HEADER_NAME = "Accept-Encoding";
+    /** HTTP Response の Accept-Encoding ヘッダ に指定するgzip指定 */
+    private static final String GZIP_ENCODING_NAME = "gzip";
     private static Marker LOG_MARKER = MarkerFactory.getMarker("SDK");
-    private static Logger logger = LoggerFactory.getLogger(LOG_MARKER.toString());
-    private static ResourceBundle resource = ResourceBundle.getBundle("message");
 
-    private CloseableHttpClient client;
+    private static Logger logger = LoggerFactory.getLogger(LOG_MARKER.toString());
+
+    /** HTTP Response の Content-Disposition ヘッダ */
+    private static final String RANGE_HEADER_NAME = "Range";
+
+    private static ResourceBundle resource = ResourceBundle.getBundle("message");
 
     /** HTTP Request のタイムアウト時間 (ms) */
     private static final int TIMEOUT = 30 * 1000;
 
-    /** HTTP Request の Accept-Encoding ヘッダ */
-    private static final String ACCEPT_ENCODING_HEADER_NAME = "Accept-Encoding";
-
-    /** HTTP Response の Accept-Encoding ヘッダ に指定するgzip指定 */
-    private static final String GZIP_ENCODING_NAME = "gzip";
+    private CloseableHttpClient client;
 
     public AutoCloseHttpClient() {
-        RequestConfig requestConfig = RequestConfig.custom().setConnectTimeout(TIMEOUT).setSocketTimeout(TIMEOUT).build();
-        this.client = HttpClientBuilder.create()
-                .disableRedirectHandling()
-                .setDefaultRequestConfig(requestConfig)
+        RequestConfig requestConfig = RequestConfig.custom().setConnectTimeout(TIMEOUT).setSocketTimeout(TIMEOUT)
+                .build();
+        this.client = HttpClientBuilder.create().disableRedirectHandling().setDefaultRequestConfig(requestConfig)
                 .addInterceptorFirst(new HttpRequestInterceptor() {
-                    public void process(final HttpRequest request, final HttpContext context) throws HttpException, IOException {
+                    public void process(final HttpRequest request, final HttpContext context)
+                            throws HttpException, IOException {
                         if (!request.containsHeader(ACCEPT_ENCODING_HEADER_NAME)) {
                             request.addHeader(ACCEPT_ENCODING_HEADER_NAME, GZIP_ENCODING_NAME);
                         }
                     }
-                })
-                .addInterceptorFirst(new HttpResponseInterceptor() {
-                    public void process(final HttpResponse response, final HttpContext context) throws HttpException, IOException {
+                }).addInterceptorFirst(new HttpResponseInterceptor() {
+                    public void process(final HttpResponse response, final HttpContext context)
+                            throws HttpException, IOException {
                         HttpEntity entity = response.getEntity();
                         if (entity != null) {
                             Header ceheader = entity.getContentEncoding();
@@ -67,12 +70,17 @@ public class AutoCloseHttpClient implements AutoCloseable {
                             }
                         }
                     }
-                })
-                .build();
+                }).build();
     }
 
-    /** HTTP Response の Content-Disposition ヘッダ */
-    private static final String RANGE_HEADER_NAME = "Range";
+    public void close() {
+        try {
+            this.client.close();
+        } catch (IOException ioe) {
+        } finally {
+            this.client = null;
+        }
+    }
 
     public CloseableHttpResponse execute(HttpUriRequest request) throws IOException, HttpException {
         logger.debug(LOG_MARKER, resource.getString(ResourceNames.LOG_SEND_REQUEST), request);
@@ -89,15 +97,6 @@ public class AutoCloseHttpClient implements AutoCloseable {
             return this.client.execute(redirect, context);
         } else {
             return response;
-        }
-    }
-
-    public void close() {
-        try {
-            this.client.close();
-        } catch (IOException ioe) {
-        } finally {
-            this.client = null;
         }
     }
 }

@@ -6,7 +6,6 @@ private[request] case class GetDatasetsJson(
   groups: List[String] = List.empty,
   attributes: List[Attribute] = List.empty,
   limit: Option[Int] = Some(20),
-  offset: Option[Int] = Some(0)
-) extends Jsonable
+  offset: Option[Int] = Some(0)) extends Jsonable
 
 private[request] case class Attribute(id: String, value: String)

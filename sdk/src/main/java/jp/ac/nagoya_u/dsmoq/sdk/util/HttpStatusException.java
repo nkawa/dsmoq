@@ -13,15 +13,15 @@ public class HttpStatusException extends RuntimeException {
         super("http_status=" + httpStatus);
     }
 
-    public HttpStatusException(int httpStatus, Throwable cause) {
-        super("http_status=" + httpStatus, cause);
-    }
-
     public HttpStatusException(int httpStatus, String body, Throwable cause) {
         super("http_status=" + httpStatus + ",body=" + body, cause);
     }
 
-    public HttpStatusException(String message){
+    public HttpStatusException(int httpStatus, Throwable cause) {
+        super("http_status=" + httpStatus, cause);
+    }
+
+    public HttpStatusException(String message) {
         super(message);
     }
 

@@ -9,6 +9,7 @@ import java.nio.file.Paths;
 public class DownloadProgressSample {
     /** 一度に読み込む最大のバイト数 */
     public static int BUFFER_SIZE = 1024 * 1024;
+
     public static void main(String[] args) {
         // APIキー、シークレットキーの組み合わせでログインするクライアントを作成する
         DsmoqClient client = DsmoqClient.create("http://localhost:8080", "api key", "secret key");

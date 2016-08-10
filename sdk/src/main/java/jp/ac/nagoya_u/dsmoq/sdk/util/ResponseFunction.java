@@ -6,16 +6,18 @@ import java.io.IOException;
 
 /**
  * レスポンス変換関数
+ * 
  * @param <R> レスポンス変換後の型
  */
 @FunctionalInterface
 public interface ResponseFunction<R> {
     /**
      * レスポンス変換関数
+     * 
      * @param res HTTPレスポンス
      * @return 変換結果
      * @throws IOException レスポンスからのデータの取得に失敗した場合
-     * @throws HttpException レスポンスがHTTPレスポンスとして不正な場合 
+     * @throws HttpException レスポンスがHTTPレスポンスとして不正な場合
      */
-   R apply(HttpResponse res) throws IOException, HttpException;
+    R apply(HttpResponse res) throws IOException, HttpException;
 }

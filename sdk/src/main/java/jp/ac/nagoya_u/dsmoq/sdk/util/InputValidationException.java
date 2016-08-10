@@ -8,6 +8,7 @@ import java.util.List;
  */
 public class InputValidationException extends RuntimeException {
     private List<InputValidationError> errors;
+
     public InputValidationException(List<InputValidationError> errors) {
         this.errors = new ArrayList<>(errors);
     }

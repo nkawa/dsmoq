@@ -13,6 +13,7 @@ public class DownloadParallelSample {
     public static long CHUNK_SIZE = 512L * 1024 * 1024;
     /** 最大同時ダウンロード数 */
     public static int THREAD_NUM = 3;
+
     public static void main(String[] args) {
         // APIキー、シークレットキーの組み合わせでログインするクライアントを作成する
         DsmoqClient client = DsmoqClient.create("http://localhost:8080", "api key", "secret key");

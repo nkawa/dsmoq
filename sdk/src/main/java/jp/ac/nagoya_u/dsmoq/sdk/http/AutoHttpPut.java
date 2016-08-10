@@ -5,7 +5,10 @@ import java.net.URI;
 
 /**
  * AutoCloseableに対応したHttpPutのラッパー
- * @see <a href="http://hc.apache.org/httpcomponents-client-4.3.x/httpclient/apidocs/org/apache/http/client/methods/HttpPut.html">HttpPut (Apache HttpClient 4.3.6 API)</a>
+ * 
+ * @see <a href=
+ *      "http://hc.apache.org/httpcomponents-client-4.3.x/httpclient/apidocs/org/apache/http/client/methods/HttpPut.html">
+ *      HttpPut (Apache HttpClient 4.3.6 API)</a>
  */
 public class AutoHttpPut extends HttpPut implements AutoCloseable {
 
@@ -18,17 +21,19 @@ public class AutoHttpPut extends HttpPut implements AutoCloseable {
 
     /**
      * コンストラクタ
+     * 
      * @param uri PUTを呼び出す対象のURL
      */
-    public AutoHttpPut(URI uri) {
+    public AutoHttpPut(String uri) {
         super(uri);
     }
 
     /**
      * コンストラクタ
+     * 
      * @param uri PUTを呼び出す対象のURL
      */
-    public AutoHttpPut(String uri) {
+    public AutoHttpPut(URI uri) {
         super(uri);
     }
 

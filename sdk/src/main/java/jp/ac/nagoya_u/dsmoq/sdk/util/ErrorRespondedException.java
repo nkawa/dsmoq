@@ -9,32 +9,40 @@ import org.apache.http.util.EntityUtils;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 /**
  * サーバ側からエラーレスポンスが返ってきたことを表す例外
  */
 public class ErrorRespondedException extends Exception {
-    /** HTTP Response Status Code */
-    private int statusCode;
-    /** HTTP Response Reason Phrase */
-    private String reasonPhrase;
-    /** HTTP Response Header */
-    private String header;
+    /** デフォルトのレスポンスボディ文字コード */
+    private static final Charset DEFAULT_RESPONSE_CHAESET = StandardCharsets.UTF_8;
+
     /** HTTP Response Body */
     private String body;
+    /** HTTP Response Header */
+    private String header;
+    /** HTTP Response Reason Phrase */
+    private String reasonPhrase;
+    /** HTTP Response Status Code */
+    private int statusCode;
+
     /**
      * 指定されたHttpResponseを用いて、この例外を構築します。
+     * 
      * @param response 元となるHttpResponse
      */
     public ErrorRespondedException(HttpResponse response) throws IOException {
-        this(
-            response.getStatusLine().getStatusCode(), response.getStatusLine().getReasonPhrase(),
-            Arrays.stream(response.getAllHeaders()).map(Header::toString).collect(Collectors.joining("\n")),
-            response.getEntity() == null ? "" : EntityUtils.toString(response.getEntity(), DsmoqClient.DEFAULT_RESPONSE_CHAESET.name())
-        );
+        this(response.getStatusLine().getStatusCode(), response.getStatusLine().getReasonPhrase(),
+                Arrays.stream(response.getAllHeaders()).map(Header::toString).collect(Collectors.joining("\n")),
+                response.getEntity() == null ? ""
+                        : EntityUtils.toString(response.getEntity(), DEFAULT_RESPONSE_CHAESET.name()));
     }
+
     /**
      * 指定された値を用いて、この例外を構築します。
+     * 
      * @param statusCode Status Code
      * @param reasonPhrase Reason Phrase
      * @param header Response Header
@@ -47,32 +55,40 @@ public class ErrorRespondedException extends Exception {
         this.header = header;
         this.body = body;
     }
+
     /**
-     * Status Code を返します。
-     * @return Status Code
+     * ボディ文字列を返します
+     * 
+     * @return ボディ文字列
      */
-    public int getStatusCode() {
-        return this.statusCode;
+    public String getBody() {
+        return this.body;
     }
-    /**
-     * Reason Phrase を返します。
-     * @return Reason Phrase
-     */
-    public String getReasonPhrase() {
-        return this.reasonPhrase;
-    }
+
     /**
      * ヘッダ文字列を返します。
+     * 
      * @return ヘッダ文字列
      */
     public String getHeader() {
         return this.header;
     }
+
     /**
-     * ボディ文字列を返します
-     * @return ボディ文字列
+     * Reason Phrase を返します。
+     * 
+     * @return Reason Phrase
      */
-    public String getBody() {
-        return this.body;
+    public String getReasonPhrase() {
+        return this.reasonPhrase;
+    }
+
+    /**
+     * Status Code を返します。
+     * 
+     * @return Status Code
+     */
+    public int getStatusCode() {
+        return this.statusCode;
     }
 }

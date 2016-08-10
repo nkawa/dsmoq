@@ -31,42 +31,20 @@ import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
 
 public class SDKHeadTest {
+    public static DsmoqClient create() {
+        return DsmoqClient.create("http://localhost:8080",
+                "7d8d8cf12ef0d12d057b01765779c56a5f8a7e1330a41be189114935660ef1ba",
+                "22698424fa67a56cd6d916988fd824c6f999d18a934831de83e15c3490376372");
+    }
+
+    public static DsmoqClient createDummyUserClient() {
+        return DsmoqClient.create("http://localhost:8080",
+                "3d2357cd53e8738ae21fbc86e15bd441c497191cf785163541ffa907854d2649",
+                "731cc0646e8012632f58bb7d1912a77e8072c7f128f2d09f0bebc36ac0c1a579");
+    }
+
     @Rule
     public ExpectedException thrown = ExpectedException.none();
-
-    @After
-    public void tearDown() {
-        DsmoqClient client = create();
-        List<GroupsSummary> groups = client.getGroups(new GetGroupsParam(
-            Optional.empty(),
-            Optional.of("023bfa40-e897-4dad-96db-9fd3cf001e79"),
-            Optional.empty(),
-            Optional.empty()
-        )).getResults();
-        for (GroupsSummary group : groups) {
-            try {
-                client.deleteGroup(group.getId());
-            } catch (Exception e) {
-                // do nothing
-            }
-        }
-        List<DatasetsSummary> datasets = client.getDatasets(new GetDatasetsParam()).getResults();
-        for (DatasetsSummary dataset : datasets) {
-            RangeSlice<DatasetFile> files = client.getDatasetFiles(dataset.getId(), new GetRangeParam());
-            try {
-                files.getResults().stream().forEach(x -> client.deleteFile(dataset.getId(), x.getId()));
-                client.deleteDataset(dataset.getId());
-            } catch (Exception e) {
-                // do nothing
-            }
-        }
-    }
-
-    @Test(expected = ConnectionLostException.class)
-    public void getFileSize_サーバーに接続できない() {
-        DsmoqClient client = DsmoqClient.create("http://localhost:8081", "3d2357cd53e8738ae21fbc86e15bd441c497191cf785163541ffa907854d2649", "731cc0646e8012632f58bb7d1912a77e8072c7f128f2d09f0bebc36ac0c1a579");
-        client.getFileSize("", "");
-    }
 
     @Test(expected = NullPointerException.class)
     public void getFileSize_nullチェック1() {
@@ -86,6 +64,71 @@ public class SDKHeadTest {
         Dataset dataset = client.createDataset(true, false, file);
         String datasetId = dataset.getId();
         client.getFileSize(datasetId, null);
+    }
+
+    @Test
+    public void getFileSize_ZIP() {
+        DsmoqClient client = create();
+        File file = new File("testdata/test.zip");
+        Dataset dataset = client.createDataset(true, false, file);
+        String datasetId = dataset.getId();
+        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
+        String fileId = files.getResults().get(0).getId();
+        Long size = client.getFileSize(datasetId, fileId);
+        assertThat(size, is(file.length()));
+    }
+
+    @Test
+    public void getFileSize_ZIP以外() {
+        DsmoqClient client = create();
+        File file = new File("README.md");
+        Dataset dataset = client.createDataset(true, false, file);
+        String datasetId = dataset.getId();
+        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
+        String fileId = files.getResults().get(0).getId();
+        Long size = client.getFileSize(datasetId, fileId);
+        assertThat(size, is(file.length()));
+    }
+
+    @Test
+    public void getFileSize_ZIP内() throws IOException, ZipException {
+        DsmoqClient client = create();
+        File file = new File("testdata/test.zip");
+        Dataset dataset = client.createDataset(true, false, file);
+        String datasetId = dataset.getId();
+        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
+        String fileId = files.getResults().get(0).getId();
+        RangeSlice<DatasetZipedFile> zFiles = client.getDatasetZippedFiles(datasetId, fileId, new GetRangeParam());
+        String zFileId = zFiles.getResults().get(0).getId();
+        ZipFile zf = new ZipFile(file);
+        ZipEntry zEntry = zf.entries().nextElement();
+        Long size = client.getFileSize(datasetId, zFileId);
+        assertThat(size, is(zEntry.getSize()));
+    }
+
+    @Test(expected = ConnectionLostException.class)
+    public void getFileSize_サーバーに接続できない() {
+        DsmoqClient client = DsmoqClient.create("http://localhost:8081",
+                "3d2357cd53e8738ae21fbc86e15bd441c497191cf785163541ffa907854d2649",
+                "731cc0646e8012632f58bb7d1912a77e8072c7f128f2d09f0bebc36ac0c1a579");
+        client.getFileSize("", "");
+    }
+
+    @Test(expected = HttpStatusException.class)
+    public void getFileSize_権限違反() {
+        DsmoqClient dummyClient = createDummyUserClient();
+        File file = new File("README.md");
+        Dataset dataset = dummyClient.createDataset(true, false, file);
+        String datasetId = dataset.getId();
+        RangeSlice<DatasetFile> files = dummyClient.getDatasetFiles(datasetId, new GetRangeParam());
+        String fileId = files.getResults().get(0).getId();
+        DsmoqClient client = create();
+        try {
+            client.getFileSize(datasetId, fileId);
+        } catch (HttpStatusException e) {
+            assertThat(e.getMessage(), is("http_status=403"));
+            throw e;
+        }
     }
 
     @Test(expected = HttpStatusException.class)
@@ -152,68 +195,27 @@ public class SDKHeadTest {
         }
     }
 
-    @Test(expected = HttpStatusException.class)
-    public void getFileSize_権限違反() {
-        DsmoqClient dummyClient = createDummyUserClient();
-        File file = new File("README.md");
-        Dataset dataset = dummyClient.createDataset(true, false, file);
-        String datasetId = dataset.getId();
-        RangeSlice<DatasetFile> files = dummyClient.getDatasetFiles(datasetId, new GetRangeParam());
-        String fileId = files.getResults().get(0).getId();
+    @After
+    public void tearDown() {
         DsmoqClient client = create();
-        try {
-            client.getFileSize(datasetId, fileId);
-        } catch (HttpStatusException e) {
-            assertThat(e.getMessage(), is("http_status=403"));
-            throw e;
+        List<GroupsSummary> groups = client.getGroups(new GetGroupsParam(Optional.empty(),
+                Optional.of("023bfa40-e897-4dad-96db-9fd3cf001e79"), Optional.empty(), Optional.empty())).getResults();
+        for (GroupsSummary group : groups) {
+            try {
+                client.deleteGroup(group.getId());
+            } catch (Exception e) {
+                // do nothing
+            }
         }
-    }
-
-    @Test
-    public void getFileSize_ZIP以外() {
-        DsmoqClient client = create();
-        File file = new File("README.md");
-        Dataset dataset = client.createDataset(true, false, file);
-        String datasetId = dataset.getId();
-        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
-        String fileId = files.getResults().get(0).getId();
-        Long size = client.getFileSize(datasetId, fileId);
-        assertThat(size, is(file.length()));
-    }
-
-    @Test
-    public void getFileSize_ZIP() {
-        DsmoqClient client = create();
-        File file = new File("testdata/test.zip");
-        Dataset dataset = client.createDataset(true, false, file);
-        String datasetId = dataset.getId();
-        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
-        String fileId = files.getResults().get(0).getId();
-        Long size = client.getFileSize(datasetId, fileId);
-        assertThat(size, is(file.length()));
-    }
-
-    @Test
-    public void getFileSize_ZIP内() throws IOException, ZipException {
-        DsmoqClient client = create();
-        File file = new File("testdata/test.zip");
-        Dataset dataset = client.createDataset(true, false, file);
-        String datasetId = dataset.getId();
-        RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
-        String fileId = files.getResults().get(0).getId();
-        RangeSlice<DatasetZipedFile> zFiles = client.getDatasetZippedFiles(datasetId, fileId, new GetRangeParam());
-        String zFileId = zFiles.getResults().get(0).getId();
-        ZipFile zf = new ZipFile(file);
-        ZipEntry zEntry = zf.entries().nextElement();
-        Long size = client.getFileSize(datasetId, zFileId);
-        assertThat(size, is(zEntry.getSize()));
-    }
-
-    public static DsmoqClient create() {
-        return DsmoqClient.create("http://localhost:8080", "7d8d8cf12ef0d12d057b01765779c56a5f8a7e1330a41be189114935660ef1ba", "22698424fa67a56cd6d916988fd824c6f999d18a934831de83e15c3490376372");
-    }
-
-    public static DsmoqClient createDummyUserClient() {
-        return DsmoqClient.create("http://localhost:8080", "3d2357cd53e8738ae21fbc86e15bd441c497191cf785163541ffa907854d2649", "731cc0646e8012632f58bb7d1912a77e8072c7f128f2d09f0bebc36ac0c1a579");
+        List<DatasetsSummary> datasets = client.getDatasets(new GetDatasetsParam()).getResults();
+        for (DatasetsSummary dataset : datasets) {
+            RangeSlice<DatasetFile> files = client.getDatasetFiles(dataset.getId(), new GetRangeParam());
+            try {
+                files.getResults().stream().forEach(x -> client.deleteFile(dataset.getId(), x.getId()));
+                client.deleteDataset(dataset.getId());
+            } catch (Exception e) {
+                // do nothing
+            }
+        }
     }
 }

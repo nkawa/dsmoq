@@ -4,13 +4,13 @@ import jp.ac.nagoya_u.dsmoq.sdk.response._
 import jp.ac.nagoya_u.dsmoq.sdk.response._
 import org.json4s._
 import org.json4s.jackson.JsonMethods
-import org.json4s.{DefaultFormats, Formats}
+import org.json4s.{ DefaultFormats, Formats }
 import scala.collection.JavaConverters._
 
 object JsonUtil {
   private implicit val jsonFormats: Formats = DefaultFormats
   def toDatasets(obj: String): RangeSlice[DatasetsSummary] = {
-   toObject[Response[RangeSlice[DatasetsSummary]]](obj).getData
+    toObject[Response[RangeSlice[DatasetsSummary]]](obj).getData
   }
   def toDatasetOwnership(obj: String): RangeSlice[DatasetOwnership] = {
     toObject[Response[RangeSlice[DatasetOwnership]]](obj).getData

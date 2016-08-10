@@ -20,8 +20,10 @@ public class CreateDatasetSample {
         client.setPrimaryImageToDataset(dataset.getId(), image);
         // ユーザーのアクセス権をOwnerとして追加する
         List<SetAccessLevelParam> accesses = Arrays.asList(
-                new SetAccessLevelParam("05a8456e-7aad-c84e-bd4e-6cb255f9df9e", Consts.OwnerType.User, Consts.AccessLevel.Owner),
-                new SetAccessLevelParam("215316c8-283b-27af-57a5-654acddcf2f5", Consts.OwnerType.User, Consts.AccessLevel.Owner));
+                new SetAccessLevelParam("05a8456e-7aad-c84e-bd4e-6cb255f9df9e", Consts.OwnerType.User,
+                        Consts.AccessLevel.Owner),
+                new SetAccessLevelParam("215316c8-283b-27af-57a5-654acddcf2f5", Consts.OwnerType.User,
+                        Consts.AccessLevel.Owner));
         client.changeAccessLevel(dataset.getId(), accesses);
     }
 
