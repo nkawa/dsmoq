@@ -33,6 +33,7 @@ object DsmoqSdkBuild extends Build {
       version := Version,
       resolvers += Classpaths.typesafeReleases,
       scalaVersion := ScalaVersion,
+      javacOptions ++= Seq("-encoding", "UTF-8"),
       libraryDependencies ++= Seq(
         "org.apache.httpcomponents" % "httpclient" % "4.3.6",
         "org.apache.httpcomponents" % "httpmime" % "4.3.6",
@@ -43,7 +44,8 @@ object DsmoqSdkBuild extends Build {
         "com.typesafe" % "config" % "1.3.0",
         "com.typesafe.scala-logging" % "scala-logging_2.11" % "3.1.0" % "compile",
         "com.novocode" % "junit-interface" % "0.11"
-      )
+      ),
+      parallelExecution in Test := false
     )
   )
 }

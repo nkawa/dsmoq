@@ -3,13 +3,12 @@ package jp.ac.nagoya_u.dsmoq.sdk.response
 import scala.collection.JavaConverters._
 
 case class GroupsSummary(
-  private val id: String,
-  private val name: String,
-  private val description: String,
-  private val image: String,
-  private val members: Int,
-  private val datasets: Int
-) {
+    private val id: String,
+    private val name: String,
+    private val description: String,
+    private val image: String,
+    private val members: Int,
+    private val datasets: Int) {
   def getId = id
   def getName = name
   def getDescription = description
@@ -19,14 +18,13 @@ case class GroupsSummary(
 }
 
 case class Group(
-  private val id: String,
-  private val name: String,
-  private val description: String,
-  private val images: Seq[Image],
-  private val primaryImage: String,
-  val isMember: Boolean,
-  private val role: Int
-) {
+    private val id: String,
+    private val name: String,
+    private val description: String,
+    private val images: Seq[Image],
+    private val primaryImage: String,
+    val isMember: Boolean,
+    private val role: Int) {
   def getId = id
   def getName = name
   def getDescription = description
@@ -36,15 +34,14 @@ case class Group(
 }
 
 case class MemberSummary(
-  private val id: String,
-  private val name: String,
-  private val fullname: String,
-  private val organization: String,
-  private val title: String,
-  private val description: String,
-  private val image: String,
-  private val role: Int
-) {
+    private val id: String,
+    private val name: String,
+    private val fullname: String,
+    private val organization: String,
+    private val title: String,
+    private val description: String,
+    private val image: String,
+    private val role: Int) {
   def getId = id
   def getName = name
   def getFullname = fullname
@@ -56,11 +53,10 @@ case class MemberSummary(
 }
 
 case class AddMember(
-  private val id: String,
-  private val name: String,
-  private val organization: String,
-  private val role: Int
-) {
+    private val id: String,
+    private val name: String,
+    private val organization: String,
+    private val role: Int) {
   def getId = id
   def getName = name
   def getOrganization = organization
@@ -68,25 +64,22 @@ case class AddMember(
 }
 
 case class GroupAddImages(
-  private val images: Seq[Image],
-  private val primaryImage: String
-) {
+    private val images: Seq[Image],
+    private val primaryImage: String) {
   def getImages = images.asJava
   def getPrimaryImage = primaryImage
 }
 
 case class GroupDeleteImage(
-  private val primaryImage: String
-) {
+    private val primaryImage: String) {
   def getPrimaryImage = primaryImage
 }
 
-case class GroupGetImage (
-  private val id: String,
-  private val name: String,
-  private val url: String,
-  val isPrimary: Boolean
-) {
+case class GroupGetImage(
+    private val id: String,
+    private val name: String,
+    private val url: String,
+    val isPrimary: Boolean) {
   def getId = id
   def getName = name
   def getUrl = url

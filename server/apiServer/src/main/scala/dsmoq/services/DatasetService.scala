@@ -116,7 +116,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             filePath = "/" + datasetId + "/" + file.id + "/" + historyId,
             fileSize = f.size,
             isZip = isZip,
-            realSize = if (isZip) { createZipedFiles(path, historyId, timestamp, myself).right.getOrElse(f.size) } else { f.size },
+            realSize = if (isZip) { createZipedFiles(path, historyId, timestamp, myself).getOrElse(f.size) } else { f.size },
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
@@ -235,10 +235,9 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
-  private def createZipedFiles(path: Path, historyId: String, timestamp: DateTime, myself: persistence.User)(implicit s: DBSession): Either[Long, Long] = {
-    for {
-      zipInfos <- ZipUtil.read(path).right
-    } yield {
+  private def createZipedFiles(path: Path, historyId: String, timestamp: DateTime, myself: persistence.User)(implicit s: DBSession): Try[Long] = {
+    Try {
+      val zipInfos = ZipUtil.read(path)
       val zfs = for {
         zipInfo <- zipInfos.filter(!_.fileName.endsWith("/"))
       } yield {
@@ -266,6 +265,10 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         )
       }
       zfs.map(_.fileSize).sum
+    }.recoverWith {
+      case e: Exception =>
+        logger.warn(LOG_MARKER, "error occurred in createZipedFiles.", e)
+        Failure(e)
     }
   }
 
@@ -844,7 +847,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             filePath = "/" + id + "/" + file.id + "/" + historyId,
             fileSize = f.size,
             isZip = isZip,
-            realSize = if (isZip) { createZipedFiles(path, historyId, timestamp, myself).right.getOrElse(f.size) } else { f.size },
+            realSize = if (isZip) { createZipedFiles(path, historyId, timestamp, myself).getOrElse(f.size) } else { f.size },
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
@@ -930,7 +933,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           filePath = "/" + datasetId + "/" + fileId + "/" + historyId,
           fileSize = file.size,
           isZip = isZip,
-          realSize = if (isZip) { createZipedFiles(path, historyId, timestamp, myself).right.getOrElse(file.size) } else { file.size },
+          realSize = if (isZip) { createZipedFiles(path, historyId, timestamp, myself).getOrElse(file.size) } else { file.size },
           createdBy = myself.id,
           createdAt = timestamp,
           updatedBy = myself.id,
@@ -3023,9 +3026,9 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
 
     val findResult = DB readOnly { implicit s =>
       for {
-        _ <- requireAllowDownload(user, datasetId)
-        _ <- found(getDataset(datasetId))
         file <- found(findFile(fileId))
+        _ <- found(getDataset(datasetId))
+        _ <- requireAllowDownload(user, datasetId)
       } yield {
         file
       }
@@ -3078,7 +3081,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         DatasetService.DownloadFileLocalNormal(is, file.name, file.fileSize)
       }
       case DatasetService.FileInfoS3Normal(file, path) => {
-        val url = FileManager.downloadFromS3Url(path.substring(1), file.name)
+        val url = FileManager.generateS3PresignedURL(path.substring(1), file.name, !requireData)
         DatasetService.DownloadFileS3Normal(url)
       }
       case DatasetService.FileInfoLocalZipped(file, path, zippedFile) => {
@@ -3099,7 +3102,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
               encoding = encoding)
           } else { null }
 
-          DatasetService.DownloadFileLocalZipped(zis, zippedFile.name, zippedFile.dataSize)
+          DatasetService.DownloadFileLocalZipped(zis, zippedFile.name, zippedFile.fileSize)
         } catch {
           case e: Exception => {
             logger.error(LOG_MARKER, "Error occurred.", e)
@@ -3125,8 +3128,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
               dataSize = zippedFile.dataSize,
               encoding = encoding)
           } else { null }
-
-          DatasetService.DownloadFileS3Zipped(zis, zippedFile.name, zippedFile.dataSize)
+          DatasetService.DownloadFileS3Zipped(zis, zippedFile.name, zippedFile.fileSize)
         } catch {
           case e: Exception => {
             logger.error(LOG_MARKER, "Error occurred.", e)
@@ -3185,8 +3187,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       DB readOnly { implicit s =>
         val dataset = checkDatasetExisitence(datasetId)
         checkReadPermission(datasetId, user)
-        val validatedLimit = limit.map{ x =>
-          if(x < 0) { 0 } else if (AppConf.fileLimit < x) { AppConf.fileLimit } else { x }
+        val validatedLimit = limit.map { x =>
+          if (x < 0) { 0 } else { x }
         }.getOrElse(AppConf.fileLimit)
         val validatedOffset = offset.getOrElse(0)
         val count = getFileAmount(datasetId)
@@ -3229,8 +3231,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           case None => throw new BadRequestException(resource.getString(ResourceNames.FILE_NOT_FOUND))
         }
         checkReadPermission(datasetId, user)
-        val validatedLimit = limit.map{ x =>
-          if(x < 0) { 0 } else if (AppConf.fileLimit < x) { AppConf.fileLimit } else { x }
+        val validatedLimit = limit.map { x =>
+          if (x < 0) { 0 } else { x }
         }.getOrElse(AppConf.fileLimit)
         val validatedOffset = offset.getOrElse(0)
         val count = getZippedFileAmount(datasetId, history.id)

@@ -104,7 +104,7 @@ object ZipUtil extends LazyLogging {
     * @return xsのヘッダー内情報をExtra Fieldの情報で上書きしたリスト
     */
   def fromExtra(xs: List[(Long, Int)], extra: Array[Byte]): List[Long] = {
-    logger.info(LOG_MARKER, "  called fromExtra function, xs = {}, extra = 0x{}", xs, bytes2hex(extra))
+    logger.debug(LOG_MARKER, "  called fromExtra function, xs = {}, extra = 0x{}", xs, bytes2hex(extra))
 
     var i = 0
     xs.map { case (x, size) =>
@@ -151,7 +151,7 @@ object ZipUtil extends LazyLogging {
 
     logger.debug(LOG_MARKER, "  - converted fileName, fileName = {}, fileNameByte = {}", fileName, bytes2hex(fileNameByte))
     logger.debug(LOG_MARKER, "  - reading extra..., extra = 0x{}", bytes2hex(extra))
-    logger.info(LOG_MARKER, "  - compress size = {}. uncompress size = {}. [in header: compress size = {}, uncompress size = {}]", compressSize64.toString, uncompressSize64.toString, compressSize.toString, uncompressSize.toString)
+    logger.debug(LOG_MARKER, "  - compress size = {}. uncompress size = {}. [in header: compress size = {}, uncompress size = {}]", compressSize64.toString, uncompressSize64.toString, compressSize.toString, uncompressSize.toString)
 
     ZipLocalHeader(
       extractVersion = extractVersion,
@@ -210,7 +210,7 @@ object ZipUtil extends LazyLogging {
     )
     logger.debug(LOG_MARKER, "  - central header. header = 0x{}", bytes2hex(bs))
     logger.debug(LOG_MARKER, "  - central header. extra = 0x{}", bytes2hex(extra))
-    logger.info(LOG_MARKER, "  - compress size = {}. uncompress size = {}. [in header: compress size = {}, uncompress size = {}]", compressSize64.toString, uncompressSize64.toString, compressSize.toString, uncompressSize.toString)
+    logger.debug(LOG_MARKER, "  - compress size = {}. uncompress size = {}. [in header: compress size = {}, uncompress size = {}]", compressSize64.toString, uncompressSize64.toString, compressSize.toString, uncompressSize.toString)
 
     (offset64, bs)
   }
@@ -220,12 +220,14 @@ object ZipUtil extends LazyLogging {
     *
     * @param path 解析対象のファイルパス
     * @return 解析結果リスト
+    * @throws FileNotFoundException ZIPファイルが存在しない場合
+    * @throws UnsupportedOperationException ZIPファイルの解析に失敗した場合
     */
-  def readRaw(path: Path): Either[Long, List[(Long, ZipLocalHeader, Array[Byte])]] = {
+  def readRaw(path: Path): List[(Long, ZipLocalHeader, Array[Byte])] = {
     logger.debug(LOG_MARKER, "called readRaw function, path = [{}]", path)
     val file = path.toFile
     if (!file.exists) {
-      return Left(0)
+      throw new FileNotFoundException(path.toString)
     }
     val localHeaders = scala.collection.mutable.Map.empty[Long, ZipLocalHeader]
     val centralHeaders = scala.collection.mutable.Map.empty[Long, Array[Byte]]
@@ -240,7 +242,7 @@ object ZipUtil extends LazyLogging {
         val header = Array.fill[Byte](4)(0)
         ra.read(header)
 
-        logger.info(LOG_MARKER, "Read bytes..., header = 0x{}", bytes2hex(header))
+        logger.debug(LOG_MARKER, "Read bytes..., header = 0x{}", bytes2hex(header))
 
         header match {
           case Array(0x50, 0x4b, 0x03, 0x04) => {
@@ -248,6 +250,10 @@ object ZipUtil extends LazyLogging {
             logger.debug(LOG_MARKER, "Found Signature: Local file header. (0x04034b50)")
 
             val header = readLocalHeader(ra)
+            // FIXME: Mac付属のFinderで作成したZIPファイルの場合、local file headerのcompress sizeが0になります。
+            // 暫定対応として、そのまま読み進め、次の読み込みで合致しないことによって解析失敗とします。
+            // 恒久対応としては、ファイルの先頭から読み込み local file header を用いて解析するのではなく、
+            // ファイルの末尾から読み込んで central header を用いて解析をする必要があります。
             ra.seek(ra.getFilePointer + header.compressSize)
             localHeaders += (offset -> header)
           }
@@ -291,19 +297,16 @@ object ZipUtil extends LazyLogging {
             logger.debug(LOG_MARKER, "Found Signature: Data descriptor. (0x08074b50)")
           }
           case _ => {
-            logger.info(LOG_MARKER, "signature not found. header = 0x{}, pointer = {}", bytes2hex(header), ra.getFilePointer.toString)
-// del 1 line  aaa
-            //return Left(offset)
+            logger.debug(LOG_MARKER, "signature not found. header = 0x{}, pointer = {}", bytes2hex(header), ra.getFilePointer.toString)
+            // 合致しない場合、解析失敗とし、処理を中断します。
+            // ZIPファイルの形式をしていないもの、暗号化されたZIPファイル、Mac付属のFinderで作成したZIPファイル（暫定対応）が来る想定です。
+            throw new UnsupportedOperationException()
           }
         }
 
         logger.debug(LOG_MARKER, "Check: ra.getFilePointer={}, ra.length={}", ra.getFilePointer.toString, ra.length.toString )
-        logger.info(LOG_MARKER, "Check: continue?={}", isLoop.toString)
+        logger.debug(LOG_MARKER, "Check: continue?={}", isLoop.toString)
 
-      }
-    } catch {
-      case e:Throwable => {
-        logger.info(LOG_MARKER, "error occurred.", e)
       }
     } finally {
       ra.close()
@@ -314,9 +317,9 @@ object ZipUtil extends LazyLogging {
       (key, localHeader, centralHeaders.getOrElse(key, Array.empty))
     }
 
-    logger.info(LOG_MARKER, "Return readRaw function, return data len={}, local header len={}, central header len={}", ret.size.toString, localHeaders.size.toString, centralHeaders.size.toString)
+    logger.debug(LOG_MARKER, "Return readRaw function, return data len={}, local header len={}, central header len={}", ret.size.toString, localHeaders.size.toString, centralHeaders.size.toString)
 
-    Right(ret.toList)
+    ret.toList
   }
 
   /**
@@ -324,14 +327,13 @@ object ZipUtil extends LazyLogging {
     *
     * @param path ZIPファイルパス
     * @return ZIPファイルの解析情報
+    * @throws FileNotFoundException ZIPファイルが存在しない場合
+    * @throws UnsupportedOperationException ZIPファイルの解析に失敗した場合
     */
-  def read(path: Path): Either[Long, List[ZipInfo]] = {
-    logger.info(LOG_MARKER, "called read function, path = [{}]", path)
-    for {
-      raw <- readRaw(path).right
-    } yield {
-      raw.map { case (o, h, c) => toZipInfo(o, h, c) }
-    }
+  def read(path: Path): List[ZipInfo] = {
+    logger.debug(LOG_MARKER, "called read function, path = [{}]", path)
+    val raw = readRaw(path)
+    raw.map { case (o, h, c) => toZipInfo(o, h, c) }
   }
 
   /**

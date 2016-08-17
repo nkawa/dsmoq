@@ -2402,7 +2402,6 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             }
           }
         }
-        ""
       }
       "ZIPファイル情報取得API" - {
         "datasetId無効" in {
@@ -2737,9 +2736,9 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
               result.data.summary.total should be(151)
-              result.data.summary.count should be(150)
+              result.data.summary.count should be(151)
               result.data.summary.offset should be(0)
-              result.data.results.size should be(150)
+              result.data.results.size should be(151)
             }
           }
         }
@@ -3081,9 +3080,9 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
               result.data.summary.total should be(151)
-              result.data.summary.count should be(150)
+              result.data.summary.count should be(151)
               result.data.summary.offset should be(0)
-              result.data.results.size should be(150)
+              result.data.results.size should be(151)
             }
           }
         }

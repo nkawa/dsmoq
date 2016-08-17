@@ -48,22 +48,64 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
       fileInfo
     }
 
+    val rangeHeader = request.getHeader("Range")
     result match {
       case Success(DatasetService.DownloadFileLocalNormal(_, fileName, fileSize)) => {
         // ローカルファイルで、Zip内のファイル指定でない場合
         logger.debug(LOG_MARKER, "Found local file, fileName={}, fileSize={}", fileName, fileSize.toString)
 
-        progressTotalRequest(fileSize)
-        // 空ボディを返す
-        ""
+        verifyRangeHeader(rangeHeader, fileSize) match {
+          case VerifyRangeLegalFromTo(from, to) => {
+            // from,toが指定されている場合
+            logger.debug(LOG_MARKER, "Found Range header, Range={}", rangeHeader)
+
+            progressTotalRequest(fileSize)
+            // 空ボディを返す
+            ""
+          }
+          case VerifyRangeLegalFrom(from) => {
+            // fromのみが指定されている場合
+            logger.debug(LOG_MARKER, "Found Range header, Range={}", rangeHeader)
+
+            progressTotalRequest(fileSize)
+            // 空ボディを返す
+            ""
+          }
+          case VerifyRangeNotFound() => {
+            // Rangeヘッダがない場合
+            logger.debug(LOG_MARKER, "Not found Range header.")
+
+            progressTotalRequest(fileSize)
+            // 空ボディを返す
+            ""
+          }
+          case _: VerifyRangeType => {
+            logger.debug(LOG_MARKER, "Found Range header, but unsupported or illegal Range format. Range={}", rangeHeader)
+
+            haltRangeNotSatisfiable(fileSize)
+          }
+        }
       }
       case Success(DatasetService.DownloadFileLocalZipped(_, fileName, fileSize)) => {
         // ローカルファイルで、Zip内のファイル指定の場合
         logger.debug(LOG_MARKER, "Found local zipped inner file, fileName={}, fileSize={}", fileName, fileSize.toString)
 
-        progressTotalRequest(fileSize)
-        // 空ボディを返す
-        ""
+        verifyRangeHeader(rangeHeader, fileSize) match {
+          case VerifyRangeNotFound() => {
+            // Rangeヘッダがない場合
+            logger.debug(LOG_MARKER, "Not found Range header.")
+
+            progressTotalRequest(fileSize)
+            // 空ボディを返す
+            ""
+          }
+          case _: VerifyRangeType => {
+            // Rangeヘッダがある場合
+            logger.debug(LOG_MARKER, "Found Range header, but unsupported or illegal Range format. Range={}", rangeHeader)
+
+            haltBadRequest()
+          }
+        }
       }
       case Success(DatasetService.DownloadFileS3Normal(redirectUrl)) => {
         // S3上のファイルで、Zip内のファイル指定でない場合
@@ -76,9 +118,22 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
         // S3上のファイルで、Zip内のファイル指定の場合
         logger.debug(LOG_MARKER, "Found S3 zipped inner file, fileName={}, fileSize={}", fileName, fileSize.toString)
 
-        progressTotalRequest(fileSize)
-        // 空ボディを返す
-        ""
+        verifyRangeHeader(rangeHeader, fileSize) match {
+          case VerifyRangeNotFound() => {
+            // Rangeヘッダがない場合
+            logger.debug(LOG_MARKER, "Not found Range header.")
+
+            progressTotalRequest(fileSize)
+            // 空ボディを返す
+            ""
+          }
+          case _: VerifyRangeType => {
+            // Rangeヘッダがある場合
+            logger.debug(LOG_MARKER, "Found Range header, but unsupported or illegal Range format. Range={}", rangeHeader)
+
+            haltBadRequest()
+          }
+        }
       }
       case Failure(e) => {
         logger.error(LOG_MARKER, "Failure occurred.", e)
@@ -127,10 +182,7 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
             val size = to - from
             val retData = new BoundedInputStream(data, size)
 
-            var contentLength = size
-            if (size > retData.available) {
-              contentLength = retData.available
-            }
+            val contentLength = size
 
             val contentRange = "bytes " + from.toString + "-" + (from + size).toString + "/" + fileSize.toString
 

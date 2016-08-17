@@ -215,15 +215,15 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             val t = x("dataType")
             t match {
               case SuggestType.User =>
-                x("name") match {
+                x("name").asInstanceOf[String] match {
                   case regex() => // OK
-                  case _ => x("fullname") match {
+                  case _ => x("fullname").asInstanceOf[String] match {
                     case regex() => // OK
                     case _ => fail()
                   }
                 }
               case SuggestType.Group =>
-                x("name") match {
+                x("name").asInstanceOf[String] match {
                   case regex() => // OK
                   case _ => fail()
                 }
@@ -254,15 +254,15 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             val t = x("dataType")
             t match {
               case SuggestType.User =>
-                x("name") match {
+                x("name").asInstanceOf[String] match {
                   case regex() => // OK
-                  case _ => x("fullname") match {
+                  case _ => x("fullname").asInstanceOf[String] match {
                     case regex() => // OK
                     case _ => fail()
                   }
                 }
               case SuggestType.Group =>
-                x("name") match {
+                x("name").asInstanceOf[String] match {
                   case regex() => // OK
                   case _ => fail()
                 }
