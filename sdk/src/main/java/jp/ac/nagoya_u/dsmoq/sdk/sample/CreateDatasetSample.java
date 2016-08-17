@@ -1,12 +1,13 @@
 package jp.ac.nagoya_u.dsmoq.sdk.sample;
 
 import java.io.File;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
 
 import jp.ac.nagoya_u.dsmoq.sdk.client.Consts;
 import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient;
 import jp.ac.nagoya_u.dsmoq.sdk.request.SetAccessLevelParam;
-import jp.ac.nagoya_u.dsmoq.sdk.response.*;
+import jp.ac.nagoya_u.dsmoq.sdk.response.Dataset;
 
 public class CreateDatasetSample {
 

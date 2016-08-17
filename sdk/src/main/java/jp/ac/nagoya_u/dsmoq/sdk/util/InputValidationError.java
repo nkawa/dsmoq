@@ -5,6 +5,7 @@ package jp.ac.nagoya_u.dsmoq.sdk.util;
  */
 public class InputValidationError {
     private String message;
+
     private String name;
 
     public InputValidationError() {

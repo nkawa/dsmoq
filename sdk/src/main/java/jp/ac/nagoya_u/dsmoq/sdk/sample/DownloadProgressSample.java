@@ -1,9 +1,13 @@
 package jp.ac.nagoya_u.dsmoq.sdk.sample;
 
-import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient;
-
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.file.Paths;
+
+import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient;
 
 /** プログレス表示付きのファイルダウンロードのサンプル */
 public class DownloadProgressSample {

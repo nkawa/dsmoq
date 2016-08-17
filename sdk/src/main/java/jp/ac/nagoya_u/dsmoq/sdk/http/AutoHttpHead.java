@@ -1,7 +1,8 @@
 package jp.ac.nagoya_u.dsmoq.sdk.http;
 
-import org.apache.http.client.methods.HttpHead;
 import java.net.URI;
+
+import org.apache.http.client.methods.HttpHead;
 
 /**
  * AutoCloseableに対応したHttpHeadのラッパー

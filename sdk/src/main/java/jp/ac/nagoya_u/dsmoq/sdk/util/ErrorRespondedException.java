@@ -1,16 +1,14 @@
 package jp.ac.nagoya_u.dsmoq.sdk.util;
 
-import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient;
-
-import org.apache.http.Header;
-import org.apache.http.HttpResponse;
-import org.apache.http.StatusLine;
-import org.apache.http.util.EntityUtils;
-import java.util.Arrays;
-import java.util.stream.Collectors;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.stream.Collectors;
+
+import org.apache.http.Header;
+import org.apache.http.HttpResponse;
+import org.apache.http.util.EntityUtils;
 
 /**
  * サーバ側からエラーレスポンスが返ってきたことを表す例外
@@ -21,10 +19,13 @@ public class ErrorRespondedException extends Exception {
 
     /** HTTP Response Body */
     private String body;
+
     /** HTTP Response Header */
     private String header;
+
     /** HTTP Response Reason Phrase */
     private String reasonPhrase;
+
     /** HTTP Response Status Code */
     private int statusCode;
 

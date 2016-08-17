@@ -1,34 +1,33 @@
 
-import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient;
-import jp.ac.nagoya_u.dsmoq.sdk.request.*;
-import jp.ac.nagoya_u.dsmoq.sdk.response.*;
-import jp.ac.nagoya_u.dsmoq.sdk.util.*;
-import org.apache.http.conn.HttpHostConnectException;
-import org.joda.time.DateTime;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.Is.is;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipException;
+import java.util.zip.ZipFile;
+
 import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import static org.hamcrest.MatcherAssert.*;
-import static org.hamcrest.core.Is.*;
-import static org.hamcrest.core.IsInstanceOf.*;
-
-import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.*;
-import java.util.stream.Collectors;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipException;
-import java.util.zip.ZipFile;
+import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient;
+import jp.ac.nagoya_u.dsmoq.sdk.request.GetDatasetsParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.GetGroupsParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.GetRangeParam;
+import jp.ac.nagoya_u.dsmoq.sdk.response.Dataset;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetFile;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetZipedFile;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetsSummary;
+import jp.ac.nagoya_u.dsmoq.sdk.response.GroupsSummary;
+import jp.ac.nagoya_u.dsmoq.sdk.response.RangeSlice;
+import jp.ac.nagoya_u.dsmoq.sdk.util.ConnectionLostException;
+import jp.ac.nagoya_u.dsmoq.sdk.util.HttpStatusException;
 
 public class SDKHeadTest {
     public static DsmoqClient create() {

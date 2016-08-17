@@ -1,8 +1,8 @@
 package jp.ac.nagoya_u.dsmoq.sdk.http;
 
-import org.apache.http.client.methods.HttpDelete;
-
 import java.net.URI;
+
+import org.apache.http.client.methods.HttpDelete;
 
 /**
  * AutoCloseableに対応したHttpDeleteのラッパー

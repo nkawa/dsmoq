@@ -1,5 +1,21 @@
 package jp.ac.nagoya_u.dsmoq.sdk.client;
 
+import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireGreaterOrEqualOrNull;
+import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireNotEmpty;
+import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireNotNull;
+import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireNotNullAll;
+
+import java.io.File;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Marker;
+import org.slf4j.MarkerFactory;
+
 import jp.ac.nagoya_u.dsmoq.sdk.request.AddMemberParam;
 import jp.ac.nagoya_u.dsmoq.sdk.request.ChangePasswordParam;
 import jp.ac.nagoya_u.dsmoq.sdk.request.ChangeStorageParam;
@@ -41,21 +57,7 @@ import jp.ac.nagoya_u.dsmoq.sdk.response.RangeSlice;
 import jp.ac.nagoya_u.dsmoq.sdk.response.StatisticsDetail;
 import jp.ac.nagoya_u.dsmoq.sdk.response.TaskStatus;
 import jp.ac.nagoya_u.dsmoq.sdk.response.User;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.slf4j.Marker;
-import org.slf4j.MarkerFactory;
-
-import java.io.File;
-import java.util.List;
-import java.util.ResourceBundle;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
-
-import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireNotEmpty;
-import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireNotNull;
-import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireNotNullAll;
-import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireGreaterOrEqualOrNull;
+import jp.ac.nagoya_u.dsmoq.sdk.util.HttpStatusException;
 
 /**
  * 非同期にdsmoq APIを叩くためのクライアントクラス
@@ -63,10 +65,25 @@ import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireGreaterOrEqualOrNul
  * 個々のWeb APIの仕様については、APIのドキュメントを参照してください。
  */
 public class AsyncDsmoqClient {
-    private static Marker LOG_MARKER = MarkerFactory.getMarker("SDK");
-    private static Logger logger = LoggerFactory.getLogger(LOG_MARKER.toString());
-    private static ResourceBundle resource = ResourceBundle.getBundle("message");
+    /** ログマーカー */
+    private static final Marker LOG_MARKER = MarkerFactory.getMarker("SDK");
 
+    /** ロガー */
+    private static Logger logger = LoggerFactory.getLogger(LOG_MARKER.toString());
+
+    /**
+     * APIキー、シークレットキーを使用するクライアントオブジェクトを生成する。
+     * 
+     * @param baseUrl 基準となるURL
+     * @param apiKey APIキー
+     * @param secretKey シークレットキー
+     * @return 作成したクライアント
+     */
+    public static AsyncDsmoqClient create(String baseUrl, String apiKey, String secretKey) {
+        return new AsyncDsmoqClient(baseUrl, apiKey, secretKey);
+    }
+
+    /** 同期クライアント */
     private DsmoqClient client;
 
     /**
@@ -76,14 +93,14 @@ public class AsyncDsmoqClient {
      * @param apiKey APIキー
      * @param secretKey シークレットキー
      */
-    public AsyncDsmoqClient(String baseUrl, String apiKey, String secretKey) {
+    private AsyncDsmoqClient(String baseUrl, String apiKey, String secretKey) {
         this.client = DsmoqClient.create(baseUrl, apiKey, secretKey);
     }
 
     /**
      * Datasetにファイルを追加する。
      * 
-     * POST /api/datasets/${dataset_id}/files に相当。
+     * POST /api/datasets/${dataset_id}/files を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param files Datasetに追加するファイル(複数可)
@@ -103,7 +120,7 @@ public class AsyncDsmoqClient {
     /**
      * データセットに画像を追加する。
      * 
-     * POST /api/datasets/${dataset_id}/image に相当。
+     * POST /api/datasets/${dataset_id}/image を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param files 追加する画像ファイル
@@ -123,7 +140,7 @@ public class AsyncDsmoqClient {
     /**
      * グループに画像を追加する。
      *
-     * POST /api/groups/${group_id}/images に相当。
+     * POST /api/groups/${group_id}/images を呼ぶ。
      * 
      * @param groupId グループID
      * @param files 画像ファイル
@@ -143,7 +160,7 @@ public class AsyncDsmoqClient {
     /**
      * グループにメンバーを追加する。
      *
-     * POST /api/groups/${group_id}/members に相当。
+     * POST /api/groups/${group_id}/members を呼ぶ。
      * 
      * @param groupId グループID
      * @param param メンバー追加情報
@@ -162,7 +179,7 @@ public class AsyncDsmoqClient {
     /**
      * データセットのアクセス権を変更する。
      *
-     * POST /api/datasets/${dataset_id}/acl に相当。
+     * POST /api/datasets/${dataset_id}/acl を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param params アクセス権制御情報
@@ -182,7 +199,7 @@ public class AsyncDsmoqClient {
     /**
      * データセットの保存先を変更する。
      *
-     * PUT /api/datasets/${dataset_id}/storage に相当。
+     * PUT /api/datasets/${dataset_id}/storage を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param param 保存先変更情報
@@ -201,7 +218,7 @@ public class AsyncDsmoqClient {
     /**
      * データセットのゲストアカウントでのアクセス権を設定する。
      *
-     * PUT /api/datasets/${dataset_id}/guest_access に相当。
+     * PUT /api/datasets/${dataset_id}/guest_access を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param param ゲストアカウントでのアクセス権設定情報
@@ -220,7 +237,7 @@ public class AsyncDsmoqClient {
     /**
      * ログインユーザのパスワードを変更する。
      *
-     * PUT /api/profile/password に相当。
+     * PUT /api/profile/password を呼ぶ。
      * 
      * @param param パスワード変更情報
      * @return 実行結果のCompletableFuture
@@ -236,7 +253,7 @@ public class AsyncDsmoqClient {
     /**
      * データセットをコピーする。
      *
-     * POST /api/datasets/${dataset_id}/copy に相当。
+     * POST /api/datasets/${dataset_id}/copy を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @return コピーしたDatasetIDのCompletableFuture
@@ -252,7 +269,7 @@ public class AsyncDsmoqClient {
     /**
      * Datasetを作成する。
      *
-     * POST /api/datasets に相当。
+     * POST /api/datasets を呼ぶ。
      * 作成されるDatasetの名前は、最初に指定されたファイル名となる。
      * 
      * @param saveLocal ローカルに保存するか否か
@@ -276,7 +293,7 @@ public class AsyncDsmoqClient {
     /**
      * Datasetを作成する。
      *
-     * POST /api/datasets に相当。
+     * POST /api/datasets を呼ぶ。
      * 
      * @param name データセットの名前
      * @param saveLocal ローカルに保存するか否か
@@ -295,7 +312,7 @@ public class AsyncDsmoqClient {
     /**
      * Datasetを作成する。
      *
-     * POST /api/datasets に相当。
+     * POST /api/datasets を呼ぶ。
      * 
      * @param name データセットの名前
      * @param saveLocal ローカルに保存するか否か
@@ -318,7 +335,7 @@ public class AsyncDsmoqClient {
     /**
      * グループを作成する。
      *
-     * POST /api/groups に相当。
+     * POST /api/groups を呼ぶ。
      * 
      * @param param グループ作成情報
      * @return 作成したグループ詳細情報のCompletableFuture
@@ -334,7 +351,7 @@ public class AsyncDsmoqClient {
     /**
      * データセットを削除する。
      *
-     * DELETE /api/datasets/${dataset_id} に相当。
+     * DELETE /api/datasets/${dataset_id} を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @return 実行結果のCompletableFuture
@@ -350,7 +367,7 @@ public class AsyncDsmoqClient {
     /**
      * データセットからファイルを削除する。
      *
-     * DELETE /api/datasets/${dataset_id}/files/${file_id} に相当。
+     * DELETE /api/datasets/${dataset_id}/files/${file_id} を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param fileId ファイルID
@@ -369,7 +386,7 @@ public class AsyncDsmoqClient {
     /**
      * グループを削除する。
      *
-     * DELETE /api/groups/${group_id} に相当。
+     * DELETE /api/groups/${group_id} を呼ぶ。
      * 
      * @param groupId グループID
      * @return 実行結果のCompletableFuture
@@ -385,7 +402,7 @@ public class AsyncDsmoqClient {
     /**
      * データセットから画像を削除する。
      *
-     * DELETE /api/datasets/${dataset_id}/image/${image_id} に相当。
+     * DELETE /api/datasets/${dataset_id}/image/${image_id} を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param imageId 画像ID
@@ -404,7 +421,7 @@ public class AsyncDsmoqClient {
     /**
      * グループから画像を削除する。
      *
-     * DELETE /api/groups/${group_id}/images/${image_id} に相当。
+     * DELETE /api/groups/${group_id}/images/${image_id} を呼ぶ。
      * 
      * @param groupId グループID
      * @param imageId 画像ID
@@ -423,7 +440,7 @@ public class AsyncDsmoqClient {
     /**
      * メンバーを削除する。
      *
-     * DELETE /api/groups/${group_id}/members/${user_id} に相当。
+     * DELETE /api/groups/${group_id}/members/${user_id} を呼ぶ。
      * 
      * @param groupId グループID
      * @param userId ユーザーID
@@ -442,79 +459,82 @@ public class AsyncDsmoqClient {
     /**
      * データセットからファイルをダウンロードする。
      *
-     * GET /files/${dataset_id}/${file_id} に相当。
+     * GET /files/${dataset_id}/${file_id} を呼ぶ。
      * 
      * @param <T> ファイルデータ処理後の型
      * @param datasetId DatasetID
      * @param fileId ファイルID
-     * @param f ファイルデータを処理する関数 (引数のDatasetFileはこの処理関数中でのみ利用可能)
-     * @return fの処理結果のCompletableFuture
-     * @throws NullPointerException datasetIdまたはfileIdまたはfがnullの場合
+     * @param datasetFileFunc ファイルデータを処理する関数 (引数のDatasetFileはこの処理関数中でのみ利用可能)
+     * @return 処理結果のCompletableFuture
+     * @throws NullPointerException datasetIdまたはfileIdまたはdatasetFileFuncがnullの場合
      * @see DsmoqClient#downloadFilet(String, String,
      *      Function<DatasetFileContent, T>)
      */
-    public <T> CompletableFuture<T> downloadFile(String datasetId, String fileId, Function<DatasetFileContent, T> f) {
+    public <T> CompletableFuture<T> downloadFile(String datasetId, String fileId,
+            Function<DatasetFileContent, T> datasetFileFunc) {
         logger.debug(LOG_MARKER, "AsyncDsmoqClient#downloadFile start : [datasetId] = {}, [fileId] = {}", datasetId,
                 fileId);
         requireNotNull(datasetId, "at datasetId in AsyncDsmoqClient#downloadFile");
         requireNotNull(fileId, "at fileId in AsyncDsmoqClient#downloadFile");
-        requireNotNull(f, "at f in AsyncDsmoqClient#downloadFile");
-        return CompletableFuture.supplyAsync(() -> client.downloadFile(datasetId, fileId, f));
+        requireNotNull(datasetFileFunc, "at datasetFileFunc in AsyncDsmoqClient#downloadFile");
+        return CompletableFuture.supplyAsync(() -> client.downloadFile(datasetId, fileId, datasetFileFunc));
     }
 
     /**
      * データセットからファイルの内容を部分的に取得する。
      *
-     * GET /files/${dataset_id}/${file_id} に相当。
+     * GET /files/${dataset_id}/${file_id} を呼ぶ。
      * 
      * @param <T> ファイルデータ処理後の型
      * @param datasetId DatasetID
      * @param fileId ファイルID
      * @param from 開始位置指定、指定しない場合null
      * @param to 終了位置指定、指定しない場合null
-     * @param f ファイルデータを処理する関数 (引数のDatasetFileContentはこの処理関数中でのみ利用可能)
-     * @return fの処理結果のCompletableFuture
-     * @throws NullPointerException datasetIdまたはfileIdまたはfがnullの場合
+     * @param datasetFileFunc ファイルデータを処理する関数
+     *            (引数のDatasetFileContentはこの処理関数中でのみ利用可能)
+     * @return 処理結果のCompletableFuture
+     * @throws NullPointerException datasetIdまたはfileIdまたはdatasetFileFuncがnullの場合
      * @throws IllegalArgumentException fromまたはtoが0未満の場合
      * @see DsmoqClient#downloadFileWithRange(String, String, Long, Long,
      *      Function<DatasetFileContent, T>)
      */
     public <T> CompletableFuture<T> downloadFileWithRange(String datasetId, String fileId, Long from, Long to,
-            Function<DatasetFileContent, T> f) {
+            Function<DatasetFileContent, T> datasetFileFunc) {
         logger.debug(LOG_MARKER,
                 "AsyncDsmoqClient#downloadFileWithRange start : [datasetId] = {}, [fileId] = {}, [from:to] = {}:{}",
                 datasetId, fileId, from, to);
         requireNotNull(datasetId, "at datasetId in AsyncDsmoqClient#downloadFileWithRange");
         requireNotNull(fileId, "at fileId in AsyncDsmoqClient#downloadFileWithRange");
-        requireNotNull(f, "at f in AsyncDsmoqClient#downloadFileWithRange");
+        requireNotNull(datasetFileFunc, "at datasetFileFunc in AsyncDsmoqClient#downloadFileWithRange");
         requireGreaterOrEqualOrNull(from, 0L, "at from in AsyncDsmoqClient#downloadFileWithRange");
         requireGreaterOrEqualOrNull(to, 0L, "at to in AsyncDsmoqClient#downloadFileWithRange");
-        return CompletableFuture.supplyAsync(() -> client.downloadFileWithRange(datasetId, fileId, from, to, f));
+        return CompletableFuture
+                .supplyAsync(() -> client.downloadFileWithRange(datasetId, fileId, from, to, datasetFileFunc));
     }
 
     /**
      * CSV形式のAttributeを取得する。
      *
-     * GET /api/datasets/${dataset_id}/attributes/export に相当。
+     * GET /api/datasets/${dataset_id}/attributes/export を呼ぶ。
      * 
      * @param <T> CSVデータ処理後の型
      * @param datasetId DatasetID
-     * @param f CSVデータを処理する関数 (引数のDatasetFileContentはこの処理関数中でのみ利用可能)
-     * @return fの処理結果
-     * @throws NullPointerException datasetIdまたはfがnullの場合
+     * @param fileFunc CSVデータを処理する関数 (引数のDatasetFileContentはこの処理関数中でのみ利用可能)
+     * @return 処理結果
+     * @throws NullPointerException datasetIdまたはfileFuncがnullの場合
      * @see DsmoqClient#exportAttribute(String, Function<DatasetFileContent, T>)
      */
-    public <T> CompletableFuture<T> exportAttribute(String datasetId, Function<DatasetFileContent, T> f) {
+    public <T> CompletableFuture<T> exportAttribute(String datasetId, Function<DatasetFileContent, T> fileFunc) {
         logger.debug(LOG_MARKER, "AsyncDsmoqClient#exportAttribute start : [datasetId] = {}", datasetId);
         requireNotNull(datasetId, "at datasetId in AsyncDsmoqClient#exportAttribute");
-        requireNotNull(f, "at f in AsyncDsmoqClient#exportAttribute");
-        return CompletableFuture.supplyAsync(() -> client.exportAttribute(datasetId, f));
+        requireNotNull(fileFunc, "at fileFunc in AsyncDsmoqClient#exportAttribute");
+        return CompletableFuture.supplyAsync(() -> client.exportAttribute(datasetId, fileFunc));
     }
 
     /**
      * データセットのアクセス権一覧を取得する。
      *
-     * GET /api/datasets/${dataset_id}/acl に相当。
+     * GET /api/datasets/${dataset_id}/acl を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param param 一覧取得情報
@@ -533,7 +553,7 @@ public class AsyncDsmoqClient {
     /**
      * ユーザー一覧を取得する。
      *
-     * GET /api/accounts に相当。
+     * GET /api/accounts を呼ぶ。
      * 
      * @return ユーザー一覧のCompletableFuture
      * @see DsmoqClient#getAccounts()
@@ -546,7 +566,7 @@ public class AsyncDsmoqClient {
     /**
      * Datasetを取得する。
      *
-     * GET /api/datasets/${dataset_id} に相当。
+     * GET /api/datasets/${dataset_id} を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @return 取得結果のCompletableFuture
@@ -562,7 +582,7 @@ public class AsyncDsmoqClient {
     /**
      * データセットのファイル一覧を取得する。
      *
-     * GET /api/datasets/${dataset_id}/files に相当。
+     * GET /api/datasets/${dataset_id}/files を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param param 一覧取得情報
@@ -581,7 +601,7 @@ public class AsyncDsmoqClient {
     /**
      * データセットの画像一覧を取得する。
      *
-     * GET /api/datasets/${dataset_id}/image に相当。
+     * GET /api/datasets/${dataset_id}/image を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param param 一覧取得情報
@@ -600,7 +620,7 @@ public class AsyncDsmoqClient {
     /**
      * Datasetを検索する。
      *
-     * GET /api/datasets に相当。
+     * GET /api/datasets を呼ぶ。
      * 
      * @param param Dataset検索に使用するパラメタ
      * @return 検索結果のCompletableFuture
@@ -616,7 +636,7 @@ public class AsyncDsmoqClient {
     /**
      * データセットのZIPファイルに含まれるファイル一覧を取得する。
      *
-     * GET /api/datasets/${dataset_id}/files/${fileId}/zippedfiles に相当。
+     * GET /api/datasets/${dataset_id}/files/${fileId}/zippedfiles を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param fileId FileID
@@ -639,7 +659,7 @@ public class AsyncDsmoqClient {
     /**
      * データセットに設定されているファイルのサイズを取得する。
      *
-     * HEAD /files/${dataset_id}/${file_id} に相当。
+     * HEAD /files/${dataset_id}/${file_id} を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param fileId ファイルID
@@ -658,7 +678,7 @@ public class AsyncDsmoqClient {
     /**
      * グループ詳細を取得する。
      *
-     * GET /api/groups/${group_id} に相当。
+     * GET /api/groups/${group_id} を呼ぶ。
      * 
      * @param groupId グループID
      * @return グループ詳細情報のCompletableFuture
@@ -674,7 +694,7 @@ public class AsyncDsmoqClient {
     /**
      * グループの画像一覧を取得する。
      *
-     * GET /api/groups/${group_id}/images に相当。
+     * GET /api/groups/${group_id}/images を呼ぶ。
      * 
      * @param groupId グループID
      * @param param 一覧取得情報
@@ -692,7 +712,7 @@ public class AsyncDsmoqClient {
     /**
      * グループ一覧を取得する。
      *
-     * GET /api/groups に相当。
+     * GET /api/groups を呼ぶ。
      * 
      * @param param グループ一覧取得情報
      * @return グループ一覧情報のCompletableFuture
@@ -709,7 +729,7 @@ public class AsyncDsmoqClient {
     /**
      * ライセンス一覧を取得する。
      *
-     * GET /api/licenses に相当。
+     * GET /api/licenses を呼ぶ。
      * 
      * @return ライセンス一覧情報のCompletableFuture
      * @see DsmoqClient#getLicenses()
@@ -722,7 +742,7 @@ public class AsyncDsmoqClient {
     /**
      * グループのメンバー一覧を取得する。
      *
-     * GET /api/groups/${group_id}/members に相当。
+     * GET /api/groups/${group_id}/members を呼ぶ。
      * 
      * @param groupId グループID
      * @param param グループメンバー一覧取得情報
@@ -740,7 +760,7 @@ public class AsyncDsmoqClient {
     /**
      * ログインユーザのプロファイルを取得する。
      *
-     * GET /api/profile に相当。
+     * GET /api/profile を呼ぶ。
      * 
      * @return プロファイルのCompletableFuture
      * @see DsmoqClient#getProfile()
@@ -753,7 +773,7 @@ public class AsyncDsmoqClient {
     /**
      * 統計情報を取得します。
      *
-     * GET /api/statistics に相当。
+     * GET /api/statistics を呼ぶ。
      * 
      * @param param 統計情報期間指定
      * @return 統計情報のCompletableFuture
@@ -769,7 +789,7 @@ public class AsyncDsmoqClient {
     /**
      * タスクの現在のステータスを取得する。
      *
-     * GET /api/tasks/${task_id} に相当。
+     * GET /api/tasks/${task_id} を呼ぶ。
      * 
      * @param taskId タスクID
      * @return タスクのステータス情報のCompletableFuture
@@ -785,7 +805,7 @@ public class AsyncDsmoqClient {
     /**
      * CSVファイルからAttributeを読み込む。
      *
-     * POST /api/datasets/${dataset_id}/attributes/import に相当。
+     * POST /api/datasets/${dataset_id}/attributes/import を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param file AttributeをインポートするCSVファイル
@@ -804,7 +824,7 @@ public class AsyncDsmoqClient {
     /**
      * データセットに一覧で表示するFeatured Dataset画像を設定する。
      * 
-     * PUT /api/datasets/${dataset_id}/images/featured に相当。
+     * PUT /api/datasets/${dataset_id}/images/featured を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param file 追加する画像ファイル
@@ -823,7 +843,7 @@ public class AsyncDsmoqClient {
     /**
      * データセットに一覧で表示するFeatured Dataset画像を設定する。
      *
-     * PUT /api/datasets/${dataset_id}/images/featured に相当。
+     * PUT /api/datasets/${dataset_id}/images/featured を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param imageId 指定する画像ID
@@ -842,7 +862,7 @@ public class AsyncDsmoqClient {
     /**
      * メンバーのロールを設定する。
      *
-     * PUT /api/groups/${group_id}/members/${user_id} に相当。
+     * PUT /api/groups/${group_id}/members/${user_id} を呼ぶ。
      * 
      * @param groupId グループID
      * @param userId ユーザーID
@@ -863,7 +883,7 @@ public class AsyncDsmoqClient {
     /**
      * データセットに一覧で表示するメイン画像を設定する。
      * 
-     * PUT /api/datasets/${dataset_id}/image/primary に相当。
+     * PUT /api/datasets/${dataset_id}/image/primary を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param file 追加する画像ファイル
@@ -882,7 +902,7 @@ public class AsyncDsmoqClient {
     /**
      * データセットに一覧で表示するメイン画像を設定する。
      *
-     * PUT /api/datasets/${dataset_id}/image/primary に相当。
+     * PUT /api/datasets/${dataset_id}/image/primary を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param param メイン画像指定情報
@@ -901,7 +921,7 @@ public class AsyncDsmoqClient {
     /**
      * グループに一覧で表示するメイン画像を設定する。
      * 
-     * PUT /api/groups/${group_id}/images/primary に相当。
+     * PUT /api/groups/${group_id}/images/primary を呼ぶ。
      * 
      * @param groupId グループID
      * @param file 画像ファイル
@@ -920,7 +940,7 @@ public class AsyncDsmoqClient {
     /**
      * グループに一覧で表示するメイン画像を設定する。
      *
-     * PUT /api/groups/${group_id}/images/primary に相当。
+     * PUT /api/groups/${group_id}/images/primary を呼ぶ。
      * 
      * @param groupId グループID
      * @param param メイン画像指定情報
@@ -939,7 +959,7 @@ public class AsyncDsmoqClient {
     /**
      * データセットの情報を更新する。
      *
-     * PUT /api/datasets/${dataset_id}/metadata に相当。
+     * PUT /api/datasets/${dataset_id}/metadata を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param param データセット更新情報
@@ -958,7 +978,7 @@ public class AsyncDsmoqClient {
     /**
      * ログインユーザのE-Mailを変更する。
      *
-     * POST /api/profile/email_change_request に相当。
+     * POST /api/profile/email_change_request を呼ぶ。
      * 
      * @param param E-Mail変更情報
      * @return プロファイルのCompletableFuture
@@ -974,7 +994,7 @@ public class AsyncDsmoqClient {
     /**
      * ファイルを更新する。
      *
-     * POST /api/datasets/${dataset_id}/files/${file_id} に相当。
+     * POST /api/datasets/${dataset_id}/files/${file_id} を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param fileId ファイルID
@@ -995,7 +1015,7 @@ public class AsyncDsmoqClient {
     /**
      * ファイル情報を更新する。
      *
-     * POST /api/datasets/${dataset_id}/files/${file_id}/metadata に相当。
+     * POST /api/datasets/${dataset_id}/files/${file_id}/metadata を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param fileId ファイルID
@@ -1018,7 +1038,7 @@ public class AsyncDsmoqClient {
     /**
      * グループ詳細情報を更新する。
      *
-     * PUT /api/groups/${group_id} に相当。
+     * PUT /api/groups/${group_id} を呼ぶ。
      * 
      * @param groupId グループID
      * @param param グループ詳細更新情報
@@ -1035,7 +1055,7 @@ public class AsyncDsmoqClient {
     /**
      * ログインユーザのプロファイルを更新する。
      *
-     * PUT /api/profile に相当。
+     * PUT /api/profile を呼ぶ。
      * 
      * @param param プロファイル更新情報
      * @return プロファイルのCompletableFuture
@@ -1051,7 +1071,7 @@ public class AsyncDsmoqClient {
     /**
      * ログインユーザの画像を更新する。
      *
-     * POST /api/profile/image に相当。
+     * POST /api/profile/image を呼ぶ。
      * 
      * @param file 画像ファイル
      * @return プロファイルのCompletableFuture

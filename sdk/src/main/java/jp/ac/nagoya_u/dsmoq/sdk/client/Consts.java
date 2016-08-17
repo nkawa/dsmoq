@@ -10,8 +10,11 @@ public class Consts {
      */
     public static class AccessLevel {
         public static final int Deny = 0;
+
         public static final int FullPublic = 2;
+
         public static final int LimitedPublic = 1;
+
         public static final int Owner = 3;
     }
 
@@ -20,7 +23,9 @@ public class Consts {
      */
     public static class GuestAccessLevel {
         public static final int Deny = 0;
+
         public static final int FullPublic = 2;
+
         public static final int LimitedPublic = 1;
     }
 
@@ -29,6 +34,7 @@ public class Consts {
      */
     public static class OwnerType {
         public static final int Group = 2;
+
         public static final int User = 1;
     }
 
@@ -37,6 +43,7 @@ public class Consts {
      */
     public static class Role {
         public static final int Manager = 2;
+
         public static final int Member = 1;
     }
 

@@ -73,4 +73,13 @@ public class ResourceNames {
      * 文字コードをサポートしていない場合のログに用いるリソース名
      */
     public static String LOG_UNSUPPORTED_CHARSET = "log_unsupported_charset";
+
+    /**
+     * デフォルトコンストラクタ
+     *
+     * 非公開とし、継承及びインスタンス化を抑制する。
+     */
+    private ResourceNames() {
+        // do nothing
+    }
 }

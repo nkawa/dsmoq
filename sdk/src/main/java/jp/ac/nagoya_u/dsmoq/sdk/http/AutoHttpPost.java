@@ -1,7 +1,8 @@
 package jp.ac.nagoya_u.dsmoq.sdk.http;
 
-import org.apache.http.client.methods.HttpPost;
 import java.net.URI;
+
+import org.apache.http.client.methods.HttpPost;
 
 /**
  * AutoCloseableに対応したHttpPostのラッパー

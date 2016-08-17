@@ -9,9 +9,15 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
+/** 引数の妥当性検査用のユーティリティクラス */
 public class CheckUtil {
-    private static Marker LOG_MARKER = MarkerFactory.getMarker("SDK");
+    /** ログマーカー */
+    private static final Marker LOG_MARKER = MarkerFactory.getMarker("SDK");
+
+    /** ロガー */
     private static Logger logger = LoggerFactory.getLogger(LOG_MARKER.toString());
+
+    /** メッセージ用のリソースバンドル */
     private static ResourceBundle resource = ResourceBundle.getBundle("message");
 
     /**
@@ -108,6 +114,12 @@ public class CheckUtil {
         }
     }
 
+    /**
+     * デフォルトコンストラクタ
+     *
+     * 非公開とし、継承及びインスタンス化を抑制する。
+     */
     private CheckUtil() {
+        // do nothing
     }
 }

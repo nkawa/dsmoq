@@ -1,8 +1,8 @@
 package jp.ac.nagoya_u.dsmoq.sdk.http;
 
-import org.apache.http.client.methods.HttpGet;
-
 import java.net.URI;
+
+import org.apache.http.client.methods.HttpGet;
 
 /**
  * AutoCloseableに対応したHttpGetのラッパー

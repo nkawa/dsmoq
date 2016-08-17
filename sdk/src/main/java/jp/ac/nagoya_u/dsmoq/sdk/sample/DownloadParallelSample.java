@@ -1,16 +1,26 @@
 package jp.ac.nagoya_u.dsmoq.sdk.sample;
 
-import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient;
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
-import java.io.*;
-import java.nio.file.*;
-import java.util.*;
-import java.util.concurrent.*;
+import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient;
 
 /** Range指定を用いて並列でファイルをダウンロードするサンプル */
 public class DownloadParallelSample {
     /** 分割単位 (512MB) */
     public static long CHUNK_SIZE = 512L * 1024 * 1024;
+
     /** 最大同時ダウンロード数 */
     public static int THREAD_NUM = 3;
 

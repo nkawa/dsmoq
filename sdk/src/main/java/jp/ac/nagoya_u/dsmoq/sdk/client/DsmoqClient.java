@@ -1,5 +1,55 @@
 package jp.ac.nagoya_u.dsmoq.sdk.client;
 
+import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireGreaterOrEqualOrNull;
+import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireNotEmpty;
+import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireNotNull;
+import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireNotNullAll;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.SocketTimeoutException;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.Charset;
+import java.nio.charset.IllegalCharsetNameException;
+import java.nio.charset.StandardCharsets;
+import java.nio.charset.UnsupportedCharsetException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.ResourceBundle;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+
+import org.apache.http.Header;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpException;
+import org.apache.http.HttpResponse;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.conn.HttpHostConnectException;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.mime.HttpMultipartMode;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
+import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.util.EntityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Marker;
+import org.slf4j.MarkerFactory;
+
 import jp.ac.nagoya_u.dsmoq.sdk.http.AutoCloseHttpClient;
 import jp.ac.nagoya_u.dsmoq.sdk.http.AutoHttpDelete;
 import jp.ac.nagoya_u.dsmoq.sdk.http.AutoHttpGet;
@@ -57,60 +107,6 @@ import jp.ac.nagoya_u.dsmoq.sdk.util.JsonUtil;
 import jp.ac.nagoya_u.dsmoq.sdk.util.ResourceNames;
 import jp.ac.nagoya_u.dsmoq.sdk.util.ResponseFunction;
 import jp.ac.nagoya_u.dsmoq.sdk.util.TimeoutException;
-import org.apache.http.Header;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpException;
-import org.apache.http.HttpResponse;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.conn.HttpHostConnectException;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.mime.HttpMultipartMode;
-import org.apache.http.entity.mime.MultipartEntityBuilder;
-import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.util.EntityUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.slf4j.Marker;
-import org.slf4j.MarkerFactory;
-
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.SocketTimeoutException;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.nio.charset.IllegalCharsetNameException;
-import java.nio.charset.UnsupportedCharsetException;
-import java.nio.charset.spi.CharsetProvider;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.HashSet;
-import java.util.List;
-import java.util.ResourceBundle;
-import java.util.Set;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Supplier;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-
-import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireNotEmpty;
-import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireNotNull;
-import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireNotNullAll;
-import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireGreaterOrEqualOrNull;
 
 /**
  * dsmoq APIを叩くためのクライアントクラス
@@ -120,25 +116,38 @@ import static jp.ac.nagoya_u.dsmoq.sdk.util.CheckUtil.requireGreaterOrEqualOrNul
 public class DsmoqClient {
     /** HTTP Request の Authorization ヘッダ */
     private static final String AUTHORIZATION_HEADER_NAME = "Authorization";
+
     /** HTTP Response の Content-Disposition ヘッダ */
     private static final String CONTENT_DISPOSITION_HEADER_NAME = "Content-Disposition";
+
     /** HTTP Response の Content-Disposition ヘッダ */
     private static final String CONTENT_LENGTH_HEADER_NAME = "Content-Length";
+
     /** HTTP Response の Content-Disposition 正規表現 */
     private static final Pattern COTENT_DISPOSITION_PATTERN = Pattern.compile("attachment; filename\\*=([^']+)''(.+)");
+
     /** HTTP Response の Content-Disposition 正規表現中の文字コード部 */
     private static final int COTENT_DISPOSITION_PATTERN_CHARSET = 1;
+
     /** HTTP Response の Content-Disposition 正規表現中のファイル名部 */
     private static final int COTENT_DISPOSITION_PATTERN_FILENAME = 2;
+
+    /** デフォルトのリクエストボディ文字コード */
+    private static final Charset DEFAULT_REQUEST_CHARSET = StandardCharsets.UTF_8;
+
     /** デフォルトのレスポンスボディ文字コード */
-    private static final Charset DEFAULT_RESPONSE_CHAESET = StandardCharsets.UTF_8;
+    private static final Charset DEFAULT_RESPONSE_CHARSET = StandardCharsets.UTF_8;
+
     /** exportAttributeの際に用いるファイル名 */
     private static final String EXPORT_ATTRIBUTE_CSV_FILENAME = "export.csv";
+
     /** 認証文字列の生成に利用するハッシュアルゴリズム */
     private static final String HASH_ALGORITHM = "HmacSHA1";
 
-    private static Marker LOG_MARKER = MarkerFactory.getMarker("SDK");
+    /** ログマーカー */
+    private static final Marker LOG_MARKER = MarkerFactory.getMarker("SDK");
 
+    /** ロガー */
     private static Logger logger = LoggerFactory.getLogger(LOG_MARKER.toString());
 
     /** HTTP Response の Content-Disposition ヘッダ */
@@ -147,10 +156,8 @@ public class DsmoqClient {
     /** JSONパラメータを乗せるリクエストボディのパラメータ名 */
     private static final String REQUEST_JSON_PARAM_NAME = "d";
 
+    /** メッセージ用のリソースバンドル */
     private static ResourceBundle resource = ResourceBundle.getBundle("message");
-
-    // ContentType="text/html; charset=utf-8"の定義
-    private static final ContentType TEXT_PLAIN_UTF8 = ContentType.create("text/plain", StandardCharsets.UTF_8);
 
     /**
      * APIキー、シークレットキーを使用するクライアントオブジェクトを生成する。
@@ -183,13 +190,16 @@ public class DsmoqClient {
     private static HttpEntity toHttpEntity(String jsonParam) {
         List<NameValuePair> params = new ArrayList<>();
         params.add(new BasicNameValuePair(REQUEST_JSON_PARAM_NAME, jsonParam));
-        return new UrlEncodedFormEntity(params, StandardCharsets.UTF_8);
+        return new UrlEncodedFormEntity(params, DEFAULT_REQUEST_CHARSET);
     }
 
+    /** APIキー */
     private String _apiKey;
 
+    /** 基準となるURL */
     private String _baseUrl;
 
+    /** シークレットキー */
     private String _secretKey;
 
     /**
@@ -208,7 +218,7 @@ public class DsmoqClient {
     /**
      * Datasetにファイルを追加する。
      * 
-     * POST /api/datasets/${dataset_id}/files に相当。
+     * POST /api/datasets/${dataset_id}/files を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param files Datasetに追加するファイル(複数可)
@@ -240,7 +250,7 @@ public class DsmoqClient {
     /**
      * データセットに画像を追加する。
      * 
-     * POST /api/datasets/${dataset_id}/image に相当。
+     * POST /api/datasets/${dataset_id}/image を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param files 追加する画像ファイル
@@ -268,7 +278,7 @@ public class DsmoqClient {
     /**
      * グループに画像を追加する。
      *
-     * POST /api/groups/${group_id}/images に相当。
+     * POST /api/groups/${group_id}/images を呼ぶ。
      * 
      * @param groupId グループID
      * @param files 画像ファイル
@@ -296,7 +306,7 @@ public class DsmoqClient {
     /**
      * グループにメンバーを追加する。
      *
-     * POST /api/groups/${group_id}/members に相当。
+     * POST /api/groups/${group_id}/members を呼ぶ。
      * 
      * @param groupId グループID
      * @param param メンバー追加情報
@@ -317,7 +327,7 @@ public class DsmoqClient {
     /**
      * データセットのアクセス権を変更する。
      *
-     * POST /api/datasets/${dataset_id}/acl に相当。
+     * POST /api/datasets/${dataset_id}/acl を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param params アクセス権制御情報
@@ -341,7 +351,7 @@ public class DsmoqClient {
     /**
      * データセットの保存先を変更する。
      *
-     * PUT /api/datasets/${dataset_id}/storage に相当。
+     * PUT /api/datasets/${dataset_id}/storage を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param param 保存先変更情報
@@ -363,7 +373,7 @@ public class DsmoqClient {
     /**
      * データセットのゲストアカウントでのアクセス権を設定する。
      *
-     * PUT /api/datasets/${dataset_id}/guest_access に相当。
+     * PUT /api/datasets/${dataset_id}/guest_access を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param param ゲストアカウントでのアクセス権設定情報
@@ -384,7 +394,7 @@ public class DsmoqClient {
     /**
      * ログインユーザのパスワードを変更する。
      *
-     * PUT /api/profile/password に相当。
+     * PUT /api/profile/password を呼ぶ。
      * 
      * @param param パスワード変更情報
      * @throws NullPointerException paramがnullの場合
@@ -402,7 +412,7 @@ public class DsmoqClient {
     /**
      * データセットをコピーする。
      *
-     * POST /api/datasets/${dataset_id}/copy に相当。
+     * POST /api/datasets/${dataset_id}/copy を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @return コピーしたDatasetID
@@ -421,7 +431,7 @@ public class DsmoqClient {
     /**
      * Datasetを作成する。
      *
-     * POST /api/datasets に相当。
+     * POST /api/datasets を呼ぶ。
      * 作成されるDatasetの名前は、最初に指定されたファイル名となる。
      * 
      * @param saveLocal ローカルに保存するか否か
@@ -447,7 +457,7 @@ public class DsmoqClient {
     /**
      * Datasetを作成する。
      *
-     * POST /api/datasets に相当。
+     * POST /api/datasets を呼ぶ。
      * 
      * @param name データセットの名前
      * @param saveLocal ローカルに保存するか否か
@@ -469,7 +479,7 @@ public class DsmoqClient {
     /**
      * Datasetを作成する。
      *
-     * POST /api/datasets に相当。
+     * POST /api/datasets を呼ぶ。
      * 
      * @param name データセットの名前
      * @param saveLocal ローカルに保存するか否か
@@ -495,8 +505,8 @@ public class DsmoqClient {
             builder.setMode(HttpMultipartMode.BROWSER_COMPATIBLE);
             // MultipartEntityBuilderの文字コードにutf-8を設定
             builder.setCharset(StandardCharsets.UTF_8);
-            // 送信データに"name"(データセットの名前)を追加(文字コードはutf-8と明示)
-            builder.addTextBody("name", name, TEXT_PLAIN_UTF8);
+            // 送信データに"name"(データセットの名前)を追加(文字コード明示)
+            builder.addTextBody("name", name, ContentType.create("text/plain", DEFAULT_REQUEST_CHARSET));
             Arrays.asList(files).stream().forEach(file -> builder.addBinaryBody("file[]", file));
             builder.addTextBody("saveLocal", saveLocal ? "true" : "false");
             builder.addTextBody("saveS3", saveS3 ? "true" : "false");
@@ -508,7 +518,7 @@ public class DsmoqClient {
     /**
      * グループを作成する。
      *
-     * POST /api/groups に相当。
+     * POST /api/groups を呼ぶ。
      * 
      * @param param グループ作成情報
      * @return 作成したグループ詳細情報
@@ -527,7 +537,7 @@ public class DsmoqClient {
     /**
      * データセットを削除する。
      *
-     * DELETE /api/datasets/${dataset_id} に相当。
+     * DELETE /api/datasets/${dataset_id} を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @throws NullPointerException datasetIdがnullの場合
@@ -545,7 +555,7 @@ public class DsmoqClient {
     /**
      * データセットからファイルを削除する。
      *
-     * DELETE /api/datasets/${dataset_id}/files/${file_id} に相当。
+     * DELETE /api/datasets/${dataset_id}/files/${file_id} を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param fileId ファイルID
@@ -565,7 +575,7 @@ public class DsmoqClient {
     /**
      * グループを削除する。
      *
-     * DELETE /api/groups/${group_id} に相当。
+     * DELETE /api/groups/${group_id} を呼ぶ。
      * 
      * @param groupId グループID
      * @throws NullPointerException groupIdがnullの場合
@@ -583,7 +593,7 @@ public class DsmoqClient {
     /**
      * データセットから画像を削除する。
      *
-     * DELETE /api/datasets/${dataset_id}/image/${image_id} に相当。
+     * DELETE /api/datasets/${dataset_id}/image/${image_id} を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param imageId 画像ID
@@ -605,7 +615,7 @@ public class DsmoqClient {
     /**
      * グループから画像を削除する。
      *
-     * DELETE /api/groups/${group_id}/images/${image_id} に相当。
+     * DELETE /api/groups/${group_id}/images/${image_id} を呼ぶ。
      * 
      * @param groupId グループID
      * @param imageId 画像ID
@@ -627,7 +637,7 @@ public class DsmoqClient {
     /**
      * メンバーを削除する。
      *
-     * DELETE /api/groups/${group_id}/members/${user_id} に相当。
+     * DELETE /api/groups/${group_id}/members/${user_id} を呼ぶ。
      * 
      * @param groupId グループID
      * @param userId ユーザーID
@@ -647,40 +657,41 @@ public class DsmoqClient {
     /**
      * データセットからファイルをダウンロードする。
      *
-     * GET /files/${dataset_id}/${file_id} に相当。
+     * GET /files/${dataset_id}/${file_id} を呼ぶ。
      * 
      * @param <T> ファイルデータ処理後の型
      * @param datasetId DatasetID
      * @param fileId ファイルID
-     * @param f ファイルデータを処理する関数 (引数のDatasetFileはこの処理関数中でのみ利用可能)
-     * @return fの処理結果
-     * @throws NullPointerException datasetIdまたはfileIdまたはfがnullの場合
+     * @param datasetFileFunc ファイルデータを処理する関数 (引数のDatasetFileはこの処理関数中でのみ利用可能)
+     * @return 処理結果
+     * @throws NullPointerException datasetIdまたはfileIdまたはdatasetFileFuncがnullの場合
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
      * @throws TimeoutException 接続がタイムアウトした場合
      * @throws ConnectionLostException 接続が失敗した、または失われた場合
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
-    public <T> T downloadFile(String datasetId, String fileId, Function<DatasetFileContent, T> f) {
+    public <T> T downloadFile(String datasetId, String fileId, Function<DatasetFileContent, T> datasetFileFunc) {
         logger.debug(LOG_MARKER, "DsmoqClient#downloadFile start : [datasetId] = {}, [fileId] = {}", datasetId, fileId);
         requireNotNull(datasetId, "at datasetId in DsmoqClient#downloadFile");
         requireNotNull(fileId, "at fileId in DsmoqClient#downloadFile");
-        requireNotNull(f, "at f in DsmoqClient#downloadFile");
-        return downloadFileWithRange(datasetId, fileId, null, null, f);
+        requireNotNull(datasetFileFunc, "at datasetFileFunc in DsmoqClient#downloadFile");
+        return downloadFileWithRange(datasetId, fileId, null, null, datasetFileFunc);
     }
 
     /**
      * データセットからファイルの内容を部分的に取得する。
      *
-     * GET /files/${dataset_id}/${file_id} に相当。
+     * GET /files/${dataset_id}/${file_id} を呼ぶ。
      * 
      * @param <T> ファイルデータ処理後の型
      * @param datasetId DatasetID
      * @param fileId ファイルID
      * @param from 開始位置指定、指定しない場合null
      * @param to 終了位置指定、指定しない場合null
-     * @param f ファイルデータを処理する関数 (引数のDatasetFileContentはこの処理関数中でのみ利用可能)
-     * @return fの処理結果
-     * @throws NullPointerException datasetIdまたはfileIdまたはfがnullの場合
+     * @param datasetFileFunc ファイルデータを処理する関数
+     *            (引数のDatasetFileContentはこの処理関数中でのみ利用可能)
+     * @return 処理結果
+     * @throws NullPointerException datasetIdまたはfileIdまたはdatasetFileFuncがnullの場合
      * @throws IllegalArgumentException fromまたはtoが0未満の場合
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
      * @throws TimeoutException 接続がタイムアウトした場合
@@ -688,13 +699,13 @@ public class DsmoqClient {
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     public <T> T downloadFileWithRange(String datasetId, String fileId, Long from, Long to,
-            Function<DatasetFileContent, T> f) {
+            Function<DatasetFileContent, T> datasetFileFunc) {
         logger.debug(LOG_MARKER,
                 "DsmoqClient#downloadFileWithRange start : [datasetId] = {}, [fileId] = {}, [from:to] = {}:{}",
                 datasetId, fileId, from, to);
         requireNotNull(datasetId, "at datasetId in DsmoqClient#downloadFileWithRange");
         requireNotNull(fileId, "at fileId in DsmoqClient#downloadFileWithRange");
-        requireNotNull(f, "at f in DsmoqClient#downloadFileWithRange");
+        requireNotNull(datasetFileFunc, "at datasetFileFunc in DsmoqClient#downloadFileWithRange");
         requireGreaterOrEqualOrNull(from, 0L, "at from in DsmoqClient#downloadFileWithRange");
         requireGreaterOrEqualOrNull(to, 0L, "at to in DsmoqClient#downloadFileWithRange");
         return get("/files/" + datasetId + "/" + fileId, request -> {
@@ -704,7 +715,7 @@ public class DsmoqClient {
             }
         } , response -> {
             String filename = getFileNameFromHeader(response);
-            return f.apply(new DatasetFileContent() {
+            return datasetFileFunc.apply(new DatasetFileContent() {
                 public InputStream getContent() throws IOException {
                     return response.getEntity().getContent();
                 }
@@ -723,24 +734,24 @@ public class DsmoqClient {
     /**
      * CSV形式のAttributeを取得する。
      *
-     * GET /api/datasets/${dataset_id}/attributes/export に相当。
+     * GET /api/datasets/${dataset_id}/attributes/export を呼ぶ。
      * 
      * @param <T> CSVデータ処理後の型
      * @param datasetId DatasetID
-     * @param f CSVデータを処理する関数 (引数のDatasetFileContentはこの処理関数中でのみ利用可能)
-     * @return fの処理結果
-     * @throws NullPointerException datasetIdまたはfがnullの場合
+     * @param fileFunc CSVデータを処理する関数 (引数のDatasetFileContentはこの処理関数中でのみ利用可能)
+     * @return 処理結果
+     * @throws NullPointerException datasetIdまたはfileFuncがnullの場合
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
      * @throws TimeoutException 接続がタイムアウトした場合
      * @throws ConnectionLostException 接続が失敗した、または失われた場合
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
-    public <T> T exportAttribute(String datasetId, Function<DatasetFileContent, T> f) {
+    public <T> T exportAttribute(String datasetId, Function<DatasetFileContent, T> fileFunc) {
         logger.debug(LOG_MARKER, "DsmoqClient#exportAttribute start : [datasetId] = {}", datasetId);
         requireNotNull(datasetId, "at datasetId in DsmoqClient#exportAttribute");
-        requireNotNull(f, "at f in DsmoqClient#exportAttribute");
+        requireNotNull(fileFunc, "at fileFunc in DsmoqClient#exportAttribute");
         return get("/api/datasets/" + datasetId + "/attributes/export", (HttpResponse response) -> {
-            return f.apply(new DatasetFileContent() {
+            return fileFunc.apply(new DatasetFileContent() {
                 public InputStream getContent() throws IOException {
                     return response.getEntity().getContent();
                 }
@@ -759,7 +770,7 @@ public class DsmoqClient {
     /**
      * データセットのアクセス権一覧を取得する。
      *
-     * GET /api/datasets/${dataset_id}/acl に相当。
+     * GET /api/datasets/${dataset_id}/acl を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param param 一覧取得情報
@@ -780,7 +791,7 @@ public class DsmoqClient {
     /**
      * ユーザー一覧を取得する。
      *
-     * GET /api/accounts に相当。
+     * GET /api/accounts を呼ぶ。
      * 
      * @return ユーザー一覧
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
@@ -796,7 +807,7 @@ public class DsmoqClient {
     /**
      * Datasetを取得する。
      *
-     * GET /api/datasets/${dataset_id} に相当。
+     * GET /api/datasets/${dataset_id} を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @return 取得結果
@@ -815,7 +826,7 @@ public class DsmoqClient {
     /**
      * データセットのファイル一覧を取得する。
      *
-     * GET /api/datasets/${dataset_id}/files に相当。
+     * GET /api/datasets/${dataset_id}/files を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param param 一覧取得情報
@@ -837,7 +848,7 @@ public class DsmoqClient {
     /**
      * データセットの画像一覧を取得する。
      *
-     * GET /api/datasets/${dataset_id}/image に相当。
+     * GET /api/datasets/${dataset_id}/image を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param param 一覧取得情報
@@ -859,7 +870,7 @@ public class DsmoqClient {
     /**
      * Datasetを検索する。
      *
-     * GET /api/datasets に相当。
+     * GET /api/datasets を呼ぶ。
      * 
      * @param param Dataset検索に使用するパラメタ
      * @return 検索結果
@@ -878,7 +889,7 @@ public class DsmoqClient {
     /**
      * データセットのZIPファイルに含まれるファイル一覧を取得する。
      *
-     * GET /api/datasets/${dataset_id}/files/${fileId}/zippedfiles に相当。
+     * GET /api/datasets/${dataset_id}/files/${fileId}/zippedfiles を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param fileId FileID
@@ -904,7 +915,7 @@ public class DsmoqClient {
     /**
      * データセットに設定されているファイルのサイズを取得する。
      *
-     * HEAD /files/${dataset_id}/${file_id} に相当。
+     * HEAD /files/${dataset_id}/${file_id} を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param fileId ファイルID
@@ -938,7 +949,7 @@ public class DsmoqClient {
     /**
      * グループ詳細を取得する。
      *
-     * GET /api/groups/${group_id} に相当。
+     * GET /api/groups/${group_id} を呼ぶ。
      * 
      * @param groupId グループID
      * @return グループ詳細情報
@@ -957,7 +968,7 @@ public class DsmoqClient {
     /**
      * グループの画像一覧を取得する。
      *
-     * GET /api/groups/${group_id}/images に相当。
+     * GET /api/groups/${group_id}/images を呼ぶ。
      * 
      * @param groupId グループID
      * @param param 一覧取得情報
@@ -978,7 +989,7 @@ public class DsmoqClient {
     /**
      * グループ一覧を取得する。
      *
-     * GET /api/groups に相当。
+     * GET /api/groups を呼ぶ。
      * 
      * @param param グループ一覧取得情報
      * @return グループ一覧情報
@@ -997,7 +1008,7 @@ public class DsmoqClient {
     /**
      * ライセンス一覧を取得する。
      *
-     * GET /api/licenses に相当。
+     * GET /api/licenses を呼ぶ。
      * 
      * @return ライセンス一覧情報
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
@@ -1013,7 +1024,7 @@ public class DsmoqClient {
     /**
      * グループのメンバー一覧を取得する。
      *
-     * GET /api/groups/${group_id}/members に相当。
+     * GET /api/groups/${group_id}/members を呼ぶ。
      * 
      * @param groupId グループID
      * @param param グループメンバー一覧取得情報
@@ -1034,7 +1045,7 @@ public class DsmoqClient {
     /**
      * ログインユーザのプロファイルを取得する。
      *
-     * GET /api/profile に相当。
+     * GET /api/profile を呼ぶ。
      * 
      * @return プロファイル
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
@@ -1050,7 +1061,7 @@ public class DsmoqClient {
     /**
      * 統計情報を取得します。
      *
-     * GET /api/statistics に相当。
+     * GET /api/statistics を呼ぶ。
      * 
      * @param param 統計情報期間指定
      * @return 統計情報
@@ -1069,7 +1080,7 @@ public class DsmoqClient {
     /**
      * タスクの現在のステータスを取得する。
      *
-     * GET /api/tasks/${task_id} に相当。
+     * GET /api/tasks/${task_id} を呼ぶ。
      * 
      * @param taskId タスクID
      * @return タスクのステータス情報
@@ -1088,7 +1099,7 @@ public class DsmoqClient {
     /**
      * CSVファイルからAttributeを読み込む。
      *
-     * POST /api/datasets/${dataset_id}/attributes/import に相当。
+     * POST /api/datasets/${dataset_id}/attributes/import を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param file AttributeをインポートするCSVファイル
@@ -1114,7 +1125,7 @@ public class DsmoqClient {
     /**
      * データセットに一覧で表示するFeatured Dataset画像を設定する。
      * 
-     * PUT /api/datasets/${dataset_id}/images/featured に相当。
+     * PUT /api/datasets/${dataset_id}/images/featured を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param file 追加する画像ファイル
@@ -1136,7 +1147,7 @@ public class DsmoqClient {
     /**
      * データセットに一覧で表示するFeatured Dataset画像を設定する。
      *
-     * PUT /api/datasets/${dataset_id}/images/featured に相当。
+     * PUT /api/datasets/${dataset_id}/images/featured を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param imageId 指定する画像ID
@@ -1158,7 +1169,7 @@ public class DsmoqClient {
     /**
      * メンバーのロールを設定する。
      *
-     * PUT /api/groups/${group_id}/members/${user_id} に相当。
+     * PUT /api/groups/${group_id}/members/${user_id} を呼ぶ。
      * 
      * @param groupId グループID
      * @param userId ユーザーID
@@ -1181,7 +1192,7 @@ public class DsmoqClient {
     /**
      * データセットに一覧で表示するメイン画像を設定する。
      * 
-     * PUT /api/datasets/${dataset_id}/image/primary に相当。
+     * PUT /api/datasets/${dataset_id}/image/primary を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param file 追加する画像ファイル
@@ -1203,7 +1214,7 @@ public class DsmoqClient {
     /**
      * データセットに一覧で表示するメイン画像を設定する。
      *
-     * PUT /api/datasets/${dataset_id}/image/primary に相当。
+     * PUT /api/datasets/${dataset_id}/image/primary を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param param メイン画像指定情報
@@ -1224,7 +1235,7 @@ public class DsmoqClient {
     /**
      * グループに一覧で表示するメイン画像を設定する。
      * 
-     * PUT /api/groups/${group_id}/images/primary に相当。
+     * PUT /api/groups/${group_id}/images/primary を呼ぶ。
      * 
      * @param groupId グループID
      * @param file 画像ファイル
@@ -1246,7 +1257,7 @@ public class DsmoqClient {
     /**
      * グループに一覧で表示するメイン画像を設定する。
      *
-     * PUT /api/groups/${group_id}/images/primary に相当。
+     * PUT /api/groups/${group_id}/images/primary を呼ぶ。
      * 
      * @param groupId グループID
      * @param param メイン画像指定情報
@@ -1267,7 +1278,7 @@ public class DsmoqClient {
     /**
      * データセットの情報を更新する。
      *
-     * PUT /api/datasets/${dataset_id}/metadata に相当。
+     * PUT /api/datasets/${dataset_id}/metadata を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param param データセット更新情報
@@ -1288,7 +1299,7 @@ public class DsmoqClient {
     /**
      * ログインユーザのE-Mailを変更する。
      *
-     * POST /api/profile/email_change_request に相当。
+     * POST /api/profile/email_change_request を呼ぶ。
      * 
      * @param param E-Mail変更情報
      * @return プロファイル
@@ -1307,7 +1318,7 @@ public class DsmoqClient {
     /**
      * ファイルを更新する。
      *
-     * POST /api/datasets/${dataset_id}/files/${file_id} に相当。
+     * POST /api/datasets/${dataset_id}/files/${file_id} を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param fileId ファイルID
@@ -1336,7 +1347,7 @@ public class DsmoqClient {
     /**
      * ファイル情報を更新する。
      *
-     * POST /api/datasets/${dataset_id}/files/${file_id}/metadata に相当。
+     * POST /api/datasets/${dataset_id}/files/${file_id}/metadata を呼ぶ。
      * 
      * @param datasetId DatasetID
      * @param fileId ファイルID
@@ -1361,7 +1372,7 @@ public class DsmoqClient {
     /**
      * グループ詳細情報を更新する。
      *
-     * PUT /api/groups/${group_id} に相当。
+     * PUT /api/groups/${group_id} を呼ぶ。
      * 
      * @param groupId グループID
      * @param param グループ詳細更新情報
@@ -1382,7 +1393,7 @@ public class DsmoqClient {
     /**
      * ログインユーザのプロファイルを更新する。
      *
-     * PUT /api/profile に相当。
+     * PUT /api/profile を呼ぶ。
      * 
      * @param param プロファイル更新情報
      * @return プロファイル
@@ -1401,7 +1412,7 @@ public class DsmoqClient {
     /**
      * ログインユーザの画像を更新する。
      *
-     * POST /api/profile/image に相当。
+     * POST /api/profile/image を呼ぶ。
      * 
      * @param file 画像ファイル
      * @return プロファイル
@@ -1448,16 +1459,16 @@ public class DsmoqClient {
      * DELETEリクエストを送信する。
      * 
      * @param url 送信先URL
-     * @param f レスポンスボディ変換関数
-     * @return fの変換結果
+     * @param responseFunc レスポンスボディ変換関数
+     * @return 変換結果
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
      * @throws TimeoutException 接続がタイムアウトした場合
      * @throws ConnectionLostException 接続が失敗した、または失われた場合
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
-    private <T> T delete(String url, Function<String, T> f) {
+    private <T> T delete(String url, Function<String, T> responseFunc) {
         return send(() -> new AutoHttpDelete(_baseUrl + url), null,
-                (HttpResponse response) -> f.apply(responseToString(response)));
+                (HttpResponse response) -> responseFunc.apply(responseToString(response)));
     }
 
     /**
@@ -1465,20 +1476,20 @@ public class DsmoqClient {
      * 
      * @param <T> レスポンス変換後の型
      * @param request リクエスト
-     * @param f レスポンス変換関数
-     * @return fの変換結果
+     * @param responseFunc レスポンス変換関数
+     * @return 変換結果
      * @throws IOException 接続に失敗した場合
      * @throws HttpException レスポンスがHTTPレスポンスとして不正な場合
      * @throws ErrorRespondedException エラーレスポンスが返ってきた場合
      */
-    private <T> T execute(HttpUriRequest request, ResponseFunction<T> f)
+    private <T> T execute(HttpUriRequest request, ResponseFunction<T> responseFunc)
             throws IOException, HttpException, ErrorRespondedException {
         try (AutoCloseHttpClient client = createHttpClient()) {
             HttpResponse response = client.execute(request);
             if (isErrorStatus(response.getStatusLine().getStatusCode())) {
                 throw new ErrorRespondedException(response);
             }
-            return f.apply(response);
+            return responseFunc.apply(response);
         }
     }
 
@@ -1487,45 +1498,45 @@ public class DsmoqClient {
      * 
      * @param url 送信先URL
      * @param ext リクエストに対する追加処理
-     * @param f レスポンス変換関数
-     * @return fの変換結果
+     * @param responseFunc レスポンス変換関数
+     * @return 変換結果
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
      * @throws TimeoutException 接続がタイムアウトした場合
      * @throws ConnectionLostException 接続が失敗した、または失われた場合
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
-    private <T> T get(String url, Consumer<AutoHttpGet> ext, ResponseFunction<T> f) {
-        return send(() -> new AutoHttpGet(_baseUrl + url), ext, f);
+    private <T> T get(String url, Consumer<AutoHttpGet> ext, ResponseFunction<T> responseFunc) {
+        return send(() -> new AutoHttpGet(_baseUrl + url), ext, responseFunc);
     }
 
     /**
      * GETリクエストを送信する。
      * 
      * @param url 送信先URL
-     * @param f レスポンスボディ変換関数
-     * @return fの変換結果
+     * @param responseFunc レスポンスボディ変換関数
+     * @return 変換結果
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
      * @throws TimeoutException 接続がタイムアウトした場合
      * @throws ConnectionLostException 接続が失敗した、または失われた場合
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
-    private <T> T get(String url, Function<String, T> f) {
-        return get(url, (HttpResponse response) -> f.apply(responseToString(response)));
+    private <T> T get(String url, Function<String, T> responseFunc) {
+        return get(url, (HttpResponse response) -> responseFunc.apply(responseToString(response)));
     }
 
     /**
      * GETリクエストを送信する。
      * 
      * @param url 送信先URL
-     * @param f レスポンス変換関数
-     * @return fの変換結果
+     * @param responseFunc レスポンス変換関数
+     * @return 変換結果
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
      * @throws TimeoutException 接続がタイムアウトした場合
      * @throws ConnectionLostException 接続が失敗した、または失われた場合
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
-    private <T> T get(String url, ResponseFunction<T> f) {
-        return get(url, null, f);
+    private <T> T get(String url, ResponseFunction<T> responseFunc) {
+        return get(url, null, responseFunc);
     }
 
     /**
@@ -1533,18 +1544,18 @@ public class DsmoqClient {
      * 
      * @param url 送信先URL
      * @param jsonParam リクエストに付与するJSONパラメータ
-     * @param f レスポンスボディ変換関数
-     * @return fの変換結果
+     * @param responseFunc レスポンスボディ変換関数
+     * @return 変換結果
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
      * @throws TimeoutException 接続がタイムアウトした場合
      * @throws ConnectionLostException 接続が失敗した、または失われた場合
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
-    private <T> T get(String url, String jsonParam, Function<String, T> f) {
+    private <T> T get(String url, String jsonParam, Function<String, T> responseFunc) {
         return send(
-                () -> new AutoHttpGet(
-                        _baseUrl + url + "?d=" + URLEncoder.encode(jsonParam, StandardCharsets.UTF_8.name())),
-                null, (HttpResponse response) -> f.apply(responseToString(response)));
+                () -> new AutoHttpGet(_baseUrl + url + "?" + REQUEST_JSON_PARAM_NAME + "="
+                        + URLEncoder.encode(jsonParam, DEFAULT_REQUEST_CHARSET.name())),
+                null, (HttpResponse response) -> responseFunc.apply(responseToString(response)));
     }
 
     /**
@@ -1589,7 +1600,7 @@ public class DsmoqClient {
             Mac mac = Mac.getInstance(HASH_ALGORITHM);
             mac.init(sk);
             byte[] result = mac.doFinal((apiKey + "&" + secretKey).getBytes());
-            return URLEncoder.encode(Base64.getEncoder().encodeToString(result), StandardCharsets.UTF_8.name());
+            return URLEncoder.encode(Base64.getEncoder().encodeToString(result), DEFAULT_REQUEST_CHARSET.name());
         } catch (Exception e) {
             logger.error(LOG_MARKER, resource.getString(ResourceNames.LOG_ERROR_OCCURED), e.getMessage());
             throw new ApiFailedException(e.getMessage(), e);
@@ -1600,15 +1611,15 @@ public class DsmoqClient {
      * HEADリクエストを送信する。
      * 
      * @param url 送信先URL
-     * @param f レスポンス変換関数
-     * @return fの変換結果
+     * @param responseFunc レスポンス変換関数
+     * @return 変換結果
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
      * @throws TimeoutException 接続がタイムアウトした場合
      * @throws ConnectionLostException 接続が失敗した、または失われた場合
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
-    private <T> T head(String url, ResponseFunction<T> f) {
-        return send(() -> new AutoHttpHead(_baseUrl + url), null, f);
+    private <T> T head(String url, ResponseFunction<T> responseFunc) {
+        return send(() -> new AutoHttpHead(_baseUrl + url), null, responseFunc);
     }
 
     /**
@@ -1616,31 +1627,31 @@ public class DsmoqClient {
      * 
      * @param url 送信先URL
      * @param ext リクエストに対する追加処理
-     * @param f レスポンスボディ変換関数
-     * @return fの変換結果
+     * @param responseFunc レスポンスボディ変換関数
+     * @return 変換結果
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
      * @throws TimeoutException 接続がタイムアウトした場合
      * @throws ConnectionLostException 接続が失敗した、または失われた場合
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
-    private <T> T post(String url, Consumer<AutoHttpPost> ext, Function<String, T> f) {
+    private <T> T post(String url, Consumer<AutoHttpPost> ext, Function<String, T> responseFunc) {
         return send(() -> new AutoHttpPost(_baseUrl + url), ext,
-                (HttpResponse response) -> f.apply(responseToString(response)));
+                (HttpResponse response) -> responseFunc.apply(responseToString(response)));
     }
 
     /**
      * POSTリクエストを送信する。
      * 
      * @param url 送信先URL
-     * @param f レスポンスボディ変換関数
-     * @return fの変換結果
+     * @param responseFunc レスポンスボディ変換関数
+     * @return 変換結果
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
      * @throws TimeoutException 接続がタイムアウトした場合
      * @throws ConnectionLostException 接続が失敗した、または失われた場合
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
-    private <T> T post(String url, Function<String, T> f) {
-        return post(url, (Supplier<HttpEntity>) null, f);
+    private <T> T post(String url, Function<String, T> responseFunc) {
+        return post(url, (Supplier<HttpEntity>) null, responseFunc);
     }
 
     /**
@@ -1648,15 +1659,15 @@ public class DsmoqClient {
      * 
      * @param url 送信先URL
      * @param jsonParam リクエストボディに付与するJSONパラメータ
-     * @param f レスポンスボディ変換関数
-     * @return fの変換結果
+     * @param responseFunc レスポンスボディ変換関数
+     * @return 変換結果
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
      * @throws TimeoutException 接続がタイムアウトした場合
      * @throws ConnectionLostException 接続が失敗した、または失われた場合
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
-    private <T> T post(String url, String jsonParam, Function<String, T> f) {
-        return post(url, () -> toHttpEntity(jsonParam), f);
+    private <T> T post(String url, String jsonParam, Function<String, T> responseFunc) {
+        return post(url, () -> toHttpEntity(jsonParam), responseFunc);
     }
 
     /**
@@ -1664,18 +1675,18 @@ public class DsmoqClient {
      * 
      * @param url 送信先URL
      * @param entity リクエストボディのサプライヤ
-     * @param f レスポンスボディ変換関数
-     * @return fの変換結果
+     * @param responseFunc レスポンスボディ変換関数
+     * @return 変換結果
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
      * @throws TimeoutException 接続がタイムアウトした場合
      * @throws ConnectionLostException 接続が失敗した、または失われた場合
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
-    private <T> T post(String url, Supplier<HttpEntity> entity, Function<String, T> f) {
+    private <T> T post(String url, Supplier<HttpEntity> entity, Function<String, T> responseFunc) {
         Consumer<AutoHttpPost> ext = entity == null ? null : req -> {
             req.setEntity(entity.get());
         };
-        return post(url, ext, f);
+        return post(url, ext, responseFunc);
     }
 
     /**
@@ -1683,31 +1694,31 @@ public class DsmoqClient {
      * 
      * @param url 送信先URL
      * @param ext リクエストに対する追加処理
-     * @param f レスポンスボディ変換関数
-     * @return fの変換結果
+     * @param responseFunc レスポンスボディ変換関数
+     * @return 変換結果
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
      * @throws TimeoutException 接続がタイムアウトした場合
      * @throws ConnectionLostException 接続が失敗した、または失われた場合
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
-    private <T> T put(String url, Consumer<AutoHttpPut> ext, Function<String, T> f) {
+    private <T> T put(String url, Consumer<AutoHttpPut> ext, Function<String, T> responseFunc) {
         return send(() -> new AutoHttpPut(_baseUrl + url), ext,
-                (HttpResponse response) -> f.apply(responseToString(response)));
+                (HttpResponse response) -> responseFunc.apply(responseToString(response)));
     }
 
     /**
      * PUTリクエストを送信する。
      * 
      * @param url 送信先URL
-     * @param f レスポンスボディ変換関数
-     * @return fの変換結果
+     * @param responseFunc レスポンスボディ変換関数
+     * @return 変換結果
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
      * @throws TimeoutException 接続がタイムアウトした場合
      * @throws ConnectionLostException 接続が失敗した、または失われた場合
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
-    private <T> T put(String url, Function<String, T> f) {
-        return put(url, (Supplier<HttpEntity>) null, f);
+    private <T> T put(String url, Function<String, T> responseFunc) {
+        return put(url, (Supplier<HttpEntity>) null, responseFunc);
     }
 
     /**
@@ -1715,15 +1726,15 @@ public class DsmoqClient {
      * 
      * @param url 送信先URL
      * @param jsonParam リクエストボディに付与するJSONパラメータ
-     * @param f レスポンスボディ変換関数
-     * @return fの変換結果
+     * @param responseFunc レスポンスボディ変換関数
+     * @return 変換結果
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
      * @throws TimeoutException 接続がタイムアウトした場合
      * @throws ConnectionLostException 接続が失敗した、または失われた場合
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
-    private <T> T put(String url, String jsonParam, Function<String, T> f) {
-        return put(url, () -> toHttpEntity(jsonParam), f);
+    private <T> T put(String url, String jsonParam, Function<String, T> responseFunc) {
+        return put(url, () -> toHttpEntity(jsonParam), responseFunc);
     }
 
     /**
@@ -1731,18 +1742,18 @@ public class DsmoqClient {
      * 
      * @param url 送信先URL
      * @param entity リクエストボディのサプライヤ
-     * @param f レスポンスボディ変換関数
-     * @return fの変換結果
+     * @param responseFunc レスポンスボディ変換関数
+     * @return 変換結果
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
      * @throws TimeoutException 接続がタイムアウトした場合
      * @throws ConnectionLostException 接続が失敗した、または失われた場合
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
-    private <T> T put(String url, Supplier<HttpEntity> entity, Function<String, T> f) {
+    private <T> T put(String url, Supplier<HttpEntity> entity, Function<String, T> responseFunc) {
         Consumer<AutoHttpPut> ext = entity == null ? null : req -> {
             req.setEntity(entity.get());
         };
-        return put(url, ext, f);
+        return put(url, ext, responseFunc);
     }
 
     /**
@@ -1754,7 +1765,7 @@ public class DsmoqClient {
      * @return レスポンスボディの文字列表現
      */
     private String responseToString(HttpResponse response) throws IOException {
-        return responseToString(response, DEFAULT_RESPONSE_CHAESET.name());
+        return responseToString(response, DEFAULT_RESPONSE_CHARSET.name());
     }
 
     /**
@@ -1775,22 +1786,23 @@ public class DsmoqClient {
      * 
      * @param request リクエストのサプライヤ
      * @param ext リクエストに対する追加処理
-     * @param f レスポンス変換関数
-     * @return fの変換結果
+     * @param responseFunc レスポンス変換関数
+     * @return 変換結果
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
      * @throws TimeoutException 接続がタイムアウトした場合
      * @throws ConnectionLostException 接続が失敗した、または失われた場合
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
      */
     private <T extends HttpUriRequest & AutoCloseable, R> R send(ExceptionSupplier<T> request, Consumer<T> ext,
-            ResponseFunction<R> f) {
+            ResponseFunction<R> responseFunc) {
         try (T req = request.get()) {
             addAuthorizationHeader(req);
             if (ext != null) {
                 ext.accept(req);
             }
-            return execute(req, f);
+            return execute(req, responseFunc);
         } catch (Exception e) {
+            // 内部で発生した例外を、公開用の非検査例外に翻訳する
             throw translateInnerException(e);
         }
     }
@@ -1798,20 +1810,24 @@ public class DsmoqClient {
     /**
      * 内部で送出される例外を、公開用に翻訳する。
      * 
-     * @param e 内部で送出される例外
+     * @param e 内部で送出された例外
      * @return 公開用に翻訳された例外
      */
     private RuntimeException translateInnerException(Exception e) {
         logger.error(LOG_MARKER, resource.getString(ResourceNames.LOG_ERROR_OCCURED), e.getMessage());
         if (e instanceof ErrorRespondedException) {
+            // ErrorRespondedExceptionなら、HttpStatusExceptionに変換する
             return new HttpStatusException(((ErrorRespondedException) e).getStatusCode(), e);
         }
         if (e instanceof SocketTimeoutException) {
+            // SocketTimeoutExceptionなら、TimeoutExceptionに変換する
             return new TimeoutException(e.getMessage(), e);
         }
         if (e instanceof HttpHostConnectException) {
+            // HttpHostConnectExceptionなら、ConnectionLostExceptionに変換する
             return new ConnectionLostException(e.getMessage(), e);
         }
+        // 上記以外の例外なら、ApiFailedExceptionに変換する
         return new ApiFailedException(e.getMessage(), e);
     }
 }

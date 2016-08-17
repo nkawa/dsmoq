@@ -1,8 +1,9 @@
 package jp.ac.nagoya_u.dsmoq.sdk.util;
 
+import java.io.IOException;
+
 import org.apache.http.HttpException;
 import org.apache.http.HttpResponse;
-import java.io.IOException;
 
 /**
  * レスポンス変換関数

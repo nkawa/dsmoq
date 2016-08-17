@@ -1,40 +1,51 @@
 package jp.ac.nagoya_u.dsmoq.sdk.http;
 
-import jp.ac.nagoya_u.dsmoq.sdk.util.ResourceNames;
+import java.io.IOException;
+import java.util.ResourceBundle;
 
-import org.apache.http.*;
+import org.apache.http.Header;
+import org.apache.http.HeaderElement;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpException;
+import org.apache.http.HttpRequest;
+import org.apache.http.HttpRequestInterceptor;
+import org.apache.http.HttpResponse;
+import org.apache.http.HttpResponseInterceptor;
+import org.apache.http.client.RedirectStrategy;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.entity.GzipDecompressingEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.protocol.HttpContext;
-import org.apache.http.client.RedirectStrategy;
 import org.apache.http.impl.client.DefaultRedirectStrategy;
-import org.apache.http.protocol.HttpContext;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.protocol.BasicHttpContext;
-import org.apache.http.HttpException;
+import org.apache.http.protocol.HttpContext;
+import org.apache.http.protocol.HttpContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
-import java.io.IOException;
-import java.util.ResourceBundle;
+import jp.ac.nagoya_u.dsmoq.sdk.util.ResourceNames;
 
 public class AutoCloseHttpClient implements AutoCloseable {
     /** HTTP Request の Accept-Encoding ヘッダ */
     private static final String ACCEPT_ENCODING_HEADER_NAME = "Accept-Encoding";
+
     /** HTTP Response の Accept-Encoding ヘッダ に指定するgzip指定 */
     private static final String GZIP_ENCODING_NAME = "gzip";
-    private static Marker LOG_MARKER = MarkerFactory.getMarker("SDK");
 
+    /** ログマーカー */
+    private static final Marker LOG_MARKER = MarkerFactory.getMarker("SDK");
+
+    /** ロガー */
     private static Logger logger = LoggerFactory.getLogger(LOG_MARKER.toString());
 
     /** HTTP Response の Content-Disposition ヘッダ */
     private static final String RANGE_HEADER_NAME = "Range";
 
+    /** メッセージ用のリソースバンドル */
     private static ResourceBundle resource = ResourceBundle.getBundle("message");
 
     /** HTTP Request のタイムアウト時間 (ms) */

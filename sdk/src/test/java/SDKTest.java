@@ -1,20 +1,7 @@
 
-import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient;
-import jp.ac.nagoya_u.dsmoq.sdk.request.*;
-import jp.ac.nagoya_u.dsmoq.sdk.response.*;
-import jp.ac.nagoya_u.dsmoq.sdk.util.*;
-import org.apache.http.conn.HttpHostConnectException;
-import org.joda.time.DateTime;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-
-import static org.hamcrest.MatcherAssert.*;
-import static org.hamcrest.core.Is.*;
-import static org.hamcrest.core.IsInstanceOf.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.Is.is;
+import static org.hamcrest.core.IsInstanceOf.instanceOf;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -24,11 +11,60 @@ import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
+
+import org.apache.http.conn.HttpHostConnectException;
+import org.joda.time.DateTime;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
+
+import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient;
+import jp.ac.nagoya_u.dsmoq.sdk.request.AddMemberParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.ChangePasswordParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.ChangeStorageParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.CreateGroupParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.GetDatasetsParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.GetGroupsParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.GetMembersParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.GetRangeParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.SetAccessLevelParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.SetGuestAccessLevelParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.SetMemberRoleParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.SetPrimaryImageParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.StatisticsParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateDatasetMetaParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateEmailParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateFileMetaParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateGroupParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateProfileParam;
+import jp.ac.nagoya_u.dsmoq.sdk.response.Dataset;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetAddImages;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetFile;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetGetImage;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetOwnership;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetTask;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetZipedFile;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetsSummary;
+import jp.ac.nagoya_u.dsmoq.sdk.response.Group;
+import jp.ac.nagoya_u.dsmoq.sdk.response.GroupAddImages;
+import jp.ac.nagoya_u.dsmoq.sdk.response.GroupGetImage;
+import jp.ac.nagoya_u.dsmoq.sdk.response.GroupsSummary;
+import jp.ac.nagoya_u.dsmoq.sdk.response.Image;
+import jp.ac.nagoya_u.dsmoq.sdk.response.MemberSummary;
+import jp.ac.nagoya_u.dsmoq.sdk.response.RangeSlice;
+import jp.ac.nagoya_u.dsmoq.sdk.response.StatisticsDetail;
+import jp.ac.nagoya_u.dsmoq.sdk.response.TaskStatus;
+import jp.ac.nagoya_u.dsmoq.sdk.response.User;
+import jp.ac.nagoya_u.dsmoq.sdk.util.ConnectionLostException;
+import jp.ac.nagoya_u.dsmoq.sdk.util.HttpStatusException;
 
 public class SDKTest {
     public static DsmoqClient create() {
