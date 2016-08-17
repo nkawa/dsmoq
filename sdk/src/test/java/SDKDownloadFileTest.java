@@ -125,7 +125,7 @@ public class SDKDownloadFileTest {
     @Test
     public void downloadFileでdatasetIdが空文字列の場合例外が発生() {
         thrown.expect(HttpStatusException.class);
-        thrown.expectCause(instanceOf(ErrorRespondedException.class));
+        thrown.expect(HttpStatusExceptionMatcher.is(404));
         DsmoqClient client = create();
         Dataset dataset = client.createDataset(true, false, new File("README.md"));
         RangeSlice<DatasetFile> files = client.getDatasetFiles(dataset.getId(), new GetRangeParam());
@@ -136,7 +136,7 @@ public class SDKDownloadFileTest {
     @Test
     public void downloadFileでdatasetIdで指定した対象が存在しない場合例外が発生() {
         thrown.expect(HttpStatusException.class);
-        thrown.expectCause(instanceOf(ErrorRespondedException.class));
+        thrown.expect(HttpStatusExceptionMatcher.is(404));
         DsmoqClient client = create();
         Dataset dataset = client.createDataset(true, false, new File("README.md"));
         RangeSlice<DatasetFile> files = client.getDatasetFiles(dataset.getId(), new GetRangeParam());
@@ -147,7 +147,7 @@ public class SDKDownloadFileTest {
     @Test
     public void downloadFileでfileIdが空文字列の場合例外が発生() {
         thrown.expect(HttpStatusException.class);
-        thrown.expectCause(instanceOf(ErrorRespondedException.class));
+        thrown.expect(HttpStatusExceptionMatcher.is(404));
         DsmoqClient client = create();
         Dataset dataset = client.createDataset(true, false, new File("README.md"));
         client.downloadFile(dataset.getId(), "", content -> null);
@@ -156,7 +156,7 @@ public class SDKDownloadFileTest {
     @Test
     public void downloadFileでfileIdで指定した対象が存在しない場合例外が発生() {
         thrown.expect(HttpStatusException.class);
-        thrown.expectCause(instanceOf(ErrorRespondedException.class));
+        thrown.expect(HttpStatusExceptionMatcher.is(404));
         DsmoqClient client = create();
         Dataset dataset = client.createDataset(true, false, new File("README.md"));
         client.downloadFile(dataset.getId(), "023bfa40-e897-4dad-96db-9fd3cf001e79", content -> null);
@@ -175,7 +175,7 @@ public class SDKDownloadFileTest {
     @Test
     public void downloadFileで権限のないのないファイルを指定すると例外が発生() {
         thrown.expect(HttpStatusException.class);
-        thrown.expectCause(instanceOf(ErrorRespondedException.class));
+        thrown.expect(HttpStatusExceptionMatcher.is(403));
         DsmoqClient client = create();
         Dataset dataset = client.createDataset(true, false, new File("README.md"));
         RangeSlice<DatasetFile> files = client.getDatasetFiles(dataset.getId(), new GetRangeParam());

@@ -3026,9 +3026,9 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
 
     val findResult = DB readOnly { implicit s =>
       for {
-        _ <- requireAllowDownload(user, datasetId)
-        _ <- found(getDataset(datasetId))
         file <- found(findFile(fileId))
+        _ <- found(getDataset(datasetId))
+        _ <- requireAllowDownload(user, datasetId)
       } yield {
         file
       }

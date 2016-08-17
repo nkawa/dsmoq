@@ -1817,7 +1817,8 @@ public class DsmoqClient {
         logger.error(LOG_MARKER, resource.getString(ResourceNames.LOG_ERROR_OCCURED), e.getMessage());
         if (e instanceof ErrorRespondedException) {
             // ErrorRespondedExceptionなら、HttpStatusExceptionに変換する
-            return new HttpStatusException(((ErrorRespondedException) e).getStatusCode(), e);
+            ErrorRespondedException ex = (ErrorRespondedException) e;
+            return new HttpStatusException(ex.getStatusCode(), ex.getBody(), ex);
         }
         if (e instanceof SocketTimeoutException) {
             // SocketTimeoutExceptionなら、TimeoutExceptionに変換する

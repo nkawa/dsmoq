@@ -45,8 +45,9 @@ public class SDKHeadTest {
     @Rule
     public ExpectedException thrown = ExpectedException.none();
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void getFileSize_nullチェック1() {
+        thrown.expect(NullPointerException.class);
         DsmoqClient client = create();
         File file = new File("README.md");
         Dataset dataset = client.createDataset(true, false, file);
@@ -56,8 +57,9 @@ public class SDKHeadTest {
         client.getFileSize(null, fileId);
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void getFileSize_nullチェック2() {
+        thrown.expect(NullPointerException.class);
         DsmoqClient client = create();
         File file = new File("README.md");
         Dataset dataset = client.createDataset(true, false, file);
@@ -105,16 +107,19 @@ public class SDKHeadTest {
         assertThat(size, is(zEntry.getSize()));
     }
 
-    @Test(expected = ConnectionLostException.class)
+    @Test
     public void getFileSize_サーバーに接続できない() {
+        thrown.expect(ConnectionLostException.class);
         DsmoqClient client = DsmoqClient.create("http://localhost:8081",
                 "3d2357cd53e8738ae21fbc86e15bd441c497191cf785163541ffa907854d2649",
                 "731cc0646e8012632f58bb7d1912a77e8072c7f128f2d09f0bebc36ac0c1a579");
         client.getFileSize("", "");
     }
 
-    @Test(expected = HttpStatusException.class)
+    @Test
     public void getFileSize_権限違反() {
+        thrown.expect(HttpStatusException.class);
+        thrown.expect(HttpStatusExceptionMatcher.is(403));
         DsmoqClient dummyClient = createDummyUserClient();
         File file = new File("README.md");
         Dataset dataset = dummyClient.createDataset(true, false, file);
@@ -122,46 +127,37 @@ public class SDKHeadTest {
         RangeSlice<DatasetFile> files = dummyClient.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
         DsmoqClient client = create();
-        try {
-            client.getFileSize(datasetId, fileId);
-        } catch (HttpStatusException e) {
-            assertThat(e.getMessage(), is("http_status=403"));
-            throw e;
-        }
+        client.getFileSize(datasetId, fileId);
     }
 
-    @Test(expected = HttpStatusException.class)
+    @Test
     public void getFileSize_存在しないリソース1() {
+        thrown.expect(HttpStatusException.class);
+        thrown.expect(HttpStatusExceptionMatcher.is(404));
         DsmoqClient client = create();
         File file = new File("README.md");
         Dataset dataset = client.createDataset(true, false, file);
         String datasetId = dataset.getId();
-        try {
-            client.getFileSize(datasetId, "");
-        } catch (HttpStatusException e) {
-            assertThat(e.getMessage(), is("http_status=404"));
-            throw e;
-        }
+        client.getFileSize(datasetId, "");
     }
 
-    @Test(expected = HttpStatusException.class)
+    @Test
     public void getFileSize_存在しないリソース2() {
+        thrown.expect(HttpStatusException.class);
+        thrown.expect(HttpStatusExceptionMatcher.is(404));
         DsmoqClient client = create();
         File file = new File("README.md");
         Dataset dataset = client.createDataset(true, false, file);
         String datasetId = dataset.getId();
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
-        try {
-            client.getFileSize("", fileId);
-        } catch (HttpStatusException e) {
-            assertThat(e.getMessage(), is("http_status=404"));
-            throw e;
-        }
+        client.getFileSize("", fileId);
     }
 
-    @Test(expected = HttpStatusException.class)
+    @Test
     public void getFileSize_存在しないリソース3() {
+        thrown.expect(HttpStatusException.class);
+        thrown.expect(HttpStatusExceptionMatcher.is(404));
         DsmoqClient client = create();
         File file = new File("README.md");
         Dataset dataset = client.createDataset(true, false, file);
@@ -169,16 +165,13 @@ public class SDKHeadTest {
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
         String notExistsId = UUID.randomUUID().toString();
-        try {
-            client.getFileSize(notExistsId, fileId);
-        } catch (HttpStatusException e) {
-            assertThat(e.getMessage(), is("http_status=403"));
-            throw e;
-        }
+        client.getFileSize(notExistsId, fileId);
     }
 
-    @Test(expected = HttpStatusException.class)
+    @Test
     public void getFileSize_存在しないリソース4() {
+        thrown.expect(HttpStatusException.class);
+        thrown.expect(HttpStatusExceptionMatcher.is(404));
         DsmoqClient client = create();
         File file = new File("README.md");
         Dataset dataset = client.createDataset(true, false, file);
@@ -186,12 +179,7 @@ public class SDKHeadTest {
         RangeSlice<DatasetFile> files = client.getDatasetFiles(datasetId, new GetRangeParam());
         String fileId = files.getResults().get(0).getId();
         String notExistsId = UUID.randomUUID().toString();
-        try {
-            client.getFileSize(datasetId, notExistsId);
-        } catch (HttpStatusException e) {
-            assertThat(e.getMessage(), is("http_status=404"));
-            throw e;
-        }
+        client.getFileSize(datasetId, notExistsId);
     }
 
     @After

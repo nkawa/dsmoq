@@ -154,7 +154,7 @@ public class SDKDownloadFileWithRangeTest {
     @Test
     public void downloadFileWithRange_サイズ1_from_null_to_0で例外が発生() throws IOException {
         thrown.expect(HttpStatusException.class);
-        thrown.expectCause(instanceOf(ErrorRespondedException.class));
+        thrown.expect(HttpStatusExceptionMatcher.is(416));
         downloadByteTestData(1, null, 0L);
     }
 
@@ -179,14 +179,14 @@ public class SDKDownloadFileWithRangeTest {
     @Test
     public void downloadFileWithRange_サイズ2_from_0_to_3で例外が発生() throws IOException {
         thrown.expect(HttpStatusException.class);
-        thrown.expectCause(instanceOf(ErrorRespondedException.class));
+        thrown.expect(HttpStatusExceptionMatcher.is(416));
         downloadByteTestData(2, 0L, 3L);
     }
 
     @Test
     public void downloadFileWithRange_サイズ2_from_1_to_0で例外が発生() throws IOException {
         thrown.expect(HttpStatusException.class);
-        thrown.expectCause(instanceOf(ErrorRespondedException.class));
+        thrown.expect(HttpStatusExceptionMatcher.is(416));
         downloadByteTestData(2, 1L, 0L);
     }
 
@@ -199,7 +199,7 @@ public class SDKDownloadFileWithRangeTest {
     @Test
     public void downloadFileWithRange_サイズ2_from_3_to_3で例外が発生() throws IOException {
         thrown.expect(HttpStatusException.class);
-        thrown.expectCause(instanceOf(ErrorRespondedException.class));
+        thrown.expect(HttpStatusExceptionMatcher.is(416));
         downloadByteTestData(2, 3L, 3L);
     }
 
@@ -211,7 +211,7 @@ public class SDKDownloadFileWithRangeTest {
     @Test
     public void downloadFileWithRangeでdatasetIdが空文字列の場合例外が発生() {
         thrown.expect(HttpStatusException.class);
-        thrown.expectCause(instanceOf(ErrorRespondedException.class));
+        thrown.expect(HttpStatusExceptionMatcher.is(404));
         DsmoqClient client = create();
         Dataset dataset = client.createDataset(true, false, new File("README.md"));
         RangeSlice<DatasetFile> files = client.getDatasetFiles(dataset.getId(), new GetRangeParam());
@@ -222,7 +222,7 @@ public class SDKDownloadFileWithRangeTest {
     @Test
     public void downloadFileWithRangeでdatasetIdで指定した対象が存在しない場合例外が発生() {
         thrown.expect(HttpStatusException.class);
-        thrown.expectCause(instanceOf(ErrorRespondedException.class));
+        thrown.expect(HttpStatusExceptionMatcher.is(404));
         DsmoqClient client = create();
         Dataset dataset = client.createDataset(true, false, new File("README.md"));
         RangeSlice<DatasetFile> files = client.getDatasetFiles(dataset.getId(), new GetRangeParam());
@@ -233,7 +233,7 @@ public class SDKDownloadFileWithRangeTest {
     @Test
     public void downloadFileWithRangeでfileIdが空文字列の場合例外が発生() {
         thrown.expect(HttpStatusException.class);
-        thrown.expectCause(instanceOf(ErrorRespondedException.class));
+        thrown.expect(HttpStatusExceptionMatcher.is(404));
         DsmoqClient client = create();
         Dataset dataset = client.createDataset(true, false, new File("README.md"));
         client.downloadFileWithRange(dataset.getId(), "", null, null, content -> null);
@@ -242,7 +242,7 @@ public class SDKDownloadFileWithRangeTest {
     @Test
     public void downloadFileWithRangeでfileIdで指定した対象が存在しない場合例外が発生() {
         thrown.expect(HttpStatusException.class);
-        thrown.expectCause(instanceOf(ErrorRespondedException.class));
+        thrown.expect(HttpStatusExceptionMatcher.is(404));
         DsmoqClient client = create();
         Dataset dataset = client.createDataset(true, false, new File("README.md"));
         client.downloadFileWithRange(dataset.getId(), "023bfa40-e897-4dad-96db-9fd3cf001e79", null, null,
@@ -262,7 +262,7 @@ public class SDKDownloadFileWithRangeTest {
     @Test
     public void downloadFileWithRangeで権限のないのないファイルを指定すると例外が発生() {
         thrown.expect(HttpStatusException.class);
-        thrown.expectCause(instanceOf(ErrorRespondedException.class));
+        thrown.expect(HttpStatusExceptionMatcher.is(403));
         DsmoqClient client = create();
         Dataset dataset = client.createDataset(true, false, new File("README.md"));
         RangeSlice<DatasetFile> files = client.getDatasetFiles(dataset.getId(), new GetRangeParam());

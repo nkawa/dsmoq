@@ -781,6 +781,7 @@ public class SDKTest {
     @Test
     public void 権限のないのないデータセットを取得すると例外が発生() {
         thrown.expect(HttpStatusException.class);
+        thrown.expect(HttpStatusExceptionMatcher.is(403, "AccessDenied"));
         DsmoqClient client = create();
         Dataset dataset = client.createDataset("hello", true, false);
         DsmoqClient client2 = DsmoqClient.create("http://localhost:8080",
@@ -790,8 +791,17 @@ public class SDKTest {
     }
 
     @Test
+    public void ID形式が不正なデータセットを取得すると例外が発生() {
+        thrown.expect(HttpStatusException.class);
+        thrown.expect(HttpStatusExceptionMatcher.is(404, "Illegal Argument"));
+        DsmoqClient client = create();
+        Dataset dataset = client.getDataset("hello");
+    }
+
+    @Test
     public void 存在しないデータセットを取得すると例外が発生() {
         thrown.expect(HttpStatusException.class);
+        thrown.expect(HttpStatusExceptionMatcher.is(404, "NotFound"));
         DsmoqClient client = create();
         Dataset dataset = client.getDataset("1050f556-7fee-4032-81e7-326e5f1b82fb");
     }
@@ -807,6 +817,7 @@ public class SDKTest {
     @Test
     public void 不正なデータセットを作成しようとすると例外が発生() {
         thrown.expect(HttpStatusException.class);
+        thrown.expect(HttpStatusExceptionMatcher.is(400, "Illegal Argument"));
         DsmoqClient client = create();
         client.createDataset(false, false, new File("README.md"));
     }
@@ -820,5 +831,78 @@ public class SDKTest {
         Dataset updated = client.getDataset(datasetId);
         assertThat(updated.getLocalState(), is(1));
         assertThat(updated.getS3State(), is(2));
+    }
+
+    @Test
+    public void 不正なキーでデータセットを作成しようとすると例外が発生() {
+        thrown.expect(HttpStatusException.class);
+        thrown.expect(HttpStatusExceptionMatcher.is(403, "Unauthorized"));
+        DsmoqClient client = DsmoqClient.create("http://localhost:8080", "hello", "world");
+        client.createDataset(true, false, new File("README.md"));
+    }
+
+    @Test
+    public void データセットから唯一のオーナーの権限をなくすと例外が発生() {
+        thrown.expect(HttpStatusException.class);
+        thrown.expect(HttpStatusExceptionMatcher.is(400, "BadRequest"));
+        DsmoqClient client = create();
+        Dataset dataset = client.createDataset("hello", true, false);
+        client.changeAccessLevel(dataset.getId(), Arrays.asList(SetAccessLevelParam.apply("023bfa40-e897-4dad-96db-9fd3cf001e79", 1, 0)));
+    }
+
+    @Test
+    public void データセットの権限設定で不正パラメタ不正値IDを入れると例外が発生() {
+        thrown.expect(HttpStatusException.class);
+        thrown.expect(HttpStatusExceptionMatcher.is(400, "Illegal Argument"));
+        DsmoqClient client = create();
+        client.changeAccessLevel("hello", Arrays.asList(SetAccessLevelParam.apply("world", 1, 0)));
+    }
+
+    @Test
+    public void 同名のグループを作成すると例外が発生() {
+        thrown.expect(HttpStatusException.class);
+        thrown.expect(HttpStatusExceptionMatcher.is(400, "BadRequest"));
+        DsmoqClient client = create();
+        client.createGroup(CreateGroupParam.apply("hello", ""));
+        client.createGroup(CreateGroupParam.apply("hello", ""));
+    }
+
+    @Test
+    public void リソースなし不整合で例外が発生() {
+        thrown.expect(HttpStatusException.class);
+        thrown.expect(HttpStatusExceptionMatcher.is(404, "NotFound"));
+        DsmoqClient client = create();
+        client.createGroup(CreateGroupParam.apply("hello", ""));
+        client.updateGroup("023bfa40-e897-4dad-96db-9fd3cf001e79", UpdateGroupParam.apply("hello", ""));
+    }
+
+    @Test
+    public void 不正キー不整合で例外が発生() {
+        thrown.expect(HttpStatusException.class);
+        thrown.expect(HttpStatusExceptionMatcher.is(403, "Unauthorized"));
+        DsmoqClient client = create();
+        client.createGroup(CreateGroupParam.apply("hello", ""));
+        DsmoqClient client2 = DsmoqClient.create("http://localhost:8080", "hello", "world");
+        client2.createGroup(CreateGroupParam.apply("hello", ""));
+    }
+
+    @Test
+    public void 不正キーリソースなし不整合で例外が発生() {
+        thrown.expect(HttpStatusException.class);
+        thrown.expect(HttpStatusExceptionMatcher.is(403, "Unauthorized"));
+        DsmoqClient client = create();
+        client.createGroup(CreateGroupParam.apply("hello", ""));
+        DsmoqClient client2 = DsmoqClient.create("http://localhost:8080", "hello", "world");
+        client2.updateGroup("023bfa40-e897-4dad-96db-9fd3cf001e79", UpdateGroupParam.apply("hello", ""));
+    }
+
+    @Test
+    public void 不正キー権限なしで例外が発生() {
+        thrown.expect(HttpStatusException.class);
+        thrown.expect(HttpStatusExceptionMatcher.is(403, "Unauthorized"));
+        DsmoqClient client = create();
+        Dataset dataset = client.createDataset("hello", true, false);
+        DsmoqClient client2 = DsmoqClient.create("http://localhost:8080", "hello", "world");
+        client2.getDataset(dataset.getId());
     }
 }
