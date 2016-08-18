@@ -7,17 +7,17 @@ import java.util.UUID
 import org.eclipse.jetty.servlet.ServletHolder
 
 import _root_.api.api.logic.SpecCommonLogic
-import org.scalatest.{BeforeAndAfter, FreeSpec}
+import org.scalatest.{ BeforeAndAfter, FreeSpec }
 import org.scalatra.test.scalatest.ScalatraSuite
-import org.json4s.{DefaultFormats, Formats}
-import dsmoq.controllers.{ApiController, AjaxResponse}
-import scalikejdbc.config.{DBsWithEnv, DBs}
+import org.json4s.{ DefaultFormats, Formats }
+import dsmoq.controllers.{ ApiController, AjaxResponse }
+import scalikejdbc.config.{ DBsWithEnv, DBs }
 import java.io.File
 import org.scalatra.servlet.MultipartConfig
 import org.json4s.JsonDSL._
-import org.json4s.jackson.JsonMethods.{compact, parse, render}
-import org.json4s.{DefaultFormats, Formats, JBool, JInt}
-import org.scalatest.{BeforeAndAfter, FreeSpec}
+import org.json4s.jackson.JsonMethods.{ compact, parse, render }
+import org.json4s.{ DefaultFormats, Formats, JBool, JInt }
+import org.scalatest.{ BeforeAndAfter, FreeSpec }
 import org.scalatra.servlet.MultipartConfig
 import org.scalatra.test.scalatest.ScalatraSuite
 import scalikejdbc._
@@ -38,7 +38,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
   private val testUserName = "dummy1"
   private val dummyUserName = "dummy4"
   private val testUserId = "023bfa40-e897-4dad-96db-9fd3cf001e79" // dummy1
-  private val dummyUserId = "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04"  // dummy 2
+  private val dummyUserId = "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04" // dummy 2
   private val dummyUserLoginParams = Map("d" -> compact(render(("id" -> "dummy4") ~ ("password" -> "password"))))
 
   private val host = "http://localhost:8080"
@@ -83,7 +83,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
   private val BAD_REQUEST = "BadRequest"
   private val NG = "NG"
   private val invalidApiKeyHeader = Map("Authorization" -> "api_key=hoge,signature=fuga")
-  
+
   "API Status test" - {
     "dataset" - {
       "POST /api/datasets" - {
@@ -936,7 +936,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
           }
         }
       }
-      
+
       "GET /api/datasets/:dataset_id/images" - {
         "400(Illegal Argument)" in {
           session {
@@ -2673,7 +2673,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
       DBsWithEnv("test").setup()
     }
   }
-  
+
   /**
    * サインアウトします。
    */
@@ -2682,7 +2682,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
       checkStatus(200, "OK")
     }
   }
-  
+
   /**
    * ダミーユーザでサインインします。
    */

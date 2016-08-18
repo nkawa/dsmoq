@@ -36,7 +36,7 @@ class UsersSpec extends Specification {
     "save a record" in new AutoRollback {
       val entity = User.findAll().head
       val updated = User.save(entity)
-      updated should not equalTo(entity)
+      updated should not equalTo (entity)
     }
     "destroy a record" in new AutoRollback {
       val entity = User.findAll().head
@@ -47,4 +47,3 @@ class UsersSpec extends Specification {
   }
 
 }
-        

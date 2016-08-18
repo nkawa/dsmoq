@@ -1,21 +1,37 @@
-import org.scalatra._
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.util.Locale
 import java.util.PropertyResourceBundle
 import java.util.ResourceBundle
-import javax.servlet.ServletContext
+
 import scala.language.reflectiveCalls
+
+import org.scalatra.LifeCycle
+
+import dsmoq.controllers.ApiController
+import dsmoq.controllers.FileController
+import dsmoq.controllers.GoogleOAuthController
+import dsmoq.controllers.ImageController
+import dsmoq.controllers.MockController
+import dsmoq.controllers.ResourceController
+import dsmoq.controllers.SessionsController
+import javax.servlet.ServletContext
+import scalikejdbc.Closable
+import scalikejdbc.GlobalSettings
+import scalikejdbc.LoggingSQLAndTimeSettings
 import scalikejdbc.config.DBs
-import scalikejdbc._
-import dsmoq.controllers._
 
 class ScalatraBootstrap extends LifeCycle {
   /**
    * UTF-8 エンコーディングなプロパティファイルを取り扱うためのResourceBundle.Control
    */
   private val UTF8_ENCODING_CONTROL = new ResourceBundle.Control {
-    override def newBundle(baseName: String, locale: Locale, format: String, loader: ClassLoader, reload: Boolean): ResourceBundle = {
+    override def newBundle(
+      baseName: String,
+      locale: Locale,
+      format: String,
+      loader: ClassLoader,
+      reload: Boolean): ResourceBundle = {
       val bundleName = toBundleName(baseName, locale)
       val resourceName = toResourceName(bundleName, "properties")
       use(loader.getResourceAsStream(resourceName)) { is =>

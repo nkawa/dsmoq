@@ -40,7 +40,7 @@ class ApiKeySpec extends Specification {
       // TODO modify something
       val modified = entity
       val updated = ApiKey.save(modified)
-      updated should not equalTo(entity)
+      updated should not equalTo (entity)
     }
     "destroy a record" in new AutoRollback {
       val entity = ApiKey.findAll().head
@@ -51,4 +51,3 @@ class ApiKeySpec extends Specification {
   }
 
 }
-        

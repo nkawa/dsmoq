@@ -12,7 +12,7 @@ object UserAndGroupAccessLevel {
 
   /**
    * AllowDownloadを表すAccessLevelの値
-   */ 
+   */
   val ALLOW_DOWNLOAD = 2
 
   /**

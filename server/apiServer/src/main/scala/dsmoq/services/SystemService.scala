@@ -3,17 +3,29 @@ package dsmoq.services
 import java.nio.file.Paths
 import java.util.UUID
 
-import dsmoq.services.json.TagData.TagDetail
-import dsmoq.{AppConf, persistence}
-import dsmoq.persistence.{PostgresqlHelper, SuggestType, GroupType}
-import dsmoq.services.json.SuggestData
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+
 import org.joda.time.DateTime
-import scalikejdbc._
-import scala.util.{Failure, Success, Try}
-import PostgresqlHelper._
-import scalax.io.Resource
-import com.typesafe.scalalogging.LazyLogging
 import org.slf4j.MarkerFactory
+
+import com.typesafe.scalalogging.LazyLogging
+
+import dsmoq.AppConf
+import dsmoq.persistence
+import dsmoq.persistence.GroupType
+import dsmoq.persistence.PostgresqlHelper.PgSQLSyntaxType
+import dsmoq.persistence.SuggestType
+import dsmoq.services.json.SuggestData
+import dsmoq.services.json.TagData.TagDetail
+import scalax.io.Resource
+import scalikejdbc.DB
+import scalikejdbc.scalikejdbcSQLInterpolationImplicitDef
+import scalikejdbc.scalikejdbcSQLSyntaxToStringImplicitDef
+import scalikejdbc.select
+import scalikejdbc.sqls
+import scalikejdbc.withSQL
 
 object SystemService extends LazyLogging {
   private val userImageDownloadRoot = AppConf.imageDownloadRoot + "user/"
@@ -91,21 +103,26 @@ object SystemService extends LazyLogging {
   }
 
   /**
-    * ユーザの一覧を取得します。
-    * 条件を指定すれば取得対象を絞り込みます。
-    * (取得順：users.name の昇順。)
-    *
-    * @param query 絞り込み条件 (比較対象：DB:users.name, users.fullname, mail_addresses.address)
-    * @param limit 取得件数
-    * @param offset 取得位置
-    * @return (条件に該当する) ユーザ一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
-    */
+   * ユーザの一覧を取得します。
+   * 条件を指定すれば取得対象を絞り込みます。
+   * (取得順：users.name の昇順。)
+   *
+   * @param query 絞り込み条件 (比較対象：DB:users.name, users.fullname, mail_addresses.address)
+   * @param limit 取得件数
+   * @param offset 取得位置
+   * @return (条件に該当する) ユーザ一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
+   */
   def getUsers(query: Option[String], limit: Option[Int], offset: Option[Int]): Try[Seq[SuggestData.User]] = {
-    logger.debug(LOG_MARKER_USER_GROUP, "getUsers: start : [query] = {}, [offset] = {}, [limit] = {}", query, offset, limit)
+    logger.debug(LOG_MARKER_USER_GROUP,
+      "getUsers: start : [query] = {}, [offset] = {}, [limit] = {}",
+      query,
+      offset,
+      limit
+    )
     try {
       DB readOnly { implicit s =>
-        val u = persistence.User.u              // TB: users
-        val ma = persistence.MailAddress.ma     // TB: mail_addresses
+        val u = persistence.User.u // TB: users
+        val ma = persistence.MailAddress.ma // TB: mail_addresses
 
         /* - if query == None
          *  select u.id, u.name, u.fullname, u.organization, u.title, u.description
@@ -128,10 +145,10 @@ object SystemService extends LazyLogging {
           select.all[persistence.User](u)
             .from(persistence.User as u)
             .leftJoin(persistence.MailAddress as ma)
-              .on(u.id, ma.userId)
+            .on(u.id, ma.userId)
             .where
             .isNull(u.deletedAt)
-            .map{sql =>
+            .map { sql =>
               query match {
                 case Some(x) =>
                   sql.and.like(u.name, x + "%").or.like(u.fullname, x + "%").or.like(ma.address, x + "%")
@@ -142,19 +159,24 @@ object SystemService extends LazyLogging {
             .orderBy(sqls"name")
             .offset(offset.getOrElse(0))
             .limit(limit.getOrElse(100))
-        }.map(persistence.User(u.resultName)(_)).list().apply.map {x =>
-            SuggestData.User(
-              id = x.id,
-              name = x.name,
-              fullname = x.fullname,
-              organization = x.organization,
-              title = x.title,
-              description = x.description,
-              image = userImageDownloadRoot + x.id + "/" + x.imageId
-            )
+        }.map(persistence.User(u.resultName)(_)).list().apply.map { x =>
+          SuggestData.User(
+            id = x.id,
+            name = x.name,
+            fullname = x.fullname,
+            organization = x.organization,
+            title = x.title,
+            description = x.description,
+            image = userImageDownloadRoot + x.id + "/" + x.imageId
+          )
         }
-        logger.info(LOG_MARKER_USER_GROUP, "getUsers: [result size] = {} : [query] = {}, [offset] = {}, [limit] = {}",
-            result.size.toString, query, offset.getOrElse(0).toString, limit.getOrElse(0).toString)
+        logger.info(LOG_MARKER_USER_GROUP,
+          "getUsers: [result size] = {} : [query] = {}, [offset] = {}, [limit] = {}",
+          result.size.toString,
+          query,
+          offset.getOrElse(0).toString,
+          limit.getOrElse(0).toString
+        )
         logger.debug(LOG_MARKER_USER_GROUP, "getUsers: end : [result] = {}", result)
         Success(result)
       }
@@ -197,13 +219,13 @@ object SystemService extends LazyLogging {
             .offset(offset.getOrElse(0))
             .limit(limit.getOrElse(100))
         }.map(rs => (persistence.Group(g.resultName)(rs), persistence.GroupImage(gi.resultName)(rs))).list().apply
-          .map{ x =>
-          SuggestData.Group(
-            id = x._1.id,
-            name = x._1.name,
-            image = groupImageDownloadRoot + x._1.id + "/" + x._2.imageId
-          )
-        }
+          .map { x =>
+            SuggestData.Group(
+              id = x._1.id,
+              name = x._1.name,
+              image = groupImageDownloadRoot + x._1.id + "/" + x._2.imageId
+            )
+          }
       }
       Success(result)
     } catch {
@@ -212,29 +234,38 @@ object SystemService extends LazyLogging {
   }
 
   /**
-    * ユーザとグループの一覧を取得します。
-    * 条件を指定すれば取得対象を絞り込みます。
-    * (取得順：users.name,groups.name の昇順。)
-    *
-    * @param param 絞り込み条件 (比較対象：DB:users.name, users.fullname, mail_addresses.address)
-    * @param limit 取得件数
-    * @param offset 取得位置
-    * @param excludeIds 除外対象のid (除外対象：DB:users.id, groups.id)
-    * @return (条件に該当する) ユーザとグループの一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
-    */
-  def getUsersAndGroups(param: Option[String], limit: Option[Int], offset: Option[Int], excludeIds: Seq[String]): Try[Seq[Any]] = {
-    logger.debug(LOG_MARKER_USER_GROUP, "getUsersAndGroups: start : [param] = {}, [offset] = {}, [limit] = {}, [excludeIds] = {}",
-        param, offset, limit, excludeIds)
+   * ユーザとグループの一覧を取得します。
+   * 条件を指定すれば取得対象を絞り込みます。
+   * (取得順：users.name,groups.name の昇順。)
+   *
+   * @param param 絞り込み条件 (比較対象：DB:users.name, users.fullname, mail_addresses.address)
+   * @param limit 取得件数
+   * @param offset 取得位置
+   * @param excludeIds 除外対象のid (除外対象：DB:users.id, groups.id)
+   * @return (条件に該当する) ユーザとグループの一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
+   */
+  def getUsersAndGroups(
+    param: Option[String],
+    limit: Option[Int],
+    offset: Option[Int],
+    excludeIds: Seq[String]): Try[Seq[Any]] = {
+    logger.debug(LOG_MARKER_USER_GROUP,
+      "getUsersAndGroups: start : [param] = {}, [offset] = {}, [limit] = {}, [excludeIds] = {}",
+      param,
+      offset,
+      limit,
+      excludeIds
+    )
     val query = param match {
       case Some(x) => x.replaceAll("%", "\\\\%").replaceAll("_", "\\\\_") + "%"
       case None => "%"
     }
     try {
       DB readOnly { implicit s =>
-        val u = persistence.User.u              // TB: users
-        val ma = persistence.MailAddress.ma     // TB: mail_addresses
-        val g = persistence.Group.g             // TB: groups
-        val gi = persistence.GroupImage.gi      // TB: group_images
+        val u = persistence.User.u // TB: users
+        val ma = persistence.MailAddress.ma // TB: mail_addresses
+        val g = persistence.Group.g // TB: groups
+        val gi = persistence.GroupImage.gi // TB: group_images
 
         /* select u.id, u.name, u.image_id, u.fullname, u.organization, 1 as type
          * from users as u
@@ -259,21 +290,21 @@ object SystemService extends LazyLogging {
           select(u.id, u.name, u.imageId, u.fullname, u.organization, sqls"'1' as type")
             .from(persistence.User as u)
             .leftJoin(persistence.MailAddress as ma)
-              .on(u.id, ma.userId)
+            .on(u.id, ma.userId)
             .where
-              .notIn(u.id, excludeIds.map(sqls.uuid))
-              .and
-              .append(sqls"(")
-                .like(u.name, query)
-                .or
-                .like(u.fullname, query)
-                .or
-                .like(ma.address, query)
-              .append(sqls")")
-              .and
-              .isNull(u.deletedAt)
+            .notIn(u.id, excludeIds.map(sqls.uuid))
+            .and
+            .append(sqls"(")
+            .like(u.name, query)
+            .or
+            .like(u.fullname, query)
+            .or
+            .like(ma.address, query)
+            .append(sqls")")
+            .and
+            .isNull(u.deletedAt)
             .union(
-              select(g.id, g.name,gi.imageId, sqls"null, null, '2' as type")
+              select(g.id, g.name, gi.imageId, sqls"null, null, '2' as type")
                 .from(persistence.Group as g)
                 .innerJoin(persistence.GroupImage as gi)
                 .on(sqls.eq(g.id, gi.groupId).and.eq(gi.isPrimary, true).and.isNull(gi.deletedAt))
@@ -295,25 +326,31 @@ object SystemService extends LazyLogging {
           rs.string(persistence.User.fullname),
           rs.string(persistence.User.organization),
           rs.int("type"))).list().apply
-          .map {x =>
-          if(x._6 == SuggestType.User) {
-            SuggestData.UserWithType(
-              id = x._1,
-              name = x._2,
-              fullname = x._4,
-              organization = x._5,
-              image = userImageDownloadRoot + x._1 + "/" + x._3
-            )
-          } else if (x._6 == SuggestType.Group){
-            SuggestData.GroupWithType(
-              id = x._1,
-              name = x._2,
-              image = groupImageDownloadRoot + x._1 + "/" + x._3
-            )
+          .map { x =>
+            if (x._6 == SuggestType.User) {
+              SuggestData.UserWithType(
+                id = x._1,
+                name = x._2,
+                fullname = x._4,
+                organization = x._5,
+                image = userImageDownloadRoot + x._1 + "/" + x._3
+              )
+            } else if (x._6 == SuggestType.Group) {
+              SuggestData.GroupWithType(
+                id = x._1,
+                name = x._2,
+                image = groupImageDownloadRoot + x._1 + "/" + x._3
+              )
+            }
           }
-        }
-        logger.info(LOG_MARKER_USER_GROUP, "getUsersAndGroups: [result size] = {} : [param] = {}, [offset] = {}, [limit] = {}, [excludeIds] = {}",
-            result.size.toString, param, offset.getOrElse(0).toString, limit.getOrElse(0).toString, excludeIds)
+        logger.info(LOG_MARKER_USER_GROUP,
+          "getUsersAndGroups: [result size] = {} : [param] = {}, [offset] = {}, [limit] = {}, [excludeIds] = {}",
+          result.size.toString,
+          param,
+          offset.getOrElse(0).toString,
+          limit.getOrElse(0).toString,
+          excludeIds
+        )
         logger.debug(LOG_MARKER_USER_GROUP, "getUsersAndGroups: end : [result] = {}", result)
         Success(result)
       }
@@ -323,14 +360,14 @@ object SystemService extends LazyLogging {
   }
 
   /**
-    * 属性の一覧を取得します。
-    * 条件を指定すれば取得対象を絞り込みます。
-    *
-    * @param query 絞り込み条件 (比較対象：DB:annotation.name)
-    * @param limit 取得件数
-    * @param offset 取得位置
-    * @return 属性の一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
-    */
+   * 属性の一覧を取得します。
+   * 条件を指定すれば取得対象を絞り込みます。
+   *
+   * @param query 絞り込み条件 (比較対象：DB:annotation.name)
+   * @param limit 取得件数
+   * @param offset 取得位置
+   * @return 属性の一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
+   */
   def getAttributes(query: Option[String], limit: Option[Int], offset: Option[Int]): Try[Seq[String]] = {
     try {
       val a = persistence.Annotation.a
@@ -339,11 +376,11 @@ object SystemService extends LazyLogging {
           select.apply[Any](a.result.*)
             .from(persistence.Annotation as a)
             .where
-            .map {sql =>
+            .map { sql =>
               query match {
-                  case Some(x) => sql.like(a.name, x.replaceAll("%", "\\\\%").replaceAll("_", "\\\\_") + "%").and
-                  case None => sql
-                }
+                case Some(x) => sql.like(a.name, x.replaceAll("%", "\\\\%").replaceAll("_", "\\\\_") + "%").and
+                case None => sql
+              }
             }
             .isNull(a.deletedAt)
             .orderBy(a.name)
@@ -370,9 +407,9 @@ object SystemService extends LazyLogging {
           select
             .from(persistence.Tag as t)
             .where
-              .isNull(t.deletedBy)
-              .and
-              .isNull(t.deletedAt)
+            .isNull(t.deletedBy)
+            .and
+            .isNull(t.deletedAt)
             .orderBy(t.tag)
         }.map(persistence.Tag(t.resultName)).list().apply().map { x =>
           TagDetail(x.tag, x.color)

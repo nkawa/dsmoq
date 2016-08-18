@@ -4,7 +4,7 @@ package dsmoq
  * リソースバンドルのキー項目名の列挙
  */
 object ResourceNames {
-  
+
   /**
    * ローカルかS3のいずれかの保存先にチェックを付けてください
    */
@@ -78,7 +78,7 @@ object ResourceNames {
   /**
    * 対象のファイルは存在しません
    */
-  val FILE_NOT_FOUND = "file_not_found" 
+  val FILE_NOT_FOUND = "file_not_found"
 
   /**
    * グループ名：%s はすでに登録されています

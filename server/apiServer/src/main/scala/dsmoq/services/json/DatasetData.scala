@@ -1,7 +1,6 @@
 package dsmoq.services.json
 
 import dsmoq.services.User
-import org.scalatra.servlet.FileItem
 
 object DatasetData {
   // response
@@ -19,8 +18,7 @@ object DatasetData {
     defaultAccessLevel: Int,
     permission: Int,
     localState: Int,
-    s3State: Int
-  )
+    s3State: Int)
 
   case class Dataset(
     id: String,
@@ -37,24 +35,20 @@ object DatasetData {
     accessCount: Long,
     localState: Int,
     s3State: Int,
-    fileLimit: Int
-  )
+    fileLimit: Int)
 
   case class DatasetMetaData(
     name: String,
     description: String,
-    license : String,
-    attributes: Seq[DatasetAttribute]
-  )
+    license: String,
+    attributes: Seq[DatasetAttribute])
 
   case class DatasetAttribute(
     name: String,
-    value: String
-  )
+    value: String)
 
   case class DatasetAddFiles(
-    files: Seq[DatasetFile]
-  )
+    files: Seq[DatasetFile])
 
   /**
    * データセットに追加した画像を返却する際のJSON型
@@ -64,20 +58,17 @@ object DatasetData {
    */
   case class DatasetAddImages(
     images: Seq[DatasetGetImage],
-    primaryImage: String
-  )
+    primaryImage: String)
 
-  case class DatasetGetImage (
+  case class DatasetGetImage(
     id: String,
     name: String,
     url: String,
-    isPrimary: Boolean
-  )
+    isPrimary: Boolean)
 
   case class DatasetDeleteImage(
     primaryImage: String,
-    featuredImage: String
-  )
+    featuredImage: String)
 
   case class DatasetFile(
     id: String,
@@ -91,17 +82,15 @@ object DatasetData {
     updatedAt: String,
     isZip: Boolean,
     zipedFiles: Seq[DatasetZipedFile],
-    zipCount: Int
-  )
+    zipCount: Int)
 
-  case class DatasetZipedFile (
+  case class DatasetZipedFile(
     id: String,
     name: String,
     size: Long,
-    url: String
-  )
+    url: String)
 
-  case class DatasetOwnership (
+  case class DatasetOwnership(
     id: String,
     name: String,
     fullname: String,
@@ -110,31 +99,26 @@ object DatasetData {
     description: String,
     image: String,
     accessLevel: Int,
-    ownerType: Int
-  )
+    ownerType: Int)
 
-  case class DatasetTask (
-    taskId: String
-  )
+  case class DatasetTask(
+    taskId: String)
 
-  case class CopiedDataset (
-    datasetId: String
-  )
+  case class CopiedDataset(
+    datasetId: String)
 
   /**
    * データセットに設定したゲストアクセスレベルを返却するためのJSON型
-   * 
+   *
    * @param defaultAccessLevel ゲストユーザが対象のデータセットに持っているロール(DefaultAccessLevelの定義値)
    */
   case class DatasetGuestAccessLevel(
-    defaultAccessLevel: Int
-  )
+    defaultAccessLevel: Int)
 
   /**
    * データセットに設定した画像IDを返却するためのJSON型
    * @param imageId 画像ID
    */
   case class ChangeDatasetImage(
-    imageId: String
-  )
+    imageId: String)
 }

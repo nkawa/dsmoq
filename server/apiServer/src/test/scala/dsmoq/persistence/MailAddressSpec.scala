@@ -36,7 +36,7 @@ class MailAddressSpec extends Specification {
     "save a record" in new AutoRollback {
       val entity = MailAddress.findAll().head
       val updated = MailAddress.save(entity)
-      updated should not equalTo(entity)
+      updated should not equalTo (entity)
     }
     "destroy a record" in new AutoRollback {
       val entity = MailAddress.findAll().head
@@ -47,4 +47,3 @@ class MailAddressSpec extends Specification {
   }
 
 }
-        

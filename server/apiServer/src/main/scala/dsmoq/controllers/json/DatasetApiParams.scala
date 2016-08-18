@@ -1,6 +1,6 @@
 package dsmoq.controllers.json
 
-import dsmoq.services.{User, DataSetAttribute}
+import dsmoq.services.DataSetAttribute
 
 case class SearchDatasetsParams(
   query: Option[String] = None,
@@ -9,35 +9,28 @@ case class SearchDatasetsParams(
   attributes: List[DataSetAttribute] = List.empty,
   limit: Option[Int] = None,
   offset: Option[Int] = None,
-  orderby: Option[String] = None
-)
+  orderby: Option[String] = None)
 
 case class UpdateDatasetFileMetadataParams(
   name: Option[String] = None,
-  description: Option[String] = None
-)
+  description: Option[String] = None)
 
 case class UpdateDatasetMetaParams(
   name: Option[String] = None,
   description: Option[String] = None,
   license: Option[String] = None,
-  attributes: List[DataSetAttribute] = List.empty
-)
+  attributes: List[DataSetAttribute] = List.empty)
 
 case class ChangePrimaryImageParams(
-  imageId: Option[String] = None
-)
+  imageId: Option[String] = None)
 
 case class UpdateDatasetGuestAccessParams(
-  accessLevel: Option[Int] = None
-)
+  accessLevel: Option[Int] = None)
 
 case class DatasetStorageParams(
   saveLocal: Option[Boolean] = None,
-  saveS3: Option[Boolean] = None
-)
+  saveS3: Option[Boolean] = None)
 
 case class SearchRangeParams(
   limit: Option[Int] = None,
-  offset: Option[Int] = None
-)
+  offset: Option[Int] = None)

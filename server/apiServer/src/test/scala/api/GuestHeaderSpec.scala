@@ -1,9 +1,9 @@
 package api
 
 import _root_.api.api.logic.SpecCommonLogic
-import dsmoq.controllers.{AjaxResponse, FileController, ApiController}
+import dsmoq.controllers.{ AjaxResponse, FileController, ApiController }
 import dsmoq.persistence.DefaultAccessLevel
-import dsmoq.services.json.DatasetData.{Dataset, DatasetFile}
+import dsmoq.services.json.DatasetData.{ Dataset, DatasetFile }
 import dsmoq.services.json.RangeSlice
 import java.io.File
 import java.net.URLEncoder
@@ -16,11 +16,11 @@ import org.eclipse.jetty.servlet.ServletHolder
 import org.json4s.JInt
 import org.json4s.JsonDSL._
 import org.json4s.jackson.JsonMethods._
-import org.json4s.{DefaultFormats, Formats}
-import org.scalatest.{BeforeAndAfter, FreeSpec}
+import org.json4s.{ DefaultFormats, Formats }
+import org.scalatest.{ BeforeAndAfter, FreeSpec }
 import org.scalatra.servlet.MultipartConfig
 import org.scalatra.test.scalatest.ScalatraSuite
-import scalikejdbc.config.{DBsWithEnv, DBs}
+import scalikejdbc.config.{ DBsWithEnv, DBs }
 
 trait GuestHeaderBehaviors { this: FreeSpec with ScalatraSuite =>
 
@@ -79,16 +79,16 @@ trait GuestHeaderBehaviors { this: FreeSpec with ScalatraSuite =>
       params = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1"),
       files = Map("file[]" -> dummyFile)
     ) {
-      checkAjaxStatus()
-      parse(body).extract[AjaxResponse[Dataset]].data
-    }
+        checkAjaxStatus()
+        parse(body).extract[AjaxResponse[Dataset]].data
+      }
     if (allowGuest) {
       put(
         s"/api/datasets/${dataset.id}/guest_access",
         params = Map("d" -> compact(render(("accessLevel" -> JInt(DefaultAccessLevel.FullPublic)))))
       ) {
-        checkAjaxStatus()
-      }
+          checkAjaxStatus()
+        }
     }
     dataset.id
   }

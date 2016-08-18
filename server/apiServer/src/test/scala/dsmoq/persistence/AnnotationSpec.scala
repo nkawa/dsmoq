@@ -36,7 +36,7 @@ class AnnotationSpec extends Specification {
     "save a record" in new AutoRollback {
       val entity = Annotation.findAll().head
       val updated = Annotation.save(entity)
-      updated should not equalTo(entity)
+      updated should not equalTo (entity)
     }
     "destroy a record" in new AutoRollback {
       val entity = Annotation.findAll().head
@@ -47,4 +47,3 @@ class AnnotationSpec extends Specification {
   }
 
 }
-        

@@ -1,35 +1,57 @@
 package dsmoq.persistence
 
-import scalikejdbc._
-import org.joda.time.{DateTime}
-import PostgresqlHelper._
+import org.joda.time.DateTime
+
+import PostgresqlHelper.PgSQLSyntaxType
+import scalikejdbc.DBSession
+import scalikejdbc.ResultName
+import scalikejdbc.ResultName
+import scalikejdbc.SQLSyntax
+import scalikejdbc.SQLSyntaxSupport
+import scalikejdbc.SQLSyntaxSupport
+import scalikejdbc.SyntaxProvider
+import scalikejdbc.SyntaxProvider
+import scalikejdbc.WrappedResultSet
+import scalikejdbc.convertJavaSqlTimestampToConverter
+import scalikejdbc.delete
+import scalikejdbc.insert
+import scalikejdbc.scalikejdbcSQLInterpolationImplicitDef
+import scalikejdbc.scalikejdbcSQLSyntaxToStringImplicitDef
+import scalikejdbc.select
+import scalikejdbc.sqls
+import scalikejdbc.update
+import scalikejdbc.withSQL
 
 case class Task(
-  id: String,
-  taskType: Int, 
-  parameter: String, 
-  status: Int,
-  executeAt: DateTime,
-  createdBy: String,
-  createdAt: DateTime, 
-  updatedBy: String,
-  updatedAt: DateTime) {
+    id: String,
+    taskType: Int,
+    parameter: String,
+    status: Int,
+    executeAt: DateTime,
+    createdBy: String,
+    createdAt: DateTime,
+    updatedBy: String,
+    updatedAt: DateTime) {
 
   def save()(implicit session: DBSession = Task.autoSession): Task = Task.save(this)(session)
 
   def destroy()(implicit session: DBSession = Task.autoSession): Unit = Task.destroy(this)(session)
 
 }
-      
 
 object Task extends SQLSyntaxSupport[Task] {
 
   override val tableName = "tasks"
 
-  override val columns = Seq("id", "task_type", "parameter", "status", "execute_at", "created_by", "created_at", "updated_by", "updated_at")
+  override val columns = Seq(
+    "id", "task_type", "parameter", "status", "execute_at",
+    "created_by", "created_at",
+    "updated_by", "updated_at"
+  )
 
   def apply(t: SyntaxProvider[Task])(rs: WrappedResultSet): Task = apply(t.resultName)(rs)
-  def apply(t: ResultName[Task])(rs: WrappedResultSet): Task = new Task(
+
+  def apply(t: ResultName[Task])(rs: WrappedResultSet): Task = Task(
     id = rs.string(t.id),
     taskType = rs.int(t.taskType),
     parameter = rs.string(t.parameter),
@@ -40,37 +62,37 @@ object Task extends SQLSyntaxSupport[Task] {
     updatedBy = rs.string(t.updatedBy),
     updatedAt = rs.timestamp(t.updatedAt).toJodaDateTime
   )
-      
+
   val t = Task.syntax("t")
 
- // override val autoSession = AutoSession
+  // override val autoSession = AutoSession
 
   def find(id: String)(implicit session: DBSession = autoSession): Option[Task] = {
     withSQL {
       select.from(Task as t).where.eq(t.id, sqls.uuid(id))
     }.map(Task(t.resultName)).single.apply()
   }
-          
+
   def findAll()(implicit session: DBSession = autoSession): List[Task] = {
     withSQL(select.from(Task as t)).map(Task(t.resultName)).list.apply()
   }
-          
+
   def countAll()(implicit session: DBSession = autoSession): Long = {
     withSQL(select(sqls"count(1)").from(Task as t)).map(rs => rs.long(1)).single.apply().get
   }
-          
+
   def findAllBy(where: SQLSyntax)(implicit session: DBSession = autoSession): List[Task] = {
-    withSQL { 
+    withSQL {
       select.from(Task as t).where.append(sqls"${where}")
     }.map(Task(t.resultName)).list.apply()
   }
-      
+
   def countBy(where: SQLSyntax)(implicit session: DBSession = autoSession): Long = {
-    withSQL { 
+    withSQL {
       select(sqls"count(1)").from(Task as t).where.append(sqls"${where}")
     }.map(_.long(1)).single.apply().get
   }
-      
+
   def create(
     id: String,
     taskType: Int,
@@ -93,16 +115,16 @@ object Task extends SQLSyntaxSupport[Task] {
         column.updatedBy,
         column.updatedAt
       ).values(
-        sqls.uuid(id),
-        taskType,
-        parameter,
-        status,
-        executeAt,
-        sqls.uuid(createdBy),
-        createdAt,
-        sqls.uuid(updatedBy),
-        updatedAt
-      )
+          sqls.uuid(id),
+          taskType,
+          parameter,
+          status,
+          executeAt,
+          sqls.uuid(createdBy),
+          createdAt,
+          sqls.uuid(updatedBy),
+          updatedAt
+        )
     }.update.apply()
 
     Task(
@@ -133,9 +155,9 @@ object Task extends SQLSyntaxSupport[Task] {
     }.update.apply()
     entity
   }
-        
+
   def destroy(entity: Task)(implicit session: DBSession = autoSession): Unit = {
     withSQL { delete.from(Task).where.eq(column.id, sqls.uuid(entity.id)) }.update.apply()
   }
-        
+
 }

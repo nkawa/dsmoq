@@ -36,7 +36,7 @@ class DatasetImageSpec extends Specification {
     "save a record" in new AutoRollback {
       val entity = DatasetImage.findAll().head
       val updated = DatasetImage.save(entity)
-      updated should not equalTo(entity)
+      updated should not equalTo (entity)
     }
     "destroy a record" in new AutoRollback {
       val entity = DatasetImage.findAll().head
@@ -47,4 +47,3 @@ class DatasetImageSpec extends Specification {
   }
 
 }
-        

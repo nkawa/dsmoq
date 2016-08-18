@@ -36,7 +36,7 @@ class PasswordSpec extends Specification {
     "save a record" in new AutoRollback {
       val entity = Password.findAll().head
       val updated = Password.save(entity)
-      updated should not equalTo(entity)
+      updated should not equalTo (entity)
     }
     "destroy a record" in new AutoRollback {
       val entity = Password.findAll().head
@@ -47,4 +47,3 @@ class PasswordSpec extends Specification {
   }
 
 }
-        

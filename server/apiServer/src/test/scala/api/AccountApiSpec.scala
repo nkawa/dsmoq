@@ -8,18 +8,18 @@ import org.eclipse.jetty.servlet.ServletHolder
 
 import api.logic.SpecCommonLogic
 import dsmoq.services.User
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfter, FreeSpec}
+import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfter, FreeSpec }
 import org.scalatra.test.scalatest.ScalatraSuite
-import org.json4s.{DefaultFormats, Formats}
-import scalikejdbc.config.{DBsWithEnv, DBs}
-import dsmoq.controllers.{AjaxResponse, ApiController}
+import org.json4s.{ DefaultFormats, Formats }
+import scalikejdbc.config.{ DBsWithEnv, DBs }
+import dsmoq.controllers.{ AjaxResponse, ApiController }
 import org.json4s.jackson.JsonMethods._
-import dsmoq.services.json.{MailValidationResult, License}
+import dsmoq.services.json.{ MailValidationResult, License }
 import java.io.File
 import org.scalatra.servlet.MultipartConfig
 import dsmoq.persistence.SuggestType
 import dsmoq.services.json.GroupData.Group
-import java.util.{Base64, UUID}
+import java.util.{ Base64, UUID }
 import dsmoq.AppConf
 import dsmoq.services.json.DatasetData.Dataset
 import org.json4s._
@@ -70,7 +70,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           val result = parse(body).extract[AjaxResponse[User]]
           assert(result.data.isGuest)
         }
-    }
+      }
       "サインイン後はCOIユーザーか" in {
         session {
           signIn()
@@ -97,13 +97,13 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val params = Map("d" ->
-              compact(render(
-                ("name" -> "dummy1") ~
+            compact(render(
+              ("name" -> "dummy1") ~
                 ("fullname" -> "フルネーム") ~
                 ("organization" -> "テスト所属") ~
                 ("title" -> "テストタイトル") ~
                 ("description" -> "テスト詳細")
-              ))
+            ))
           )
           put("/api/profile", params) { checkStatus() }
           get("/api/profile") {
@@ -132,7 +132,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           get("/api/profile") {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[User]]
-            result.data.image should not be(oldImageUrl)
+            result.data.image should not be (oldImageUrl)
           }
         }
       }
@@ -156,7 +156,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           val params = Map("d" ->
             compact(render(
               ("currentPassword" -> "password") ~
-              ("newPassword" -> "new_password")
+                ("newPassword" -> "new_password")
             ))
           )
           put("/api/profile/password", params) { checkStatus() }
@@ -168,7 +168,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           val rollbackParams = Map("d" ->
             compact(render(
               ("currentPassword" -> "new_password") ~
-              ("newPassword" -> "password")
+                ("newPassword" -> "password")
             ))
           )
           put("/api/profile/password", rollbackParams) { checkStatus() }
@@ -182,8 +182,8 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         get("/api/system/is_valid_email", params) {
           checkStatus()
           //TODO 実装されたら書く
-//          val result = parse(body).extract[AjaxResponse[MailValidationResult]]
-//          assert(result.data.isValid)
+          //          val result = parse(body).extract[AjaxResponse[MailValidationResult]]
+          //          assert(result.data.isValid)
         }
       }
 
@@ -211,7 +211,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           checkStatus()
           // データパースしてチェック
           val valueMap = (parse(body) \ "data").values.asInstanceOf[List[Map[String, Any]]]
-          valueMap.foreach {x =>
+          valueMap.foreach { x =>
             val t = x("dataType")
             t match {
               case SuggestType.User =>
@@ -250,7 +250,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           checkStatus()
           // データパースしてチェック
           val valueMap = (parse(body) \ "data").values.asInstanceOf[List[Map[String, Any]]]
-          valueMap.foreach {x =>
+          valueMap.foreach { x =>
             val t = x("dataType")
             t match {
               case SuggestType.User =>
@@ -286,9 +286,9 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           val params = Map("d" ->
             compact(render(
               ("name" -> "変更後データセット") ~
-              ("description" -> "change description") ~
-              ("license" -> AppConf.defaultLicenseId) ~
-              ("attributes" -> List(("name" -> attributeName) ~ ("value"-> "attr_value")))
+                ("description" -> "change description") ~
+                ("license" -> AppConf.defaultLicenseId) ~
+                ("attributes" -> List(("name" -> attributeName) ~ ("value" -> "attr_value")))
             ))
           )
           put("/api/datasets/" + datasetId + "/metadata", params) { checkStatus() }
@@ -310,7 +310,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   }
 
   def signIn() {
-//    val params = Map("id" -> "dummy1", "password" -> "password")
+    //    val params = Map("id" -> "dummy1", "password" -> "password")
     val params = Map("d" -> compact(render(("id" -> "dummy1") ~ ("password" -> "password"))))
     post("/api/signin", params) {
       checkStatus()

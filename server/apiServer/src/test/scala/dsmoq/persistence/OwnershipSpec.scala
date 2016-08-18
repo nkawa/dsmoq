@@ -36,7 +36,7 @@ class OwnershipSpec extends Specification {
     "save a record" in new AutoRollback {
       val entity = Ownership.findAll().head
       val updated = Ownership.save(entity)
-      updated should not equalTo(entity)
+      updated should not equalTo (entity)
     }
     "destroy a record" in new AutoRollback {
       val entity = Ownership.findAll().head
@@ -47,4 +47,3 @@ class OwnershipSpec extends Specification {
   }
 
 }
-        

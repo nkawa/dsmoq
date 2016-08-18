@@ -1,14 +1,16 @@
 package dsmoq.services
 
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+
 import dsmoq.exceptions.NotFoundException
 import dsmoq.persistence
 import dsmoq.services.json.TaskData.TaskStatus
-import scalikejdbc._
-
-import scala.util.{Failure, Try, Success}
+import scalikejdbc.DB
 
 /**
- * データセットタスクの処理を取り扱うサービスオブジェクト 
+ * データセットタスクの処理を取り扱うサービスオブジェクト
  */
 object TaskService {
 

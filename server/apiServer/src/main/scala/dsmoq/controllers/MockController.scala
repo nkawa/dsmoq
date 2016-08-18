@@ -1,18 +1,21 @@
 package dsmoq.controllers
 
-import dsmoq.services.User
-import org.scalatra.ScalatraServlet
-import com.google.api.client.http.javanet.NetHttpTransport
-import com.google.api.client.googleapis.auth.oauth2.{GoogleAuthorizationCodeRequestUrl, GoogleAuthorizationCodeFlow}
-import com.google.api.client.json.jackson.JacksonFactory
-import java.util
-import com.google.api.services.oauth2.Oauth2
 import java.util.UUID
-import org.joda.time.DateTime
 
-// あとで消す
-import scalikejdbc._, SQLInterpolation._
-import dsmoq.{services, AppConf, persistence}
+import org.joda.time.DateTime
+import org.scalatra.ScalatraServlet
+
+import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow
+import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeRequestUrl
+import com.google.api.client.http.javanet.NetHttpTransport
+import com.google.api.client.json.jackson.JacksonFactory
+import com.google.api.services.oauth2.Oauth2
+
+import dsmoq.AppConf
+import dsmoq.persistence
+import dsmoq.services.User
+import scalikejdbc.DB
+import scalikejdbc.scalikejdbcSQLInterpolationImplicitDef
 
 class MockController extends ScalatraServlet with SessionTrait {
   get("/") {
@@ -40,27 +43,31 @@ class MockController extends ScalatraServlet with SessionTrait {
         </form>
 
         <h2>File Upload(Dataset File Add)</h2>
-        <form action="../api/datasets/564eb87b-5c97-49d1-b3c6-4a1f83ae179e/files" method="post" enctype="multipart/form-data">
+        <form action="../api/datasets/564eb87b-5c97-49d1-b3c6-4a1f83ae179e/files"
+            method="post" enctype="multipart/form-data">
           <p>File to upload: <input type="file" name="file[]" /></p>
           <p>File to upload: <input type="file" name="file[]" /></p>
           <p><input type="submit" value="Upload" /></p>
         </form>
 
         <h2>File Upload(Dataset File Modify)</h2>
-        <form action="../api/datasets/564eb87b-5c97-49d1-b3c6-4a1f83ae179e/files/e167cc73-f702-4a95-8c64-5b93f79c39ed" method="post" enctype="multipart/form-data">
+        <form action="../api/datasets/564eb87b-5c97-49d1-b3c6-4a1f83ae179e/files/e167cc73-f702-4a95-8c64-5b93f79c39ed"
+            method="post" enctype="multipart/form-data">
           <p>File to upload: <input type="file" name="file" /></p>
           <p><input type="submit" value="Upload" /></p>
         </form>
 
         <h2>Image Upload(Dataset Image Add)</h2>
-        <form action="../api/datasets/564eb87b-5c97-49d1-b3c6-4a1f83ae179e/images" method="post" enctype="multipart/form-data">
+        <form action="../api/datasets/564eb87b-5c97-49d1-b3c6-4a1f83ae179e/images"
+            method="post" enctype="multipart/form-data">
           <p>File to upload: <input type="file" name="image" /></p>
           <p>File to upload: <input type="file" name="image" /></p>
           <p><input type="submit" value="Upload" /></p>
         </form>
 
         <h2>Image Upload(Group Image Add)</h2>
-        <form action="../api/groups/c78aabf4-d08e-4508-a25f-f1acfd6ae074/images" method="post" enctype="multipart/form-data">
+        <form action="../api/groups/c78aabf4-d08e-4508-a25f-f1acfd6ae074/images"
+            method="post" enctype="multipart/form-data">
           <p>File to upload: <input type="file" name="image" /></p>
           <p>File to upload: <input type="file" name="image" /></p>
           <p><input type="submit" value="Upload" /></p>
@@ -71,47 +78,58 @@ class MockController extends ScalatraServlet with SessionTrait {
 
   get("/login_google") {
     // TODO パラメーターチェック(必要なら)、エラー処理
-    println(params("path"))
+    //println(params("path"))
 
-//    val clientId = "770034855439.apps.googleusercontent.com"
-//    val callbackUrl = "http://localhost:8080/mock/callback"
-//    val scopes = util.Arrays.asList("https://www.googleapis.com/auth/plus.me", "profile", "email")
+    //    val clientId = "770034855439.apps.googleusercontent.com"
+    //    val callbackUrl = "http://localhost:8080/mock/callback"
+    //    val scopes = util.Arrays.asList("https://www.googleapis.com/auth/plus.me", "profile", "email")
 
     val userBackUri = params("path")
 
-//    val url = new GoogleAuthorizationCodeRequestUrl(clientId, callbackUrl, scopes).setState(userBackUri)
-    val url = new GoogleAuthorizationCodeRequestUrl(AppConf.clientId, AppConf.callbackUrl, AppConf.scopes).setState(userBackUri)
+    //    val url = new GoogleAuthorizationCodeRequestUrl(clientId, callbackUrl, scopes).setState(userBackUri)
+    val url = new GoogleAuthorizationCodeRequestUrl(
+      AppConf.clientId, AppConf.callbackUrl, AppConf.scopes
+    ).setState(userBackUri)
     redirect(url.toURL.toString)
   }
 
   get("/callback") {
     // TODO パラメーターチェック(必要ならCSRFチェック)、エラー処理
     // 認証拒否された時、DB接続エラー時、APIコールでエラー時etc
-    println(params)
+    //println(params)
 
-     // 固有設定系はファイルに避ける予定
-//    val clientId = "770034855439.apps.googleusercontent.com";
-//    val clientSecret = "stTAYEg6CVW6pj7Mab3SgoGm";
-//    val callbackUrl = "http://localhost:8080/mock/callback";
-//    val scopes = util.Arrays.asList("https://www.googleapis.com/auth/plus.me", "profile", "email")
-//    val applicationName = "COI Data Store"
-
+    // 固有設定系はファイルに避ける予定
+    //    val clientId = "770034855439.apps.googleusercontent.com";
+    //    val clientSecret = "stTAYEg6CVW6pj7Mab3SgoGm";
+    //    val callbackUrl = "http://localhost:8080/mock/callback";
+    //    val scopes = util.Arrays.asList("https://www.googleapis.com/auth/plus.me", "profile", "email")
+    //    val applicationName = "COI Data Store"
 
     val userRedirectUri = params("state")
     val authenticationCode = params("code")
 
     // get access token
-    val flow = new GoogleAuthorizationCodeFlow(new NetHttpTransport(), new JacksonFactory(), AppConf.clientId, AppConf.clientSecret, AppConf.scopes);
+    val flow = new GoogleAuthorizationCodeFlow(
+      new NetHttpTransport(),
+      new JacksonFactory(),
+      AppConf.clientId,
+      AppConf.clientSecret,
+      AppConf.scopes
+    );
     val tokenResponse = flow.newTokenRequest(authenticationCode).setRedirectUri(AppConf.callbackUrl).execute();
     val credential = flow.createAndStoreCredential(tokenResponse, null);
 
     // call google api : get user information (name & e-mail)
-    val oauth2 = new Oauth2.Builder(credential.getTransport, credential.getJsonFactory, credential).setApplicationName(AppConf.applicationName).build()
+    val oauth2 = new Oauth2.Builder(
+      credential.getTransport,
+      credential.getJsonFactory,
+      credential
+    ).setApplicationName(AppConf.applicationName).build()
     val user = oauth2.userinfo().get().execute()
-    println("debug:" + user)
-    println("name:" + user.getName)
-    println("email:" + user.getEmail)
-    println("id:" + user.getId)
+    //println("debug:" + user)
+    //println("name:" + user.getName)
+    //println("email:" + user.getEmail)
+    //println("id:" + user.getId)
 
     // ユーザーがなければユーザー作成、ユーザー情報を引きセッション作成etc
     // やっつけ mail_addressesとはjoinしていない また、tryでくくる必要あり
@@ -179,8 +197,15 @@ class MockController extends ScalatraServlet with SessionTrait {
             sql"""
             INSERT INTO
               google_users(id, user_id, google_user_id, created_by, created_at, updated_by, updated_at)
-            VALUES
-              (UUID(${UUID.randomUUID.toString}), UUID(${u.id}), ${user.getId}, UUID(${AppConf.systemUserId}), ${timestamp}, UUID(${AppConf.systemUserId}), ${timestamp})
+            VALUES (
+              UUID(${UUID.randomUUID.toString}),
+              UUID(${u.id}),
+              ${user.getId},
+              UUID(${AppConf.systemUserId}),
+              ${timestamp},
+              UUID(${AppConf.systemUserId}),
+              ${timestamp}
+            )
             """.update().apply()
             // groupの作成
             val g = persistence.Group.create(
@@ -207,7 +232,7 @@ class MockController extends ScalatraServlet with SessionTrait {
             )
             u
         }
-        services.User(aaa, user.getEmail)
+        User(aaa, user.getEmail)
     }
 
     // セッション作成
@@ -216,9 +241,9 @@ class MockController extends ScalatraServlet with SessionTrait {
 
     // 元いたページに戻す
     redirect(userRedirectUri)
-//    redirect("/mock/finish")
-//    redirect("/mock")
-//    redirect("/datasets/list")
+    //    redirect("/mock/finish")
+    //    redirect("/mock")
+    //    redirect("/datasets/list")
   }
 
   get("/finish") {

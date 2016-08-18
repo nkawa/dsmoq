@@ -1,10 +1,12 @@
 package dsmoq.logic
 
-import java.nio.file._
-import java.io._
+import java.io.FileNotFoundException
+import java.io.RandomAccessFile
+import java.nio.file.Path
+
+import org.slf4j.MarkerFactory
 
 import com.typesafe.scalalogging.LazyLogging
-import org.slf4j.MarkerFactory
 
 object ZipUtil extends LazyLogging {
 
@@ -22,15 +24,13 @@ object ZipUtil extends LazyLogging {
     fileNameLength: Int,
     extraLength: Int,
     fileName: String,
-    extra: Array[Byte]
-  )
+    extra: Array[Byte])
   case class ZipInfo(
     fileName: String,
     localHeaderOffset: Long,
     dataSizeWithLocalHeader: Long,
     uncompressSize: Long,
-    centralHeader: Array[Byte]
-  )
+    centralHeader: Array[Byte])
   def toZipInfo(offset: Long, localHeader: ZipLocalHeader, centralHeader: Array[Byte]): ZipInfo = {
     val localHeaderSize = 30 + localHeader.fileNameLength + localHeader.extraLength
     ZipInfo(
@@ -45,7 +45,7 @@ object ZipUtil extends LazyLogging {
     var ret = 0L
     var i = 0
     var w = 1L
-    while(i < n) {
+    while (i < n) {
       ret = ret + ra.readUnsignedByte() * w
       i = i + 1
       w = w * 256
@@ -56,7 +56,7 @@ object ZipUtil extends LazyLogging {
     var ret = 0L
     var i = 0
     var w = 1L
-    while(i < n) {
+    while (i < n) {
       ret = ret + java.lang.Byte.toUnsignedInt(a(from + i)) * w
       i = i + 1
       w = w * 256
@@ -65,11 +65,11 @@ object ZipUtil extends LazyLogging {
   }
 
   /**
-    * ZipヘッダーのExtra Fieldを解析してExtra Field Header単位のリストにする。
-    *
-    * @param extra Extra Fieldのbyte配列
-    * @return Extra Field Header単位のリスト
-    */
+   * ZipヘッダーのExtra Fieldを解析してExtra Field Header単位のリストにする。
+   *
+   * @param extra Extra Fieldのbyte配列
+   * @return Extra Field Header単位のリスト
+   */
   def splitExtra(extra: Array[Byte]): List[(Short, Array[Byte])] = {
     logger.debug(LOG_MARKER, "  called splitExtra function, extra = 0x{}", bytes2hex(extra))
 
@@ -95,34 +95,37 @@ object ZipUtil extends LazyLogging {
   }
 
   /**
-    * Zip64拡張情報(Zip64 Extended Information Extra Field)の情報を取得する。
-    * Zip64拡張情報自体がない場合は、引数の情報を返す。
-    * Zip64拡張情報はあるが、Zip64拡張情報に記載対象ではないサイズの場合、引数の情報が返る。
-    *
-    * @param xs ヘッダー内の情報と更新情報がExtra Fieldに含まれている場合のデータサイズのリスト
-    * @param extra Extra Fieldのヘッダーごとに切り分けたExtra Field
-    * @return xsのヘッダー内情報をExtra Fieldの情報で上書きしたリスト
-    */
+   * Zip64拡張情報(Zip64 Extended Information Extra Field)の情報を取得する。
+   * Zip64拡張情報自体がない場合は、引数の情報を返す。
+   * Zip64拡張情報はあるが、Zip64拡張情報に記載対象ではないサイズの場合、引数の情報が返る。
+   *
+   * @param xs ヘッダー内の情報と更新情報がExtra Fieldに含まれている場合のデータサイズのリスト
+   * @param extra Extra Fieldのヘッダーごとに切り分けたExtra Field
+   * @return xsのヘッダー内情報をExtra Fieldの情報で上書きしたリスト
+   */
   def fromExtra(xs: List[(Long, Int)], extra: Array[Byte]): List[Long] = {
     logger.debug(LOG_MARKER, "  called fromExtra function, xs = {}, extra = 0x{}", xs, bytes2hex(extra))
 
     var i = 0
-    xs.map { case (x, size) =>
-      if (x == p2(size / 2) - 1) {
-        val ret = read(extra, i, size)
-        logger.debug(LOG_MARKER, "  - extra value = {}", ret.toString)
-        i = i + size
-        ret
-      } else x
+    xs.map {
+      case (x, size) =>
+        if (x == p2(size / 2) - 1) {
+          val ret = read(extra, i, size)
+          logger.debug(LOG_MARKER, "  - extra value = {}", ret.toString)
+          i = i + size
+          ret
+        } else {
+          x
+        }
     }
   }
 
   /**
-    * ローカルヘッダーを解析する。
-    *
-    * @param ra ZIPファイルのオブジェクト
-    * @return ローカルヘッダー情報
-    */
+   * ローカルヘッダーを解析する。
+   *
+   * @param ra ZIPファイルのオブジェクト
+   * @return ローカルヘッダー情報
+   */
   def readLocalHeader(ra: RandomAccessFile): ZipLocalHeader = {
     logger.debug(LOG_MARKER, "  called readLocalHeader function, ra = {}", ra)
 
@@ -149,9 +152,22 @@ object ZipUtil extends LazyLogging {
       splitExtra(extra).find(_._1 == 0x0001).map(_._2).getOrElse(Array.empty)
     )
 
-    logger.debug(LOG_MARKER, "  - converted fileName, fileName = {}, fileNameByte = {}", fileName, bytes2hex(fileNameByte))
-    logger.debug(LOG_MARKER, "  - reading extra..., extra = 0x{}", bytes2hex(extra))
-    logger.debug(LOG_MARKER, "  - compress size = {}. uncompress size = {}. [in header: compress size = {}, uncompress size = {}]", compressSize64.toString, uncompressSize64.toString, compressSize.toString, uncompressSize.toString)
+    logger.debug(LOG_MARKER,
+      "  - converted fileName, fileName = {}, fileNameByte = {}",
+      fileName,
+      bytes2hex(fileNameByte)
+    )
+    logger.debug(LOG_MARKER,
+      "  - reading extra..., extra = 0x{}",
+      bytes2hex(extra)
+    )
+    logger.debug(LOG_MARKER,
+      "  - compress size = {}. uncompress size = {}. [in header: compress size = {}, uncompress size = {}]",
+      compressSize64.toString,
+      uncompressSize64.toString,
+      compressSize.toString,
+      uncompressSize.toString
+    )
 
     ZipLocalHeader(
       extractVersion = extractVersion,
@@ -170,11 +186,11 @@ object ZipUtil extends LazyLogging {
   }
 
   /**
-    * セントラルヘッダーを解析する。
-    *
-    * @param ra ZIPファイルのオブジェクト
-    * @return セントラルヘッダー情報と対応するローカルヘッダーの格納位置
-    */
+   * セントラルヘッダーを解析する。
+   *
+   * @param ra ZIPファイルのオブジェクト
+   * @return セントラルヘッダー情報と対応するローカルヘッダーの格納位置
+   */
   def readCentralHeader(ra: RandomAccessFile): (Long, Array[Byte]) = {
     logger.debug(LOG_MARKER, "  called readCentralHeader function, ra = {}", ra)
 
@@ -210,19 +226,25 @@ object ZipUtil extends LazyLogging {
     )
     logger.debug(LOG_MARKER, "  - central header. header = 0x{}", bytes2hex(bs))
     logger.debug(LOG_MARKER, "  - central header. extra = 0x{}", bytes2hex(extra))
-    logger.debug(LOG_MARKER, "  - compress size = {}. uncompress size = {}. [in header: compress size = {}, uncompress size = {}]", compressSize64.toString, uncompressSize64.toString, compressSize.toString, uncompressSize.toString)
+    logger.debug(LOG_MARKER,
+      "  - compress size = {}. uncompress size = {}. [in header: compress size = {}, uncompress size = {}]",
+      compressSize64.toString,
+      uncompressSize64.toString,
+      compressSize.toString,
+      uncompressSize.toString
+    )
 
     (offset64, bs)
   }
 
   /**
-    * ZIPファイルを読み込みZIPヘッダー解析を行う。
-    *
-    * @param path 解析対象のファイルパス
-    * @return 解析結果リスト
-    * @throws FileNotFoundException ZIPファイルが存在しない場合
-    * @throws UnsupportedOperationException ZIPファイルの解析に失敗した場合
-    */
+   * ZIPファイルを読み込みZIPヘッダー解析を行う。
+   *
+   * @param path 解析対象のファイルパス
+   * @return 解析結果リスト
+   * @throws FileNotFoundException ZIPファイルが存在しない場合
+   * @throws UnsupportedOperationException ZIPファイルの解析に失敗した場合
+   */
   def readRaw(path: Path): List[(Long, ZipLocalHeader, Array[Byte])] = {
     logger.debug(LOG_MARKER, "called readRaw function, path = [{}]", path)
     val file = path.toFile
@@ -297,14 +319,22 @@ object ZipUtil extends LazyLogging {
             logger.debug(LOG_MARKER, "Found Signature: Data descriptor. (0x08074b50)")
           }
           case _ => {
-            logger.debug(LOG_MARKER, "signature not found. header = 0x{}, pointer = {}", bytes2hex(header), ra.getFilePointer.toString)
+            logger.debug(LOG_MARKER,
+              "signature not found. header = 0x{}, pointer = {}",
+              bytes2hex(header),
+              ra.getFilePointer.toString
+            )
             // 合致しない場合、解析失敗とし、処理を中断します。
             // ZIPファイルの形式をしていないもの、暗号化されたZIPファイル、Mac付属のFinderで作成したZIPファイル（暫定対応）が来る想定です。
             throw new UnsupportedOperationException()
           }
         }
 
-        logger.debug(LOG_MARKER, "Check: ra.getFilePointer={}, ra.length={}", ra.getFilePointer.toString, ra.length.toString )
+        logger.debug(LOG_MARKER,
+          "Check: ra.getFilePointer={}, ra.length={}",
+          ra.getFilePointer.toString,
+          ra.length.toString
+        )
         logger.debug(LOG_MARKER, "Check: continue?={}", isLoop.toString)
 
       }
@@ -317,19 +347,24 @@ object ZipUtil extends LazyLogging {
       (key, localHeader, centralHeaders.getOrElse(key, Array.empty))
     }
 
-    logger.debug(LOG_MARKER, "Return readRaw function, return data len={}, local header len={}, central header len={}", ret.size.toString, localHeaders.size.toString, centralHeaders.size.toString)
+    logger.debug(LOG_MARKER,
+      "Return readRaw function, return data len={}, local header len={}, central header len={}",
+      ret.size.toString,
+      localHeaders.size.toString,
+      centralHeaders.size.toString
+    )
 
     ret.toList
   }
 
   /**
-    * ZIPファイルを解析する。
-    *
-    * @param path ZIPファイルパス
-    * @return ZIPファイルの解析情報
-    * @throws FileNotFoundException ZIPファイルが存在しない場合
-    * @throws UnsupportedOperationException ZIPファイルの解析に失敗した場合
-    */
+   * ZIPファイルを解析する。
+   *
+   * @param path ZIPファイルパス
+   * @return ZIPファイルの解析情報
+   * @throws FileNotFoundException ZIPファイルが存在しない場合
+   * @throws UnsupportedOperationException ZIPファイルの解析に失敗した場合
+   */
   def read(path: Path): List[ZipInfo] = {
     logger.debug(LOG_MARKER, "called read function, path = [{}]", path)
     val raw = readRaw(path)
@@ -337,16 +372,16 @@ object ZipUtil extends LazyLogging {
   }
 
   /**
-    * byte配列を16進文字列に変換する。
-    *
-    * @param bytes 変換対象
-    * @param sep byte間のセパレータ文字 (省略可)
-    * @return 変換後の文字列
-    */
+   * byte配列を16進文字列に変換する。
+   *
+   * @param bytes 変換対象
+   * @param sep byte間のセパレータ文字 (省略可)
+   * @return 変換後の文字列
+   */
   private def bytes2hex(bytes: Array[Byte], sep: Option[String] = None): String = {
     sep match {
-      case None =>  bytes.map("%02x".format(_)).mkString
-      case _ =>  bytes.map("%02x".format(_)).mkString(sep.get)
+      case None => bytes.map("%02x".format(_)).mkString
+      case _ => bytes.map("%02x".format(_)).mkString(sep.get)
     }
   }
 }

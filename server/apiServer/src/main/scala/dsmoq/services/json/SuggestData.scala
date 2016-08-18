@@ -10,8 +10,7 @@ object SuggestData {
     organization: String,
     title: String,
     description: String,
-    image: String
-  )
+    image: String)
 
   case class UserWithType(
     id: String,
@@ -21,19 +20,16 @@ object SuggestData {
     image: String,
     // TODO title: String,
     // TODO description: String,
-    dataType: Int = SuggestType.User
-   )
+    dataType: Int = SuggestType.User)
 
   case class Group(
     id: String,
     name: String,
-    image: String
-  )
+    image: String)
 
   case class GroupWithType(
     id: String,
     name: String,
     image: String,
-    dataType: Int = SuggestType.Group
-  )
+    dataType: Int = SuggestType.Group)
 }

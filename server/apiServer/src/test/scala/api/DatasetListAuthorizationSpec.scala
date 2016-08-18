@@ -8,18 +8,18 @@ import org.eclipse.jetty.servlet.ServletHolder
 
 import _root_.api.api.logic.SpecCommonLogic
 import dsmoq.AppConf
-import dsmoq.controllers.{AjaxResponse, ApiController}
+import dsmoq.controllers.{ AjaxResponse, ApiController }
 import dsmoq.persistence._
-import dsmoq.services.json.DatasetData.{DatasetsSummary, Dataset}
+import dsmoq.services.json.DatasetData.{ DatasetsSummary, Dataset }
 import dsmoq.services.json.GroupData.Group
 import dsmoq.services.json.RangeSlice
 import org.eclipse.jetty.server.Connector
 import org.json4s.jackson.JsonMethods._
-import org.json4s.{DefaultFormats, Formats}
-import org.scalatest.{BeforeAndAfterEach, BeforeAndAfter, FreeSpec}
+import org.json4s.{ DefaultFormats, Formats }
+import org.scalatest.{ BeforeAndAfterEach, BeforeAndAfter, FreeSpec }
 import org.scalatra.servlet.MultipartConfig
 import org.scalatra.test.scalatest.ScalatraSuite
-import scalikejdbc.config.{DBsWithEnv, DBs}
+import scalikejdbc.config.{ DBsWithEnv, DBs }
 import scalikejdbc._, SQLInterpolation._
 import org.json4s._
 import org.json4s.JsonDSL._
@@ -31,14 +31,14 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
   private val accesscCheckUserID = "eb7a596d-e50c-483f-bbc7-50019eea64d7" // dummy 4
   private val accessCheckUserLoginParams = Map("d" -> compact(render(("id" -> "dummy4") ~ ("password" -> "password"))))
   private val noAuthorityUserLoginParams = Map("d" -> compact(render(("id" -> "dummy2") ~ ("password" -> "password"))))
-  private val dataCreateUser1ID = "023bfa40-e897-4dad-96db-9fd3cf001e79"  // dummy1
-  private val dataCreateUser2ID = "4aaefd45-2fe5-4ce0-b156-3141613f69a6"  // dummy3
+  private val dataCreateUser1ID = "023bfa40-e897-4dad-96db-9fd3cf001e79" // dummy1
+  private val dataCreateUser2ID = "4aaefd45-2fe5-4ce0-b156-3141613f69a6" // dummy3
 
   override def beforeAll() {
     super.beforeAll()
     DBsWithEnv("test").setup()
     System.setProperty(org.scalatra.EnvironmentKey, "test")
-    
+
     val resource = ResourceBundle.getBundle("message")
     val servlet = new ApiController(resource)
     val holder = new ServletHolder(servlet.getClass.getName, servlet)
@@ -92,9 +92,9 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
 
                 // アクセスレベル設定(ユーザー/グループ)
                 val accessLevelParams = Map("d" -> compact(render(List(
-                    ("id" -> accesscCheckUserID) ~ ("ownerType" -> JInt(OwnerType.User)) ~  ("accessLevel" -> JInt(userAccessLevel)),
-                    ("id" -> groupId) ~ ("ownerType" -> JInt(OwnerType.Group)) ~ ("accessLevel" -> JInt(groupAccessLevel))
-                  )))
+                  ("id" -> accesscCheckUserID) ~ ("ownerType" -> JInt(OwnerType.User)) ~ ("accessLevel" -> JInt(userAccessLevel)),
+                  ("id" -> groupId) ~ ("ownerType" -> JInt(OwnerType.Group)) ~ ("accessLevel" -> JInt(groupAccessLevel))
+                )))
                 )
                 post("/api/datasets/" + datasetId + "/acl", accessLevelParams) {
                   checkStatus()
@@ -414,7 +414,6 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
           }
         }.flatten.flatten
 
-
         // ダミーユーザー時のデータセット一覧表示 権限が与えられているものすべて閲覧可能
         val params1 = Map("d" -> compact(render(("limit" -> JInt(200)) ~ ("owners" -> List("dummy1")) ~ ("groups" -> List(groupName)))))
         post("/api/signout") { checkStatus() }
@@ -575,7 +574,7 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
     result.status should be("OK")
   }
 
-  private def createGroup(): (String,String) = {
+  private def createGroup(): (String, String) = {
     val groupName = "groupName" + UUID.randomUUID.toString
     val params = Map("d" -> compact(render(("name" -> groupName) ~ ("description" -> "groupDescription"))))
     post("/api/groups", params) {
@@ -585,7 +584,7 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
     }
   }
 
-  private def createDataset(groupId: String, userAccessLevel:Int, groupAccessLevel: Int, guestAccessLevel: Int) = {
+  private def createDataset(groupId: String, userAccessLevel: Int, groupAccessLevel: Int, guestAccessLevel: Int) = {
     val files = Map("file[]" -> dummyFile)
     val params = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
     post("/api/datasets", params, files) {
@@ -594,9 +593,9 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
 
       // アクセスレベル設定(ユーザー/グループ)
       val accessLevelParams = Map("d" -> compact(render(List(
-          ("id" -> accesscCheckUserID) ~ ("ownerType" -> JInt(OwnerType.User)) ~ ("accessLevel" -> JInt(userAccessLevel)),
-          ("id" -> groupId) ~ ("ownerType" -> JInt(OwnerType.Group)) ~ ("accessLevel" -> JInt(groupAccessLevel))
-       )))
+        ("id" -> accesscCheckUserID) ~ ("ownerType" -> JInt(OwnerType.User)) ~ ("accessLevel" -> JInt(userAccessLevel)),
+        ("id" -> groupId) ~ ("ownerType" -> JInt(OwnerType.Group)) ~ ("accessLevel" -> JInt(groupAccessLevel))
+      )))
       )
       post("/api/datasets/" + datasetId + "/acl", accessLevelParams) {
         checkStatus()

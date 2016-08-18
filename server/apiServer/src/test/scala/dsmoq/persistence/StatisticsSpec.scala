@@ -40,7 +40,7 @@ class StatisticsSpec extends Specification {
       // TODO modify something
       val modified = entity
       val updated = Statistics.save(modified)
-      updated should not equalTo(entity)
+      updated should not equalTo (entity)
     }
     "destroy a record" in new AutoRollback {
       val entity = Statistics.findAll().head
@@ -51,4 +51,3 @@ class StatisticsSpec extends Specification {
   }
 
 }
-        

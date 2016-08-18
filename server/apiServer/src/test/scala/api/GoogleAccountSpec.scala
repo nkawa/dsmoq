@@ -7,12 +7,12 @@ import org.eclipse.jetty.servlet.ServletHolder
 import _root_.api.api.logic.SpecCommonLogic
 import com.google.api.services.oauth2.model.Userinfoplus
 import dsmoq.AppConf
-import dsmoq.controllers.{GoogleOAuthController, AjaxResponse, ApiController, FileController}
+import dsmoq.controllers.{ GoogleOAuthController, AjaxResponse, ApiController, FileController }
 import dsmoq.persistence._
 import dsmoq.services.GoogleAccountService
 import org.eclipse.jetty.server.Connector
-import org.json4s.{DefaultFormats, Formats, _}
-import org.scalatest.{BeforeAndAfter, FreeSpec}
+import org.json4s.{ DefaultFormats, Formats, _ }
+import org.scalatest.{ BeforeAndAfter, FreeSpec }
 import org.scalatra.servlet.MultipartConfig
 import org.scalatra.test.scalatest.ScalatraSuite
 import scalikejdbc._

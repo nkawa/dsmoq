@@ -36,7 +36,7 @@ class DatasetAnnotationSpec extends Specification {
     "save a record" in new AutoRollback {
       val entity = DatasetAnnotation.findAll().head
       val updated = DatasetAnnotation.save(entity)
-      updated should not equalTo(entity)
+      updated should not equalTo (entity)
     }
     "destroy a record" in new AutoRollback {
       val entity = DatasetAnnotation.findAll().head
@@ -47,4 +47,3 @@ class DatasetAnnotationSpec extends Specification {
   }
 
 }
-        

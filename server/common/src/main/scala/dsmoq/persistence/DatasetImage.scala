@@ -1,37 +1,58 @@
 package dsmoq.persistence
 
-import scalikejdbc._
-import scalikejdbc.SQLInterpolation._
-import org.joda.time.{DateTime}
-import PostgresqlHelper._
+import org.joda.time.DateTime
+
+import PostgresqlHelper.PgSQLSyntaxType
+import scalikejdbc.AutoSession
+import scalikejdbc.DBSession
+import scalikejdbc.ResultName
+import scalikejdbc.ResultName
+import scalikejdbc.SQLSyntax
+import scalikejdbc.SQLSyntaxSupport
+import scalikejdbc.SQLSyntaxSupport
+import scalikejdbc.WrappedResultSet
+import scalikejdbc.convertJavaSqlTimestampToConverter
+import scalikejdbc.delete
+import scalikejdbc.insert
+import scalikejdbc.scalikejdbcSQLInterpolationImplicitDef
+import scalikejdbc.scalikejdbcSQLSyntaxToStringImplicitDef
+import scalikejdbc.select
+import scalikejdbc.sqls
+import scalikejdbc.update
+import scalikejdbc.withSQL
 
 case class DatasetImage(
-  id: String, 
-  datasetId: String, 
-  imageId: String, 
-  isPrimary: Boolean, 
-  createdBy: String, 
-  createdAt: DateTime, 
-  updatedBy: String, 
-  updatedAt: DateTime, 
-  deletedBy: Option[String] = None, 
-  deletedAt: Option[DateTime] = None,
-  isFeatured: Boolean) {
+    id: String,
+    datasetId: String,
+    imageId: String,
+    isPrimary: Boolean,
+    createdBy: String,
+    createdAt: DateTime,
+    updatedBy: String,
+    updatedAt: DateTime,
+    deletedBy: Option[String] = None,
+    deletedAt: Option[DateTime] = None,
+    isFeatured: Boolean) {
 
   def save()(implicit session: DBSession = DatasetImage.autoSession): DatasetImage = DatasetImage.save(this)(session)
 
   def destroy()(implicit session: DBSession = DatasetImage.autoSession): Unit = DatasetImage.destroy(this)(session)
 
 }
-      
 
 object DatasetImage extends SQLSyntaxSupport[DatasetImage] {
 
   override val tableName = "dataset_images"
 
-  override val columns = Seq("id", "dataset_id", "image_id", "is_primary", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at", "is_featured")
+  override val columns = Seq(
+    "id", "dataset_id", "image_id", "is_primary",
+    "created_by", "created_at",
+    "updated_by", "updated_at",
+    "deleted_by", "deleted_at",
+    "is_featured"
+  )
 
-  def apply(di: ResultName[DatasetImage])(rs: WrappedResultSet): DatasetImage = new DatasetImage(
+  def apply(di: ResultName[DatasetImage])(rs: WrappedResultSet): DatasetImage = DatasetImage(
     id = rs.string(di.id),
     datasetId = rs.string(di.datasetId),
     imageId = rs.string(di.imageId),
@@ -44,37 +65,37 @@ object DatasetImage extends SQLSyntaxSupport[DatasetImage] {
     deletedAt = rs.timestampOpt(di.deletedAt).map(_.toJodaDateTime),
     isFeatured = rs.boolean(di.isFeatured)
   )
-      
+
   val di = DatasetImage.syntax("di")
 
   override val autoSession = AutoSession
 
   def find(id: String)(implicit session: DBSession = autoSession): Option[DatasetImage] = {
-    withSQL { 
+    withSQL {
       select.from(DatasetImage as di).where.eq(di.id, sqls.uuid(id))
     }.map(DatasetImage(di.resultName)).single.apply()
   }
-          
+
   def findAll()(implicit session: DBSession = autoSession): List[DatasetImage] = {
     withSQL(select.from(DatasetImage as di)).map(DatasetImage(di.resultName)).list.apply()
   }
-          
+
   def countAll()(implicit session: DBSession = autoSession): Long = {
     withSQL(select(sqls"count(1)").from(DatasetImage as di)).map(rs => rs.long(1)).single.apply().get
   }
-          
+
   def findAllBy(where: SQLSyntax)(implicit session: DBSession = autoSession): List[DatasetImage] = {
-    withSQL { 
+    withSQL {
       select.from(DatasetImage as di).where.append(sqls"${where}")
     }.map(DatasetImage(di.resultName)).list.apply()
   }
-      
+
   def countBy(where: SQLSyntax)(implicit session: DBSession = autoSession): Long = {
-    withSQL { 
+    withSQL {
       select(sqls"count(1)").from(DatasetImage as di).where.append(sqls"${where}")
     }.map(_.long(1)).single.apply().get
   }
-      
+
   def create(
     id: String,
     datasetId: String,
@@ -101,18 +122,18 @@ object DatasetImage extends SQLSyntaxSupport[DatasetImage] {
         column.deletedBy,
         column.deletedAt
       ).values(
-        sqls.uuid(id),
-        sqls.uuid(datasetId),
-        sqls.uuid(imageId),
-        isPrimary,
-        isFeatured,
-        sqls.uuid(createdBy),
-        createdAt,
-        sqls.uuid(updatedBy),
-        updatedAt,
-        deletedBy.map(sqls.uuid),
-        deletedAt
-      )
+          sqls.uuid(id),
+          sqls.uuid(datasetId),
+          sqls.uuid(imageId),
+          isPrimary,
+          isFeatured,
+          sqls.uuid(createdBy),
+          createdAt,
+          sqls.uuid(updatedBy),
+          updatedAt,
+          deletedBy.map(sqls.uuid),
+          deletedAt
+        )
     }.update.apply()
 
     DatasetImage(
@@ -130,7 +151,7 @@ object DatasetImage extends SQLSyntaxSupport[DatasetImage] {
   }
 
   def save(entity: DatasetImage)(implicit session: DBSession = autoSession): DatasetImage = {
-    withSQL { 
+    withSQL {
       update(DatasetImage).set(
         column.id -> sqls.uuid(entity.id),
         column.datasetId -> sqls.uuid(entity.datasetId),
@@ -145,11 +166,11 @@ object DatasetImage extends SQLSyntaxSupport[DatasetImage] {
         column.deletedAt -> entity.deletedAt
       ).where.eq(column.id, sqls.uuid(entity.id))
     }.update.apply()
-    entity 
+    entity
   }
-        
+
   def destroy(entity: DatasetImage)(implicit session: DBSession = autoSession): Unit = {
     withSQL { delete.from(DatasetImage).where.eq(column.id, entity.id) }.update.apply()
   }
-        
+
 }

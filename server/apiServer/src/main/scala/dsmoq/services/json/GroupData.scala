@@ -1,29 +1,24 @@
 package dsmoq.services.json
 
-import dsmoq.services.User
-import org.scalatra.servlet.FileItem
-
 object GroupData {
   // response
   case class GroupsSummary(
-                              id: String,
-                              name: String,
-                              description: String,
-                              image: String,
-                              members: Int,
-                              datasets: Int
-                              )
+    id: String,
+    name: String,
+    description: String,
+    image: String,
+    members: Int,
+    datasets: Int)
 
   case class Group(
-                    id: String,
-                    name: String,
-                    description: String,
-                    images: Seq[Image],
-                    primaryImage: String,
-                    isMember: Boolean,
-                    role: Int,
-                    providedDatasetCount: Int
-                    )
+    id: String,
+    name: String,
+    description: String,
+    images: Seq[Image],
+    primaryImage: String,
+    isMember: Boolean,
+    role: Int,
+    providedDatasetCount: Int)
 
   case class MemberSummary(
     id: String,
@@ -33,8 +28,7 @@ object GroupData {
     title: String,
     description: String,
     image: String,
-    role: Int
-  )
+    role: Int)
 
   /**
    * グループに追加したメンバーを返却するために使用するJSON型
@@ -42,15 +36,13 @@ object GroupData {
    * @param ownerships メンバーに追加したユーザのリスト
    */
   case class AddMembers(
-    ownerships: Seq[MemberSummary]
-  )
+    ownerships: Seq[MemberSummary])
 
   case class AddMember(
-                        id: String,
-                        name: String,
-                        organization: String,
-                        role: Int
-                        )
+    id: String,
+    name: String,
+    organization: String,
+    role: Int)
 
   /**
    * グループに追加した画像を返却するためのJSON型
@@ -59,24 +51,20 @@ object GroupData {
    * @param primaryImage メイン画像のID
    */
   case class GroupAddImages(
-                             images: Seq[GroupGetImage],
-                             primaryImage: String
-                             )
+    images: Seq[GroupGetImage],
+    primaryImage: String)
 
   case class GroupDeleteImage(
-                               primaryImage: String
-                               )
-  case class GroupGetImage (
-                               id: String,
-                               name: String,
-                               url: String,
-                               isPrimary: Boolean
-                               )
+    primaryImage: String)
+  case class GroupGetImage(
+    id: String,
+    name: String,
+    url: String,
+    isPrimary: Boolean)
   /**
    * グループに設定した画像IDを返却するためのJSON型
    * @param imageId 画像ID
    */
   case class ChangeGroupImage(
-    imageId: String
-  )
+    imageId: String)
 }

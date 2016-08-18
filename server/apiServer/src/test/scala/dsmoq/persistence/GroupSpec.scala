@@ -36,7 +36,7 @@ class GroupSpec extends Specification {
     "save a record" in new AutoRollback {
       val entity = Group.findAll().head
       val updated = Group.save(entity)
-      updated should not equalTo(entity)
+      updated should not equalTo (entity)
     }
     "destroy a record" in new AutoRollback {
       val entity = Group.findAll().head
@@ -47,4 +47,3 @@ class GroupSpec extends Specification {
   }
 
 }
-        

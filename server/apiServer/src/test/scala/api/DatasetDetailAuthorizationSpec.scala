@@ -7,17 +7,17 @@ import java.util.ResourceBundle
 import org.eclipse.jetty.servlet.ServletHolder
 
 import _root_.api.api.logic.SpecCommonLogic
-import dsmoq.controllers.{AjaxResponse, ApiController}
+import dsmoq.controllers.{ AjaxResponse, ApiController }
 import dsmoq.persistence._
 import dsmoq.services.json.DatasetData.Dataset
 import dsmoq.services.json.GroupData.Group
 import org.eclipse.jetty.server.Connector
 import org.json4s.jackson.JsonMethods._
-import org.json4s.{DefaultFormats, Formats}
-import org.scalatest.{BeforeAndAfter, FreeSpec}
+import org.json4s.{ DefaultFormats, Formats }
+import org.scalatest.{ BeforeAndAfter, FreeSpec }
 import org.scalatra.servlet.MultipartConfig
 import org.scalatra.test.scalatest.ScalatraSuite
-import scalikejdbc.config.{DBsWithEnv, DBs}
+import scalikejdbc.config.{ DBsWithEnv, DBs }
 import org.json4s._
 import org.json4s.JsonDSL._
 
@@ -25,7 +25,7 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
   protected implicit val jsonFormats: Formats = DefaultFormats
 
   private val dummyFile = new File("../README.md")
-  private val dummyUserId = "eb7a596d-e50c-483f-bbc7-50019eea64d7"  // dummy 4
+  private val dummyUserId = "eb7a596d-e50c-483f-bbc7-50019eea64d7" // dummy 4
   private val dummyUserLoginParams = Map("d" -> compact(render(("id" -> "dummy4") ~ ("password" -> "password"))))
   private val anotherUserLoginParams = Map("d" -> compact(render(("id" -> "dummy2") ~ ("password" -> "password"))))
 
@@ -33,7 +33,7 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
     super.beforeAll()
     DBsWithEnv("test").setup()
     System.setProperty(org.scalatra.EnvironmentKey, "test")
-    
+
     val resource = ResourceBundle.getBundle("message")
     val servlet = new ApiController(resource)
     val holder = new ServletHolder(servlet.getClass.getName, servlet)
@@ -87,9 +87,9 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
 
                 // アクセスレベル設定(ユーザー/グループ)
                 val accessLevelParams = Map("d" -> compact(render(List(
-                    ("id" -> dummyUserId) ~ ("ownerType" -> JInt(OwnerType.User)) ~ ("accessLevel" -> JInt(userAccessLevel)),
-                    ("id" -> groupId) ~ ("ownerType" -> JInt(OwnerType.Group)) ~ ("accessLevel" -> JInt(groupAccessLevel))
-                  )))
+                  ("id" -> dummyUserId) ~ ("ownerType" -> JInt(OwnerType.User)) ~ ("accessLevel" -> JInt(userAccessLevel)),
+                  ("id" -> groupId) ~ ("ownerType" -> JInt(OwnerType.Group)) ~ ("accessLevel" -> JInt(groupAccessLevel))
+                )))
                 )
                 post("/api/datasets/" + datasetId + "/acl", accessLevelParams) {
                   checkStatus()
@@ -121,7 +121,7 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
               result.data.id should be(params._1)
               val permission = List(params._2, params._3, params._4).sorted.last
               result.data.permission should be(permission)
-              result.data.defaultAccessLevel should be (params._4)
+              result.data.defaultAccessLevel should be(params._4)
             }
           } else {
             get("/api/datasets/" + params._1) {
@@ -145,7 +145,7 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id should be(params._1)
               result.data.permission should be(params._4)
-              result.data.defaultAccessLevel should be (params._4)
+              result.data.defaultAccessLevel should be(params._4)
             }
           } else {
             get("/api/datasets/" + params._1) {
@@ -169,7 +169,7 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
               val result = parse(body).extract[AjaxResponse[Dataset]]
               result.data.id should be(params._1)
               result.data.permission should be(params._4)
-              result.data.defaultAccessLevel should be (params._4)
+              result.data.defaultAccessLevel should be(params._4)
             }
           } else {
             get("/api/datasets/" + params._1) {
@@ -183,14 +183,14 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
       }
     }
   }
-  
+
   private def signIn() {
     val params = Map("d" -> compact(render(("id" -> "dummy1") ~ ("password" -> "password"))))
     post("/api/signin", params) {
       checkStatus()
     }
   }
-  
+
   private def checkStatus() {
     status should be(200)
     val result = parse(body).extract[AjaxResponse[Any]]

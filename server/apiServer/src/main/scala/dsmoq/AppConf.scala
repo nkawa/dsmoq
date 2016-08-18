@@ -4,7 +4,13 @@ import com.typesafe.config.ConfigFactory
 
 object AppConf {
   private val conf = ConfigFactory.load
-  private val root = if (System.getProperty(org.scalatra.EnvironmentKey) == "test") conf.getConfig("test") else conf
+  private val root = {
+    if (System.getProperty(org.scalatra.EnvironmentKey) == "test") {
+      conf.getConfig("test")
+    } else {
+      conf
+    }
+  }
 
   val port = root.getInt("apiserver.port")
   val imageDir = root.getString("apiserver.image_dir")
@@ -21,12 +27,12 @@ object AppConf {
   val defaultGroupImageId = "960a5601-2b60-2531-e6ad-54b91612ede5"
   val defaultLicenseId = "dc16a22c-00de-b00e-dbec-38cbad333bf7"
   val defaultFeaturedImageIds = Seq(
-      "e7aa025c-6498-4f1e-bca4-7c8dd85c9a4e",
-      "897b71d7-c704-4f9d-b97e-f594f0570b55",
-      "20f1586a-22b3-40c1-a308-d038284148cc",
-      "aa6ce408-091d-4d28-897e-e75de8959b7f",
-      "cb76a32d-5b12-42f4-90fd-62b8cfb19525",
-      "59ae7029-fafc-4f7e-8578-e7a00db2d147"
+    "e7aa025c-6498-4f1e-bca4-7c8dd85c9a4e",
+    "897b71d7-c704-4f9d-b97e-f594f0570b55",
+    "20f1586a-22b3-40c1-a308-d038284148cc",
+    "aa6ce408-091d-4d28-897e-e75de8959b7f",
+    "cb76a32d-5b12-42f4-90fd-62b8cfb19525",
+    "59ae7029-fafc-4f7e-8578-e7a00db2d147"
   )
 
   val imageDownloadRoot = root.getString("apiserver.image_url_root")
@@ -43,5 +49,11 @@ object AppConf {
   val s3SecretKey = root.getString("s3.secret_key")
   val s3UploadRoot = root.getString("s3.upload_bucket")
 
-  val fileLimit = if (root.hasPath("apiserver.file_limit")) root.getInt("apiserver.file_limit") else 100
+  val fileLimit = {
+    if (root.hasPath("apiserver.file_limit")) {
+      root.getInt("apiserver.file_limit")
+    } else {
+      100
+    }
+  }
 }

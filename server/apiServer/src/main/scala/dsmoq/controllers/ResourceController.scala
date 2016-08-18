@@ -1,19 +1,21 @@
 package dsmoq.controllers
 
-import org.scalatra._
-import org.scalatra.json.JacksonJsonSupport
+import org.scalatra.ActionResult
+import org.scalatra.NotFound
+import org.scalatra.Ok
+import org.scalatra.ScalatraServlet
 
 class ResourceController extends ScalatraServlet {
-  object Ext{
+  object Ext {
     val Js = """.*\.js$""".r
     val SourceMap = """.*\.map$""".r
     val Json = """.*\.json$""".r
     val Css = """.*\.css$""".r
     val Html = """.*\.html$""".r
     val Woff = """.*\.woff""".r
-    val Ttf =  """.*\.ttf""".r
-    val Otf =  """.*\.otf""".r
-    val Eot =  """.*\.eot""".r
+    val Ttf = """.*\.ttf""".r
+    val Otf = """.*\.otf""".r
+    val Eot = """.*\.eot""".r
     val Jpeg = """.*\.jpe?g$""".r
     val Png = """.*\.png$""".r
     val Gif = """.*\.gif$""".r
@@ -22,12 +24,14 @@ class ResourceController extends ScalatraServlet {
     val Csv = """.*\.csv""".r
   }
 
-  def resource(filename:String) = new java.io.File(
-    "../client/www/" + filename
+  def resource(filename: String): java.io.File = {
+    new java.io.File(
+      "../client/www/" + filename
     // servletContext.getResource("filename").getFile
-  )
+    )
+  }
 
-  get ("/*") {
+  get("/*") {
     contentType = "text/html"
     resource("index.html")
   }
@@ -48,8 +52,18 @@ class ResourceController extends ScalatraServlet {
     returnResource(params("captures"))
   }
 
-  def returnResource(filename: String) = {
-    (filename match {
+  def returnResource(filename: String): ActionResult = {
+    contextTypeForName(filename) match {
+      case None => NotFound()
+      case Some(x) => {
+        contentType = x
+        Ok(resource(filename))
+      }
+    }
+  }
+
+  def contextTypeForName(filename: String): Option[String] = {
+    filename match {
       case Ext.Js() => Some("application/javascript")
       case Ext.SourceMap() => Some("application/json")
       case Ext.Json() => Some("application/json")
@@ -66,15 +80,6 @@ class ResourceController extends ScalatraServlet {
       case Ext.Txt() => Some("text/plain")
       case Ext.Csv() => Some("text/csv")
       case _ => None
-    }) match {
-      case Some(x) =>
-        contentType = x
-        resource(filename)
-      case None =>
-        status = 404
-        "not found"
     }
   }
 }
-
-

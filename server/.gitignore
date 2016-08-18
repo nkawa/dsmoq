@@ -15,6 +15,12 @@ project/plugins/project/
 .idea/*
 .idea_modules
 .idea/*
+.cache-main
+.cache-tests
+.classpath
+.project
+org.eclipse.core.resources.prefs
+org.scala-ide.sdt.core.prefs
 
 common/src/main/resources/application.conf
 taskServer/src/main/resources/application.conf

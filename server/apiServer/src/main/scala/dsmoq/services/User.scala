@@ -10,11 +10,10 @@ case class User(
   mailAddress: String,
   description: String,
   isGuest: Boolean,
-  isDeleted: Boolean
-)
+  isDeleted: Boolean)
 
 object User {
-  def apply(x: dsmoq.persistence.User, address: String) = new User(
+  def apply(x: dsmoq.persistence.User, address: String): User = User(
     id = x.id,
     name = x.name,
     fullname = x.fullname,

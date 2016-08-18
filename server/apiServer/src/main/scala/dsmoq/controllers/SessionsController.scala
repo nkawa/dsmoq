@@ -1,12 +1,13 @@
 package dsmoq.controllers
 
-import org.scalatra._
+import org.scalatra.ScalatraServlet
 
 class SessionsController extends ScalatraServlet {
   val SessionKey = "user"
 
-  private def isAuthenticated(login: String, password: String) = 
+  private def isAuthenticated(login: String, password: String): Boolean = {
     login == "foo" && password == "foo"
+  }
 
   post("/") {
     val login = params("login")
@@ -15,7 +16,7 @@ class SessionsController extends ScalatraServlet {
     if (isAuthenticated(login, password)) {
       servletContext.setAttribute(SessionKey, login)
       "ok"
-    }else{
+    } else {
       "ng"
     }
   }
@@ -27,7 +28,7 @@ class SessionsController extends ScalatraServlet {
   // make it easier to illustrate the logout code.
   get("/logout") {
     Option(servletContext.getAttribute(SessionKey)) match {
-      case Some(_) => 
+      case Some(_) =>
         servletContext.removeAttribute(SessionKey)
         "ok"
       case None =>

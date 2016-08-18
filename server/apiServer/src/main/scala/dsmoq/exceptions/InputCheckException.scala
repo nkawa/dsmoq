@@ -1,4 +1,6 @@
 package dsmoq.exceptions
 
-case class InputCheckException(target: String, message: String, isUrlParam: Boolean) extends IllegalArgumentException(message) {
-}
+class InputCheckException(
+  val target: String,
+  val message: String,
+  val isUrlParam: Boolean) extends IllegalArgumentException(message)

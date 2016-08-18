@@ -1,41 +1,66 @@
 package dsmoq.persistence
 
-import scalikejdbc._
-import org.joda.time.{DateTime}
-import PostgresqlHelper._
+import org.joda.time.DateTime
+
+import PostgresqlHelper.PgSQLSyntaxType
+import scalikejdbc.AutoSession
+import scalikejdbc.DBSession
+import scalikejdbc.ResultName
+import scalikejdbc.ResultName
+import scalikejdbc.SQLSyntax
+import scalikejdbc.SQLSyntaxSupport
+import scalikejdbc.SQLSyntaxSupport
+import scalikejdbc.SyntaxProvider
+import scalikejdbc.SyntaxProvider
+import scalikejdbc.WrappedResultSet
+import scalikejdbc.convertJavaSqlTimestampToConverter
+import scalikejdbc.delete
+import scalikejdbc.insert
+import scalikejdbc.scalikejdbcSQLInterpolationImplicitDef
+import scalikejdbc.scalikejdbcSQLSyntaxToStringImplicitDef
+import scalikejdbc.select
+import scalikejdbc.sqls
+import scalikejdbc.update
+import scalikejdbc.withSQL
 
 case class ZipedFiles(
-  id: String,
-  historyId: String,
-  name: String, 
-  description: String, 
-  fileSize: Long, 
-  createdBy: String,
-  createdAt: DateTime, 
-  updatedBy: String,
-  updatedAt: DateTime, 
-  deletedBy: Option[String] = None,
-  deletedAt: Option[DateTime] = None, 
-  cenSize: Long, 
-  dataStart: Long, 
-  dataSize: Long, 
-  cenHeader: Array[Byte]) {
+    id: String,
+    historyId: String,
+    name: String,
+    description: String,
+    fileSize: Long,
+    createdBy: String,
+    createdAt: DateTime,
+    updatedBy: String,
+    updatedAt: DateTime,
+    deletedBy: Option[String] = None,
+    deletedAt: Option[DateTime] = None,
+    cenSize: Long,
+    dataStart: Long,
+    dataSize: Long,
+    cenHeader: Array[Byte]) {
 
   def save()(implicit session: DBSession = ZipedFiles.autoSession): ZipedFiles = ZipedFiles.save(this)(session)
 
   def destroy()(implicit session: DBSession = ZipedFiles.autoSession): Unit = ZipedFiles.destroy(this)(session)
 
 }
-      
 
 object ZipedFiles extends SQLSyntaxSupport[ZipedFiles] {
 
   override val tableName = "ziped_files"
 
-  override val columns = Seq("id", "history_id", "name", "description", "file_size", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at", "cen_size", "data_start", "data_size", "cen_header")
+  override val columns = Seq(
+    "id", "history_id", "name", "description", "file_size",
+    "created_by", "created_at",
+    "updated_by", "updated_at",
+    "deleted_by", "deleted_at",
+    "cen_size", "data_start", "data_size", "cen_header"
+  )
 
   def apply(zf: SyntaxProvider[ZipedFiles])(rs: WrappedResultSet): ZipedFiles = apply(zf.resultName)(rs)
-  def apply(zf: ResultName[ZipedFiles])(rs: WrappedResultSet): ZipedFiles = new ZipedFiles(
+
+  def apply(zf: ResultName[ZipedFiles])(rs: WrappedResultSet): ZipedFiles = ZipedFiles(
     id = rs.string(zf.id),
     historyId = rs.string(zf.historyId),
     name = rs.get(zf.name),
@@ -52,7 +77,7 @@ object ZipedFiles extends SQLSyntaxSupport[ZipedFiles] {
     dataSize = rs.long(zf.dataSize),
     cenHeader = rs.bytes(zf.cenHeader)
   )
-      
+
   val zf = ZipedFiles.syntax("zf")
 
   override val autoSession = AutoSession
@@ -62,27 +87,27 @@ object ZipedFiles extends SQLSyntaxSupport[ZipedFiles] {
       select.from(ZipedFiles as zf).where.eq(zf.id, sqls.uuid(id))
     }.map(ZipedFiles(zf.resultName)).single.apply()
   }
-          
+
   def findAll()(implicit session: DBSession = autoSession): List[ZipedFiles] = {
     withSQL(select.from(ZipedFiles as zf)).map(ZipedFiles(zf.resultName)).list.apply()
   }
-          
+
   def countAll()(implicit session: DBSession = autoSession): Long = {
     withSQL(select(sqls"count(1)").from(ZipedFiles as zf)).map(rs => rs.long(1)).single.apply().get
   }
-          
+
   def findAllBy(where: SQLSyntax)(implicit session: DBSession = autoSession): List[ZipedFiles] = {
-    withSQL { 
+    withSQL {
       select.from(ZipedFiles as zf).where.append(sqls"${where}")
     }.map(ZipedFiles(zf.resultName)).list.apply()
   }
-      
+
   def countBy(where: SQLSyntax)(implicit session: DBSession = autoSession): Long = {
-    withSQL { 
+    withSQL {
       select(sqls"count(1)").from(ZipedFiles as zf).where.append(sqls"${where}")
     }.map(_.long(1)).single.apply().get
   }
-      
+
   def create(
     id: String,
     historyId: String,
@@ -117,22 +142,22 @@ object ZipedFiles extends SQLSyntaxSupport[ZipedFiles] {
         column.dataSize,
         column.cenHeader
       ).values(
-        sqls.uuid(id),
-        sqls.uuid(historyId),
-        name,
-        description,
-        fileSize,
-        sqls.uuid(createdBy),
-        createdAt,
-        sqls.uuid(updatedBy),
-        updatedAt,
-        deletedBy.map(sqls.uuid),
-        deletedAt,
-        cenSize,
-        dataStart,
-        dataSize,
-        cenHeader
-      )
+          sqls.uuid(id),
+          sqls.uuid(historyId),
+          name,
+          description,
+          fileSize,
+          sqls.uuid(createdBy),
+          createdAt,
+          sqls.uuid(updatedBy),
+          updatedAt,
+          deletedBy.map(sqls.uuid),
+          deletedAt,
+          cenSize,
+          dataStart,
+          dataSize,
+          cenHeader
+        )
     }.update.apply()
 
     ZipedFiles(
@@ -175,9 +200,9 @@ object ZipedFiles extends SQLSyntaxSupport[ZipedFiles] {
     }.update.apply()
     entity
   }
-        
+
   def destroy(entity: ZipedFiles)(implicit session: DBSession = autoSession): Unit = {
     withSQL { delete.from(ZipedFiles).where.eq(column.id, sqls.uuid(entity.id)) }.update.apply()
   }
-        
+
 }

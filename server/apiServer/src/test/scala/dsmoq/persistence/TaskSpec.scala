@@ -40,7 +40,7 @@ class TaskSpec extends Specification {
       // TODO modify something
       val modified = entity
       val updated = Task.save(modified)
-      updated should not equalTo(entity)
+      updated should not equalTo (entity)
     }
     "destroy a record" in new AutoRollback {
       val entity = Task.findAll().head
@@ -51,4 +51,3 @@ class TaskSpec extends Specification {
   }
 
 }
-        

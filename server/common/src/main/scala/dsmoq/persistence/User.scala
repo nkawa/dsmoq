@@ -1,31 +1,46 @@
 package dsmoq.persistence
 
-import scalikejdbc._
-import scalikejdbc.SQLInterpolation._
-import org.joda.time.{DateTime}
-import PostgresqlHelper._
+import org.joda.time.DateTime
+
+import PostgresqlHelper.PgConditionSQLBuilder
+import PostgresqlHelper.PgSQLSyntaxType
+import scalikejdbc.DBSession
+import scalikejdbc.ResultName
+import scalikejdbc.ResultName
+import scalikejdbc.SQLSyntax
+import scalikejdbc.SQLSyntaxSupport
+import scalikejdbc.SQLSyntaxSupport
+import scalikejdbc.WrappedResultSet
+import scalikejdbc.convertJavaSqlTimestampToConverter
+import scalikejdbc.delete
+import scalikejdbc.insert
+import scalikejdbc.scalikejdbcSQLInterpolationImplicitDef
+import scalikejdbc.scalikejdbcSQLSyntaxToStringImplicitDef
+import scalikejdbc.select
+import scalikejdbc.sqls
+import scalikejdbc.update
+import scalikejdbc.withSQL
 
 case class User(
-  id: String,
-  name: String, 
-  fullname: String, 
-  organization: String, 
-  title: String, 
-  description: String, 
-  imageId: String,
-  createdBy: String,
-  createdAt: DateTime, 
-  updatedBy: String,
-  updatedAt: DateTime, 
-  deletedBy: Option[String] = None,
-  deletedAt: Option[DateTime] = None) {
+    id: String,
+    name: String,
+    fullname: String,
+    organization: String,
+    title: String,
+    description: String,
+    imageId: String,
+    createdBy: String,
+    createdAt: DateTime,
+    updatedBy: String,
+    updatedAt: DateTime,
+    deletedBy: Option[String] = None,
+    deletedAt: Option[DateTime] = None) {
 
   def save()(implicit session: DBSession = User.autoSession): User = User.save(this)(session)
 
   def destroy()(implicit session: DBSession = User.autoSession): Unit = User.destroy(this)(session)
 
 }
-      
 
 object User extends SQLSyntaxSupport[User] {
   val id = "id"
@@ -36,9 +51,14 @@ object User extends SQLSyntaxSupport[User] {
 
   override val tableName = "users"
 
-  override val columns = Seq("id", "name", "fullname", "organization", "title", "description", "image_id", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
+  override val columns = Seq(
+    "id", "name", "fullname", "organization", "title", "description", "image_id",
+    "created_by", "created_at",
+    "updated_by", "updated_at",
+    "deleted_by", "deleted_at"
+  )
 
-  def apply(u: ResultName[User])(rs: WrappedResultSet): User = new User(
+  def apply(u: ResultName[User])(rs: WrappedResultSet): User = User(
     id = rs.string(u.id),
     name = rs.string(u.name),
     fullname = rs.string(u.fullname),
@@ -53,37 +73,37 @@ object User extends SQLSyntaxSupport[User] {
     deletedBy = rs.stringOpt(u.deletedBy),
     deletedAt = rs.timestampOpt(u.deletedAt).map(_.toJodaDateTime)
   )
-      
+
   val u = User.syntax("u")
 
   //val autoSession = AutoSession
 
   def find(id: String)(implicit session: DBSession = autoSession): Option[User] = {
-    withSQL { 
+    withSQL {
       select.from(User as u).where.eq(u.id, sqls.uuid(id))
     }.map(User(u.resultName)).single.apply()
   }
-          
+
   def findAll()(implicit session: DBSession = autoSession): List[User] = {
     withSQL(select.from(User as u)).map(User(u.resultName)).list.apply()
   }
-          
+
   def countAll()(implicit session: DBSession = autoSession): Long = {
     withSQL(select(sqls"count(1)").from(User as u)).map(rs => rs.long(1)).single.apply().get
   }
-          
+
   def findAllBy(where: SQLSyntax)(implicit session: DBSession = autoSession): List[User] = {
-    withSQL { 
+    withSQL {
       select.from(User as u).where.append(sqls"${where}")
     }.map(User(u.resultName)).list.apply()
   }
-      
+
   def countBy(where: SQLSyntax)(implicit session: DBSession = autoSession): Long = {
-    withSQL { 
+    withSQL {
       select(sqls"count(1)").from(User as u).where.append(sqls"${where}")
     }.map(_.long(1)).single.apply().get
   }
-      
+
   def create(
     id: String,
     name: String,
@@ -114,20 +134,20 @@ object User extends SQLSyntaxSupport[User] {
         column.deletedBy,
         column.deletedAt
       ).values(
-        sqls.uuid(id),
-        name,
-        fullname,
-        organization,
-        title,
-        description,
-        sqls.uuid(imageId),
-        sqls.uuid(createdBy),
-        createdAt,
-        sqls.uuid(updatedBy),
-        updatedAt,
-        deletedBy.map(sqls.uuid),
-        deletedAt
-      )
+          sqls.uuid(id),
+          name,
+          fullname,
+          organization,
+          title,
+          description,
+          sqls.uuid(imageId),
+          sqls.uuid(createdBy),
+          createdAt,
+          sqls.uuid(updatedBy),
+          updatedAt,
+          deletedBy.map(sqls.uuid),
+          deletedAt
+        )
     }.update.apply()
 
     User(
@@ -147,7 +167,7 @@ object User extends SQLSyntaxSupport[User] {
   }
 
   def save(entity: User)(implicit session: DBSession = autoSession): User = {
-    withSQL { 
+    withSQL {
       update(User).set(
         column.id -> sqls.uuid(entity.id),
         column.name -> entity.name,
@@ -164,11 +184,11 @@ object User extends SQLSyntaxSupport[User] {
         column.deletedAt -> entity.deletedAt
       ).where.eqUuid(column.id, entity.id)
     }.update.apply()
-    entity 
+    entity
   }
-        
+
   def destroy(entity: User)(implicit session: DBSession = autoSession): Unit = {
     withSQL { delete.from(User).where.eq(column.id, entity.id) }.update.apply()
   }
-        
+
 }

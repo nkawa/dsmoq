@@ -1,40 +1,65 @@
 package dsmoq.persistence
 
-import scalikejdbc._
-import org.joda.time.{DateTime}
-import PostgresqlHelper._
+import org.joda.time.DateTime
+
+import PostgresqlHelper.PgSQLSyntaxType
+import scalikejdbc.DBSession
+import scalikejdbc.ResultName
+import scalikejdbc.ResultName
+import scalikejdbc.SQLSyntax
+import scalikejdbc.SQLSyntaxSupport
+import scalikejdbc.SQLSyntaxSupport
+import scalikejdbc.SyntaxProvider
+import scalikejdbc.SyntaxProvider
+import scalikejdbc.WrappedResultSet
+import scalikejdbc.convertJavaSqlTimestampToConverter
+import scalikejdbc.delete
+import scalikejdbc.insert
+import scalikejdbc.scalikejdbcSQLInterpolationImplicitDef
+import scalikejdbc.scalikejdbcSQLSyntaxToStringImplicitDef
+import scalikejdbc.select
+import scalikejdbc.sqls
+import scalikejdbc.update
+import scalikejdbc.withSQL
 
 case class Statistics(
-  id: String,
-  targetMonth: DateTime, 
-  datasetCount: Long, 
-  realSize: Long, 
-  compressedSize: Long, 
-  s3Size: Long, 
-  localSize: Long,
-  statisticsType: Int,
-  createdBy: String,
-  createdAt: DateTime, 
-  updatedBy: String,
-  updatedAt: DateTime, 
-  deletedBy: Option[String] = None,
-  deletedAt: Option[DateTime] = None) {
+    id: String,
+    targetMonth: DateTime,
+    datasetCount: Long,
+    realSize: Long,
+    compressedSize: Long,
+    s3Size: Long,
+    localSize: Long,
+    statisticsType: Int,
+    createdBy: String,
+    createdAt: DateTime,
+    updatedBy: String,
+    updatedAt: DateTime,
+    deletedBy: Option[String] = None,
+    deletedAt: Option[DateTime] = None) {
 
   def save()(implicit session: DBSession = Statistics.autoSession): Statistics = Statistics.save(this)(session)
 
   def destroy()(implicit session: DBSession = Statistics.autoSession): Unit = Statistics.destroy(this)(session)
 
 }
-      
 
 object Statistics extends SQLSyntaxSupport[Statistics] {
 
   override val tableName = "statistics"
 
-  override val columns = Seq("id", "target_month", "dataset_count", "real_size", "compressed_size", "s3_size", "local_size", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at", "statistics_type")
+  override val columns = Seq(
+    "id", "target_month", "dataset_count",
+    "real_size", "compressed_size", "s3_size", "local_size",
+    "created_by", "created_at",
+    "updated_by", "updated_at",
+    "deleted_by", "deleted_at",
+    "statistics_type"
+  )
 
   def apply(s: SyntaxProvider[Statistics])(rs: WrappedResultSet): Statistics = apply(s.resultName)(rs)
-  def apply(s: ResultName[Statistics])(rs: WrappedResultSet): Statistics = new Statistics(
+
+  def apply(s: ResultName[Statistics])(rs: WrappedResultSet): Statistics = Statistics(
     id = rs.string(s.id),
     targetMonth = rs.timestamp(s.targetMonth).toJodaDateTime,
     datasetCount = rs.long(s.datasetCount),
@@ -50,7 +75,7 @@ object Statistics extends SQLSyntaxSupport[Statistics] {
     deletedBy = rs.stringOpt(s.deletedBy),
     deletedAt = rs.timestampOpt(s.deletedAt).map(_.toJodaDateTime)
   )
-      
+
   val s = Statistics.syntax("s")
 
   //override val autoSession = AutoSession
@@ -60,27 +85,27 @@ object Statistics extends SQLSyntaxSupport[Statistics] {
       select.from(Statistics as s).where.eq(s.id, sqls.uuid(id))
     }.map(Statistics(s.resultName)).single.apply()
   }
-          
+
   def findAll()(implicit session: DBSession = autoSession): List[Statistics] = {
     withSQL(select.from(Statistics as s)).map(Statistics(s.resultName)).list.apply()
   }
-          
+
   def countAll()(implicit session: DBSession = autoSession): Long = {
     withSQL(select(sqls"count(1)").from(Statistics as s)).map(rs => rs.long(1)).single.apply().get
   }
-          
+
   def findAllBy(where: SQLSyntax)(implicit session: DBSession = autoSession): List[Statistics] = {
-    withSQL { 
+    withSQL {
       select.from(Statistics as s).where.append(sqls"${where}")
     }.map(Statistics(s.resultName)).list.apply()
   }
-      
+
   def countBy(where: SQLSyntax)(implicit session: DBSession = autoSession): Long = {
-    withSQL { 
+    withSQL {
       select(sqls"count(1)").from(Statistics as s).where.append(sqls"${where}")
     }.map(_.long(1)).single.apply().get
   }
-      
+
   def create(
     id: String,
     targetMonth: DateTime,
@@ -113,21 +138,21 @@ object Statistics extends SQLSyntaxSupport[Statistics] {
         column.deletedBy,
         column.deletedAt
       ).values(
-        sqls.uuid(id),
-        targetMonth,
-        datasetCount,
-        realSize,
-        compressedSize,
-        s3Size,
-        localSize,
-        statisticsType,
-        sqls.uuid(createdBy),
-        createdAt,
-        sqls.uuid(updatedBy),
-        updatedAt,
-        deletedBy.map(sqls.uuid),
-        deletedAt
-      )
+          sqls.uuid(id),
+          targetMonth,
+          datasetCount,
+          realSize,
+          compressedSize,
+          s3Size,
+          localSize,
+          statisticsType,
+          sqls.uuid(createdBy),
+          createdAt,
+          sqls.uuid(updatedBy),
+          updatedAt,
+          deletedBy.map(sqls.uuid),
+          deletedAt
+        )
     }.update.apply()
 
     Statistics(
@@ -168,9 +193,9 @@ object Statistics extends SQLSyntaxSupport[Statistics] {
     }.update.apply()
     entity
   }
-        
+
   def destroy(entity: Statistics)(implicit session: DBSession = autoSession): Unit = {
     withSQL { delete.from(Statistics).where.eq(column.id, sqls.uuid(entity.id)) }.update.apply()
   }
-        
+
 }

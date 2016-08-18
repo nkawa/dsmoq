@@ -1,35 +1,55 @@
 package dsmoq.persistence
 
-import scalikejdbc._
-import scalikejdbc.SQLInterpolation._
-import org.joda.time.{DateTime}
-import PostgresqlHelper._
+import org.joda.time.DateTime
+
+import PostgresqlHelper.PgSQLSyntaxType
+import scalikejdbc.AutoSession
+import scalikejdbc.DBSession
+import scalikejdbc.ResultName
+import scalikejdbc.ResultName
+import scalikejdbc.SQLSyntax
+import scalikejdbc.SQLSyntaxSupport
+import scalikejdbc.SQLSyntaxSupport
+import scalikejdbc.WrappedResultSet
+import scalikejdbc.convertJavaSqlTimestampToConverter
+import scalikejdbc.delete
+import scalikejdbc.insert
+import scalikejdbc.scalikejdbcSQLInterpolationImplicitDef
+import scalikejdbc.scalikejdbcSQLSyntaxToStringImplicitDef
+import scalikejdbc.select
+import scalikejdbc.sqls
+import scalikejdbc.update
+import scalikejdbc.withSQL
 
 case class GoogleUser(
-  id: String, 
-  userId: String, 
-  googleId: String, 
-  createdBy: String, 
-  createdAt: DateTime, 
-  updatedBy: String, 
-  updatedAt: DateTime, 
-  deletedBy: Option[String] = None, 
-  deletedAt: Option[DateTime] = None) {
+    id: String,
+    userId: String,
+    googleId: String,
+    createdBy: String,
+    createdAt: DateTime,
+    updatedBy: String,
+    updatedAt: DateTime,
+    deletedBy: Option[String] = None,
+    deletedAt: Option[DateTime] = None) {
 
   def save()(implicit session: DBSession = GoogleUser.autoSession): GoogleUser = GoogleUser.save(this)(session)
 
   def destroy()(implicit session: DBSession = GoogleUser.autoSession): Unit = GoogleUser.destroy(this)(session)
 
 }
-      
 
 object GoogleUser extends SQLSyntaxSupport[GoogleUser] {
 
   override val tableName = "google_users"
 
-  override val columns = Seq("id", "user_id", "google_id", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
+  override val columns = Seq(
+    "id", "user_id", "google_id",
+    "created_by", "created_at",
+    "updated_by", "updated_at",
+    "deleted_by", "deleted_at"
+  )
 
-  def apply(gu: ResultName[GoogleUser])(rs: WrappedResultSet): GoogleUser = new GoogleUser(
+  def apply(gu: ResultName[GoogleUser])(rs: WrappedResultSet): GoogleUser = GoogleUser(
     id = rs.string(gu.id),
     userId = rs.string(gu.userId),
     googleId = rs.string(gu.googleId),
@@ -40,13 +60,13 @@ object GoogleUser extends SQLSyntaxSupport[GoogleUser] {
     deletedBy = rs.stringOpt(gu.deletedBy),
     deletedAt = rs.timestampOpt(gu.deletedAt).map(_.toJodaDateTime)
   )
-      
+
   val gu = GoogleUser.syntax("gu")
 
   override val autoSession = AutoSession
 
   def find(id: String)(implicit session: DBSession = autoSession): Option[GoogleUser] = {
-    withSQL { 
+    withSQL {
       select.from(GoogleUser as gu).where.eq(gu.id, sqls.uuid(id))
     }.map(GoogleUser(gu.resultName)).single.apply()
   }
@@ -56,27 +76,27 @@ object GoogleUser extends SQLSyntaxSupport[GoogleUser] {
       select.from(GoogleUser as gu).where.eq(gu.userId, sqls.uuid(id))
     }.map(GoogleUser(gu.resultName)).single.apply()
   }
-          
+
   def findAll()(implicit session: DBSession = autoSession): List[GoogleUser] = {
     withSQL(select.from(GoogleUser as gu)).map(GoogleUser(gu.resultName)).list.apply()
   }
-          
+
   def countAll()(implicit session: DBSession = autoSession): Long = {
     withSQL(select(sqls"count(1)").from(GoogleUser as gu)).map(rs => rs.long(1)).single.apply().get
   }
-          
+
   def findAllBy(where: SQLSyntax)(implicit session: DBSession = autoSession): List[GoogleUser] = {
-    withSQL { 
+    withSQL {
       select.from(GoogleUser as gu).where.append(sqls"${where}")
     }.map(GoogleUser(gu.resultName)).list.apply()
   }
-      
+
   def countBy(where: SQLSyntax)(implicit session: DBSession = autoSession): Long = {
-    withSQL { 
+    withSQL {
       select(sqls"count(1)").from(GoogleUser as gu).where.append(sqls"${where}")
     }.map(_.long(1)).single.apply().get
   }
-      
+
   def create(
     id: String,
     userId: String,
@@ -99,16 +119,16 @@ object GoogleUser extends SQLSyntaxSupport[GoogleUser] {
         column.deletedBy,
         column.deletedAt
       ).values(
-        sqls.uuid(id),
-        sqls.uuid(userId),
-        googleId,
-        sqls.uuid(createdBy),
-        createdAt,
-        sqls.uuid(updatedBy),
-        updatedAt,
-        deletedBy.map(sqls.uuid),
-        deletedAt
-      )
+          sqls.uuid(id),
+          sqls.uuid(userId),
+          googleId,
+          sqls.uuid(createdBy),
+          createdAt,
+          sqls.uuid(updatedBy),
+          updatedAt,
+          deletedBy.map(sqls.uuid),
+          deletedAt
+        )
     }.update.apply()
 
     GoogleUser(
@@ -124,7 +144,7 @@ object GoogleUser extends SQLSyntaxSupport[GoogleUser] {
   }
 
   def save(entity: GoogleUser)(implicit session: DBSession = autoSession): GoogleUser = {
-    withSQL { 
+    withSQL {
       update(GoogleUser).set(
         column.id -> entity.id,
         column.userId -> entity.userId,
@@ -137,11 +157,11 @@ object GoogleUser extends SQLSyntaxSupport[GoogleUser] {
         column.deletedAt -> entity.deletedAt
       ).where.eq(column.id, entity.id)
     }.update.apply()
-    entity 
+    entity
   }
-        
+
   def destroy(entity: GoogleUser)(implicit session: DBSession = autoSession): Unit = {
     withSQL { delete.from(GoogleUser).where.eq(column.id, entity.id) }.update.apply()
   }
-        
+
 }

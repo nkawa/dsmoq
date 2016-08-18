@@ -1,6 +1,5 @@
 package dsmoq.services
 
-case class DataSetAttribute (
+case class DataSetAttribute(
   name: String,
-  value: String
-)
+  value: String)

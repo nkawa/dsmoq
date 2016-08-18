@@ -40,7 +40,7 @@ class TaskLogSpec extends Specification {
       // TODO modify something
       val modified = entity
       val updated = TaskLog.save(modified)
-      updated should not equalTo(entity)
+      updated should not equalTo (entity)
     }
     "destroy a record" in new AutoRollback {
       val entity = TaskLog.findAll().head
@@ -51,4 +51,3 @@ class TaskLogSpec extends Specification {
   }
 
 }
-        

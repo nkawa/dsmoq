@@ -4,6 +4,5 @@ object ImageData {
   case class GetFileParams(
     datasetId: String,
     id: String,
-    size: Option[Int]
-  )
+    size: Option[Int])
 }

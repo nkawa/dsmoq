@@ -1,27 +1,40 @@
 package dsmoq.services
 
 import java.net.URLEncoder
-import java.util.ResourceBundle
-import javax.crypto.Mac
-import javax.crypto.spec.SecretKeySpec
-import scala.util.Try
-import scalikejdbc._
 import java.security.MessageDigest
-import dsmoq.ResourceNames
-import dsmoq.persistence
-import dsmoq.persistence.PostgresqlHelper._
-import dsmoq.exceptions._
-import org.joda.time.DateTime
-import java.util.{Base64, UUID}
-import org.scalatra.servlet.FileItem
-import dsmoq.logic.{StringUtil, ImageSaveLogic}
-import dsmoq.persistence.PresetType
+import java.util.Base64
+import java.util.ResourceBundle
+import java.util.UUID
+
 import scala.util.Failure
 import scala.util.Success
-import scala.collection.mutable
+import scala.util.Try
+
+import org.joda.time.DateTime
+import org.scalatra.servlet.FileItem
+import org.slf4j.MarkerFactory
 
 import com.typesafe.scalalogging.LazyLogging
-import org.slf4j.MarkerFactory
+
+import dsmoq.ResourceNames
+import dsmoq.exceptions.BadRequestException
+import dsmoq.exceptions.NotFoundException
+import dsmoq.logic.ImageSaveLogic
+import dsmoq.logic.StringUtil
+import dsmoq.persistence
+import dsmoq.persistence.PostgresqlHelper.PgConditionSQLBuilder
+import dsmoq.persistence.PostgresqlHelper.PgSQLSyntaxType
+import dsmoq.persistence.PresetType
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
+import scalikejdbc.DB
+import scalikejdbc.DBSession
+import scalikejdbc.scalikejdbcSQLInterpolationImplicitDef
+import scalikejdbc.scalikejdbcSQLSyntaxToStringImplicitDef
+import scalikejdbc.select
+import scalikejdbc.sqls
+import scalikejdbc.update
+import scalikejdbc.withSQL
 
 class AccountService(resource: ResourceBundle) extends LazyLogging {
 
@@ -52,7 +65,12 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
       }
     } catch {
       case e: BadRequestException =>
-        logger.error(LOG_MARKER, "Login failed: input validation error occurred, [id] = {}, [error messages] = {}", id, e.getMessage())
+        logger.error(LOG_MARKER,
+          "Login failed: input validation error occurred, [id] = {}, [error messages] = {}",
+          id,
+          e.getMessage(),
+          e
+        )
         Failure(e)
       case t: Throwable =>
         logger.error(LOG_MARKER, "Login failed: error occurred. [id] = {}", id, t)
@@ -72,13 +90,13 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
         .innerJoin(persistence.MailAddress as ma).on(u.id, ma.userId)
         .where
         .withRoundBracket { sql =>
-        sql.eq(u.name, id).or.eq(ma.address, id)
-      }
+          sql.eq(u.name, id).or.eq(ma.address, id)
+        }
         .and
         .eq(p.hash, createPasswordHash(password))
     }
-    .map(rs => (persistence.User(u.resultName)(rs), rs.string(ma.resultName.address))).single().apply
-    .map(x => User(x._1, x._2))
+      .map(rs => (persistence.User(u.resultName)(rs), rs.string(ma.resultName.address))).single().apply
+      .map(x => User(x._1, x._2))
   }
 
   /**
@@ -89,18 +107,19 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
    * @return 更新後のユーザオブジェクト。エラーが発生した場合は例外をFailureで包んで返す。
    *         発生する可能性のある例外は、BadRequestExceptionである。
    */
-  def changeUserEmail(id: String, email: String) = {
+  def changeUserEmail(id: String, email: String): Try[User] = {
     try {
       // Eメールアドレスのフォーマットチェックはしていない
       val trimmedEmail = email.trim
-      
-      DB localTx {implicit s =>
+
+      DB localTx { implicit s =>
         if (isGoogleUser(id)) {
           throw new BadRequestException(resource.getString(ResourceNames.CANT_CHANGE_GOOGLE_USER_EMAIL))
         }
 
         if (existsSameEmail(id, trimmedEmail)) {
-          throw new BadRequestException(resource.getString(ResourceNames.ALREADY_REGISTERED_EMAIL).format(trimmedEmail))
+          val message = resource.getString(ResourceNames.ALREADY_REGISTERED_EMAIL).format(trimmedEmail)
+          throw new BadRequestException(message)
         }
 
         (for {
@@ -135,9 +154,11 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
       select.apply(sqls"1")
         .from(persistence.MailAddress as ma)
         .where
-          .eq(ma.address, email)
-          .and
-          .not.withRoundBracket {sql => sql.eqUuid(ma.userId, id).and.eq(ma.address, email) }
+        .eq(ma.address, email)
+        .and
+        .not.withRoundBracket { sql =>
+          sql.eqUuid(ma.userId, id).and.eq(ma.address, email)
+        }
     }.map(_ => Unit).single().apply.nonEmpty
   }
 
@@ -170,8 +191,9 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
-  private def getCurrentPassword(id: String, currentPassword: String)(implicit s: DBSession): Option[persistence.Password] =
-  {
+  private def getCurrentPassword(
+    id: String,
+    currentPassword: String)(implicit s: DBSession): Option[persistence.Password] = {
     val oldPasswordHash = createPasswordHash(currentPassword)
     val u = persistence.User.u
     val p = persistence.Password.p
@@ -191,8 +213,10 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
     }.map(persistence.Password(p.resultName)).single().apply
   }
 
-  private def updatePassword(id: String, newPassword:String, currentPassword: persistence.Password)(implicit s: DBSession): Int =
-  {
+  private def updatePassword(
+    id: String,
+    newPassword: String,
+    currentPassword: persistence.Password)(implicit s: DBSession): Int = {
     val newPasswordHash = createPasswordHash(newPassword)
     withSQL {
       val p = persistence.Password.column
@@ -205,8 +229,8 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
 
   /**
    * 指定したユーザの基本情報を更新します。
-    *
-    * @param id ユーザID
+   *
+   * @param id ユーザID
    * @param name 名前
    * @param fullname フルネーム
    * @param organization 組織名
@@ -216,11 +240,11 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
    *         発生する可能性のある例外は、NotFoundException、BadRequestExceptionである。
    */
   def updateUserProfile(id: String,
-                        name: Option[String],
-                        fullname: Option[String],
-                        organization: Option[String],
-                        title: Option[String],
-                        description: Option[String]): Try[User]  = {
+    name: Option[String],
+    fullname: Option[String],
+    organization: Option[String],
+    title: Option[String],
+    description: Option[String]): Try[User] = {
     try {
       DB localTx { implicit s =>
         val trimmedName = StringUtil.trimAllSpaces(name.getOrElse(""))
@@ -232,14 +256,21 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
         if (isGoogleUser(id)) {
           // Googleアカウントユーザーはアカウント名の変更禁止(importスクリプトでusersテーブルのname列を使用しているため)
           persistence.User.find(id) match {
-            case None => throw new NotFoundException
-            case Some(x) if x.name != trimmedName => throw new BadRequestException(resource.getString(ResourceNames.CANT_CHANGE_GOOGLE_USER_NAME))
-            case Some(_) => // do nothing
+            case None => {
+              throw new NotFoundException
+            }
+            case Some(x) if x.name != trimmedName => {
+              throw new BadRequestException(resource.getString(ResourceNames.CANT_CHANGE_GOOGLE_USER_NAME))
+            }
+            case Some(_) => {
+              // do nothing
+            }
           }
         }
 
         if (existsSameName(id, trimmedName)) {
-          throw new BadRequestException(resource.getString(ResourceNames.ALREADY_REGISTERED_NAME).format(trimmedName))
+          val message = resource.getString(ResourceNames.ALREADY_REGISTERED_NAME).format(trimmedName)
+          throw new BadRequestException(message)
         }
 
         persistence.User.find(id) match {
@@ -282,7 +313,7 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
    * @return アイコンの画像ID。エラーが発生した場合、例外をFailureで包んで返す。
    *         発生する可能性のある例外は、NotFoundExceptionである。
    */
-  def changeIcon(id: String, icon: FileItem) = {
+  def changeIcon(id: String, icon: FileItem): Try[String] = {
     try {
       DB localTx { implicit s =>
         persistence.User.find(id) match {
@@ -348,16 +379,23 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
           .innerJoin(persistence.ApiKey as ak).on(u.id, ak.userId)
           .innerJoin(persistence.MailAddress as ma).on(u.id, ma.userId)
           .where
-            .eq(ak.apiKey, apiKey)
-            .and
-            .isNull(u.deletedAt)
-            .and
-            .isNull(u.deletedBy)
-            .and
-            .isNull(ak.deletedAt)
-            .and
-            .isNull(ak.deletedBy)
-      }.map(rs => (persistence.User(u.resultName)(rs), rs.string(ak.resultName.apiKey), rs.string(ak.resultName.secretKey), rs.string(ma.resultName.address))).single().apply
+          .eq(ak.apiKey, apiKey)
+          .and
+          .isNull(u.deletedAt)
+          .and
+          .isNull(u.deletedBy)
+          .and
+          .isNull(ak.deletedAt)
+          .and
+          .isNull(ak.deletedBy)
+      }.map { rs =>
+        (
+          persistence.User(u.resultName)(rs),
+          rs.string(ak.resultName.apiKey),
+          rs.string(ak.resultName.secretKey),
+          rs.string(ma.resultName.address)
+        )
+      }.single().apply
 
       targetUser match {
         case Some(user) if getSignature(user._2, user._3) == signature => {

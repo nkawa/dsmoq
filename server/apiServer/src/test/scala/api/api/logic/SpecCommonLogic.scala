@@ -453,16 +453,16 @@ object SpecCommonLogic {
   }
 
   private def deleteAllFile(): Unit =
-  {
-    val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
-    val client = new AmazonS3Client(cre)
-    val l = client.listObjects(AppConf.s3UploadRoot)
+    {
+      val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
+      val client = new AmazonS3Client(cre)
+      val l = client.listObjects(AppConf.s3UploadRoot)
 
-    l.getObjectSummaries.toList.foreach { obj =>
-      client.deleteObject(AppConf.s3UploadRoot, obj.getKey)
+      l.getObjectSummaries.toList.foreach { obj =>
+        client.deleteObject(AppConf.s3UploadRoot, obj.getKey)
+      }
+      l.getCommonPrefixes.toList.foreach { obj =>
+        client.deleteObject(AppConf.s3UploadRoot, obj)
+      }
     }
-    l.getCommonPrefixes.toList.foreach { obj =>
-      client.deleteObject(AppConf.s3UploadRoot, obj)
-    }
-  }
 }

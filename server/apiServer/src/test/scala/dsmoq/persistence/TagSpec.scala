@@ -40,7 +40,7 @@ class TagSpec extends Specification {
       // TODO modify something
       val modified = entity
       val updated = Tag.save(modified)
-      updated should not equalTo(entity)
+      updated should not equalTo (entity)
     }
     "destroy a record" in new AutoRollback {
       val entity = Tag.findAll().head
@@ -51,4 +51,3 @@ class TagSpec extends Specification {
   }
 
 }
-        
