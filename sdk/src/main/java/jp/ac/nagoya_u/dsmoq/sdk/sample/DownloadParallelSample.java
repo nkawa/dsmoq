@@ -19,10 +19,10 @@ import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient;
 /** Range指定を用いて並列でファイルをダウンロードするサンプル */
 public class DownloadParallelSample {
     /** 分割単位 (512MB) */
-    public static long CHUNK_SIZE = 512L * 1024 * 1024;
+    public static final long CHUNK_SIZE = 512L * 1024 * 1024;
 
     /** 最大同時ダウンロード数 */
-    public static int THREAD_NUM = 3;
+    public static final int THREAD_NUM = 3;
 
     public static void main(String[] args) {
         // APIキー、シークレットキーの組み合わせでログインするクライアントを作成する

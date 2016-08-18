@@ -1596,10 +1596,10 @@ public class DsmoqClient {
      */
     private String getSignature(String apiKey, String secretKey) {
         try {
-            SecretKeySpec sk = new SecretKeySpec(secretKey.getBytes(), HASH_ALGORITHM);
+            SecretKeySpec sk = new SecretKeySpec(secretKey.getBytes(DEFAULT_REQUEST_CHARSET), HASH_ALGORITHM);
             Mac mac = Mac.getInstance(HASH_ALGORITHM);
             mac.init(sk);
-            byte[] result = mac.doFinal((apiKey + "&" + secretKey).getBytes());
+            byte[] result = mac.doFinal((apiKey + "&" + secretKey).getBytes(DEFAULT_REQUEST_CHARSET));
             return URLEncoder.encode(Base64.getEncoder().encodeToString(result), DEFAULT_REQUEST_CHARSET.name());
         } catch (Exception e) {
             logger.error(LOG_MARKER, resource.getString(ResourceNames.LOG_ERROR_OCCURED), e.getMessage());
@@ -1704,21 +1704,6 @@ public class DsmoqClient {
     private <T> T put(String url, Consumer<AutoHttpPut> ext, Function<String, T> responseFunc) {
         return send(() -> new AutoHttpPut(_baseUrl + url), ext,
                 (HttpResponse response) -> responseFunc.apply(responseToString(response)));
-    }
-
-    /**
-     * PUTリクエストを送信する。
-     * 
-     * @param url 送信先URL
-     * @param responseFunc レスポンスボディ変換関数
-     * @return 変換結果
-     * @throws HttpStatusException エラーレスポンスが返ってきた場合
-     * @throws TimeoutException 接続がタイムアウトした場合
-     * @throws ConnectionLostException 接続が失敗した、または失われた場合
-     * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
-     */
-    private <T> T put(String url, Function<String, T> responseFunc) {
-        return put(url, (Supplier<HttpEntity>) null, responseFunc);
     }
 
     /**

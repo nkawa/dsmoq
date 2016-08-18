@@ -12,7 +12,7 @@ import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient;
 /** プログレス表示付きのファイルダウンロードのサンプル */
 public class DownloadProgressSample {
     /** 一度に読み込む最大のバイト数 */
-    public static int BUFFER_SIZE = 1024 * 1024;
+    public static final int BUFFER_SIZE = 1024 * 1024;
 
     public static void main(String[] args) {
         // APIキー、シークレットキーの組み合わせでログインするクライアントを作成する

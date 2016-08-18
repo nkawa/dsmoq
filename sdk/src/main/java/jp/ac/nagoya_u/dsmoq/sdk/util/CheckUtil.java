@@ -89,9 +89,12 @@ public class CheckUtil {
      * 
      * @param params チェック対象のコレクション
      * @param position チェック位置(String.formatでチェックに違反した要素のインデックスが入ります)
-     * @throws NullPointerException 引数がnullの場合
+     * @throws NullPointerException コレクション内にnull要素がある場合場合
      */
     public static <T> void requireNotNullAll(Collection<T> params, String position) {
+        if (params == null) {
+            return;
+        }
         int i = 0;
         for (T param : params) {
             requireNotNull(param, String.format(position, i));
@@ -104,9 +107,12 @@ public class CheckUtil {
      * 
      * @param params チェック対象の配列
      * @param position チェック位置(String.formatでチェックに違反した要素のインデックスが入ります)
-     * @throws NullPointerException 引数がnullの場合
+     * @throws NullPointerException 配列内にnull要素がある場合場合
      */
     public static <T> void requireNotNullAll(T[] params, String position) {
+        if (params == null) {
+            return;
+        }
         int i = 0;
         for (T param : params) {
             requireNotNull(param, String.format(position, i));

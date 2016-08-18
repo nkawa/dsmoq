@@ -4,7 +4,6 @@ import java.util.Optional
 
 import jp.ac.nagoya_u.dsmoq.sdk.request.ConvertOptional._
 import scala.beans.BeanProperty
-import scala.language.reflectiveCalls
 
 class GetGroupsParam(
     @BeanProperty var query: Optional[String],

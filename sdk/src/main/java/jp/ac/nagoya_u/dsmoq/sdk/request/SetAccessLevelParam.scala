@@ -7,7 +7,7 @@ import org.json4s.jackson.Serialization
 import org.json4s.jackson.Serialization.write
 import scala.collection.JavaConverters._
 
-case class SetAccessLevelParam(@BeanProperty var id: String, @BeanProperty var ownerType: Int, @BeanProperty var accessLevel: Int) {
+class SetAccessLevelParam(@BeanProperty var id: String, @BeanProperty var ownerType: Int, @BeanProperty var accessLevel: Int) {
   private def param = json.SetAccessLevelJson(id, ownerType, accessLevel)
   def this() = this("", 0, 0)
 }
