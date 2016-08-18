@@ -1,9 +1,19 @@
+import com.etsy.sbt.checkstyle.CheckstylePlugin.autoImport._
+import de.johoop.findbugs4sbt.FindBugs._
+import org.scalastyle.sbt.ScalastylePlugin._
+import sbt.Keys._
 import sbt._
-import Keys._
 
 object DsmoqSdkBuild extends Build {
+  lazy val scalastyleSettings: Seq[Def.Setting[File]] = {
+    val ssc: Def.Initialize[File] = Def.setting(file("../server/project/scalastyle-config.xml"))
+    Seq(
+      scalastyleConfig in Compile := ssc.value,
+      scalastyleConfig in Test := ssc.value
+    )
+  }
+
   val Organization = "dsmoq"
-  val Name = "dsmoq"
   val Version = "1.0.0"
   val ScalaVersion = "2.11.4"
 
@@ -23,16 +33,15 @@ object DsmoqSdkBuild extends Build {
         "" + mod.name + "_" + sv.binary + "-" + mod.revision + "-javadoc.jar")
   )
 
-
-  lazy val project = Project(
-    "dsmoq-sdk",
-    file("."),
-    settings = Defaults.coreDefaultSettings ++ javadocSettings ++ Seq(
+  lazy val sdk = (project in file("."))
+    .settings(Defaults.coreDefaultSettings)
+    .settings(
       organization := Organization,
       name := "dsmoq-sdk",
       version := Version,
       resolvers += Classpaths.typesafeReleases,
       scalaVersion := ScalaVersion,
+      scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
       javacOptions ++= Seq("-encoding", "UTF-8"),
       libraryDependencies ++= Seq(
         "org.apache.httpcomponents" % "httpclient" % "4.3.6",
@@ -47,5 +56,11 @@ object DsmoqSdkBuild extends Build {
       ),
       parallelExecution in Test := false
     )
-  )
+    .settings(scalastyleSettings)
+    .settings(findbugsSettings)
+    .settings(
+      findbugsReportPath := Some(target.value / "findbugs-report.xml"),
+      checkstyleConfigLocation := CheckstyleConfigLocation.File("project/checkstyle_checks.xml")
+    )
+    .settings(javadocSettings)
 }
