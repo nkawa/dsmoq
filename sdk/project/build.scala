@@ -44,15 +44,16 @@ object DsmoqSdkBuild extends Build {
       scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
       javacOptions ++= Seq("-encoding", "UTF-8"),
       libraryDependencies ++= Seq(
-        "org.apache.httpcomponents" % "httpclient" % "4.3.6",
-        "org.apache.httpcomponents" % "httpmime" % "4.3.6",
-        "org.json4s" %% "json4s-jackson" % "3.2.10",
         "com.fasterxml.jackson.core" % "jackson-databind" % "2.4.4",
-        "junit" % "junit" % "4.12",
-        "joda-time" % "joda-time" % "2.7",
+        "com.novocode" % "junit-interface" % "0.11",
         "com.typesafe" % "config" % "1.3.0",
         "com.typesafe.scala-logging" % "scala-logging_2.11" % "3.1.0" % "compile",
-        "com.novocode" % "junit-interface" % "0.11"
+        "joda-time" % "joda-time" % "2.7",
+        "junit" % "junit" % "4.12",
+        "org.apache.httpcomponents" % "httpclient" % "4.3.6",
+        "org.apache.httpcomponents" % "httpmime" % "4.3.6",
+        "org.joda" % "joda-convert" % "1.7",
+        "org.json4s" %% "json4s-jackson" % "3.2.10"
       ),
       parallelExecution in Test := false
     )

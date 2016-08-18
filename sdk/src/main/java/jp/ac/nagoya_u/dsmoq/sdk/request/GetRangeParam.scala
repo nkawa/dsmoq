@@ -4,6 +4,7 @@ import java.util.Optional
 
 import jp.ac.nagoya_u.dsmoq.sdk.request.ConvertOptional._
 import scala.beans.BeanProperty
+import scala.language.reflectiveCalls
 
 case class GetRangeParam(@BeanProperty var offset: Optional[Integer], @BeanProperty var limit: Optional[Integer]) {
   private def param = {
