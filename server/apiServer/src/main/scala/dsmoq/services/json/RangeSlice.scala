@@ -5,9 +5,11 @@ package dsmoq.services.json
  */
 case class RangeSlice[A](
   summary: RangeSliceSummary,
-  results: Seq[A])
+  results: Seq[A]
+)
 
 case class RangeSliceSummary(
   total: Int,
   count: Int = 20,
-  offset: Int = 0)
+  offset: Int = 0
+)

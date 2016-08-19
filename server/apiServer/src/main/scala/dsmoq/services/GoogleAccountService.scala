@@ -46,8 +46,11 @@ class GoogleAccountService(resource: ResourceBundle) extends LazyLogging {
   val LOG_MARKER = MarkerFactory.getMarker("AUTH_LOG")
 
   def getOAuthUrl(location: String): String = {
-    new GoogleAuthorizationCodeRequestUrl(AppConf.clientId, AppConf.callbackUrl, AppConf.scopes)
-      .setState(location).toURL.toString
+    new GoogleAuthorizationCodeRequestUrl(
+      AppConf.clientId,
+      AppConf.callbackUrl,
+      AppConf.scopes
+    ).setState(location).toURL.toString
   }
 
   /**
@@ -100,8 +103,8 @@ class GoogleAccountService(resource: ResourceBundle) extends LazyLogging {
   }
 
   def getUser(googleAccount: Userinfoplus): Try[User] = {
-    try {
-      DB localTx { implicit s =>
+    Try {
+      DB.localTx { implicit s =>
         val u = persistence.User.u
         val gu = persistence.GoogleUser.gu
 
@@ -112,14 +115,15 @@ class GoogleAccountService(resource: ResourceBundle) extends LazyLogging {
             .where
             .eq(gu.googleId, googleAccount.getId)
         }
-          .map(persistence.User(u.resultName)).single().apply
+          .map(persistence.User(u.resultName)).single.apply()
           .map(x => User(x, googleAccount.getEmail))
 
         val user = googleUser match {
-          case Some(x) =>
+          case Some(x) => {
             updateUser(x, googleAccount)
             x
-          case None =>
+          }
+          case None => {
             // ユーザー登録バッチで追加されたユーザーかチェック
             val importUser = withSQL {
               select(u.result.*)
@@ -130,27 +134,27 @@ class GoogleAccountService(resource: ResourceBundle) extends LazyLogging {
                 .and
                 .eq(u.name, googleAccount.getEmail)
             }
-              .map(persistence.User(u.resultName)).single().apply
+              .map(persistence.User(u.resultName)).single.apply()
               .map(x => User(x, googleAccount.getEmail))
 
             importUser match {
-              case Some(x) =>
+              case None => {
+                createUser(googleAccount)
+              }
+              case Some(x) => {
                 updateGoogleUser(x, googleAccount)
                 x
-              case None => createUser(googleAccount)
+              }
             }
+          }
         }
-
         logger.info(LOG_MARKER,
           "Login successed: [id] = {}, [email] = {}",
           googleAccount.getId,
           googleAccount.getEmail
         )
-
-        Success(user)
+        user
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -161,17 +165,20 @@ class GoogleAccountService(resource: ResourceBundle) extends LazyLogging {
       new JacksonFactory(),
       AppConf.clientId,
       AppConf.clientSecret,
-      AppConf.scopes)
-    val tokenResponse = flow.newTokenRequest(authenticationCode)
-      .setRedirectUri(AppConf.callbackUrl).execute()
+      AppConf.scopes
+    )
+    val tokenResponse = flow
+      .newTokenRequest(authenticationCode)
+      .setRedirectUri(AppConf.callbackUrl)
+      .execute()
     val credential = flow.createAndStoreCredential(tokenResponse, null)
 
     // Google APIを使用してユーザー情報取得
     val oauth2 = new Oauth2.Builder(
       credential.getTransport,
       credential.getJsonFactory,
-      credential)
-      .setApplicationName(AppConf.applicationName).build()
+      credential
+    ).setApplicationName(AppConf.applicationName).build()
 
     oauth2.userinfo().get().execute()
   }
@@ -252,7 +259,7 @@ class GoogleAccountService(resource: ResourceBundle) extends LazyLogging {
         )
         .where
         .eq(u.id, sqls.uuid(user.id))
-    }.update().apply
+    }.update.apply()
   }
 
   private def getGoogleUser(user: User)(implicit s: DBSession): GoogleUser = {
@@ -265,7 +272,7 @@ class GoogleAccountService(resource: ResourceBundle) extends LazyLogging {
         .and
         .isNull(gu.deletedAt)
     }
-      .map(persistence.GoogleUser(gu.resultName)).single().apply.get
+      .map(persistence.GoogleUser(gu.resultName)).single.apply().get
   }
 
   private def updateGoogleUser(user: User, googleAccount: Userinfoplus)(implicit s: DBSession): Int = {
@@ -282,6 +289,6 @@ class GoogleAccountService(resource: ResourceBundle) extends LazyLogging {
         )
         .where
         .eq(gu.id, sqls.uuid(googleUser.id))
-    }.update().apply
+    }.update.apply()
   }
 }

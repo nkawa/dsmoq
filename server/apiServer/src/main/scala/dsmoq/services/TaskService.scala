@@ -23,17 +23,14 @@ object TaskService {
    *        Failure(NotFoundException) タスクが見つからない場合
    */
   def getStatus(taskId: String): Try[TaskStatus] = {
-    try {
+    Try {
       CheckUtil.checkNull(taskId, "taskId")
-      DB readOnly { implicit s =>
-        val task = persistence.Task.find(taskId) match {
-          case None => throw new NotFoundException
-          case Some(x) => x
+      DB.readOnly { implicit s =>
+        val task = persistence.Task.find(taskId).getOrElse {
+          throw new NotFoundException
         }
-        Success(TaskStatus(task.status, task.createdBy, task.createdAt.toString()))
+        TaskStatus(task.status, task.createdBy, task.createdAt.toString())
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 }

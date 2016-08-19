@@ -8,7 +8,8 @@ object GroupData {
     description: String,
     image: String,
     members: Int,
-    datasets: Int)
+    datasets: Int
+  )
 
   case class Group(
     id: String,
@@ -18,7 +19,8 @@ object GroupData {
     primaryImage: String,
     isMember: Boolean,
     role: Int,
-    providedDatasetCount: Int)
+    providedDatasetCount: Int
+  )
 
   case class MemberSummary(
     id: String,
@@ -28,7 +30,8 @@ object GroupData {
     title: String,
     description: String,
     image: String,
-    role: Int)
+    role: Int
+  )
 
   /**
    * グループに追加したメンバーを返却するために使用するJSON型
@@ -36,13 +39,15 @@ object GroupData {
    * @param ownerships メンバーに追加したユーザのリスト
    */
   case class AddMembers(
-    ownerships: Seq[MemberSummary])
+    ownerships: Seq[MemberSummary]
+  )
 
   case class AddMember(
     id: String,
     name: String,
     organization: String,
-    role: Int)
+    role: Int
+  )
 
   /**
    * グループに追加した画像を返却するためのJSON型
@@ -52,19 +57,23 @@ object GroupData {
    */
   case class GroupAddImages(
     images: Seq[GroupGetImage],
-    primaryImage: String)
+    primaryImage: String
+  )
 
   case class GroupDeleteImage(
-    primaryImage: String)
+    primaryImage: String
+  )
   case class GroupGetImage(
     id: String,
     name: String,
     url: String,
-    isPrimary: Boolean)
+    isPrimary: Boolean
+  )
   /**
    * グループに設定した画像IDを返却するためのJSON型
    * @param imageId 画像ID
    */
   case class ChangeGroupImage(
-    imageId: String)
+    imageId: String
+  )
 }

@@ -41,15 +41,12 @@ object SystemService extends LazyLogging {
    * @return エラーが発生した場合は、例外をFailureに包んで返却する。
    */
   def writeDatasetAccessLog(datasetId: String, user: User): Try[Unit] = {
-    try {
-      DB localTx { implicit s =>
+    Try {
+      DB.localTx { implicit s =>
         if (persistence.Dataset.find(datasetId).nonEmpty) {
           persistence.DatasetAccessLog.create(UUID.randomUUID().toString, datasetId, user.id, DateTime.now)
         }
       }
-      Success(Unit)
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -59,18 +56,16 @@ object SystemService extends LazyLogging {
    * @return ライセンスの一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
    */
   def getLicenses(): Try[Seq[dsmoq.services.json.License]] = {
-    try {
-      val licenses = DB readOnly { implicit s =>
+    Try {
+      val licenses = DB.readOnly { implicit s =>
         persistence.License.findOrderedAll()
       }
-      Success(licenses.map(x =>
+      licenses.map { x =>
         dsmoq.services.json.License(
           id = x.id,
           name = x.name
-        ))
-      )
-    } catch {
-      case e: Throwable => Failure(e)
+        )
+      }
     }
   }
 
@@ -80,8 +75,8 @@ object SystemService extends LazyLogging {
    * @return ユーザの一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
    */
   def getAccounts(): Try[Seq[User]] = {
-    try {
-      val result = DB readOnly { implicit s =>
+    Try {
+      DB.readOnly { implicit s =>
         val u = persistence.User.u
         val ma = persistence.MailAddress.ma
         withSQL {
@@ -93,12 +88,11 @@ object SystemService extends LazyLogging {
             .and
             .isNull(ma.deletedAt)
             .orderBy(u.name)
-        }.map(rs => (persistence.User(u.resultName)(rs), rs.string(ma.resultName.address))).list().apply
+        }.map(rs => (persistence.User(u.resultName)(rs), rs.string(ma.resultName.address)))
+          .list
+          .apply()
           .map(x => User(x._1, x._2))
       }
-      Success(result)
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -119,8 +113,8 @@ object SystemService extends LazyLogging {
       offset,
       limit
     )
-    try {
-      DB readOnly { implicit s =>
+    Try {
+      DB.readOnly { implicit s =>
         val u = persistence.User.u // TB: users
         val ma = persistence.MailAddress.ma // TB: mail_addresses
 
@@ -159,7 +153,7 @@ object SystemService extends LazyLogging {
             .orderBy(sqls"name")
             .offset(offset.getOrElse(0))
             .limit(limit.getOrElse(100))
-        }.map(persistence.User(u.resultName)(_)).list().apply.map { x =>
+        }.map(persistence.User(u.resultName)(_)).list.apply().map { x =>
           SuggestData.User(
             id = x.id,
             name = x.name,
@@ -178,10 +172,8 @@ object SystemService extends LazyLogging {
           limit.getOrElse(0).toString
         )
         logger.debug(LOG_MARKER_USER_GROUP, "getUsers: end : [result] = {}", result)
-        Success(result)
+        result
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -195,7 +187,7 @@ object SystemService extends LazyLogging {
    * @return グループ一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
    */
   def getGroups(query: Option[String], limit: Option[Int], offset: Option[Int]): Try[Seq[SuggestData.Group]] = {
-    try {
+    Try {
       val escapedQuery = query match {
         case Some(x) => x.replaceAll("%", "\\\\%").replaceAll("_", "\\\\_") + "%"
         case None => ""
@@ -203,7 +195,7 @@ object SystemService extends LazyLogging {
 
       val g = persistence.Group.g
       val gi = persistence.GroupImage.gi
-      val result = DB readOnly { implicit s =>
+      DB.readOnly { implicit s =>
         withSQL {
           select(g.result.*, gi.result.*)
             .from(persistence.Group as g)
@@ -218,7 +210,7 @@ object SystemService extends LazyLogging {
             .orderBy(g.name, g.createdAt).desc
             .offset(offset.getOrElse(0))
             .limit(limit.getOrElse(100))
-        }.map(rs => (persistence.Group(g.resultName)(rs), persistence.GroupImage(gi.resultName)(rs))).list().apply
+        }.map(rs => (persistence.Group(g.resultName)(rs), persistence.GroupImage(gi.resultName)(rs))).list.apply()
           .map { x =>
             SuggestData.Group(
               id = x._1.id,
@@ -227,9 +219,6 @@ object SystemService extends LazyLogging {
             )
           }
       }
-      Success(result)
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -248,7 +237,8 @@ object SystemService extends LazyLogging {
     param: Option[String],
     limit: Option[Int],
     offset: Option[Int],
-    excludeIds: Seq[String]): Try[Seq[Any]] = {
+    excludeIds: Seq[String]
+  ): Try[Seq[SuggestData.WithType]] = {
     logger.debug(LOG_MARKER_USER_GROUP,
       "getUsersAndGroups: start : [param] = {}, [offset] = {}, [limit] = {}, [excludeIds] = {}",
       param,
@@ -260,8 +250,8 @@ object SystemService extends LazyLogging {
       case Some(x) => x.replaceAll("%", "\\\\%").replaceAll("_", "\\\\_") + "%"
       case None => "%"
     }
-    try {
-      DB readOnly { implicit s =>
+    Try {
+      DB.readOnly { implicit s =>
         val u = persistence.User.u // TB: users
         val ma = persistence.MailAddress.ma // TB: mail_addresses
         val g = persistence.Group.g // TB: groups
@@ -320,29 +310,40 @@ object SystemService extends LazyLogging {
             .orderBy(sqls"name")
             .offset(offset.getOrElse(0))
             .limit(limit.getOrElse(100))
-        }.map(rs => (rs.string(persistence.User.id),
-          rs.string(persistence.User.name),
-          rs.string(persistence.User.imageId),
-          rs.string(persistence.User.fullname),
-          rs.string(persistence.User.organization),
-          rs.int("type"))).list().apply
-          .map { x =>
-            if (x._6 == SuggestType.User) {
+        }.map { rs =>
+          (
+            rs.string(persistence.User.id),
+            rs.string(persistence.User.name),
+            rs.string(persistence.User.imageId),
+            rs.string(persistence.User.fullname),
+            rs.string(persistence.User.organization),
+            rs.int("type")
+          )
+        }.list.apply().flatMap {
+          case (id, name, imageId, fullname, organization, SuggestType.User) => {
+            Some(
               SuggestData.UserWithType(
-                id = x._1,
-                name = x._2,
-                fullname = x._4,
-                organization = x._5,
-                image = userImageDownloadRoot + x._1 + "/" + x._3
+                id = id,
+                name = name,
+                fullname = fullname,
+                organization = organization,
+                image = userImageDownloadRoot + id + "/" + imageId
               )
-            } else if (x._6 == SuggestType.Group) {
-              SuggestData.GroupWithType(
-                id = x._1,
-                name = x._2,
-                image = groupImageDownloadRoot + x._1 + "/" + x._3
-              )
-            }
+            )
           }
+          case (id, name, imageId, fullname, organization, SuggestType.Group) => {
+            Some(
+              SuggestData.GroupWithType(
+                id = id,
+                name = name,
+                image = groupImageDownloadRoot + id + "/" + imageId
+              )
+            )
+          }
+          case _ => {
+            None
+          }
+        }
         logger.info(LOG_MARKER_USER_GROUP,
           "getUsersAndGroups: [result size] = {} : [param] = {}, [offset] = {}, [limit] = {}, [excludeIds] = {}",
           result.size.toString,
@@ -352,10 +353,8 @@ object SystemService extends LazyLogging {
           excludeIds
         )
         logger.debug(LOG_MARKER_USER_GROUP, "getUsersAndGroups: end : [result] = {}", result)
-        Success(result)
+        result
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -369,10 +368,10 @@ object SystemService extends LazyLogging {
    * @return 属性の一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
    */
   def getAttributes(query: Option[String], limit: Option[Int], offset: Option[Int]): Try[Seq[String]] = {
-    try {
+    Try {
       val a = persistence.Annotation.a
-      DB readOnly { implicit s =>
-        val attributes = withSQL {
+      DB.readOnly { implicit s =>
+        withSQL {
           select.apply[Any](a.result.*)
             .from(persistence.Annotation as a)
             .where
@@ -386,11 +385,8 @@ object SystemService extends LazyLogging {
             .orderBy(a.name)
             .offset(offset.getOrElse(0))
             .limit(offset.getOrElse(100))
-        }.map(rs => rs.string(a.resultName.name)).list().apply
-        Success(attributes)
+        }.map(rs => rs.string(a.resultName.name)).list.apply
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -400,8 +396,8 @@ object SystemService extends LazyLogging {
    * @return タグの一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
    */
   def getTags(): Try[Seq[TagDetail]] = {
-    try {
-      val result = DB readOnly { implicit s =>
+    Try {
+      DB.readOnly { implicit s =>
         val t = persistence.Tag.t
         withSQL {
           select
@@ -411,13 +407,10 @@ object SystemService extends LazyLogging {
             .and
             .isNull(t.deletedAt)
             .orderBy(t.tag)
-        }.map(persistence.Tag(t.resultName)).list().apply().map { x =>
+        }.map(persistence.Tag(t.resultName)).list.apply().map { x =>
           TagDetail(x.tag, x.color)
         }
       }
-      Success(result)
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -427,18 +420,15 @@ object SystemService extends LazyLogging {
    * @return メッセージの文字列。エラーが発生した場合は、例外をFailureに包んで返却する。
    */
   def getMessage(): Try[String] = {
-    try {
+    Try {
       val file = Paths.get(AppConf.messageDir, "message.txt").toFile
-      val result = if (file.exists()) {
+      if (file.exists()) {
         val resource = Resource.fromFile(file)
         resource.string
       } else {
         // ファイルが存在していない場合は空文字を返す
         ""
       }
-      Success(result)
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 }

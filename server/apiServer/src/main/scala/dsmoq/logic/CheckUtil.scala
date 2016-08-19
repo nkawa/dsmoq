@@ -81,7 +81,7 @@ class CheckUtil(resource: ResourceBundle) extends LazyLogging {
       val message = resource.getString(ResourceNames.EMPTY).format(name)
       Failure(new InputCheckException(name, message, false))
     } else {
-      Success(Unit)
+      Success(())
     }
   }
 
@@ -96,7 +96,7 @@ class CheckUtil(resource: ResourceBundle) extends LazyLogging {
    */
   def contains[T](name: String, value: T, elements: Seq[T]): Try[Unit] = {
     if (elements.contains(value)) {
-      Success(Unit)
+      Success(())
     } else {
       logger.error(LOG_MARKER, "contains check failed: name:{}, value:{}", name, value.toString)
       val message = resource.getString(ResourceNames.NOT_CONTAINS_RANGE).format(name, value.toString)
@@ -115,7 +115,7 @@ class CheckUtil(resource: ResourceBundle) extends LazyLogging {
    */
   def contains(name: String, value: Option[String], elements: Seq[String]): Try[Unit] = {
     value match {
-      case None => Success(Unit)
+      case None => Success(())
       case Some(v) => contains(name, v, elements)
     }
   }
@@ -131,7 +131,7 @@ class CheckUtil(resource: ResourceBundle) extends LazyLogging {
    */
   def invoke(name: String, invoker: => Boolean, message: String): Try[Unit] = {
     if (invoker) {
-      Success(Unit)
+      Success(())
     } else {
       logger.error(LOG_MARKER, "invoke check failed: name:{}, message:{}", name, message)
       Failure(new InputCheckException(name, message, false))

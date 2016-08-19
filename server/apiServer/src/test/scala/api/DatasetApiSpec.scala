@@ -3383,7 +3383,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   }
 
   private def changeStorageState(id: String, local: Int, s3: Int): Unit = {
-    DB localTx { implicit s =>
+    DB.localTx { implicit s =>
       dsmoq.persistence.Dataset.find(id).get.copy(
         localState = local,
         s3State = s3
@@ -3397,7 +3397,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           )
           .where
           .eqUuid(c.datasetId, id)
-      }.update.apply
+      }.update.apply()
     }
   }
   private def flattenFilePath(file: File): List[File] = file match {

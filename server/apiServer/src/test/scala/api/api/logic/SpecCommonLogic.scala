@@ -23,7 +23,7 @@ object SpecCommonLogic {
   def insertDummyData() {
     val ts = DateTime.now
     // user1 create
-    DB localTx { implicit s =>
+    DB.localTx { implicit s =>
       persistence.User.create(
         id = "023bfa40-e897-4dad-96db-9fd3cf001e79",
         name = "dummy1",
@@ -262,7 +262,7 @@ object SpecCommonLogic {
   }
 
   def deleteAllCreateData() {
-    DB localTx { implicit s =>
+    DB.localTx { implicit s =>
       //  テーブルにinsertしたデータ削除(licenses, images以外)
       deleteAllData(deleteFrom(persistence.Annotation))
       deleteAllData(deleteFrom(persistence.DatasetAnnotation))
@@ -288,7 +288,7 @@ object SpecCommonLogic {
         deleteFrom(persistence.Image as i)
           .where
           .notInUuid(i.id, presetImageIds)
-      }.update().apply
+      }.update.apply()
 
       // ファイル/画像の削除
       val fileDirs = new java.io.File(AppConf.fileDir).listFiles()
@@ -439,7 +439,7 @@ object SpecCommonLogic {
   private def deleteAllData(query: SQLBuilder[UpdateOperation])(implicit s: DBSession) {
     withSQL {
       query
-    }.update().apply
+    }.update.apply()
   }
 
   private def deleteFile(path: String) {

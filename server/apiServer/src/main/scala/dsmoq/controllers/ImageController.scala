@@ -15,8 +15,7 @@ import dsmoq.exceptions.AccessDeniedException
 import dsmoq.exceptions.NotFoundException
 import dsmoq.services.ImageService
 
-class ImageController(val resource: ResourceBundle)
-  extends ScalatraServlet with LazyLogging with AuthTrait {
+class ImageController(val resource: ResourceBundle) extends ScalatraServlet with LazyLogging with AuthTrait {
 
   /**
    * ImageServiceのインスタンス

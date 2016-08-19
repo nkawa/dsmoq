@@ -15,15 +15,15 @@ import scalikejdbc.withSQL
 object StatisticsService {
 
   def getStatistics(from: Option[DateTime], to: Option[DateTime]): Try[Seq[StatisticsDetail]] = {
-    try {
-      DB readOnly { implicit s =>
+    Try {
+      DB.readOnly { implicit s =>
         val now = DateTime.now
         // 2015/10/22 -> 2015/10/1
         val from_ = from.map(x => new DateTime(x.getYear, x.getMonthOfYear, 1, 0, 0))
         // 2015/11/23 -> 2015/12/1
         val to_ = to.map(x => new DateTime(x.getYear, x.getMonthOfYear, 1, 0, 0))
         val sta = persistence.Statistics.s
-        val stats = if (from.isDefined && to_.isDefined) {
+        if (from.isDefined && to_.isDefined) {
           withSQL {
             select
               .from(persistence.Statistics as sta)
@@ -60,10 +60,7 @@ object StatisticsService {
             )
           }
         }
-        Success(stats)
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 }

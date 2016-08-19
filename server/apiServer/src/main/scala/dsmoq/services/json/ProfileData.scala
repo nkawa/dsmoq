@@ -11,7 +11,8 @@ case class ProfileData(
   description: String,
   isGuest: Boolean,
   isDeleted: Boolean,
-  isGoogleUser: Boolean)
+  isGoogleUser: Boolean
+)
 
 object ProfileData {
   def apply(x: dsmoq.services.User, isGoogleUser: Boolean): ProfileData = {

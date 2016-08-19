@@ -133,7 +133,7 @@ class MockController extends ScalatraServlet with SessionTrait {
 
     // ユーザーがなければユーザー作成、ユーザー情報を引きセッション作成etc
     // やっつけ mail_addressesとはjoinしていない また、tryでくくる必要あり
-    val result = DB readOnly { implicit session =>
+    val result = DB.readOnly { implicit session =>
       sql"""
         SELECT
           users.*
@@ -145,7 +145,7 @@ class MockController extends ScalatraServlet with SessionTrait {
           users.id = google_users.user_id
         WHERE
           google_users.google_user_id = ${user.getId}
-      """.map(_.toMap()).single().apply()
+      """.map(_.toMap()).single.apply()
     }
 
     val currentUser = result match {
@@ -166,7 +166,7 @@ class MockController extends ScalatraServlet with SessionTrait {
       case None =>
         // ユーザー作成
         val timestamp = DateTime.now()
-        val aaa = DB localTx {
+        val aaa = DB.localTx {
           implicit s =>
             // uuid case helperがなかったので暫定的にModel修正(自動生成時に何とかなるのか？)
             val username = user.getEmail split '@'
@@ -206,7 +206,7 @@ class MockController extends ScalatraServlet with SessionTrait {
               UUID(${AppConf.systemUserId}),
               ${timestamp}
             )
-            """.update().apply()
+            """.update.apply()
             // groupの作成
             val g = persistence.Group.create(
               id = UUID.randomUUID.toString,

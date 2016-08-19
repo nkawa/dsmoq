@@ -64,11 +64,12 @@ class GroupService(resource: ResourceBundle) {
     member: Option[String] = None,
     limit: Option[Int] = None,
     offset: Option[Int] = None,
-    user: User): Try[RangeSlice[GroupData.GroupsSummary]] = {
+    user: User
+  ): Try[RangeSlice[GroupData.GroupsSummary]] = {
     Try {
       val offset_ = offset.getOrElse(0)
       val limit_ = limit.getOrElse(20)
-      DB readOnly { implicit s =>
+      DB.readOnly { implicit s =>
         val count = countGroup(query, member)
         val result = if (count > 0) {
           val groups = selectGroup(query, member, limit_, offset_)
@@ -104,26 +105,28 @@ class GroupService(resource: ResourceBundle) {
     val g = persistence.Group.g
     withSQL {
       createGroupSelectSql(select.apply(sqls.countDistinct(g.id)), query, member)
-    }.map(rs => rs.int(1)).single().apply.get
+    }.map(rs => rs.int(1)).single.apply().get
   }
 
   private def selectGroup(
     query: Option[String],
     member: Option[String],
     limit: Int,
-    offset: Int)(implicit s: DBSession): Seq[persistence.Group] = {
+    offset: Int
+  )(implicit s: DBSession): Seq[persistence.Group] = {
     val g = persistence.Group.g
     withSQL {
       createGroupSelectSql(select.apply(sqls.distinct(g.resultAll)), query, member)
         .orderBy(g.updatedAt).desc
         .limit(limit).offset(offset)
-    }.map(rs => persistence.Group(g.resultName)(rs)).list().apply
+    }.map(rs => persistence.Group(g.resultName)(rs)).list.apply()
   }
 
   private def createGroupSelectSql[A](
     builder: SelectSQLBuilder[A],
     query: Option[String],
-    member: Option[String]): ConditionSQLBuilder[A] = {
+    member: Option[String]
+  ): ConditionSQLBuilder[A] = {
     val g = persistence.Group.g
     val m = persistence.Member.m
     builder
@@ -157,15 +160,15 @@ class GroupService(resource: ResourceBundle) {
    * @return
    */
   def get(groupId: String, user: User): Try[GroupData.Group] = {
-    try {
-      DB readOnly { implicit s =>
+    Try {
+      DB.readOnly { implicit s =>
         val group = getGroup(groupId)
         val images = getGroupImage(group.id)
         val primaryImage = getGroupPrimaryImageId(group.id)
         val groupRole = getGroupRole(user, group.id)
-        val datasetCount = countDatasets(List(groupId)).get(groupId).getOrElse(0)
+        val datasetCount = countDatasets(Seq(groupId)).get(groupId).getOrElse(0)
 
-        Success(GroupData.Group(
+        GroupData.Group(
           id = group.id,
           name = group.name,
           description = group.description,
@@ -174,16 +177,11 @@ class GroupService(resource: ResourceBundle) {
             url = groupImageDownloadRoot + group.id + "/" + x.id
           )),
           primaryImage = primaryImage.getOrElse(""),
-          isMember = groupRole match {
-            case Some(x) => true
-            case None => false
-          },
+          isMember = groupRole.isDefined,
           role = groupRole.getOrElse(0),
           providedDatasetCount = datasetCount
-        ))
+        )
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -199,12 +197,13 @@ class GroupService(resource: ResourceBundle) {
     groupId: String,
     limit: Option[Int],
     offset: Option[Int],
-    user: User): Try[RangeSlice[GroupData.MemberSummary]] = {
-    try {
+    user: User
+  ): Try[RangeSlice[GroupData.MemberSummary]] = {
+    Try {
       val limit_ = limit.getOrElse(20)
       val offset_ = offset.getOrElse(0)
 
-      DB readOnly { implicit s =>
+      DB.readOnly { implicit s =>
         getGroup(groupId)
         val count = countMembers(groupId)
         val members = if (count > 0) {
@@ -221,13 +220,11 @@ class GroupService(resource: ResourceBundle) {
             )
           }
         } else {
-          List.empty
+          Seq.empty
         }
 
-        Success(RangeSlice(RangeSliceSummary(count, limit_, offset_), members))
+        RangeSlice(RangeSliceSummary(count, limit_, offset_), members)
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -239,8 +236,8 @@ class GroupService(resource: ResourceBundle) {
    * @return
    */
   def createGroup(name: String, description: String, user: User): Try[GroupData.Group] = {
-    try {
-      DB localTx { implicit s =>
+    Try {
+      DB.localTx { implicit s =>
         val trimmedName = StringUtil.trimAllSpaces(name)
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -283,7 +280,7 @@ class GroupService(resource: ResourceBundle) {
           updatedAt = timestamp
         )
 
-        Success(GroupData.Group(
+        GroupData.Group(
           id = group.id,
           name = group.name,
           description = group.description,
@@ -295,10 +292,8 @@ class GroupService(resource: ResourceBundle) {
           isMember = true,
           role = persistence.GroupMemberRole.Manager,
           providedDatasetCount = 0
-        ))
+        )
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -314,7 +309,7 @@ class GroupService(resource: ResourceBundle) {
         .and
         .isNull(g.deletedAt)
         .limit(1)
-    }.map(_ => Unit).single().apply.isDefined
+    }.map(_ => ()).single.apply().isDefined
   }
 
   /**
@@ -331,12 +326,12 @@ class GroupService(resource: ResourceBundle) {
    *        Failure(BadRequestException) 同名のグループが既に登録されている場合
    */
   def updateGroup(groupId: String, name: String, description: String, user: User): Try[GroupData.Group] = {
-    try {
+    Try {
       CheckUtil.checkNull(groupId, "groupId")
       CheckUtil.checkNull(name, "name")
       CheckUtil.checkNull(description, "description")
       CheckUtil.checkNull(user, "user")
-      DB localTx { implicit s =>
+      DB.localTx { implicit s =>
         val group = getGroup(groupId)
         val trimmedName = StringUtil.trimAllSpaces(name)
         if (!isGroupAdministrator(user, groupId)) {
@@ -355,7 +350,7 @@ class GroupService(resource: ResourceBundle) {
         val primaryImage = getGroupPrimaryImageId(groupId)
         val datasetCount = countDatasets(List(groupId)).get(groupId).getOrElse(0)
 
-        Success(GroupData.Group(
+        GroupData.Group(
           id = group.id,
           name = trimmedName,
           description = description,
@@ -367,10 +362,8 @@ class GroupService(resource: ResourceBundle) {
           isMember = true,
           role = getGroupRole(user, group.id).getOrElse(0),
           providedDatasetCount = datasetCount
-        ))
+        )
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -379,7 +372,8 @@ class GroupService(resource: ResourceBundle) {
     name: String,
     description: String,
     myself: persistence.User,
-    timestamp: DateTime)(implicit s: DBSession): Int = {
+    timestamp: DateTime
+  )(implicit s: DBSession): Int = {
     withSQL {
       val g = persistence.Group.column
       update(persistence.Group)
@@ -393,7 +387,7 @@ class GroupService(resource: ResourceBundle) {
         .eq(g.id, sqls.uuid(groupId))
         .and
         .isNull(g.deletedAt)
-    }.update().apply
+    }.update.apply()
   }
 
   /**
@@ -409,11 +403,11 @@ class GroupService(resource: ResourceBundle) {
    *        Failure(AccessDeniedException) ログインユーザがグループのマネージャでない場合
    */
   def addImages(groupId: String, images: Seq[FileItem], user: User): Try[GroupData.GroupAddImages] = {
-    try {
+    Try {
       CheckUtil.checkNull(groupId, "groupId")
       CheckUtil.checkNull(images, "images")
       CheckUtil.checkNull(user, "user")
-      DB localTx { implicit s =>
+      DB.localTx { implicit s =>
         val group = getGroup(groupId)
         if (!isGroupAdministrator(user, groupId)) {
           throw new AccessDeniedException(resource.getString(ResourceNames.NO_UPDATE_PERMISSION))
@@ -454,23 +448,20 @@ class GroupService(resource: ResourceBundle) {
           (image, groupImage.isPrimary)
         }
 
-        Success(
-          GroupData.GroupAddImages(
-            images = addedImages.map {
-              case (image, isPrimary) =>
-                GroupData.GroupGetImage(
-                  id = image.id,
-                  name = image.name,
-                  url = groupImageDownloadRoot + groupId + "/" + image.id,
-                  isPrimary = isPrimary
-                )
-            },
-            primaryImage = getPrimaryImageId(groupId).getOrElse("")
-          )
+        GroupData.GroupAddImages(
+          images = addedImages.map {
+            case (image, isPrimary) => {
+              GroupData.GroupGetImage(
+                id = image.id,
+                name = image.name,
+                url = groupImageDownloadRoot + groupId + "/" + image.id,
+                isPrimary = isPrimary
+              )
+            }
+          },
+          primaryImage = getPrimaryImageId(groupId).getOrElse("")
         )
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -486,14 +477,14 @@ class GroupService(resource: ResourceBundle) {
    *        Failure(AccessDeniedException) ログインユーザがグループのマネージャでない場合
    */
   def addMembers(groupId: String, members: Seq[GroupMember], user: User): Try[GroupData.AddMembers] = {
-    try {
+    Try {
       CheckUtil.checkNull(groupId, "groupId")
       CheckUtil.checkNull(members, "members")
       CheckUtil.checkNull(user, "user")
       val u = persistence.User.u
       val m = persistence.Member.m
 
-      DB localTx { implicit s =>
+      DB.localTx { implicit s =>
         val group = getGroup(groupId)
         if (!isGroupAdministrator(user, groupId)) {
           throw new AccessDeniedException(resource.getString(ResourceNames.NO_UPDATE_PERMISSION))
@@ -553,10 +544,8 @@ class GroupService(resource: ResourceBundle) {
             role = updatedMember.role
           )
         }
-        Success(GroupData.AddMembers(updatedMembers))
+        GroupData.AddMembers(updatedMembers)
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -576,15 +565,16 @@ class GroupService(resource: ResourceBundle) {
     groupId: String,
     userId: String,
     role: Int,
-    user: User): Try[GroupData.MemberSummary] = {
-    try {
+    user: User
+  ): Try[GroupData.MemberSummary] = {
+    Try {
       CheckUtil.checkNull(groupId, "groupId")
       CheckUtil.checkNull(userId, "userId")
       CheckUtil.checkNull(role, "role")
       CheckUtil.checkNull(user, "user")
       val m = persistence.Member.m
-      DB localTx { implicit s =>
-        (for {
+      DB.localTx { implicit s =>
+        val ret = for {
           group <- findGroupById(groupId)
           groupUser <- findUserById(userId)
           member <- findMemberById(groupId, userId)
@@ -619,13 +609,11 @@ class GroupService(resource: ResourceBundle) {
             image = AppConf.imageDownloadRoot + "user/" + groupUser.id + "/" + groupUser.imageId,
             role = role
           )
-        }) match {
-          case Some(member) => Success(member)
-          case None => Failure(new NotFoundException())
+        }
+        ret.getOrElse {
+          throw new NotFoundException
         }
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -634,7 +622,7 @@ class GroupService(resource: ResourceBundle) {
     withSQL {
       select(m.resultAll).from(persistence.Member as m)
         .where.eqUuid(m.userId, userId).and.eqUuid(m.groupId, groupId)
-    }.map(persistence.Member(m.resultName)).single.apply
+    }.map(persistence.Member(m.resultName)).single.apply()
   }
 
   private def findGroupById(groupId: String)(implicit s: DBSession): Option[Group] = {
@@ -642,7 +630,7 @@ class GroupService(resource: ResourceBundle) {
     withSQL {
       select(g.resultAll).from(persistence.Group as g)
         .where.eqUuid(g.id, groupId).and.isNull(g.deletedAt)
-    }.map(persistence.Group(g.resultName)).single.apply
+    }.map(persistence.Group(g.resultName)).single.apply()
   }
 
   private def findUserById(userId: String)(implicit s: DBSession): Option[persistence.User] = {
@@ -650,7 +638,7 @@ class GroupService(resource: ResourceBundle) {
     withSQL {
       select(u.resultAll).from(persistence.User as u)
         .where.eqUuid(u.id, userId).and.isNull(u.deletedAt)
-    }.map(persistence.User(u.resultName)).single.apply
+    }.map(persistence.User(u.resultName)).single.apply()
   }
 
   /**
@@ -665,12 +653,12 @@ class GroupService(resource: ResourceBundle) {
    *        Failure(AccessDeniedException) ログインユーザがグループのマネージャでない場合
    */
   def removeMember(groupId: String, userId: String, user: User): Try[Unit] = {
-    try {
+    Try {
       CheckUtil.checkNull(groupId, "groupId")
       CheckUtil.checkNull(userId, "userId")
       CheckUtil.checkNull(user, "user")
-      DB localTx { implicit s =>
-        (for {
+      DB.localTx { implicit s =>
+        val ret = for {
           group <- findGroupById(groupId)
           groupUser <- findUserById(userId)
           member <- findMemberById(groupId, userId)
@@ -695,13 +683,11 @@ class GroupService(resource: ResourceBundle) {
             deletedBy = None,
             deletedAt = None
           ).save()
-        }) match {
-          case Some(_) => Success(Unit)
-          case None => Failure(new NotFoundException())
+        }
+        if (ret.isEmpty) {
+          throw new NotFoundException
         }
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -729,7 +715,7 @@ class GroupService(resource: ResourceBundle) {
         .where.ne(m.userId, sqls.uuid(userId))
         .and.eq(m.groupId, sqls.uuid(groupId))
         .and.eq(m.role, GroupMemberRole.Manager)
-    }.map(rs => rs.int(1)).single.apply.getOrElse(0)
+    }.map(rs => rs.int(1)).single.apply().getOrElse(0)
     count
   }
 
@@ -744,19 +730,16 @@ class GroupService(resource: ResourceBundle) {
    *        Failure(AccessDeniedException) ログインユーザがグループのマネージャでない場合
    */
   def deleteGroup(groupId: String, user: User): Try[Unit] = {
-    try {
+    Try {
       CheckUtil.checkNull(groupId, "groupId")
       CheckUtil.checkNull(user, "user")
-      val result = DB localTx { implicit s =>
+      val result = DB.localTx { implicit s =>
         getGroup(groupId)
         if (!isGroupAdministrator(user, groupId)) {
           throw new AccessDeniedException(resource.getString(ResourceNames.NO_UPDATE_PERMISSION))
         }
         deleteGroupById(groupId, user)
       }
-      Success(Unit)
-    } catch {
-      case e: Exception => Failure(e)
     }
   }
 
@@ -777,7 +760,7 @@ class GroupService(resource: ResourceBundle) {
         .eq(g.id, sqls.uuid(groupId))
         .and
         .isNull(g.deletedAt)
-    }.update().apply
+    }.update.apply()
   }
 
   /**
@@ -792,11 +775,11 @@ class GroupService(resource: ResourceBundle) {
    *        Failure(AccessDeniedException) ログインユーザがグループのマネージャでない場合
    */
   def changePrimaryImage(groupId: String, imageId: String, user: User): Try[GroupData.ChangeGroupImage] = {
-    try {
+    Try {
       CheckUtil.checkNull(groupId, "groupId")
       CheckUtil.checkNull(imageId, "imageId")
       CheckUtil.checkNull(user, "user")
-      DB localTx { implicit s =>
+      DB.localTx { implicit s =>
         getGroup(groupId)
         if (!existsGroupImage(groupId, imageId)) {
           throw new NotFoundException
@@ -810,10 +793,8 @@ class GroupService(resource: ResourceBundle) {
         turnGroupImageToPrimary(groupId, imageId, myself, timestamp)
         // 対象以外のイメージをPrimary以外に
         turnOffPrimaryOtherGroupImage(groupId, imageId, myself, timestamp)
-        Success(GroupData.ChangeGroupImage(imageId))
+        GroupData.ChangeGroupImage(imageId)
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -821,7 +802,8 @@ class GroupService(resource: ResourceBundle) {
     groupId: String,
     imageId: String,
     myself: persistence.User,
-    timestamp: DateTime)(implicit s: DBSession): Int = {
+    timestamp: DateTime
+  )(implicit s: DBSession): Int = {
     withSQL {
       val gi = persistence.GroupImage.column
       update(persistence.GroupImage)
@@ -836,14 +818,15 @@ class GroupService(resource: ResourceBundle) {
         .eq(gi.groupId, sqls.uuid(groupId))
         .and
         .isNull(gi.deletedAt)
-    }.update().apply
+    }.update.apply()
   }
 
   private def turnGroupImageToPrimary(
     groupId: String,
     imageId: String,
     myself: persistence.User,
-    timestamp: DateTime)(implicit s: DBSession): Int = {
+    timestamp: DateTime
+  )(implicit s: DBSession): Int = {
     withSQL {
       val gi = persistence.GroupImage.column
       update(persistence.GroupImage)
@@ -858,7 +841,7 @@ class GroupService(resource: ResourceBundle) {
         .eq(gi.groupId, sqls.uuid(groupId))
         .and
         .isNull(gi.deletedAt)
-    }.update().apply
+    }.update.apply()
   }
 
   /**
@@ -874,11 +857,11 @@ class GroupService(resource: ResourceBundle) {
    *        Failure(BadRequestException) デフォルトイメージを削除しようとした場合
    */
   def deleteImage(groupId: String, imageId: String, user: User): Try[GroupData.GroupDeleteImage] = {
-    try {
+    Try {
       CheckUtil.checkNull(groupId, "groupId")
       CheckUtil.checkNull(imageId, "imageId")
       CheckUtil.checkNull(user, "user")
-      val primaryImage = DB localTx { implicit s =>
+      val primaryImage = DB.localTx { implicit s =>
         val group = getGroup(groupId)
         if (!existsGroupImage(groupId, imageId)) {
           throw new NotFoundException
@@ -903,26 +886,25 @@ class GroupService(resource: ResourceBundle) {
             val primaryImage = getNextPrimaryGroupImage(groupId)
 
             primaryImage match {
-              case Some(x) =>
-                turnGroupImageToPrimaryById(x._1, myself, timestamp)
-                x._2
+              case Some((id, primaryImage)) =>
+                turnGroupImageToPrimaryById(id, myself, timestamp)
+                primaryImage
               case None => ""
             }
         }
       }
 
-      Success(GroupData.GroupDeleteImage(
+      GroupData.GroupDeleteImage(
         primaryImage = primaryImage
-      ))
-    } catch {
-      case e: Throwable => Failure(e)
+      )
     }
   }
 
   private def turnGroupImageToPrimaryById(
     id: String,
     myself: persistence.User,
-    timestamp: DateTime)(implicit s: DBSession): Int = {
+    timestamp: DateTime
+  )(implicit s: DBSession): Int = {
     val gi = persistence.GroupImage.column
     withSQL {
       update(persistence.GroupImage)
@@ -933,7 +915,7 @@ class GroupService(resource: ResourceBundle) {
         )
         .where
         .eq(gi.id, sqls.uuid(id))
-    }.update().apply
+    }.update.apply()
   }
 
   private def getNextPrimaryGroupImage(groupId: String)(implicit s: DBSession): Option[(String, String)] = {
@@ -951,14 +933,15 @@ class GroupService(resource: ResourceBundle) {
         .isNull(i.deletedAt)
         .orderBy(gi.createdAt).asc
         .limit(1)
-    }.map(rs => (rs.string(gi.resultName.id), rs.string(i.resultName.id))).single().apply
+    }.map(rs => (rs.string(gi.resultName.id), rs.string(i.resultName.id))).single.apply()
   }
 
   private def deleteGroupImage(
     groupId: String,
     imageId: String,
     myself: persistence.User,
-    timestamp: DateTime)(implicit s: DBSession): Int = {
+    timestamp: DateTime
+  )(implicit s: DBSession): Int = {
     withSQL {
       val gi = persistence.GroupImage.column
       update(persistence.GroupImage)
@@ -975,26 +958,25 @@ class GroupService(resource: ResourceBundle) {
         .eq(gi.imageId, sqls.uuid(imageId))
         .and
         .isNull(gi.deletedAt)
-    }.update().apply
+    }.update.apply()
   }
 
   private def getGroup(groupId: String)(implicit s: DBSession): Group = {
-    if (StringUtil.isUUID(groupId)) {
-      val g = persistence.Group.syntax("g")
-      withSQL {
-        select(g.result.*)
-          .from(persistence.Group as g)
-          .where
-          .eq(g.id, sqls.uuid(groupId))
-          .and
-          .eq(g.groupType, persistence.GroupType.Public)
-          .and
-          .isNull(g.deletedAt)
-      }.map(persistence.Group(g.resultName)).single().apply match {
-        case Some(x) => x
-        case None => throw new NotFoundException
-      }
-    } else {
+    if (!StringUtil.isUUID(groupId)) {
+      throw new NotFoundException
+    }
+    val g = persistence.Group.syntax("g")
+    val ret = withSQL {
+      select(g.result.*)
+        .from(persistence.Group as g)
+        .where
+        .eq(g.id, sqls.uuid(groupId))
+        .and
+        .eq(g.groupType, persistence.GroupType.Public)
+        .and
+        .isNull(g.deletedAt)
+    }.map(persistence.Group(g.resultName)).single.apply()
+    ret.getOrElse {
       throw new NotFoundException
     }
   }
@@ -1016,7 +998,7 @@ class GroupService(resource: ResourceBundle) {
         .and
         .isNull(o.deletedAt)
         .groupBy(o.groupId)
-    }.map(rs => (rs.string(persistence.Ownership.column.groupId), rs.int("count"))).list().apply.toMap
+    }.map(rs => (rs.string(persistence.Ownership.column.groupId), rs.int("count"))).list.apply().toMap
   }
 
   private def countMembers(groups: Seq[String])(implicit s: DBSession): Map[String, Int] = {
@@ -1031,7 +1013,7 @@ class GroupService(resource: ResourceBundle) {
         .and
         .isNull(m.deletedAt)
         .groupBy(m.groupId)
-    }.map(rs => (rs.string(persistence.Member.column.groupId), rs.int("count"))).list().apply.toMap
+    }.map(rs => (rs.string(persistence.Member.column.groupId), rs.int("count"))).list.apply().toMap
   }
 
   private def getGroupImage(groupId: String)(implicit s: DBSession): List[persistence.Image] = {
@@ -1047,25 +1029,24 @@ class GroupService(resource: ResourceBundle) {
         .isNull(gi.deletedAt)
         .and
         .isNull(i.deletedAt)
-    }.map(rs => persistence.Image(i.resultName)(rs)).list().apply()
+    }.map(rs => persistence.Image(i.resultName)(rs)).list.apply()
   }
 
   private def getGroupImageIds(groupIds: Seq[String])(implicit s: DBSession): Map[String, String] = {
-    if (groupIds.nonEmpty) {
-      val gi = persistence.GroupImage.syntax("gi")
-      withSQL {
-        select(gi.result.*)
-          .from(persistence.GroupImage as gi)
-          .where
-          .inUuid(gi.groupId, groupIds)
-          .and
-          .eq(gi.isPrimary, true)
-          .and
-          .isNull(gi.deletedAt)
-      }.map(rs => (rs.string(gi.resultName.groupId), rs.string(gi.resultName.imageId))).list().apply().toMap
-    } else {
-      Map.empty
+    if (groupIds.isEmpty) {
+      return Map.empty
     }
+    val gi = persistence.GroupImage.syntax("gi")
+    withSQL {
+      select(gi.result.*)
+        .from(persistence.GroupImage as gi)
+        .where
+        .inUuid(gi.groupId, groupIds)
+        .and
+        .eq(gi.isPrimary, true)
+        .and
+        .isNull(gi.deletedAt)
+    }.map(rs => (rs.string(gi.resultName.groupId), rs.string(gi.resultName.imageId))).list.apply().toMap
   }
 
   private def getGroupPrimaryImageId(groupId: String)(implicit s: DBSession): Option[String] = {
@@ -1079,21 +1060,22 @@ class GroupService(resource: ResourceBundle) {
         .eq(gi.isPrimary, true)
         .and
         .isNull(gi.deletedAt)
-    }.map(_.string(gi.resultName.imageId)).single().apply()
+    }.map(_.string(gi.resultName.imageId)).single.apply()
   }
 
   private def countMembers(groupId: String)(implicit s: DBSession): Int = {
     val m = persistence.Member.m
     withSQL {
       createMembersSql(select(sqls.count(m.id)), groupId)
-    }.map(rs => rs.int(1)).single().apply().get
+    }.map(rs => rs.int(1)).single.apply().get
   }
 
   private def getMembers(
     groupId: String,
     userId: String,
     offset: Int,
-    limit: Int)(implicit s: DBSession): Seq[(persistence.User, Int)] = {
+    limit: Int
+  )(implicit s: DBSession): Seq[(persistence.User, Int)] = {
     val m = persistence.Member.m
     val u = persistence.User.u
     withSQL {
@@ -1108,7 +1090,7 @@ class GroupService(resource: ResourceBundle) {
         .orderBy(sqls"own desc", m.role.desc, m.createdAt.desc)
         .offset(offset)
         .limit(limit)
-    }.map(rs => (persistence.User(u.resultName)(rs), rs.int(persistence.Member.column.role))).list().apply()
+    }.map(rs => (persistence.User(u.resultName)(rs), rs.int(persistence.Member.column.role))).list.apply()
   }
 
   private def createMembersSql[A](builder: SelectSQLBuilder[A], groupId: String): ConditionSQLBuilder[A] = {
@@ -1146,25 +1128,24 @@ class GroupService(resource: ResourceBundle) {
         .isNull(gi.deletedAt)
         .and
         .isNull(i.deletedAt)
-    }.map(rs => rs.string(i.resultName.id)).single().apply
+    }.map(rs => rs.string(i.resultName.id)).single.apply()
   }
 
   private def getGroupRole(user: User, groupId: String)(implicit s: DBSession): Option[Int] = {
     if (user.isGuest) {
-      None
-    } else {
-      val m = persistence.Member.syntax("m")
-      withSQL {
-        select(m.result.*)
-          .from(persistence.Member as m)
-          .where
-          .eq(m.groupId, sqls.uuid(groupId))
-          .and
-          .eq(m.userId, sqls.uuid(user.id))
-          .and
-          .isNull(m.deletedAt)
-      }.map(_.int(m.resultName.role)).single().apply
+      return None
     }
+    val m = persistence.Member.syntax("m")
+    withSQL {
+      select(m.result.*)
+        .from(persistence.Member as m)
+        .where
+        .eq(m.groupId, sqls.uuid(groupId))
+        .and
+        .eq(m.userId, sqls.uuid(user.id))
+        .and
+        .isNull(m.deletedAt)
+    }.map(_.int(m.resultName.role)).single.apply()
   }
 
   private def isGroupAdministrator(user: User, groupId: String)(implicit s: DBSession): Boolean = {
@@ -1203,29 +1184,22 @@ class GroupService(resource: ResourceBundle) {
         .isNull(gi.deletedAt)
         .and
         .isNull(i.deletedAt)
-    }.map(rs => rs.string(gi.resultName.id)).single().apply match {
-      case Some(x) => true
-      case None => false
-    }
+    }.map(rs => rs.string(gi.resultName.id)).single.apply().isDefined
   }
 
   private def isValidUser(userId: String)(implicit s: DBSession): Boolean = {
-    if (StringUtil.isUUID(userId)) {
-      val u = persistence.User.syntax("u")
-      withSQL {
-        select(u.result.id)
-          .from(persistence.User as u)
-          .where
-          .eq(u.id, sqls.uuid(userId))
-          .and
-          .isNull(u.deletedAt)
-      }.map(rs => rs.string(u.resultName.id)).single().apply match {
-        case Some(x) => true
-        case None => false
-      }
-    } else {
-      false
+    if (!StringUtil.isUUID(userId)) {
+      return false
     }
+    val u = persistence.User.syntax("u")
+    withSQL {
+      select(u.result.id)
+        .from(persistence.User as u)
+        .where
+        .eq(u.id, sqls.uuid(userId))
+        .and
+        .isNull(u.deletedAt)
+    }.map(rs => rs.string(u.resultName.id)).single.apply().isDefined
   }
 
   private def isValidGroupMember(groupId: String, memberId: String)(implicit s: DBSession): Boolean = {
@@ -1243,10 +1217,7 @@ class GroupService(resource: ResourceBundle) {
         .isNull(m.deletedAt)
         .and
         .isNull(g.deletedAt)
-    }.map(rs => rs.string(m.resultName.id)).single().apply match {
-      case Some(x) => true
-      case None => false
-    }
+    }.map(rs => rs.string(m.resultName.id)).single.apply().isDefined
   }
 
   /**
@@ -1265,13 +1236,14 @@ class GroupService(resource: ResourceBundle) {
     groupId: String,
     offset: Option[Int],
     limit: Option[Int],
-    user: User): Try[RangeSlice[GroupData.GroupGetImage]] = {
-    try {
+    user: User
+  ): Try[RangeSlice[GroupData.GroupGetImage]] = {
+    Try {
       CheckUtil.checkNull(groupId, "groupId")
       CheckUtil.checkNull(offset, "offset")
       CheckUtil.checkNull(limit, "limit")
       CheckUtil.checkNull(user, "user")
-      DB readOnly { implicit s =>
+      DB.readOnly { implicit s =>
         val group = getGroup(groupId)
         val gi = persistence.GroupImage.gi
         val i = persistence.Image.i
@@ -1285,7 +1257,7 @@ class GroupService(resource: ResourceBundle) {
             .isNull(gi.deletedBy)
             .and
             .isNull(gi.deletedAt)
-        }.map(rs => rs.int(1)).single.apply
+        }.map(rs => rs.int(1)).single.apply()
         val result = withSQL {
           select(i.result.*, gi.result.isPrimary)
             .from(persistence.GroupImage as gi)
@@ -1304,7 +1276,7 @@ class GroupService(resource: ResourceBundle) {
             rs.string(i.resultName.name),
             rs.boolean(gi.resultName.isPrimary)
           )
-        }.list.apply.map { x =>
+        }.list.apply().map { x =>
           GroupData.GroupGetImage(
             id = x._1,
             name = x._2,
@@ -1313,17 +1285,15 @@ class GroupService(resource: ResourceBundle) {
           )
         }
 
-        Success(RangeSlice(
+        RangeSlice(
           RangeSliceSummary(
             total = totalCount.getOrElse(0),
             count = limit.getOrElse(20),
             offset = offset.getOrElse(0)
           ),
           result
-        ))
+        )
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 }

@@ -42,7 +42,7 @@ class ImageService(resource: ResourceBundle) {
    */
   def getUserFile(userId: String, imageId: String, size: Option[String]): Try[(java.io.File, String)] = {
     Try {
-      DB readOnly { implicit s =>
+      DB.readOnly { implicit s =>
         val user = persistence.User.find(userId)
         if (user.filter(_.imageId == imageId).isEmpty) {
           // ユーザが存在しないが、ユーザの画像が指定の画像IDと一致しない場合、画像が存在しないとして処理を打ち切る
@@ -71,7 +71,7 @@ class ImageService(resource: ResourceBundle) {
     size: Option[String],
     user: User): Try[(java.io.File, String)] = {
     Try {
-      DB readOnly { implicit s =>
+      DB.readOnly { implicit s =>
         if (!isRelatedToDataset(datasetId, imageId)) {
           // 指定した画像が、指定のデータセットのものではない場合、画像が存在しないとして処理を打ち切る
           throw new NotFoundException
@@ -98,7 +98,7 @@ class ImageService(resource: ResourceBundle) {
    */
   def getGroupFile(groupId: String, imageId: String, size: Option[String]): Try[(java.io.File, String)] = {
     Try {
-      DB readOnly { implicit s =>
+      DB.readOnly { implicit s =>
         if (!isRelatedToGroup(groupId, imageId)) {
           // 指定した画像が、指定のグループのものではない場合、画像が存在しないとして処理を打ち切る
           throw new NotFoundException
@@ -123,9 +123,9 @@ class ImageService(resource: ResourceBundle) {
     } yield {
       (file, image.name)
     }
-    ret match {
-      case Some(x) => x
-      case None => throw new NotFoundException // 対象画像IDがDBに存在しない、またはファイルが存在しない
+    ret.getOrElse {
+      // 対象画像IDがDBに存在しない、またはファイルが存在しない
+      throw new NotFoundException
     }
   }
   /**
@@ -162,7 +162,7 @@ class ImageService(resource: ResourceBundle) {
           .isNull(g.deletedAt)
           .and
           .isNull(m.deletedAt)
-      }.map(_.string("id")).list().apply()
+      }.map(_.string("id")).list.apply()
     }
   }
 
@@ -184,7 +184,7 @@ class ImageService(resource: ResourceBundle) {
         .eq(o.datasetId, sqls.uuid(id))
         .and
         .inUuid(o.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
-    }.map(rs => (rs.int(o.resultName.accessLevel), rs.int(g.resultName.groupType))).list().apply
+    }.map(rs => (rs.int(o.resultName.accessLevel), rs.int(g.resultName.groupType))).list.apply()
     // 上記のSQLではゲストユーザーは取得できないため、別途取得する必要がある
     val guestPermission = (getGuestAccessLevel(id), GroupType.Personal)
     // Provider権限のGroupはWriteできない
@@ -235,6 +235,6 @@ class ImageService(resource: ResourceBundle) {
         .eq(o.groupId, sqls.uuid(AppConf.guestGroupId))
         .and
         .isNull(o.deletedAt)
-    }.map(_.int(o.resultName.accessLevel)).single().apply().getOrElse(GroupAccessLevel.Deny)
+    }.map(_.int(o.resultName.accessLevel)).single.apply().getOrElse(GroupAccessLevel.Deny)
   }
 }

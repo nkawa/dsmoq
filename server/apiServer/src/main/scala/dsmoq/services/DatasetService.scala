@@ -111,14 +111,15 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     saveLocal: Boolean,
     saveS3: Boolean,
     name: String,
-    user: User): Try[DatasetData.Dataset] = {
+    user: User
+  ): Try[DatasetData.Dataset] = {
     Try {
       CheckUtil.checkNull(files, "files")
       CheckUtil.checkNull(saveLocal, "saveLocal")
       CheckUtil.checkNull(saveS3, "saveS3")
       CheckUtil.checkNull(name, "name")
       CheckUtil.checkNull(user, "user")
-      DB localTx { implicit s =>
+      DB.localTx { implicit s =>
         val myself = persistence.User.find(user.id).get
         val myGroup = getPersonalGroup(myself.id).get
         val datasetId = UUID.randomUUID().toString
@@ -274,7 +275,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     path: Path,
     historyId: String,
     timestamp: DateTime,
-    myself: persistence.User)(implicit s: DBSession): Try[Long] = {
+    myself: persistence.User
+  )(implicit s: DBSession): Try[Long] = {
     Try {
       val zipInfos = ZipUtil.read(path)
       val zfs = for {
@@ -316,7 +318,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     commandType: Int,
     userId: String,
     timestamp: DateTime,
-    isSave: Boolean)(implicit s: DBSession): String = {
+    isSave: Boolean
+  )(implicit s: DBSession): String = {
     val id = UUID.randomUUID.toString
     persistence.Task.create(
       id = id,
@@ -358,38 +361,40 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     limit: Option[Int] = None,
     offset: Option[Int] = None,
     orderby: Option[String] = None,
-    user: User): Try[RangeSlice[DatasetData.DatasetsSummary]] = {
-    try {
+    user: User
+  ): Try[RangeSlice[DatasetData.DatasetsSummary]] = {
+    Try {
       val limit_ = limit.getOrElse(20)
       val offset_ = offset.getOrElse(0)
 
-      DB readOnly { implicit s =>
+      DB.readOnly { implicit s =>
         val joinedGroups = getJoinedGroups(user)
 
-        (for {
+        val ids = for {
           userGroupIds <- getGroupIdsByUserName(owners)
           groupIds <- getGroupIdsByGroupName(groups)
         } yield {
           (userGroupIds, groupIds)
-        }) match {
-          case Some(x) =>
-            val count = countDataSets(joinedGroups, query, x._1, x._2, attributes)
+        }
+        ids match {
+          case None => {
+            RangeSlice(RangeSliceSummary(0, limit_, offset_), Seq.empty)
+          }
+          case Some((userGroupIds, groupIds)) => {
+            val count = countDataSets(joinedGroups, query, userGroupIds, groupIds, attributes)
             val records = if (count > 0) {
-              findDataSets(joinedGroups, query, x._1, x._2, attributes, limit_, offset_, orderby, user)
+              findDataSets(joinedGroups, query, userGroupIds, groupIds, attributes, limit_, offset_, orderby, user)
             } else {
-              List.empty
+              Seq.empty
             }
-            Success(RangeSlice(RangeSliceSummary(count, limit_, offset_), records))
-          case None =>
-            Success(RangeSlice(RangeSliceSummary(0, limit_, offset_), List.empty))
+            RangeSlice(RangeSliceSummary(count, limit_, offset_), records)
+          }
         }
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
-  private def getGroupIdsByUserName(names: Seq[String])(implicit s: DBSession): Option[List[String]] = {
+  private def getGroupIdsByUserName(names: Seq[String])(implicit s: DBSession): Option[Seq[String]] = {
     if (names.nonEmpty) {
       val g = persistence.Group.g
       val m = persistence.Member.m
@@ -409,18 +414,18 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           .isNull(m.deletedAt)
           .and
           .isNull(u.deletedAt)
-      }.map(rs => rs.string(1)).list().apply()
+      }.map(rs => rs.string(1)).list.apply()
       if (groups.nonEmpty) {
         Some(groups)
       } else {
         None
       }
     } else {
-      Some(List.empty)
+      Some(Seq.empty)
     }
   }
 
-  private def getGroupIdsByGroupName(names: Seq[String])(implicit s: DBSession): Option[List[String]] = {
+  private def getGroupIdsByGroupName(names: Seq[String])(implicit s: DBSession): Option[Seq[String]] = {
     if (names.nonEmpty) {
       val g = persistence.Group.g
       val groups = withSQL {
@@ -432,14 +437,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           .eq(g.groupType, GroupType.Public)
           .and
           .isNull(g.deletedAt)
-      }.map(rs => rs.string(1)).list().apply()
+      }.map(rs => rs.string(1)).list.apply()
       if (groups.nonEmpty) {
         Some(groups)
       } else {
         None
       }
     } else {
-      Some(List.empty)
+      Some(Seq.empty)
     }
   }
 
@@ -448,11 +453,12 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     query: Option[String],
     ownerUsers: Seq[String],
     ownerGroups: Seq[String],
-    attributes: Seq[DataSetAttribute])(implicit s: DBSession): Int = {
+    attributes: Seq[DataSetAttribute]
+  )(implicit s: DBSession): Int = {
     withSQL {
       createDatasetSql(select.apply[Int](sqls.countDistinct(persistence.Dataset.d.id)),
         joindGroups, query, ownerUsers, ownerGroups, attributes)
-    }.map(implicit rs => rs.int(1)).single().apply().get
+    }.map(implicit rs => rs.int(1)).single.apply().get
   }
 
   private def findDataSets(
@@ -464,7 +470,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     limit: Int,
     offset: Int,
     orderby: Option[String],
-    user: User)(implicit s: DBSession): List[DatasetData.DatasetsSummary] = {
+    user: User
+  )(implicit s: DBSession): Seq[DatasetData.DatasetsSummary] = {
     val ds = persistence.Dataset.d
     val o = persistence.Ownership.o
     val a = persistence.Annotation.a
@@ -492,7 +499,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             .orderBy(xda2(da).data)
             .offset(offset)
             .limit(limit)
-        }.map(rs => (persistence.Dataset(ds.resultName)(rs), rs.int("access_level"))).list().apply()
+        }.map(rs => (persistence.Dataset(ds.resultName)(rs), rs.int("access_level"))).list.apply()
       }
       case _ => {
         withSQL {
@@ -501,7 +508,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             .orderBy(ds.updatedAt).desc
             .offset(offset)
             .limit(limit)
-        }.map(rs => (persistence.Dataset(ds.resultName)(rs), rs.int("access_level"))).list().apply()
+        }.map(rs => (persistence.Dataset(ds.resultName)(rs), rs.int("access_level"))).list.apply()
       }
     }
 
@@ -529,7 +536,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         image = imageUrl,
         featuredImage = featuredImageUrl,
         attributes = getAttributes(ds.id), //TODO 非効率
-        ownerships = if (user.isGuest) { List.empty } else { ownerMap.get(ds.id).getOrElse(List.empty) },
+        ownerships = if (user.isGuest) { Seq.empty } else { ownerMap.get(ds.id).getOrElse(Seq.empty) },
         files = ds.filesCount,
         dataSize = ds.filesSize,
         defaultAccessLevel = accessLevel,
@@ -546,7 +553,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     query: Option[String],
     ownerUsers: Seq[String],
     ownerGroups: Seq[String],
-    attributes: Seq[DataSetAttribute]): ConditionSQLBuilder[A] = {
+    attributes: Seq[DataSetAttribute]
+  ): ConditionSQLBuilder[A] = {
     val ds = persistence.Dataset.d
     val g = persistence.Group.g
     val o = persistence.Ownership.o
@@ -694,7 +702,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           rs.string(o.resultName.datasetId),
           rs.int(o.resultName.accessLevel)
         )
-      }.list().apply().toMap
+      }.list.apply().toMap
     } else {
       Map.empty
     }
@@ -717,7 +725,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           rs.string(di.resultName.datasetId),
           rs.string(di.resultName.imageId)
         )
-      }.list().apply().toMap
+      }.list.apply().toMap
     } else {
       Map.empty
     }
@@ -740,14 +748,15 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           rs.string(di.resultName.datasetId),
           rs.string(di.resultName.imageId)
         )
-      }.list().apply().toMap
+      }.list.apply().toMap
     } else {
       Map.empty
     }
   }
 
   private def getOwnerMap(
-    datasetIds: Seq[String])(implicit s: DBSession): Map[String, List[DatasetData.DatasetOwnership]] = {
+    datasetIds: Seq[String]
+  )(implicit s: DBSession): Map[String, Seq[DatasetData.DatasetOwnership]] = {
     if (datasetIds.nonEmpty) {
       val o = persistence.Ownership.o
       val g = persistence.Group.g
@@ -802,7 +811,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             organization = ""
           ))
         }
-      }).list().apply().groupBy(_._1).mapValues(_.map(_._2))
+      }).list.apply().groupBy(_._1).mapValues(_.map(_._2))
     } else {
       Map.empty
     }
@@ -839,10 +848,9 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @throws NotFoundException データセットが存在しなかった場合
    */
   private def checkDatasetExisitence(datasetId: String)(implicit session: DBSession): persistence.Dataset = {
-    // データセットが存在しない場合例外
-    getDataset(datasetId) match {
-      case Some(x) => x
-      case None => throw new NotFoundException
+    getDataset(datasetId).getOrElse {
+      // データセットが存在しない場合例外
+      throw new NotFoundException
     }
   }
 
@@ -855,10 +863,10 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    *     発生しうる例外は、NotFoundException、NullPointerException、AccessDeniedExceptionである。
    */
   def get(id: String, user: User): Try[DatasetData.Dataset] = {
-    try {
+    Try {
       CheckUtil.checkNull(id, "id")
       CheckUtil.checkNull(user, "user")
-      DB readOnly { implicit s =>
+      DB.readOnly { implicit s =>
         val dataset = checkDatasetExisitence(id)
         val permission = checkReadPermission(id, user)
         val guestAccessLevel = getGuestAccessLevel(id)
@@ -868,33 +876,29 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         val primaryImage = getPrimaryImageId(id).getOrElse(AppConf.defaultDatasetImageId)
         val featuredImage = getFeaturedImageId(id).getOrElse(AppConf.defaultFeaturedImageIds(0))
         val count = getAccessCount(id)
-        Success(
-          DatasetData.Dataset(
-            id = dataset.id,
-            files = Seq.empty,
-            filesCount = dataset.filesCount,
-            filesSize = dataset.filesSize,
-            meta = DatasetData.DatasetMetaData(
-              name = dataset.name,
-              description = dataset.description,
-              license = dataset.licenseId,
-              attributes = attributes
-            ),
-            images = images,
-            primaryImage = primaryImage,
-            featuredImage = featuredImage,
-            ownerships = if (user.isGuest) { List.empty } else { owners },
-            defaultAccessLevel = guestAccessLevel,
-            permission = permission,
-            accessCount = count,
-            localState = dataset.localState,
-            s3State = dataset.s3State,
-            fileLimit = AppConf.fileLimit
-          )
+        DatasetData.Dataset(
+          id = dataset.id,
+          files = Seq.empty,
+          filesCount = dataset.filesCount,
+          filesSize = dataset.filesSize,
+          meta = DatasetData.DatasetMetaData(
+            name = dataset.name,
+            description = dataset.description,
+            license = dataset.licenseId,
+            attributes = attributes
+          ),
+          images = images,
+          primaryImage = primaryImage,
+          featuredImage = featuredImage,
+          ownerships = if (user.isGuest) { Seq.empty } else { owners },
+          defaultAccessLevel = guestAccessLevel,
+          permission = permission,
+          accessCount = count,
+          localState = dataset.localState,
+          s3State = dataset.s3State,
+          fileLimit = AppConf.fileLimit
         )
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -908,11 +912,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    *     発生しうる例外は、AccessDeniedException、NotFoundException、NullPointerExceptionである。
    */
   def addFiles(id: String, files: Seq[FileItem], user: User): Try[DatasetData.DatasetAddFiles] = {
-    try {
+    Try {
       CheckUtil.checkNull(id, "id")
       CheckUtil.checkNull(files, "files")
       CheckUtil.checkNull(user, "user")
-      DB localTx { implicit s =>
+      DB.localTx { implicit s =>
         datasetAccessabilityCheck(id, user)
         val dataset = checkDatasetExisitence(id)
         val myself = persistence.User.find(user.id).get
@@ -975,7 +979,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         // datasetsのfiles_size, files_countの更新
         updateDatasetFileStatus(id, myself.id, timestamp)
 
-        Success(DatasetData.DatasetAddFiles(
+        DatasetData.DatasetAddFiles(
           files = f.map { x =>
             val zipedFiles = if (x._2.isZip) { getZipedFiles(id, x._2.id) } else { Seq.empty }
             DatasetData.DatasetFile(
@@ -993,10 +997,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
               zipCount = zipedFiles.size
             )
           }
-        ))
+        )
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -1011,12 +1013,12 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    *     発生しうる例外は、NotFoundException、AccessDeniedException、NullPointerExceptionである。
    */
   def updateFile(datasetId: String, fileId: String, file: FileItem, user: User): Try[DatasetData.DatasetFile] = {
-    try {
+    Try {
       CheckUtil.checkNull(datasetId, "datasetId")
       CheckUtil.checkNull(fileId, "fileId")
       CheckUtil.checkNull(file, "file")
       CheckUtil.checkNull(user, "user")
-      DB localTx { implicit s =>
+      DB.localTx { implicit s =>
         fileAccessabilityCheck(datasetId, fileId, user)
 
         val myself = persistence.User.find(user.id).get
@@ -1083,7 +1085,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
                 d.s3State -> SaveStatus.SYNCHRONIZING)
               .where
               .eq(d.id, sqls.uuid(datasetId))
-          }.update().apply
+          }.update.apply()
         }
 
         // datasetsのfiles_size, files_countの更新
@@ -1095,7 +1097,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         } else {
           Seq.empty
         }
-        Success(DatasetData.DatasetFile(
+        DatasetData.DatasetFile(
           id = result.id,
           name = result.name,
           description = result.description,
@@ -1108,17 +1110,16 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           isZip = history.isZip,
           zipedFiles = zipedFiles,
           zipCount = zipedFiles.size
-        ))
+        )
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
   private def fileAccessabilityCheck(
     datasetId: String,
     fileId: String,
-    user: User)(implicit s: DBSession): Unit = {
+    user: User
+  )(implicit s: DBSession): Unit = {
     if (!existsFile(datasetId, fileId)) {
       throw new NotFoundException
     }
@@ -1127,13 +1128,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
 
   private def datasetAccessabilityCheck(datasetId: String, user: User)(implicit s: DBSession): Unit = {
     getDataset(datasetId) match {
-      case Some(x) => {
-        if (!isOwner(user.id, datasetId)) {
-          throw new AccessDeniedException(resource.getString(ResourceNames.ONLY_ALLOW_DATASET_OWNER))
-        }
-      }
       case None => {
         throw new NotFoundException
+      }
+      case Some(_) if !isOwner(user.id, datasetId) => {
+        throw new AccessDeniedException(resource.getString(ResourceNames.ONLY_ALLOW_DATASET_OWNER))
       }
     }
   }
@@ -1145,7 +1144,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     userId: String,
     timestamp: DateTime,
     s3State: Int,
-    localState: Int)(implicit s: DBSession): Int = {
+    localState: Int
+  )(implicit s: DBSession): Int = {
     withSQL {
       val f = persistence.File.column
       update(persistence.File)
@@ -1160,7 +1160,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         )
         .where
         .eq(f.id, sqls.uuid(fileId))
-    }.update().apply
+    }.update.apply()
   }
 
   /**
@@ -1178,9 +1178,10 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     fileId: String,
     filename: String,
     description: String,
-    user: User): Try[DatasetData.DatasetFile] = {
-    try {
-      DB localTx { implicit s =>
+    user: User
+  ): Try[DatasetData.DatasetFile] = {
+    Try {
+      DB.localTx { implicit s =>
         fileAccessabilityCheck(datasetId, fileId, user)
 
         val myself = persistence.User.find(user.id).get
@@ -1195,7 +1196,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         } else {
           Seq.empty
         }
-        Success(DatasetData.DatasetFile(
+        DatasetData.DatasetFile(
           id = result.id,
           name = result.name,
           description = result.description,
@@ -1208,10 +1209,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           isZip = history.isZip,
           zipedFiles = zipedFiles,
           zipCount = zipedFiles.size
-        ))
+        )
       }
-    } catch {
-      case e: Exception => Failure(e)
     }
   }
 
@@ -1221,7 +1220,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     fileName: String,
     description: String,
     userId: String,
-    timestamp: DateTime)(implicit s: DBSession): Int = {
+    timestamp: DateTime
+  )(implicit s: DBSession): Int = {
     withSQL {
       val f = persistence.File.column
       update(persistence.File)
@@ -1235,7 +1235,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .eq(f.id, sqls.uuid(fileId))
         .and
         .eq(f.datasetId, sqls.uuid(datasetId))
-    }.update().apply
+    }.update.apply()
   }
 
   /**
@@ -1247,8 +1247,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @return
    */
   def deleteDatasetFile(datasetId: String, fileId: String, user: User): Try[Unit] = {
-    try {
-      DB localTx { implicit s =>
+    Try {
+      DB.localTx { implicit s =>
         fileAccessabilityCheck(datasetId, fileId, user)
 
         val myself = persistence.User.find(user.id).get
@@ -1258,11 +1258,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
 
         // datasetsのfiles_size, files_countの更新
         updateDatasetFileStatus(datasetId, myself.id, timestamp)
-
-        Success(Unit)
       }
-    } catch {
-      case e: Exception => Failure(e)
     }
   }
 
@@ -1270,7 +1266,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     datasetId: String,
     fileId: String,
     userId: String,
-    timestamp: DateTime)(implicit s: DBSession): Unit = {
+    timestamp: DateTime
+  )(implicit s: DBSession): Unit = {
     withSQL {
       val f = persistence.File.column
       update(persistence.File)
@@ -1286,7 +1283,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .eq(f.datasetId, sqls.uuid(datasetId))
         .and
         .isNull(f.deletedAt)
-    }.update().apply
+    }.update.apply()
   }
 
   /**
@@ -1300,12 +1297,12 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    *     発生しうる例外は、NotFoundException、AccessDeniedException、NullPointerExceptionである。
    */
   def modifyDatasetStorage(id: String, saveLocal: Boolean, saveS3: Boolean, user: User): Try[DatasetTask] = {
-    try {
+    Try {
       CheckUtil.checkNull(id, "id")
       CheckUtil.checkNull(saveLocal, "saveLocal")
       CheckUtil.checkNull(saveS3, "saveS3")
       CheckUtil.checkNull(user, "user")
-      DB localTx { implicit s =>
+      DB.localTx { implicit s =>
         datasetAccessabilityCheck(id, user)
 
         val myself = persistence.User.find(user.id).get
@@ -1364,10 +1361,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             }
           }
         }
-        Success(DatasetTask(taskId))
+        DatasetTask(taskId)
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -1376,7 +1371,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     userId: String,
     timestamp: DateTime,
     localState: Int,
-    s3State: Int)(implicit s: DBSession): persistence.Dataset = {
+    s3State: Int
+  )(implicit s: DBSession): persistence.Dataset = {
     persistence.Dataset(
       id = ds.id,
       name = ds.name,
@@ -1410,9 +1406,10 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     name: String,
     description: Option[String],
     license: String,
-    attributes: List[DataSetAttribute],
-    user: User): Try[DatasetData.DatasetMetaData] = {
-    try {
+    attributes: Seq[DataSetAttribute],
+    user: User
+  ): Try[DatasetData.DatasetMetaData] = {
+    Try {
       CheckUtil.checkNull(id, "id")
       CheckUtil.checkNull(name, "name")
       CheckUtil.checkNull(description, "description")
@@ -1422,7 +1419,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       val checkedDescription = description.getOrElse("")
       val trimmedAttributes = attributes.map(x => x.name -> StringUtil.trimAllSpaces(x.value))
 
-      DB localTx { implicit s =>
+      DB.localTx { implicit s =>
         datasetAccessabilityCheck(id, user)
         if (persistence.License.find(license).isEmpty) {
           val message = resource.getString(ResourceNames.INVALID_LICENSEID).format(license)
@@ -1483,18 +1480,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           }
         }
       }
-      Success(
-        DatasetData.DatasetMetaData(
-          name = name,
-          description = checkedDescription,
-          license = license,
-          attributes = trimmedAttributes.map {
-            case (name, value) => DatasetData.DatasetAttribute(name, value)
-          }
-        )
+      DatasetData.DatasetMetaData(
+        name = name,
+        description = checkedDescription,
+        license = license,
+        attributes = trimmedAttributes.map {
+          case (name, value) => DatasetData.DatasetAttribute(name, value)
+        }
       )
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -1507,7 +1500,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .eq(da.annotationId, sqls.uuid(id))
         .and
         .isNull(da.deletedAt)
-    }.map(rs => rs.string(da.resultName.id)).list().apply
+    }.map(rs => rs.string(da.resultName.id)).list.apply()
   }
 
   private def getAvailableAnnotations(implicit s: DBSession): Seq[(String, String)] = {
@@ -1522,7 +1515,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         rs.string(a.resultName.name).toLowerCase,
         rs.string(a.resultName.id)
       )
-    }.list().apply
+    }.list.apply()
   }
 
   private def getAnnotationsRelatedByDataset(id: String)(implicit s: DBSession): Seq[(String, String)] = {
@@ -1537,7 +1530,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .eq(da.datasetId, sqls.uuid(id))
         .and
         .isNull(a.deletedAt)
-    }.map(rs => (rs.string(a.resultName.name).toLowerCase, rs.string(a.resultName.id))).list().apply
+    }.map(rs => (rs.string(a.resultName.name).toLowerCase, rs.string(a.resultName.id))).list.apply()
   }
 
   private def deleteAnnotation(id: String)(implicit s: DBSession): Int = {
@@ -1546,7 +1539,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       delete.from(persistence.Annotation as a)
         .where
         .eq(a.id, sqls.uuid(id))
-    }.update().apply
+    }.update.apply()
   }
 
   private def deleteDatasetAnnotation(id: String)(implicit s: DBSession): Int = {
@@ -1555,7 +1548,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       delete.from(persistence.DatasetAnnotation as da)
         .where
         .eq(da.datasetId, sqls.uuid(id))
-    }.update().apply
+    }.update.apply()
   }
 
   private def updateDatasetDetail(
@@ -1564,7 +1557,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     description: String,
     licenseId: String,
     userId: String,
-    timestamp: DateTime)(implicit s: DBSession): Int = {
+    timestamp: DateTime
+  )(implicit s: DBSession): Int = {
     withSQL {
       val d = persistence.Dataset.column
       update(persistence.Dataset)
@@ -1577,7 +1571,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         )
         .where
         .eq(d.id, sqls.uuid(id))
-    }.update().apply
+    }.update.apply()
   }
 
   /**
@@ -1590,11 +1584,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    *     発生しうる例外は、AccessDeniedException、NotFoundException、NullPointerExceptionである。
    */
   def addImages(datasetId: String, images: Seq[FileItem], user: User): Try[DatasetData.DatasetAddImages] = {
-    try {
+    Try {
       CheckUtil.checkNull(datasetId, "datasetId")
       CheckUtil.checkNull(images, "images")
       CheckUtil.checkNull(user, "user")
-      DB localTx { implicit s =>
+      DB.localTx { implicit s =>
         checkDatasetExisitence(datasetId)
         if (!isOwner(user.id, datasetId)) {
           throw new AccessDeniedException(resource.getString(ResourceNames.ONLY_ALLOW_DATASET_OWNER))
@@ -1637,7 +1631,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           (image, datasetImage.isPrimary)
         })
 
-        Success(DatasetData.DatasetAddImages(
+        DatasetData.DatasetAddImages(
           images = addedImages.map {
             case (image, isPrimary) =>
               DatasetData.DatasetGetImage(
@@ -1648,10 +1642,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
               )
           },
           primaryImage = getPrimaryImageId(datasetId).getOrElse("")
-        ))
+        )
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -1668,11 +1660,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    *        Failure(AccessDeniedException) ログインユーザに編集権限がない場合
    */
   def changePrimaryImage(datasetId: String, imageId: String, user: User): Try[DatasetData.ChangeDatasetImage] = {
-    try {
+    Try {
       CheckUtil.checkNull(datasetId, "datasetId")
       CheckUtil.checkNull(imageId, "imageId")
       CheckUtil.checkNull(user, "user")
-      DB localTx { implicit s =>
+      DB.localTx { implicit s =>
         if (!existsImage(datasetId, imageId)) {
           throw new NotFoundException
         }
@@ -1685,10 +1677,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         // 対象以外のイメージをPrimary以外に変更
         turnOffPrimaryOtherImage(datasetId, imageId, myself, timestamp)
 
-        Success(DatasetData.ChangeDatasetImage(imageId))
+        DatasetData.ChangeDatasetImage(imageId)
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -1696,7 +1686,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     datasetId: String,
     imageId: String,
     myself: persistence.User,
-    timestamp: DateTime)(implicit s: DBSession): Int = {
+    timestamp: DateTime
+  )(implicit s: DBSession): Int = {
     withSQL {
       val di = persistence.DatasetImage.column
       update(persistence.DatasetImage)
@@ -1707,14 +1698,15 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .eq(di.datasetId, sqls.uuid(datasetId))
         .and
         .isNull(di.deletedAt)
-    }.update().apply
+    }.update.apply()
   }
 
   private def turnImageToPrimary(
     datasetId: String,
     imageId: String,
     myself: persistence.User,
-    timestamp: DateTime)(implicit s: DBSession): Int = {
+    timestamp: DateTime
+  )(implicit s: DBSession): Int = {
     withSQL {
       val di = persistence.DatasetImage.column
       update(persistence.DatasetImage)
@@ -1725,7 +1717,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .eq(di.datasetId, sqls.uuid(datasetId))
         .and
         .isNull(di.deletedAt)
-    }.update().apply
+    }.update.apply()
   }
 
   /**
@@ -1737,8 +1729,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @return
    */
   def deleteImage(datasetId: String, imageId: String, user: User): Try[DatasetData.DatasetDeleteImage] = {
-    try {
-      DB localTx { implicit s =>
+    Try {
+      DB.localTx { implicit s =>
         datasetAccessabilityCheck(datasetId, user)
         val cantDeleteImages = Seq(AppConf.defaultDatasetImageId)
         if (cantDeleteImages.contains(imageId)) {
@@ -1747,7 +1739,6 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         if (!existsImage(datasetId, imageId)) {
           throw new NotFoundException
         }
-
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
         deleteDatasetImage(datasetId, imageId, myself, timestamp)
@@ -1773,41 +1764,40 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             case None => ""
           }
         }
-
-        Success(DatasetData.DatasetDeleteImage(
+        DatasetData.DatasetDeleteImage(
           primaryImage = primaryImageId,
           featuredImage = featuredImageId
-        ))
+        )
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
   private def turnImageToPrimaryById(
     id: String,
     myself: persistence.User,
-    timestamp: DateTime)(implicit s: DBSession): Int = {
+    timestamp: DateTime
+  )(implicit s: DBSession): Int = {
     val di = persistence.DatasetImage.column
     withSQL {
       update(persistence.DatasetImage)
         .set(di.isPrimary -> true, di.updatedBy -> sqls.uuid(myself.id), di.updatedAt -> timestamp)
         .where
         .eq(di.id, sqls.uuid(id))
-    }.update().apply
+    }.update.apply()
   }
 
   private def turnImageToFeaturedById(
     id: String,
     myself: persistence.User,
-    timestamp: DateTime)(implicit s: DBSession): Int = {
+    timestamp: DateTime
+  )(implicit s: DBSession): Int = {
     val di = persistence.DatasetImage.column
     withSQL {
       update(persistence.DatasetImage)
         .set(di.isFeatured -> true, di.updatedBy -> sqls.uuid(myself.id), di.updatedAt -> timestamp)
         .where
         .eq(di.id, sqls.uuid(id))
-    }.update().apply
+    }.update.apply()
   }
 
   private def findNextImage(datasetId: String)(implicit s: DBSession): Option[(String, String)] = {
@@ -1825,14 +1815,15 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .isNull(i.deletedAt)
         .orderBy(di.createdAt).asc
         .limit(1)
-    }.map(rs => (rs.string(di.resultName.id), rs.string(i.resultName.id))).single().apply
+    }.map(rs => (rs.string(di.resultName.id), rs.string(i.resultName.id))).single.apply()
   }
 
   private def deleteDatasetImage(
     datasetId: String,
     imageId: String,
     myself: persistence.User,
-    timestamp: DateTime)(implicit s: DBSession): Int = {
+    timestamp: DateTime
+  )(implicit s: DBSession): Int = {
     withSQL {
       val di = persistence.DatasetImage.column
       update(persistence.DatasetImage)
@@ -1849,7 +1840,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .eq(di.imageId, sqls.uuid(imageId))
         .and
         .isNull(di.deletedAt)
-    }.update().apply
+    }.update.apply()
   }
 
   /**
@@ -1863,13 +1854,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    */
   def setAccessControl(
     datasetId: String,
-    acl: List[DataSetAccessControlItem],
-    user: User): Try[Seq[DatasetData.DatasetOwnership]] = {
-    try {
+    acl: Seq[DataSetAccessControlItem],
+    user: User
+  ): Try[Seq[DatasetData.DatasetOwnership]] = {
+    Try {
       CheckUtil.checkNull(datasetId, "datasetId")
       CheckUtil.checkNull(acl, "acl")
       CheckUtil.checkNull(user, "user")
-      DB localTx { implicit s =>
+      DB.localTx { implicit s =>
         datasetAccessabilityCheck(datasetId, user)
 
         val ownerChanges = acl.filter { x =>
@@ -1886,7 +1878,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           throw new BadRequestException(resource.getString(ResourceNames.NO_OWNER))
         }
 
-        val ownerships = acl.map { x =>
+        acl.map { x =>
           x.ownerType match {
             case OwnerType.User =>
               val groupId = findGroupIdByUserId(x.id)
@@ -1921,10 +1913,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
               )
           }
         }
-        Success(ownerships)
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -1955,7 +1944,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .innerJoin(persistence.User as u).on(sqls.eq(u.id, m.userId))
         .where.eq(o.datasetId, sqls.uuid(datasetId))
         .and.eq(o.accessLevel, UserAndGroupAccessLevel.OWNER_OR_PROVIDER)
-    }.map(persistence.User(u.resultName)).list().apply
+    }.map(persistence.User(u.resultName)).list.apply()
   }
 
   def findGroupIdByUserId(userId: String)(implicit s: DBSession): String = {
@@ -1976,7 +1965,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .and
         .isNull(m.deletedAt)
         .limit(1)
-    }.map(rs => rs.string(g.resultName.id)).single().apply.get
+    }.map(rs => rs.string(g.resultName.id)).single.apply().get
   }
 
   /**
@@ -1991,12 +1980,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   def setGuestAccessLevel(
     datasetId: String,
     accessLevel: Int,
-    user: User): Try[DatasetData.DatasetGuestAccessLevel] = {
-    try {
+    user: User
+  ): Try[DatasetData.DatasetGuestAccessLevel] = {
+    Try {
       CheckUtil.checkNull(datasetId, "datasetId")
       CheckUtil.checkNull(accessLevel, "accessLevel")
       CheckUtil.checkNull(user, "user")
-      DB localTx { implicit s =>
+      DB.localTx { implicit s =>
         datasetAccessabilityCheck(datasetId, user)
 
         findGuestOwnership(datasetId) match {
@@ -2028,10 +2018,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
               )
             }
         }
-        Success(DatasetData.DatasetGuestAccessLevel(accessLevel))
+        DatasetData.DatasetGuestAccessLevel(accessLevel)
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -2044,7 +2032,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .eq(o.datasetId, sqls.uuid(datasetId))
         .and
         .eq(o.groupId, sqls.uuid(AppConf.guestGroupId))
-    ).map(persistence.Ownership(o.resultName)).single.apply
+    ).map(persistence.Ownership(o.resultName)).single.apply()
   }
 
   /**
@@ -2055,14 +2043,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @return
    */
   def deleteDataset(datasetId: String, user: User): Try[Unit] = {
-    try {
-      DB localTx { implicit s =>
+    Try {
+      DB.localTx { implicit s =>
         datasetAccessabilityCheck(datasetId, user)
         deleteDatasetById(datasetId, user)
       }
-      Success(Unit)
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -2074,7 +2059,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .set(d.deletedAt -> timestamp, d.deletedBy -> sqls.uuid(user.id))
         .where
         .eq(d.id, sqls.uuid(datasetId))
-    }.update().apply
+    }.update.apply()
   }
 
   private def isOwner(userId: String, datasetId: String)(implicit s: DBSession): Boolean = {
@@ -2120,7 +2105,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           .isNull(g.deletedAt)
           .and
           .isNull(m.deletedAt)
-      }.map(_.string("id")).list().apply()
+      }.map(_.string("id")).list.apply()
     }
   }
 
@@ -2128,8 +2113,16 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     val file: persistence.File
     val path: String
   }
-  case class FileResultNormal(file: persistence.File, path: String) extends FileResult
-  case class FileResultZip(file: persistence.File, path: String, zipFile: persistence.ZipedFiles) extends FileResult
+  case class FileResultNormal(
+    file: persistence.File,
+    path: String
+  ) extends FileResult
+  case class FileResultZip(
+    file: persistence.File,
+    path: String,
+    zipFile: persistence.ZipedFiles
+  ) extends FileResult
+
   def findFile(fileId: String)(implicit session: DBSession): Option[FileResult] = {
     persistence.File.find(fileId).map { file =>
       val history = persistence.FileHistory.find(file.historyId).get
@@ -2208,7 +2201,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     data: InputStream,
     centralHeader: Array[Byte],
     dataSize: Long,
-    encoding: Charset): InputStream = {
+    encoding: Charset
+  ): InputStream = {
     val footer = createFooter(centralHeader, dataSize)
     val sis = new SequenceInputStream(data, new ByteArrayInputStream(footer))
     val zis = new ZipInputStream(sis, encoding)
@@ -2302,7 +2296,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .eq(fh.fileId, sqls.uuid(fileId))
         .and
         .isNull(fh.deletedAt)
-    }.map(rs => rs.string(fh.resultName.filePath)).single().apply
+    }.map(rs => rs.string(fh.resultName.filePath)).single.apply()
     filePath
   }
 
@@ -2318,7 +2312,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .and
         .eq(g.groupType, persistence.GroupType.Personal)
         .limit(1)
-    }.map(rs => persistence.Group(g.resultName)(rs)).single().apply()
+    }.map(rs => persistence.Group(g.resultName)(rs)).single.apply()
   }
 
   private def getDataset(id: String)(implicit s: DBSession): Option[Dataset] = {
@@ -2360,7 +2354,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .eq(o.datasetId, sqls.uuid(id))
         .and
         .inUuid(o.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
-    }.map(rs => (rs.int(o.resultName.accessLevel), rs.int(g.resultName.groupType))).list().apply
+    }.map(rs => (rs.int(o.resultName.accessLevel), rs.int(g.resultName.groupType))).list.apply()
     // 上記のSQLではゲストユーザーは取得できないため、別途取得する必要がある
     val guestPermission = (getGuestAccessLevel(id), GroupType.Personal)
     (guestPermission :: permissions).map {
@@ -2385,12 +2379,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .eq(o.groupId, sqls.uuid(AppConf.guestGroupId))
         .and
         .isNull(o.deletedAt)
-    }.map(_.int(o.resultName.accessLevel)).single().apply().getOrElse(0)
+    }.map(_.int(o.resultName.accessLevel)).single.apply().getOrElse(0)
   }
 
   private def getOwnerGroups(
     datasetIds: Seq[String],
-    userInfo: User)(implicit s: DBSession): Map[String, Seq[DatasetData.DatasetOwnership]] = {
+    userInfo: User
+  )(implicit s: DBSession): Map[String, Seq[DatasetData.DatasetOwnership]] = {
     if (datasetIds.nonEmpty) {
       val o = persistence.Ownership.o
       val g = persistence.Group.g
@@ -2450,7 +2445,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             }
           )
         )
-      ).list().apply()
+      ).list.apply()
         .groupBy(_._1)
         .map(x => (x._1, x._2.map(_._2)))
 
@@ -2472,7 +2467,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
 
   private def getAllOwnerships(
     datasetId: String,
-    userInfo: User)(implicit s: DBSession): List[DatasetData.DatasetOwnership] = {
+    userInfo: User
+  )(implicit s: DBSession): Seq[DatasetData.DatasetOwnership] = {
     // ゲストアカウント情報はownersテーブルに存在しないので、このメソッドからは取得されない
     val o = persistence.Ownership.o
     val g = persistence.Group.g
@@ -2529,7 +2525,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           case None => OwnerType.Group
         }
       )
-    ).list().apply()
+    ).list.apply()
     // ソート(ログインユーザーがownerであればそれが一番最初に、それ以外はアクセスレベル→ownerTypeの順に降順に並ぶ)
     // ログインユーザーとそれ以外のownershipsとで分ける
     val owner = owners.filter(x => x.id == userInfo.id && x.accessLevel == UserAccessLevel.Owner)
@@ -2541,7 +2537,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     owner ++ sortedPartial
   }
 
-  private def getAttributes(datasetId: String)(implicit s: DBSession): List[DatasetData.DatasetAttribute] = {
+  private def getAttributes(datasetId: String)(implicit s: DBSession): Seq[DatasetData.DatasetAttribute] = {
     val da = persistence.DatasetAnnotation.syntax("da")
     val a = persistence.Annotation.syntax("d")
     withSQL {
@@ -2558,7 +2554,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         persistence.DatasetAnnotation(da.resultName)(rs),
         persistence.Annotation(a.resultName)(rs)
       )
-    ).list.apply.map(x =>
+    ).list.apply().map(x =>
       DatasetData.DatasetAttribute(
         name = x._2.name,
         value = x._1.data
@@ -2566,7 +2562,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     )
   }
 
-  private def getImages(datasetId: String)(implicit s: DBSession): List[Image] = {
+  private def getImages(datasetId: String)(implicit s: DBSession): Seq[Image] = {
     val di = persistence.DatasetImage.di
     val i = persistence.Image.i
 
@@ -2586,7 +2582,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         persistence.DatasetImage(di.resultName)(rs),
         persistence.Image(i.resultName)(rs)
       )
-    }.list.apply.map(x =>
+    }.list.apply().map(x =>
       Image(
         id = x._2.id,
         url = datasetImageDownloadRoot + datasetId + "/" + x._2.id
@@ -2597,7 +2593,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   private def getFiles(
     datasetId: String,
     limit: Int,
-    offset: Int)(implicit s: DBSession): Seq[DatasetData.DatasetFile] = {
+    offset: Int
+  )(implicit s: DBSession): Seq[DatasetData.DatasetFile] = {
     val f = persistence.File.f
     val u1 = persistence.User.syntax("u1")
     val u2 = persistence.User.syntax("u2")
@@ -2625,7 +2622,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         rs.string(ma1.resultName.address),
         rs.string(ma2.resultName.address)
       )
-    }.list.apply.map { x =>
+    }.list.apply().map { x =>
       val history = persistence.FileHistory.find(x._1.historyId).get
       val zipCount = if (history.isZip) { getZipedFiles(datasetId, history.id).size } else { 0 }
       DatasetData.DatasetFile(
@@ -2662,7 +2659,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .eq(f.datasetId, sqls.uuid(datasetId))
         .and
         .isNull(f.deletedAt)
-    }.map(_.int(1)).single.apply.getOrElse(0)
+    }.map(_.int(1)).single.apply().getOrElse(0)
   }
 
   def getZipedFiles(datasetId: String, historyId: String)(implicit s: DBSession): Seq[DatasetZipedFile] = {
@@ -2672,7 +2669,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .from(ZipedFiles as zf)
         .where
         .eq(zf.historyId, sqls.uuid(historyId))
-    }.map(persistence.ZipedFiles(zf.resultName)).list.apply
+    }.map(persistence.ZipedFiles(zf.resultName)).list.apply()
     if (zipedFiles.exists(hasPassword)) {
       return Seq.empty
     }
@@ -2689,7 +2686,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   private def updateDatasetFileStatus(
     datasetId: String,
     userId: String,
-    timestamp: DateTime)(implicit s: DBSession): Int = {
+    timestamp: DateTime
+  )(implicit s: DBSession): Int = {
     val f = persistence.File.f
     val allFiles = withSQL {
       select(f.result.*)
@@ -2698,7 +2696,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .eq(f.datasetId, sqls.uuid(datasetId))
         .and
         .isNull(f.deletedAt)
-    }.map(persistence.File(f.resultName)).list().apply
+    }.map(persistence.File(f.resultName)).list.apply()
     val totalFileSize = allFiles.foldLeft(0L)((a: Long, b: persistence.File) => a + b.fileSize)
 
     withSQL {
@@ -2708,7 +2706,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           d.updatedBy -> sqls.uuid(userId), d.updatedAt -> timestamp)
         .where
         .eq(d.id, sqls.uuid(datasetId))
-    }.update().apply
+    }.update.apply()
   }
 
   private def getPrimaryImageId(datasetId: String)(implicit s: DBSession): Option[String] = {
@@ -2726,7 +2724,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .isNull(di.deletedAt)
         .and
         .isNull(i.deletedAt)
-    }.map(rs => rs.string(i.resultName.id)).single().apply
+    }.map(rs => rs.string(i.resultName.id)).single.apply()
   }
 
   private def getFeaturedImageId(datasetId: String)(implicit s: DBSession): Option[String] = {
@@ -2744,7 +2742,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .isNull(di.deletedAt)
         .and
         .isNull(i.deletedAt)
-    }.map(rs => rs.string(i.resultName.id)).single().apply
+    }.map(rs => rs.string(i.resultName.id)).single.apply()
   }
 
   private def getAccessCount(datasetId: String)(implicit s: DBSession): Long = {
@@ -2767,10 +2765,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .isNull(di.deletedAt)
         .and
         .isNull(i.deletedAt)
-    }.map(rs => rs.string(i.resultName.id)).single().apply match {
-      case Some(x) => true
-      case None => false
-    }
+    }.map(rs => rs.string(i.resultName.id)).single.apply().isDefined
   }
 
   private def existsFile(datasetId: String, fileId: String)(implicit s: DBSession): Boolean = {
@@ -2788,14 +2783,15 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .isNull(f.deletedAt)
         .and
         .isNull(d.deletedAt)
-    }.map(rs => rs.string(f.resultName.id)).single().apply.isDefined
+    }.map(rs => rs.string(f.resultName.id)).single.apply().isDefined
   }
 
   private def saveOrCreateOwnerships(
     userInfo: User,
     datasetId: String,
     groupId: String,
-    accessLevel: Int)(implicit s: DBSession): Unit = {
+    accessLevel: Int
+  )(implicit s: DBSession): Unit = {
     val myself = persistence.User.find(userInfo.id).get
     val timestamp = DateTime.now()
 
@@ -2807,7 +2803,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .eq(o.datasetId, sqls.uuid(datasetId))
         .and
         .eq(o.groupId, sqls.uuid(groupId))
-    ).map(persistence.Ownership(o.resultName)).single.apply match {
+    ).map(persistence.Ownership(o.resultName)).single.apply() match {
         case Some(x) =>
           if (accessLevel != x.accessLevel) {
             persistence.Ownership(
@@ -2838,8 +2834,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   }
 
   def copyDataset(datasetId: String, user: User): Try[CopiedDataset] = {
-    try {
-      DB localTx { implicit s =>
+   Try {
+      DB.localTx { implicit s =>
         datasetAccessabilityCheck(datasetId, user)
 
         val myself = persistence.User.find(user.id).get
@@ -2868,7 +2864,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             .from(DatasetAnnotation as da)
             .where
             .eq(da.datasetId, sqls.uuid(datasetId))
-        }.map(persistence.DatasetAnnotation(da.resultName)).list().apply
+        }.map(persistence.DatasetAnnotation(da.resultName)).list.apply()
 
         annotations.foreach { annotation =>
           persistence.DatasetAnnotation.create(
@@ -2889,7 +2885,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             .from(DatasetImage as di)
             .where
             .eq(di.datasetId, sqls.uuid(datasetId))
-        }.map(persistence.DatasetImage(di.resultName)).list().apply
+        }.map(persistence.DatasetImage(di.resultName)).list.apply()
 
         images.foreach { image =>
           persistence.DatasetImage.create(
@@ -2911,7 +2907,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             .from(Ownership as o)
             .where
             .eq(o.datasetId, sqls.uuid(datasetId))
-        }.map(persistence.Ownership(o.resultName)).list().apply
+        }.map(persistence.Ownership(o.resultName)).list.apply()
 
         ownerships.foreach { ownership =>
           persistence.Ownership.create(
@@ -2925,22 +2921,19 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             updatedAt = timestamp
           )
         }
-
-        Success(CopiedDataset(newDatasetId))
+        CopiedDataset(newDatasetId)
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
   def importAttribute(datasetId: String, file: FileItem, user: User): Try[Unit] = {
-    try {
+    Try {
       val csv = use(new InputStreamReader(file.getInputStream)) { in =>
         CSVReader.open(in).all()
       }
       val nameMap = csv.map(x => (x(0), x(1))).toMap
 
-      DB localTx { implicit s =>
+      DB.localTx { implicit s =>
         val a = persistence.Annotation.a
         val da = persistence.DatasetAnnotation.da
         val exists = withSQL {
@@ -2948,7 +2941,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             .from(Annotation as a)
             .where
             .in(a.name, csv.map(_(0)))
-        }.map(persistence.Annotation(a.resultName)).list().apply()
+        }.map(persistence.Annotation(a.resultName)).list.apply()
 
         val notExists = csv.filter(x => !exists.map(_.name).contains(x(0)))
         val myself = persistence.User.find(user.id).get
@@ -2973,7 +2966,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             .eqUuid(da.datasetId, datasetId)
             .and
             .in(a.name, exists.map(_.name))
-        }.map(persistence.DatasetAnnotation(da.resultName)).list().apply
+        }.map(persistence.DatasetAnnotation(da.resultName)).list.apply()
 
         (exists.filter(x => !existRels.map(_.annotationId).contains(x.id)) ++ created).foreach { annotation =>
 
@@ -2988,11 +2981,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             updatedAt = timestamp
           )
         }
-
-        Success(Unit)
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -3017,10 +3006,10 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    *     発生しうる例外は、NotFoundException、NullPointerException、AccessDeniedExceptionである。
    */
   def exportAttribute(datasetId: String, user: User): Try[java.io.File] = {
-    try {
+    Try {
       CheckUtil.checkNull(datasetId, "datasetId")
       CheckUtil.checkNull(user, "user")
-      DB readOnly { implicit s =>
+      DB.readOnly { implicit s =>
         checkDatasetExisitence(datasetId)
         checkReadPermission(datasetId, user)
         val a = persistence.Annotation.a
@@ -3034,18 +3023,15 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         }.map { rs =>
           val line = Seq(rs.string(a.resultName.name), rs.string(da.resultName.data)).mkString(",")
           line + System.getProperty("line.separator")
-        }.list().apply()
+        }.list.apply()
 
         val file = Paths.get(AppConf.tempDir, "export.csv").toFile
 
         use(new FileOutputStream(file)) { out =>
           attributes.foreach { x => out.write(x.getBytes) }
         }
-
-        Success(file)
+        file
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -3063,13 +3049,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     datasetId: String,
     offset: Option[Int],
     limit: Option[Int],
-    user: User): Try[RangeSlice[DatasetOwnership]] = {
-    try {
+    user: User
+  ): Try[RangeSlice[DatasetOwnership]] = {
+    Try {
       CheckUtil.checkNull(datasetId, "datasetId")
       CheckUtil.checkNull(offset, "offset")
       CheckUtil.checkNull(limit, "limit")
       CheckUtil.checkNull(user, "user")
-      DB readOnly { implicit s =>
+      DB.readOnly { implicit s =>
         checkDatasetExisitence(datasetId)
         checkReadPermission(datasetId, user)
         val o = persistence.Ownership.o
@@ -3107,7 +3094,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
                 .and
                 .gt(o.accessLevel, 0)
             )
-        }.map(rs => rs.int(1)).list.apply.foldLeft(0)(_ + _)
+        }.map(rs => rs.int(1)).list.apply().foldLeft(0)(_ + _)
 
         val list = withSQL {
           select(
@@ -3161,34 +3148,30 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             rs.int("type"),
             rs.string("organization"),
             rs.string("title"))
-        ).list.apply.map { o =>
-            DatasetOwnership(
-              id = o._1,
-              name = o._3,
-              fullname = o._6,
-              image = AppConf.imageDownloadRoot +
-                (if (o._7 == 1) { "user/" } else { "groups/" }) +
-                o._1 + "/" + o._4,
-              accessLevel = o._2,
-              ownerType = o._7,
-              description = o._5,
-              organization = o._8,
-              title = o._9
-            )
-          }.toSeq
-        Success(
-          RangeSlice(
-            summary = RangeSliceSummary(
-              total = count,
-              offset = offset.getOrElse(0),
-              count = limit.getOrElse(20)
-            ),
-            results = list
+        ).list.apply().map { o =>
+          DatasetOwnership(
+            id = o._1,
+            name = o._3,
+            fullname = o._6,
+            image = AppConf.imageDownloadRoot +
+              (if (o._7 == 1) { "user/" } else { "groups/" }) +
+              o._1 + "/" + o._4,
+            accessLevel = o._2,
+            ownerType = o._7,
+            description = o._5,
+            organization = o._8,
+            title = o._9
           )
+        }.toSeq
+        RangeSlice(
+          summary = RangeSliceSummary(
+            total = count,
+            offset = offset.getOrElse(0),
+            count = limit.getOrElse(20)
+          ),
+          results = list
         )
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -3206,13 +3189,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     datasetId: String,
     offset: Option[Int],
     limit: Option[Int],
-    user: User): Try[RangeSlice[DatasetData.DatasetGetImage]] = {
-    try {
+    user: User
+  ): Try[RangeSlice[DatasetData.DatasetGetImage]] = {
+    Try {
       CheckUtil.checkNull(datasetId, "datasetId")
       CheckUtil.checkNull(offset, "offset")
       CheckUtil.checkNull(limit, "limit")
       CheckUtil.checkNull(user, "user")
-      DB readOnly { implicit s =>
+      DB.readOnly { implicit s =>
         checkDatasetExisitence(datasetId)
         checkReadPermission(datasetId, user)
         val di = persistence.DatasetImage.di
@@ -3227,7 +3211,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             .isNull(di.deletedBy)
             .and
             .isNull(di.deletedAt)
-        }.map(rs => rs.int(1)).single.apply
+        }.map(rs => rs.int(1)).single.apply()
         val result = withSQL {
           select(i.result.*, di.result.isPrimary)
             .from(persistence.DatasetImage as di)
@@ -3246,7 +3230,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             rs.string(i.resultName.name),
             rs.boolean(di.resultName.isPrimary)
           )
-        }.list.apply.map { x =>
+        }.list.apply().map { x =>
           DatasetData.DatasetGetImage(
             id = x._1,
             name = x._2,
@@ -3254,18 +3238,15 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             isPrimary = x._3
           )
         }
-
-        Success(RangeSlice(
+        RangeSlice(
           RangeSliceSummary(
             total = totalCount.getOrElse(0),
             count = limit.getOrElse(20),
             offset = offset.getOrElse(0)
           ),
           result
-        ))
+        )
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -3284,12 +3265,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   def changeFeaturedImage(
     datasetId: String,
     imageId: String,
-    user: User): Try[DatasetData.ChangeDatasetImage] = {
-    try {
+    user: User
+  ): Try[DatasetData.ChangeDatasetImage] = {
+    Try {
       CheckUtil.checkNull(datasetId, "datasetId")
       CheckUtil.checkNull(imageId, "imageId")
       CheckUtil.checkNull(user, "user")
-      DB localTx { implicit s =>
+      DB.localTx { implicit s =>
         if (!existsImage(datasetId, imageId)) {
           throw new NotFoundException
         }
@@ -3302,10 +3284,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         // 対象以外のイメージをFeatured以外に変更
         turnOffFeaturedOtherImage(datasetId, imageId, myself, timestamp)
 
-        Success(DatasetData.ChangeDatasetImage(imageId))
+        DatasetData.ChangeDatasetImage(imageId)
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -3313,7 +3293,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     datasetId: String,
     imageId: String,
     myself: persistence.User,
-    timestamp: DateTime)(implicit s: DBSession): Int = {
+    timestamp: DateTime
+  )(implicit s: DBSession): Int = {
     withSQL {
       val di = persistence.DatasetImage.column
       update(persistence.DatasetImage)
@@ -3324,14 +3305,15 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .eq(di.datasetId, sqls.uuid(datasetId))
         .and
         .isNull(di.deletedAt)
-    }.update().apply
+    }.update.apply()
   }
 
   private def turnImageToFeatured(
     datasetId: String,
     imageId: String,
     myself: persistence.User,
-    timestamp: DateTime)(implicit s: DBSession): Int = {
+    timestamp: DateTime
+  )(implicit s: DBSession): Int = {
     withSQL {
       val di = persistence.DatasetImage.column
       update(persistence.DatasetImage)
@@ -3342,7 +3324,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .eq(di.datasetId, sqls.uuid(datasetId))
         .and
         .isNull(di.deletedAt)
-    }.update().apply
+    }.update.apply()
   }
 
   /**
@@ -3356,7 +3338,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   private def getFileInfo(datasetId: String, fileId: String, user: User): Try[DatasetService.FileInfo] = {
     logger.trace(LOG_MARKER, "Called getFileInfo, datasetId={}, fileId={}, user={]", datasetId, fileId, user)
 
-    val findResult = DB readOnly { implicit s =>
+    val findResult = DB.readOnly { implicit s =>
       for {
         file <- found(findFile(fileId))
         _ <- found(getDataset(datasetId))
@@ -3408,7 +3390,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    */
   private def getDownloadFileByFileInfo(
     fileInfo: DatasetService.FileInfo,
-    requireData: Boolean = true): Try[DatasetService.DownloadFile] = {
+    requireData: Boolean = true
+  ): Try[DatasetService.DownloadFile] = {
     logger.trace(LOG_MARKER,
       "Called getDownloadFileByFileInfo, fileInfo={}, requireData={}",
       fileInfo,
@@ -3503,7 +3486,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   def getDownloadFileWithStream(
     datasetId: String,
     fileId: String,
-    user: User): Try[DatasetService.DownloadFile] = {
+    user: User
+  ): Try[DatasetService.DownloadFile] = {
     val fileInfo = getFileInfo(datasetId, fileId, user)
     fileInfo.flatMap(getDownloadFileByFileInfo(_, true))
   }
@@ -3520,7 +3504,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   def getDownloadFileWithoutStream(
     datasetId: String,
     fileId: String,
-    user: User): Try[DatasetService.DownloadFile] = {
+    user: User
+  ): Try[DatasetService.DownloadFile] = {
     val fileInfo = getFileInfo(datasetId, fileId, user)
     fileInfo.flatMap(getDownloadFileByFileInfo(_, false))
   }
@@ -3539,13 +3524,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     datasetId: String,
     limit: Option[Int],
     offset: Option[Int],
-    user: User): Try[RangeSlice[DatasetData.DatasetFile]] = {
-    try {
+    user: User
+  ): Try[RangeSlice[DatasetData.DatasetFile]] = {
+    Try {
       CheckUtil.checkNull(datasetId, "datasetId")
       CheckUtil.checkNull(limit, "limit")
       CheckUtil.checkNull(offset, "offset")
       CheckUtil.checkNull(user, "user")
-      DB readOnly { implicit s =>
+      DB.readOnly { implicit s =>
         val dataset = checkDatasetExisitence(datasetId)
         checkReadPermission(datasetId, user)
         val validatedLimit = limit.map { x =>
@@ -3555,14 +3541,12 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         val count = getFileAmount(datasetId)
         // offsetが0未満は空リストを返却する
         if (validatedOffset < 0) {
-          Success(RangeSlice(RangeSliceSummary(count, 0, validatedOffset), Seq.empty[DatasetData.DatasetFile]))
+          RangeSlice(RangeSliceSummary(count, 0, validatedOffset), Seq.empty[DatasetData.DatasetFile])
         } else {
           val files = getFiles(datasetId, validatedLimit, validatedOffset)
-          Success(RangeSlice(RangeSliceSummary(count, files.size, validatedOffset), files))
+          RangeSlice(RangeSliceSummary(count, files.size, validatedOffset), files)
         }
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -3582,14 +3566,15 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     fileId: String,
     limit: Option[Int],
     offset: Option[Int],
-    user: User): Try[RangeSlice[DatasetData.DatasetZipedFile]] = {
-    try {
+    user: User
+  ): Try[RangeSlice[DatasetData.DatasetZipedFile]] = {
+    Try {
       CheckUtil.checkNull(datasetId, "datasetId")
       CheckUtil.checkNull(fileId, "fileId")
       CheckUtil.checkNull(limit, "limit")
       CheckUtil.checkNull(offset, "offset")
       CheckUtil.checkNull(user, "user")
-      DB readOnly { implicit s =>
+      DB.readOnly { implicit s =>
         val dataset = checkDatasetExisitence(datasetId)
         val file = persistence.File.find(fileId)
         val fileHistory = file.flatMap(file => persistence.FileHistory.find(file.historyId))
@@ -3612,17 +3597,15 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         val count = getZippedFileAmount(datasetId, history.id)
         // offsetが0未満は空リストを返却する
         if (validatedOffset < 0) {
-          Success(RangeSlice(
+          RangeSlice(
             RangeSliceSummary(count, 0, validatedOffset),
             Seq.empty[DatasetData.DatasetZipedFile]
-          ))
+          )
         } else {
           val files = getZippedFiles(datasetId, history.id, validatedLimit, validatedOffset)
-          Success(RangeSlice(RangeSliceSummary(count, files.size, validatedOffset), files))
+          RangeSlice(RangeSliceSummary(count, files.size, validatedOffset), files)
         }
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -3630,7 +3613,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     datasetId: String,
     historyId: String,
     limit: Int,
-    offset: Int)(implicit s: DBSession): Seq[DatasetZipedFile] = {
+    offset: Int
+  )(implicit s: DBSession): Seq[DatasetZipedFile] = {
     val zf = persistence.ZipedFiles.zf
     val zipedFiles = withSQL {
       select
@@ -3639,7 +3623,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .eq(zf.historyId, sqls.uuid(historyId))
         .offset(offset)
         .limit(limit)
-    }.map(persistence.ZipedFiles(zf.resultName)).list.apply
+    }.map(persistence.ZipedFiles(zf.resultName)).list.apply()
     if (zipedFiles.exists(hasPassword)) {
       return Seq.empty
     }
@@ -3660,7 +3644,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .from(ZipedFiles as zf)
         .where
         .eq(zf.historyId, sqls.uuid(historyId))
-    }.map(_.int(1)).single.apply.getOrElse(0)
+    }.map(_.int(1)).single.apply().getOrElse(0)
   }
 }
 
@@ -3696,7 +3680,8 @@ object DatasetService {
   case class FileInfoLocalZipped(
     file: persistence.File,
     path: String,
-    zippedFile: persistence.ZipedFiles) extends FileInfo
+    zippedFile: persistence.ZipedFiles
+  ) extends FileInfo
 
   /**
    * ファイル情報：S3上に保持するZIPファイル内の個別ファイル
@@ -3707,7 +3692,8 @@ object DatasetService {
   case class FileInfoS3Zipped(
     file: persistence.File,
     path: String,
-    zippedFile: persistence.ZipedFiles) extends FileInfo
+    zippedFile: persistence.ZipedFiles
+  ) extends FileInfo
 
   /**
    * ファイルダウンロード向けに必要項目を保持するケースオブジェクト
@@ -3724,7 +3710,8 @@ object DatasetService {
   case class DownloadFileLocalNormal(
     fileData: InputStream,
     fileName: String,
-    fileSize: Long) extends DownloadFile
+    fileSize: Long
+  ) extends DownloadFile
 
   /**
    * ファイルダウンロード：ローカルに保持するZIPファイル内の個別ファイル
@@ -3736,7 +3723,8 @@ object DatasetService {
   case class DownloadFileLocalZipped(
     fileData: InputStream,
     fileName: String,
-    fileSize: Long) extends DownloadFile
+    fileSize: Long
+  ) extends DownloadFile
 
   /**
    * ファイルダウンロード：S3上に保持する通常ファイル
@@ -3755,6 +3743,7 @@ object DatasetService {
   case class DownloadFileS3Zipped(
     fileData: InputStream,
     fileName: String,
-    fileSize: Long) extends DownloadFile
+    fileSize: Long
+  ) extends DownloadFile
 
 }

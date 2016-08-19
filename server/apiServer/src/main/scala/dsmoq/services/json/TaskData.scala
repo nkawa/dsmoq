@@ -4,5 +4,6 @@ object TaskData {
   case class TaskStatus(
     status: Int,
     createBy: String,
-    createAt: String)
+    createAt: String
+  )
 }

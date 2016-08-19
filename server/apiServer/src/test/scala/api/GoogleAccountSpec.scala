@@ -64,7 +64,7 @@ class GoogleAccountSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
       dummyGoogleUser.setName("dummyName")
       val user = googleService.getUser(dummyGoogleUser).get
 
-      DB readOnly { implicit s =>
+      DB.readOnly { implicit s =>
         val u = User.u
         val ma = MailAddress.ma
         val g = Group.g
@@ -72,7 +72,7 @@ class GoogleAccountSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
         val gu = GoogleUser.gu
         withSQL {
           select.from(User as u).where.eqUuid(u.id, user.id)
-        }.map(User(u.resultName)).single().apply() match {
+        }.map(User(u.resultName)).single.apply() match {
           case Some(usr) => {
             usr.name should be(dummyGoogleUser.getEmail)
             usr.fullname should be(dummyGoogleUser.getName)
@@ -83,7 +83,7 @@ class GoogleAccountSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
 
         withSQL {
           select.from(MailAddress as ma).where.eqUuid(ma.userId, user.id)
-        }.map(MailAddress(ma.resultName)).single().apply() match {
+        }.map(MailAddress(ma.resultName)).single.apply() match {
           case Some(mailAddr) => {
             mailAddr.address should be(dummyGoogleUser.getEmail)
             mailAddr.status should be(1)
@@ -93,7 +93,7 @@ class GoogleAccountSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
 
         withSQL {
           select.from(Group as g).where.eq(g.name, dummyGoogleUser.getEmail)
-        }.map(Group(g.resultName)).single().apply() match {
+        }.map(Group(g.resultName)).single.apply() match {
           case Some(group) => {
             group.groupType should be(GroupType.Personal)
           }
@@ -102,7 +102,7 @@ class GoogleAccountSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
 
         withSQL {
           select.from(Member as m).where.eqUuid(m.userId, user.id)
-        }.map(Member(m.resultName)).single().apply() match {
+        }.map(Member(m.resultName)).single.apply() match {
           case Some(member) => {
             member.role should be(GroupMemberRole.Manager)
             member.status should be(1)
@@ -112,7 +112,7 @@ class GoogleAccountSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
 
         withSQL {
           select.from(GoogleUser as gu).where.eqUuid(gu.userId, user.id)
-        }.map(GoogleUser(gu.resultName)).single().apply() match {
+        }.map(GoogleUser(gu.resultName)).single.apply() match {
           case Some(googleUsr) => {
             googleUsr.googleId should be(dummyGoogleUser.getId)
           }

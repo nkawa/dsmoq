@@ -24,13 +24,15 @@ object ZipUtil extends LazyLogging {
     fileNameLength: Int,
     extraLength: Int,
     fileName: String,
-    extra: Array[Byte])
+    extra: Array[Byte]
+  )
   case class ZipInfo(
     fileName: String,
     localHeaderOffset: Long,
     dataSizeWithLocalHeader: Long,
     uncompressSize: Long,
-    centralHeader: Array[Byte])
+    centralHeader: Array[Byte]
+  )
   def toZipInfo(offset: Long, localHeader: ZipLocalHeader, centralHeader: Array[Byte]): ZipInfo = {
     val localHeaderSize = 30 + localHeader.fileNameLength + localHeader.extraLength
     ZipInfo(

@@ -45,9 +45,7 @@ trait AuthTrait { this: ScalatraServlet with LazyLogging =>
   def updateSessionUser(user: User): Try[Unit] = {
     Try {
       CheckUtil.checkNull(user, "user")
-      if (hasAuthorizationHeader()) {
-        ()
-      } else {
+      if (!hasAuthorizationHeader()) {
         session.setAttribute(SESSION_KEY, user)
       }
     }

@@ -51,19 +51,17 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
   def findUserByIdAndPassword(id: String, password: String): Try[User] = {
     logger.info(LOG_MARKER, "Login request... : [id] = {}", id)
 
-    try {
-      DB readOnly { implicit s =>
-        findUser(id, password) match {
-          case Some(x) => {
-            logger.info(LOG_MARKER, "Login successed: [id] = {}", id)
-            Success(x)
-          }
-          case None => {
-            throw new BadRequestException(resource.getString(ResourceNames.INVALID_PASSWORD))
-          }
+    Try {
+      DB.readOnly { implicit s =>
+        val user = findUser(id, password)
+        user.foreach { _ =>
+          logger.info(LOG_MARKER, "Login successed: [id] = {}", id)
+        }
+        user.getOrElse {
+          throw new BadRequestException(resource.getString(ResourceNames.INVALID_PASSWORD))
         }
       }
-    } catch {
+    }.recoverWith {
       case e: BadRequestException =>
         logger.error(LOG_MARKER,
           "Login failed: input validation error occurred, [id] = {}, [error messages] = {}",
@@ -95,7 +93,7 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
         .and
         .eq(p.hash, createPasswordHash(password))
     }
-      .map(rs => (persistence.User(u.resultName)(rs), rs.string(ma.resultName.address))).single().apply
+      .map(rs => (persistence.User(u.resultName)(rs), rs.string(ma.resultName.address))).single.apply()
       .map(x => User(x._1, x._2))
   }
 
@@ -108,11 +106,11 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
    *         発生する可能性のある例外は、BadRequestExceptionである。
    */
   def changeUserEmail(id: String, email: String): Try[User] = {
-    try {
+    Try {
       // Eメールアドレスのフォーマットチェックはしていない
       val trimmedEmail = email.trim
 
-      DB localTx { implicit s =>
+      DB.localTx { implicit s =>
         if (isGoogleUser(id)) {
           throw new BadRequestException(resource.getString(ResourceNames.CANT_CHANGE_GOOGLE_USER_EMAIL))
         }
@@ -122,7 +120,7 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
           throw new BadRequestException(message)
         }
 
-        (for {
+        val user = for {
           user <- persistence.User.find(id)
           address <- persistence.MailAddress.findByUserId(id)
         } yield {
@@ -138,13 +136,11 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
             updatedAt = DateTime.now
           ).save
           User(user, trimmedEmail)
-        }) match {
-          case Some(x) => Success(x)
-          case None => throw new NotFoundException()
+        }
+        user.getOrElse {
+          throw new NotFoundException()
         }
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -159,7 +155,7 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
         .not.withRoundBracket { sql =>
           sql.eqUuid(ma.userId, id).and.eq(ma.address, email)
         }
-    }.map(_ => Unit).single().apply.nonEmpty
+    }.map(_ => ()).single.apply().isDefined
   }
 
   /**
@@ -172,28 +168,23 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
    *         発生する可能性のある例外は、BadRequestExceptionである。
    */
   def changeUserPassword(id: String, currentPassword: String, newPassword: String): Try[Unit] = {
-    try {
-      DB localTx { implicit s =>
+    Try {
+      DB.localTx { implicit s =>
         if (isGoogleUser(id)) {
           throw new BadRequestException(resource.getString(ResourceNames.CANT_CHANGE_GOOGLE_USER_PASSWORD))
         }
-
-        val currentPasswordObject = getCurrentPassword(id, currentPassword) match {
-          case None => throw new BadRequestException(resource.getString(ResourceNames.INVALID_PASSWORD))
-          case Some(p) => p
+        val currentPasswordObject = getCurrentPassword(id, currentPassword).getOrElse {
+          throw new BadRequestException(resource.getString(ResourceNames.INVALID_PASSWORD))
         }
-
         updatePassword(id, newPassword, currentPasswordObject)
       }
-      Success(Unit)
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
   private def getCurrentPassword(
     id: String,
-    currentPassword: String)(implicit s: DBSession): Option[persistence.Password] = {
+    currentPassword: String
+  )(implicit s: DBSession): Option[persistence.Password] = {
     val oldPasswordHash = createPasswordHash(currentPassword)
     val u = persistence.User.u
     val p = persistence.Password.p
@@ -210,13 +201,14 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
         .isNull(u.deletedAt)
         .and
         .isNull(p.deletedAt)
-    }.map(persistence.Password(p.resultName)).single().apply
+    }.map(persistence.Password(p.resultName)).single.apply()
   }
 
   private def updatePassword(
     id: String,
     newPassword: String,
-    currentPassword: persistence.Password)(implicit s: DBSession): Int = {
+    currentPassword: persistence.Password
+  )(implicit s: DBSession): Int = {
     val newPasswordHash = createPasswordHash(newPassword)
     withSQL {
       val p = persistence.Password.column
@@ -224,7 +216,7 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
         .set(p.hash -> newPasswordHash, p.updatedAt -> DateTime.now, p.updatedBy -> sqls.uuid(id))
         .where
         .eq(p.id, sqls.uuid(currentPassword.id))
-    }.update().apply
+    }.update.apply()
   }
 
   /**
@@ -239,14 +231,16 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
    * @return 更新後のユーザオブジェクト。エラーが発生した場合、例外をFailureで包んで返す。
    *         発生する可能性のある例外は、NotFoundException、BadRequestExceptionである。
    */
-  def updateUserProfile(id: String,
+  def updateUserProfile(
+    id: String,
     name: Option[String],
     fullname: Option[String],
     organization: Option[String],
     title: Option[String],
-    description: Option[String]): Try[User] = {
-    try {
-      DB localTx { implicit s =>
+    description: Option[String]
+  ): Try[User] = {
+    Try {
+      DB.localTx { implicit s =>
         val trimmedName = StringUtil.trimAllSpaces(name.getOrElse(""))
         val trimmedFullname = StringUtil.trimAllSpaces(fullname.getOrElse(""))
         val trimmedOrganization = StringUtil.trimAllSpaces(organization.getOrElse(""))
@@ -274,7 +268,10 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
         }
 
         persistence.User.find(id) match {
-          case Some(x) =>
+          case None => {
+            throw new NotFoundException()
+          }
+          case Some(x) => {
             val user = persistence.User(
               id = x.id,
               name = trimmedName,
@@ -290,18 +287,11 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
             )
             user.save
 
-            val address = persistence.MailAddress.findByUserId(user.id) match {
-              case Some(x) => x.address
-              case None => ""
-            }
-
-            Success(User.apply(user, address))
-          case None =>
-            throw new NotFoundException()
+            val address = persistence.MailAddress.findByUserId(user.id).map(_.address).getOrElse("")
+            User(user, address)
+          }
         }
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -314,10 +304,13 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
    *         発生する可能性のある例外は、NotFoundExceptionである。
    */
   def changeIcon(id: String, icon: FileItem): Try[String] = {
-    try {
-      DB localTx { implicit s =>
+    Try {
+      DB.localTx { implicit s =>
         persistence.User.find(id) match {
-          case Some(x) =>
+          case None => {
+            throw new NotFoundException()
+          }
+          case Some(x) => {
             val imageId = UUID.randomUUID().toString
             val path = ImageSaveLogic.writeImageFile(imageId, icon)
             val bufferedImage = javax.imageio.ImageIO.read(icon.getInputStream)
@@ -350,13 +343,10 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
             )
             user.save
 
-            Success(image.id)
-          case None =>
-            throw new NotFoundException()
+            image.id
+          }
         }
       }
-    } catch {
-      case e: Throwable => Failure(e)
     }
   }
 
@@ -369,7 +359,7 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
    * @return ユーザが見つかった場合、ユーザオブジェクト
    */
   def getUserByKeys(apiKey: String, signature: String): Option[User] = {
-    DB readOnly { implicit s =>
+    DB.readOnly { implicit s =>
       val u = persistence.User.u
       val ak = persistence.ApiKey.ak
       val ma = persistence.MailAddress.ma
@@ -395,24 +385,21 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
           rs.string(ak.resultName.secretKey),
           rs.string(ma.resultName.address)
         )
-      }.single().apply
+      }.single.apply()
 
-      targetUser match {
-        case Some(user) if getSignature(user._2, user._3) == signature => {
-          Some(User(
-            id = user._1.id,
-            name = user._1.name,
-            fullname = user._1.fullname,
-            organization = user._1.organization,
-            title = user._1.title,
-            image = user._1.imageId,
-            mailAddress = user._4,
-            description = user._1.description,
-            isGuest = false,
-            isDeleted = false
-          ))
-        }
-        case _ => None
+      targetUser.filter(user => getSignature(user._2, user._3) == signature).map { user =>
+        User(
+          id = user._1.id,
+          name = user._1.name,
+          fullname = user._1.fullname,
+          organization = user._1.organization,
+          title = user._1.title,
+          image = user._1.imageId,
+          mailAddress = user._4,
+          description = user._1.description,
+          isGuest = false,
+          isDeleted = false
+        )
       }
     }
   }
@@ -432,7 +419,7 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
         .from(persistence.User as u)
         .where.lowerEq(u.name, name).and.ne(u.id, sqls.uuid(id))
         .limit(1)
-    }.map(x => Unit).single().apply.nonEmpty
+    }.map(_ => ()).single.apply().nonEmpty
   }
 
   private def createPasswordHash(password: String) = {
@@ -453,9 +440,6 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
   }
 
   private def isGoogleUser(id: String)(implicit session: DBSession): Boolean = {
-    persistence.GoogleUser.findByUserId(id) match {
-      case Some(x) => true
-      case None => false
-    }
+    persistence.GoogleUser.findByUserId(id).isDefined
   }
 }

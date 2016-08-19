@@ -17,4 +17,5 @@ class InputValidationException(errors: Iterable[(String, String)]) extends Runti
 
 case class InputValidationError(
   name: String,
-  message: String)
+  message: String
+)

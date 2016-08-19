@@ -5,4 +5,5 @@ package dsmoq.services.json
  */
 case class Image(
   id: String,
-  url: String)
+  url: String
+)
