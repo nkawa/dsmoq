@@ -22,15 +22,16 @@ import scalikejdbc.update
 import scalikejdbc.withSQL
 
 case class License(
-    id: String,
-    name: String,
-    displayOrder: Int,
-    createdBy: String,
-    createdAt: DateTime,
-    updatedBy: String,
-    updatedAt: DateTime,
-    deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None) {
+  id: String,
+  name: String,
+  displayOrder: Int,
+  createdBy: String,
+  createdAt: DateTime,
+  updatedBy: String,
+  updatedAt: DateTime,
+  deletedBy: Option[String] = None,
+  deletedAt: Option[DateTime] = None
+) {
 
   def save()(implicit session: DBSession = License.autoSession): License = License.save(this)(session)
 
@@ -104,7 +105,8 @@ object License extends SQLSyntaxSupport[License] {
     updatedBy: String,
     updatedAt: DateTime,
     deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None)(implicit session: DBSession = autoSession): License = {
+    deletedAt: Option[DateTime] = None
+  )(implicit session: DBSession = autoSession): License = {
     withSQL {
       insert.into(License).columns(
         column.id,
@@ -117,16 +119,16 @@ object License extends SQLSyntaxSupport[License] {
         column.deletedBy,
         column.deletedAt
       ).values(
-          sqls.uuid(id),
-          name,
-          displayOrder,
-          sqls.uuid(createdBy),
-          createdAt,
-          sqls.uuid(updatedBy),
-          updatedAt,
-          deletedBy.map(sqls.uuid),
-          deletedAt
-        )
+        sqls.uuid(id),
+        name,
+        displayOrder,
+        sqls.uuid(createdBy),
+        createdAt,
+        sqls.uuid(updatedBy),
+        updatedAt,
+        deletedBy.map(sqls.uuid),
+        deletedAt
+      )
     }.update.apply()
 
     License(
@@ -138,7 +140,8 @@ object License extends SQLSyntaxSupport[License] {
       updatedBy = updatedBy,
       updatedAt = updatedAt,
       deletedBy = deletedBy,
-      deletedAt = deletedAt)
+      deletedAt = deletedAt
+    )
   }
 
   def save(entity: License)(implicit session: DBSession = autoSession): License = {

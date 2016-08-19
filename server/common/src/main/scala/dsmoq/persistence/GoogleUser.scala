@@ -22,15 +22,16 @@ import scalikejdbc.update
 import scalikejdbc.withSQL
 
 case class GoogleUser(
-    id: String,
-    userId: String,
-    googleId: String,
-    createdBy: String,
-    createdAt: DateTime,
-    updatedBy: String,
-    updatedAt: DateTime,
-    deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None) {
+  id: String,
+  userId: String,
+  googleId: String,
+  createdBy: String,
+  createdAt: DateTime,
+  updatedBy: String,
+  updatedAt: DateTime,
+  deletedBy: Option[String] = None,
+  deletedAt: Option[DateTime] = None
+) {
 
   def save()(implicit session: DBSession = GoogleUser.autoSession): GoogleUser = GoogleUser.save(this)(session)
 
@@ -106,7 +107,8 @@ object GoogleUser extends SQLSyntaxSupport[GoogleUser] {
     updatedBy: String,
     updatedAt: DateTime,
     deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None)(implicit session: DBSession = autoSession): GoogleUser = {
+    deletedAt: Option[DateTime] = None
+  )(implicit session: DBSession = autoSession): GoogleUser = {
     withSQL {
       insert.into(GoogleUser).columns(
         column.id,
@@ -119,16 +121,16 @@ object GoogleUser extends SQLSyntaxSupport[GoogleUser] {
         column.deletedBy,
         column.deletedAt
       ).values(
-          sqls.uuid(id),
-          sqls.uuid(userId),
-          googleId,
-          sqls.uuid(createdBy),
-          createdAt,
-          sqls.uuid(updatedBy),
-          updatedAt,
-          deletedBy.map(sqls.uuid),
-          deletedAt
-        )
+        sqls.uuid(id),
+        sqls.uuid(userId),
+        googleId,
+        sqls.uuid(createdBy),
+        createdAt,
+        sqls.uuid(updatedBy),
+        updatedAt,
+        deletedBy.map(sqls.uuid),
+        deletedAt
+      )
     }.update.apply()
 
     GoogleUser(
@@ -140,7 +142,8 @@ object GoogleUser extends SQLSyntaxSupport[GoogleUser] {
       updatedBy = updatedBy,
       updatedAt = updatedAt,
       deletedBy = deletedBy,
-      deletedAt = deletedAt)
+      deletedAt = deletedAt
+    )
   }
 
   def save(entity: GoogleUser)(implicit session: DBSession = autoSession): GoogleUser = {

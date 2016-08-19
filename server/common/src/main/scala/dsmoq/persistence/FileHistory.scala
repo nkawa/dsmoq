@@ -21,20 +21,21 @@ import scalikejdbc.update
 import scalikejdbc.withSQL
 
 case class FileHistory(
-    id: String,
-    fileId: String,
-    fileType: Int,
-    fileMime: String,
-    filePath: String,
-    fileSize: Long,
-    isZip: Boolean,
-    realSize: Long,
-    createdBy: String,
-    createdAt: DateTime,
-    updatedBy: String,
-    updatedAt: DateTime,
-    deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None) {
+  id: String,
+  fileId: String,
+  fileType: Int,
+  fileMime: String,
+  filePath: String,
+  fileSize: Long,
+  isZip: Boolean,
+  realSize: Long,
+  createdBy: String,
+  createdAt: DateTime,
+  updatedBy: String,
+  updatedAt: DateTime,
+  deletedBy: Option[String] = None,
+  deletedAt: Option[DateTime] = None
+) {
 
   def save()(implicit session: DBSession = FileHistory.autoSession): FileHistory = FileHistory.save(this)(session)
 
@@ -116,7 +117,8 @@ object FileHistory extends SQLSyntaxSupport[FileHistory] {
     updatedBy: String,
     updatedAt: DateTime,
     deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None)(implicit session: DBSession = autoSession): FileHistory = {
+    deletedAt: Option[DateTime] = None
+  )(implicit session: DBSession = autoSession): FileHistory = {
     withSQL {
       insert.into(FileHistory).columns(
         column.id,
@@ -134,21 +136,21 @@ object FileHistory extends SQLSyntaxSupport[FileHistory] {
         column.deletedBy,
         column.deletedAt
       ).values(
-          sqls.uuid(id),
-          sqls.uuid(fileId),
-          fileType,
-          fileMime,
-          filePath,
-          fileSize,
-          isZip,
-          realSize,
-          sqls.uuid(createdBy),
-          createdAt,
-          sqls.uuid(updatedBy),
-          updatedAt,
-          deletedBy.map(x => sqls.uuid(x)),
-          deletedAt
-        )
+        sqls.uuid(id),
+        sqls.uuid(fileId),
+        fileType,
+        fileMime,
+        filePath,
+        fileSize,
+        isZip,
+        realSize,
+        sqls.uuid(createdBy),
+        createdAt,
+        sqls.uuid(updatedBy),
+        updatedAt,
+        deletedBy.map(x => sqls.uuid(x)),
+        deletedAt
+      )
     }.update.apply()
 
     FileHistory(
@@ -165,7 +167,8 @@ object FileHistory extends SQLSyntaxSupport[FileHistory] {
       updatedBy = updatedBy,
       updatedAt = updatedAt,
       deletedBy = deletedBy,
-      deletedAt = deletedAt)
+      deletedAt = deletedAt
+    )
   }
 
   def save(entity: FileHistory)(implicit session: DBSession = autoSession): FileHistory = {

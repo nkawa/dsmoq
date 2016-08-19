@@ -23,20 +23,21 @@ import scalikejdbc.update
 import scalikejdbc.withSQL
 
 case class Statistics(
-    id: String,
-    targetMonth: DateTime,
-    datasetCount: Long,
-    realSize: Long,
-    compressedSize: Long,
-    s3Size: Long,
-    localSize: Long,
-    statisticsType: Int,
-    createdBy: String,
-    createdAt: DateTime,
-    updatedBy: String,
-    updatedAt: DateTime,
-    deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None) {
+  id: String,
+  targetMonth: DateTime,
+  datasetCount: Long,
+  realSize: Long,
+  compressedSize: Long,
+  s3Size: Long,
+  localSize: Long,
+  statisticsType: Int,
+  createdBy: String,
+  createdAt: DateTime,
+  updatedBy: String,
+  updatedAt: DateTime,
+  deletedBy: Option[String] = None,
+  deletedAt: Option[DateTime] = None
+) {
 
   def save()(implicit session: DBSession = Statistics.autoSession): Statistics = Statistics.save(this)(session)
 
@@ -120,7 +121,8 @@ object Statistics extends SQLSyntaxSupport[Statistics] {
     updatedBy: String,
     updatedAt: DateTime,
     deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None)(implicit session: DBSession = autoSession): Statistics = {
+    deletedAt: Option[DateTime] = None
+  )(implicit session: DBSession = autoSession): Statistics = {
     withSQL {
       insert.into(Statistics).columns(
         column.id,
@@ -138,21 +140,21 @@ object Statistics extends SQLSyntaxSupport[Statistics] {
         column.deletedBy,
         column.deletedAt
       ).values(
-          sqls.uuid(id),
-          targetMonth,
-          datasetCount,
-          realSize,
-          compressedSize,
-          s3Size,
-          localSize,
-          statisticsType,
-          sqls.uuid(createdBy),
-          createdAt,
-          sqls.uuid(updatedBy),
-          updatedAt,
-          deletedBy.map(sqls.uuid),
-          deletedAt
-        )
+        sqls.uuid(id),
+        targetMonth,
+        datasetCount,
+        realSize,
+        compressedSize,
+        s3Size,
+        localSize,
+        statisticsType,
+        sqls.uuid(createdBy),
+        createdAt,
+        sqls.uuid(updatedBy),
+        updatedAt,
+        deletedBy.map(sqls.uuid),
+        deletedAt
+      )
     }.update.apply()
 
     Statistics(
@@ -169,7 +171,8 @@ object Statistics extends SQLSyntaxSupport[Statistics] {
       updatedBy = updatedBy,
       updatedAt = updatedAt,
       deletedBy = deletedBy,
-      deletedAt = deletedAt)
+      deletedAt = deletedAt
+    )
   }
 
   def save(entity: Statistics)(implicit session: DBSession = autoSession): Statistics = {

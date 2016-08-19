@@ -24,22 +24,23 @@ import scalikejdbc.update
 import scalikejdbc.withSQL
 
 case class File(
-    id: String,
-    datasetId: String,
-    historyId: String,
-    name: String,
-    description: String,
-    fileType: Int,
-    fileMime: String,
-    fileSize: Long,
-    s3State: Int,
-    localState: Int,
-    createdBy: String,
-    createdAt: DateTime,
-    updatedBy: String,
-    updatedAt: DateTime,
-    deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None) {
+  id: String,
+  datasetId: String,
+  historyId: String,
+  name: String,
+  description: String,
+  fileType: Int,
+  fileMime: String,
+  fileSize: Long,
+  s3State: Int,
+  localState: Int,
+  createdBy: String,
+  createdAt: DateTime,
+  updatedBy: String,
+  updatedAt: DateTime,
+  deletedBy: Option[String] = None,
+  deletedAt: Option[DateTime] = None
+) {
 
   def save()(implicit session: DBSession = File.autoSession): File = File.save(this)(session)
 
@@ -126,7 +127,8 @@ object File extends SQLSyntaxSupport[File] {
     updatedBy: String,
     updatedAt: DateTime,
     deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None)(implicit session: DBSession = autoSession): File = {
+    deletedAt: Option[DateTime] = None
+  )(implicit session: DBSession = autoSession): File = {
     withSQL {
       insert.into(File).columns(
         column.id,
@@ -146,23 +148,23 @@ object File extends SQLSyntaxSupport[File] {
         column.deletedBy,
         column.deletedAt
       ).values(
-          sqls.uuid(id),
-          sqls.uuid(datasetId),
-          sqls.uuid(historyId),
-          name,
-          description,
-          fileType,
-          fileMime,
-          fileSize,
-          s3State,
-          localState,
-          sqls.uuid(createdBy),
-          createdAt,
-          sqls.uuid(updatedBy),
-          updatedAt,
-          deletedBy.map(sqls.uuid),
-          deletedAt
-        )
+        sqls.uuid(id),
+        sqls.uuid(datasetId),
+        sqls.uuid(historyId),
+        name,
+        description,
+        fileType,
+        fileMime,
+        fileSize,
+        s3State,
+        localState,
+        sqls.uuid(createdBy),
+        createdAt,
+        sqls.uuid(updatedBy),
+        updatedAt,
+        deletedBy.map(sqls.uuid),
+        deletedAt
+      )
     }.update.apply()
 
     File(
@@ -181,7 +183,8 @@ object File extends SQLSyntaxSupport[File] {
       updatedBy = updatedBy,
       updatedAt = updatedAt,
       deletedBy = deletedBy,
-      deletedAt = deletedAt)
+      deletedAt = deletedAt
+    )
   }
 
   def save(entity: File)(implicit session: DBSession = autoSession): File = {

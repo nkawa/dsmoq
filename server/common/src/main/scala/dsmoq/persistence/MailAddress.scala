@@ -22,16 +22,17 @@ import scalikejdbc.update
 import scalikejdbc.withSQL
 
 case class MailAddress(
-    id: String,
-    userId: String,
-    address: String,
-    status: Int,
-    createdBy: String,
-    createdAt: DateTime,
-    updatedBy: String,
-    updatedAt: DateTime,
-    deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None) {
+  id: String,
+  userId: String,
+  address: String,
+  status: Int,
+  createdBy: String,
+  createdAt: DateTime,
+  updatedBy: String,
+  updatedAt: DateTime,
+  deletedBy: Option[String] = None,
+  deletedAt: Option[DateTime] = None
+) {
 
   def save()(implicit session: DBSession = MailAddress.autoSession): MailAddress = MailAddress.save(this)(session)
 
@@ -109,7 +110,8 @@ object MailAddress extends SQLSyntaxSupport[MailAddress] {
     updatedBy: String,
     updatedAt: DateTime,
     deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None)(implicit session: DBSession = autoSession): MailAddress = {
+    deletedAt: Option[DateTime] = None
+  )(implicit session: DBSession = autoSession): MailAddress = {
     withSQL {
       insert.into(MailAddress).columns(
         column.id,
@@ -123,17 +125,17 @@ object MailAddress extends SQLSyntaxSupport[MailAddress] {
         column.deletedBy,
         column.deletedAt
       ).values(
-          sqls.uuid(id),
-          sqls.uuid(userId),
-          address,
-          status,
-          sqls.uuid(createdBy),
-          createdAt,
-          sqls.uuid(updatedBy),
-          updatedAt,
-          deletedBy.map(sqls.uuid),
-          deletedAt
-        )
+        sqls.uuid(id),
+        sqls.uuid(userId),
+        address,
+        status,
+        sqls.uuid(createdBy),
+        createdAt,
+        sqls.uuid(updatedBy),
+        updatedAt,
+        deletedBy.map(sqls.uuid),
+        deletedAt
+      )
     }.update.apply()
 
     MailAddress(
@@ -146,7 +148,8 @@ object MailAddress extends SQLSyntaxSupport[MailAddress] {
       updatedBy = updatedBy,
       updatedAt = updatedAt,
       deletedBy = deletedBy,
-      deletedAt = deletedAt)
+      deletedAt = deletedAt
+    )
   }
 
   def save(entity: MailAddress)(implicit session: DBSession = autoSession): MailAddress = {

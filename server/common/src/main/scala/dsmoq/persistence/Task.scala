@@ -23,15 +23,16 @@ import scalikejdbc.update
 import scalikejdbc.withSQL
 
 case class Task(
-    id: String,
-    taskType: Int,
-    parameter: String,
-    status: Int,
-    executeAt: DateTime,
-    createdBy: String,
-    createdAt: DateTime,
-    updatedBy: String,
-    updatedAt: DateTime) {
+  id: String,
+  taskType: Int,
+  parameter: String,
+  status: Int,
+  executeAt: DateTime,
+  createdBy: String,
+  createdAt: DateTime,
+  updatedBy: String,
+  updatedAt: DateTime
+) {
 
   def save()(implicit session: DBSession = Task.autoSession): Task = Task.save(this)(session)
 
@@ -102,7 +103,8 @@ object Task extends SQLSyntaxSupport[Task] {
     createdBy: String,
     createdAt: DateTime,
     updatedBy: String,
-    updatedAt: DateTime)(implicit session: DBSession = autoSession): Task = {
+    updatedAt: DateTime
+  )(implicit session: DBSession = autoSession): Task = {
     withSQL {
       insert.into(Task).columns(
         column.id,
@@ -115,16 +117,16 @@ object Task extends SQLSyntaxSupport[Task] {
         column.updatedBy,
         column.updatedAt
       ).values(
-          sqls.uuid(id),
-          taskType,
-          parameter,
-          status,
-          executeAt,
-          sqls.uuid(createdBy),
-          createdAt,
-          sqls.uuid(updatedBy),
-          updatedAt
-        )
+        sqls.uuid(id),
+        taskType,
+        parameter,
+        status,
+        executeAt,
+        sqls.uuid(createdBy),
+        createdAt,
+        sqls.uuid(updatedBy),
+        updatedAt
+      )
     }.update.apply()
 
     Task(
@@ -136,7 +138,8 @@ object Task extends SQLSyntaxSupport[Task] {
       createdBy = createdBy,
       createdAt = createdAt,
       updatedBy = updatedBy,
-      updatedAt = updatedAt)
+      updatedAt = updatedAt
+    )
   }
 
   def save(entity: Task)(implicit session: DBSession = autoSession): Task = {

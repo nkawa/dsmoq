@@ -21,15 +21,16 @@ import scalikejdbc.update
 import scalikejdbc.withSQL
 
 case class Password(
-    id: String,
-    userId: String,
-    hash: String,
-    createdBy: String,
-    createdAt: DateTime,
-    updatedBy: String,
-    updatedAt: DateTime,
-    deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None) {
+  id: String,
+  userId: String,
+  hash: String,
+  createdBy: String,
+  createdAt: DateTime,
+  updatedBy: String,
+  updatedAt: DateTime,
+  deletedBy: Option[String] = None,
+  deletedAt: Option[DateTime] = None
+) {
 
   def save()(implicit session: DBSession = Password.autoSession): Password = Password.save(this)(session)
 
@@ -99,7 +100,8 @@ object Password extends SQLSyntaxSupport[Password] {
     updatedBy: String,
     updatedAt: DateTime,
     deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None)(implicit session: DBSession = autoSession): Password = {
+    deletedAt: Option[DateTime] = None
+  )(implicit session: DBSession = autoSession): Password = {
     withSQL {
       insert.into(Password).columns(
         column.id,
@@ -112,16 +114,16 @@ object Password extends SQLSyntaxSupport[Password] {
         column.deletedBy,
         column.deletedAt
       ).values(
-          sqls.uuid(id),
-          sqls.uuid(userId),
-          hash,
-          sqls.uuid(createdBy),
-          createdAt,
-          sqls.uuid(updatedBy),
-          updatedAt,
-          deletedBy.map(sqls.uuid),
-          deletedAt
-        )
+        sqls.uuid(id),
+        sqls.uuid(userId),
+        hash,
+        sqls.uuid(createdBy),
+        createdAt,
+        sqls.uuid(updatedBy),
+        updatedAt,
+        deletedBy.map(sqls.uuid),
+        deletedAt
+      )
     }.update.apply()
 
     Password(
@@ -133,7 +135,8 @@ object Password extends SQLSyntaxSupport[Password] {
       updatedBy = updatedBy,
       updatedAt = updatedAt,
       deletedBy = deletedBy,
-      deletedAt = deletedAt)
+      deletedAt = deletedAt
+    )
   }
 
   def save(entity: Password)(implicit session: DBSession = autoSession): Password = {

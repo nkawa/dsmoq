@@ -139,21 +139,21 @@ object Dataset extends SQLSyntaxSupport[Dataset] {
         column.localState,
         column.s3State
       ).values(
-          sqls.uuid(id),
-          name,
-          description,
-          sqls.uuid(licenseId),
-          filesCount,
-          filesSize,
-          sqls.uuid(createdBy),
-          createdAt,
-          sqls.uuid(updatedBy),
-          updatedAt,
-          deletedBy.map(sqls.uuid),
-          deletedAt,
-          localState,
-          s3State
-        )
+        sqls.uuid(id),
+        name,
+        description,
+        sqls.uuid(licenseId),
+        filesCount,
+        filesSize,
+        sqls.uuid(createdBy),
+        createdAt,
+        sqls.uuid(updatedBy),
+        updatedAt,
+        deletedBy.map(sqls.uuid),
+        deletedAt,
+        localState,
+        s3State
+      )
     }.update.apply()
 
     Dataset(
@@ -170,7 +170,8 @@ object Dataset extends SQLSyntaxSupport[Dataset] {
       deletedBy = deletedBy,
       deletedAt = deletedAt,
       localState = localState,
-      s3State = s3State)
+      s3State = s3State
+    )
   }
 
   def save(entity: Dataset)(implicit session: DBSession = autoSession): Dataset = {

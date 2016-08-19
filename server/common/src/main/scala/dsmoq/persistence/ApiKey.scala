@@ -23,17 +23,18 @@ import scalikejdbc.update
 import scalikejdbc.withSQL
 
 case class ApiKey(
-    id: String,
-    userId: String,
-    apiKey: String,
-    secretKey: String,
-    permission: Int,
-    createdBy: String,
-    createdAt: DateTime,
-    updatedBy: String,
-    updatedAt: DateTime,
-    deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None) {
+  id: String,
+  userId: String,
+  apiKey: String,
+  secretKey: String,
+  permission: Int,
+  createdBy: String,
+  createdAt: DateTime,
+  updatedBy: String,
+  updatedAt: DateTime,
+  deletedBy: Option[String] = None,
+  deletedAt: Option[DateTime] = None
+) {
 
   def save()(implicit session: DBSession = ApiKey.autoSession): ApiKey = ApiKey.save(this)(session)
 
@@ -124,18 +125,18 @@ object ApiKey extends SQLSyntaxSupport[ApiKey] {
         column.deletedBy,
         column.deletedAt
       ).values(
-          sqls.uuid(id),
-          sqls.uuid(userId),
-          apiKey,
-          secretKey,
-          permission,
-          sqls.uuid(createdBy),
-          createdAt,
-          sqls.uuid(updatedBy),
-          updatedAt,
-          deletedBy.map(sqls.uuid),
-          deletedAt
-        )
+        sqls.uuid(id),
+        sqls.uuid(userId),
+        apiKey,
+        secretKey,
+        permission,
+        sqls.uuid(createdBy),
+        createdAt,
+        sqls.uuid(updatedBy),
+        updatedAt,
+        deletedBy.map(sqls.uuid),
+        deletedAt
+      )
     }.update.apply()
 
     ApiKey(
@@ -149,7 +150,8 @@ object ApiKey extends SQLSyntaxSupport[ApiKey] {
       updatedBy = updatedBy,
       updatedAt = updatedAt,
       deletedBy = deletedBy,
-      deletedAt = deletedAt)
+      deletedAt = deletedAt
+    )
   }
 
   def save(entity: ApiKey)(implicit session: DBSession = autoSession): ApiKey = {

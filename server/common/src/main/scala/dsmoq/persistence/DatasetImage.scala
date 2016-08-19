@@ -22,17 +22,18 @@ import scalikejdbc.update
 import scalikejdbc.withSQL
 
 case class DatasetImage(
-    id: String,
-    datasetId: String,
-    imageId: String,
-    isPrimary: Boolean,
-    createdBy: String,
-    createdAt: DateTime,
-    updatedBy: String,
-    updatedAt: DateTime,
-    deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None,
-    isFeatured: Boolean) {
+  id: String,
+  datasetId: String,
+  imageId: String,
+  isPrimary: Boolean,
+  createdBy: String,
+  createdAt: DateTime,
+  updatedBy: String,
+  updatedAt: DateTime,
+  deletedBy: Option[String] = None,
+  deletedAt: Option[DateTime] = None,
+  isFeatured: Boolean
+) {
 
   def save()(implicit session: DBSession = DatasetImage.autoSession): DatasetImage = DatasetImage.save(this)(session)
 
@@ -107,7 +108,8 @@ object DatasetImage extends SQLSyntaxSupport[DatasetImage] {
     updatedBy: String,
     updatedAt: DateTime,
     deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None)(implicit session: DBSession = autoSession): DatasetImage = {
+    deletedAt: Option[DateTime] = None
+  )(implicit session: DBSession = autoSession): DatasetImage = {
     withSQL {
       insert.into(DatasetImage).columns(
         column.id,
@@ -122,18 +124,18 @@ object DatasetImage extends SQLSyntaxSupport[DatasetImage] {
         column.deletedBy,
         column.deletedAt
       ).values(
-          sqls.uuid(id),
-          sqls.uuid(datasetId),
-          sqls.uuid(imageId),
-          isPrimary,
-          isFeatured,
-          sqls.uuid(createdBy),
-          createdAt,
-          sqls.uuid(updatedBy),
-          updatedAt,
-          deletedBy.map(sqls.uuid),
-          deletedAt
-        )
+        sqls.uuid(id),
+        sqls.uuid(datasetId),
+        sqls.uuid(imageId),
+        isPrimary,
+        isFeatured,
+        sqls.uuid(createdBy),
+        createdAt,
+        sqls.uuid(updatedBy),
+        updatedAt,
+        deletedBy.map(sqls.uuid),
+        deletedAt
+      )
     }.update.apply()
 
     DatasetImage(
@@ -147,7 +149,8 @@ object DatasetImage extends SQLSyntaxSupport[DatasetImage] {
       updatedBy = updatedBy,
       updatedAt = updatedAt,
       deletedBy = deletedBy,
-      deletedAt = deletedAt)
+      deletedAt = deletedAt
+    )
   }
 
   def save(entity: DatasetImage)(implicit session: DBSession = autoSession): DatasetImage = {

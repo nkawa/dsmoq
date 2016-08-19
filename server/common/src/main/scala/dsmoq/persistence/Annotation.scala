@@ -21,14 +21,15 @@ import scalikejdbc.update
 import scalikejdbc.withSQL
 
 case class Annotation(
-    id: String,
-    name: String,
-    createdBy: String,
-    createdAt: DateTime,
-    updatedBy: String,
-    updatedAt: DateTime,
-    deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None) {
+  id: String,
+  name: String,
+  createdBy: String,
+  createdAt: DateTime,
+  updatedBy: String,
+  updatedAt: DateTime,
+  deletedBy: Option[String] = None,
+  deletedAt: Option[DateTime] = None
+) {
 
   def save()(implicit session: DBSession = Annotation.autoSession): Annotation = Annotation.save(this)(session)
 
@@ -96,7 +97,8 @@ object Annotation extends SQLSyntaxSupport[Annotation] {
     updatedBy: String,
     updatedAt: DateTime,
     deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None)(implicit session: DBSession = autoSession): Annotation = {
+    deletedAt: Option[DateTime] = None
+  )(implicit session: DBSession = autoSession): Annotation = {
     withSQL {
       insert.into(Annotation)
         .columns(
@@ -109,15 +111,15 @@ object Annotation extends SQLSyntaxSupport[Annotation] {
           column.deletedBy,
           column.deletedAt
         ).values(
-            sqls.uuid(id),
-            name,
-            sqls.uuid(createdBy),
-            createdAt,
-            sqls.uuid(updatedBy),
-            updatedAt,
-            deletedBy.map(sqls.uuid),
-            deletedAt
-          )
+          sqls.uuid(id),
+          name,
+          sqls.uuid(createdBy),
+          createdAt,
+          sqls.uuid(updatedBy),
+          updatedAt,
+          deletedBy.map(sqls.uuid),
+          deletedAt
+        )
     }.update.apply()
 
     Annotation(

@@ -24,21 +24,22 @@ import scalikejdbc.update
 import scalikejdbc.withSQL
 
 case class ZipedFiles(
-    id: String,
-    historyId: String,
-    name: String,
-    description: String,
-    fileSize: Long,
-    createdBy: String,
-    createdAt: DateTime,
-    updatedBy: String,
-    updatedAt: DateTime,
-    deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None,
-    cenSize: Long,
-    dataStart: Long,
-    dataSize: Long,
-    cenHeader: Array[Byte]) {
+  id: String,
+  historyId: String,
+  name: String,
+  description: String,
+  fileSize: Long,
+  createdBy: String,
+  createdAt: DateTime,
+  updatedBy: String,
+  updatedAt: DateTime,
+  deletedBy: Option[String] = None,
+  deletedAt: Option[DateTime] = None,
+  cenSize: Long,
+  dataStart: Long,
+  dataSize: Long,
+  cenHeader: Array[Byte]
+) {
 
   def save()(implicit session: DBSession = ZipedFiles.autoSession): ZipedFiles = ZipedFiles.save(this)(session)
 
@@ -123,7 +124,8 @@ object ZipedFiles extends SQLSyntaxSupport[ZipedFiles] {
     cenSize: Long,
     dataStart: Long,
     dataSize: Long,
-    cenHeader: Array[Byte])(implicit session: DBSession = autoSession): ZipedFiles = {
+    cenHeader: Array[Byte]
+  )(implicit session: DBSession = autoSession): ZipedFiles = {
     withSQL {
       insert.into(ZipedFiles).columns(
         column.id,
@@ -142,22 +144,22 @@ object ZipedFiles extends SQLSyntaxSupport[ZipedFiles] {
         column.dataSize,
         column.cenHeader
       ).values(
-          sqls.uuid(id),
-          sqls.uuid(historyId),
-          name,
-          description,
-          fileSize,
-          sqls.uuid(createdBy),
-          createdAt,
-          sqls.uuid(updatedBy),
-          updatedAt,
-          deletedBy.map(sqls.uuid),
-          deletedAt,
-          cenSize,
-          dataStart,
-          dataSize,
-          cenHeader
-        )
+        sqls.uuid(id),
+        sqls.uuid(historyId),
+        name,
+        description,
+        fileSize,
+        sqls.uuid(createdBy),
+        createdAt,
+        sqls.uuid(updatedBy),
+        updatedAt,
+        deletedBy.map(sqls.uuid),
+        deletedAt,
+        cenSize,
+        dataStart,
+        dataSize,
+        cenHeader
+      )
     }.update.apply()
 
     ZipedFiles(
@@ -175,7 +177,8 @@ object ZipedFiles extends SQLSyntaxSupport[ZipedFiles] {
       cenSize = cenSize,
       dataStart = dataStart,
       dataSize = dataSize,
-      cenHeader = cenHeader)
+      cenHeader = cenHeader
+    )
   }
 
   def save(entity: ZipedFiles)(implicit session: DBSession = autoSession): ZipedFiles = {

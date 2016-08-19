@@ -24,10 +24,11 @@ import scalikejdbc.update
 import scalikejdbc.withSQL
 
 case class DatasetAccessLog(
-    id: String,
-    datasetId: String,
-    createdBy: String,
-    createdAt: DateTime) {
+  id: String,
+  datasetId: String,
+  createdBy: String,
+  createdAt: DateTime
+) {
 
   def save()(implicit session: DBSession = DatasetAccessLog.autoSession): DatasetAccessLog = {
     DatasetAccessLog.save(this)(session)
@@ -90,7 +91,8 @@ object DatasetAccessLog extends SQLSyntaxSupport[DatasetAccessLog] {
     id: String,
     datasetId: String,
     createdBy: String,
-    createdAt: DateTime)(implicit session: DBSession = autoSession): DatasetAccessLog = {
+    createdAt: DateTime
+  )(implicit session: DBSession = autoSession): DatasetAccessLog = {
     withSQL {
       insert.into(DatasetAccessLog).columns(
         column.id,
@@ -98,18 +100,19 @@ object DatasetAccessLog extends SQLSyntaxSupport[DatasetAccessLog] {
         column.createdBy,
         column.createdAt
       ).values(
-          sqls.uuid(id),
-          sqls.uuid(datasetId),
-          sqls.uuid(createdBy),
-          createdAt
-        )
+        sqls.uuid(id),
+        sqls.uuid(datasetId),
+        sqls.uuid(createdBy),
+        createdAt
+      )
     }.update.apply()
 
     DatasetAccessLog(
       id = id,
       datasetId = datasetId,
       createdBy = createdBy,
-      createdAt = createdAt)
+      createdAt = createdAt
+    )
   }
 
   def save(entity: DatasetAccessLog)(implicit session: DBSession = autoSession): DatasetAccessLog = {

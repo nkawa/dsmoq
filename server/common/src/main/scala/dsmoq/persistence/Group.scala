@@ -21,16 +21,17 @@ import scalikejdbc.update
 import scalikejdbc.withSQL
 
 case class Group(
-    id: String,
-    name: String,
-    description: String,
-    groupType: Int,
-    createdBy: String,
-    createdAt: DateTime,
-    updatedBy: String,
-    updatedAt: DateTime,
-    deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None) {
+  id: String,
+  name: String,
+  description: String,
+  groupType: Int,
+  createdBy: String,
+  createdAt: DateTime,
+  updatedBy: String,
+  updatedAt: DateTime,
+  deletedBy: Option[String] = None,
+  deletedAt: Option[DateTime] = None
+) {
 
   def save()(implicit session: DBSession = Group.autoSession): Group = Group.save(this)(session)
 
@@ -102,7 +103,8 @@ object Group extends SQLSyntaxSupport[Group] {
     updatedBy: String,
     updatedAt: DateTime,
     deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None)(implicit session: DBSession = autoSession): Group = {
+    deletedAt: Option[DateTime] = None
+  )(implicit session: DBSession = autoSession): Group = {
     withSQL {
       insert.into(Group).columns(
         column.id,
@@ -116,17 +118,17 @@ object Group extends SQLSyntaxSupport[Group] {
         column.deletedBy,
         column.deletedAt
       ).values(
-          sqls.uuid(id),
-          name,
-          description,
-          groupType,
-          sqls.uuid(createdBy),
-          createdAt,
-          sqls.uuid(updatedBy),
-          updatedAt,
-          deletedBy.map(x => sqls.uuid(x)),
-          deletedAt
-        )
+        sqls.uuid(id),
+        name,
+        description,
+        groupType,
+        sqls.uuid(createdBy),
+        createdAt,
+        sqls.uuid(updatedBy),
+        updatedAt,
+        deletedBy.map(x => sqls.uuid(x)),
+        deletedAt
+      )
     }.update.apply()
 
     Group(
@@ -139,7 +141,8 @@ object Group extends SQLSyntaxSupport[Group] {
       updatedBy = updatedBy,
       updatedAt = updatedAt,
       deletedBy = deletedBy,
-      deletedAt = deletedAt)
+      deletedAt = deletedAt
+    )
   }
 
   def save(entity: Group)(implicit session: DBSession = autoSession): Group = {

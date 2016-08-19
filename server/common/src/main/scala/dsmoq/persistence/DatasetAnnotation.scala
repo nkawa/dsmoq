@@ -21,16 +21,17 @@ import scalikejdbc.update
 import scalikejdbc.withSQL
 
 case class DatasetAnnotation(
-    id: String,
-    datasetId: String,
-    annotationId: String,
-    data: String,
-    createdBy: String,
-    createdAt: DateTime,
-    updatedBy: String,
-    updatedAt: DateTime,
-    deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None) {
+  id: String,
+  datasetId: String,
+  annotationId: String,
+  data: String,
+  createdBy: String,
+  createdAt: DateTime,
+  updatedBy: String,
+  updatedAt: DateTime,
+  deletedBy: Option[String] = None,
+  deletedAt: Option[DateTime] = None
+) {
 
   def save()(implicit session: DBSession = DatasetAnnotation.autoSession): DatasetAnnotation = {
     DatasetAnnotation.save(this)(session)
@@ -106,7 +107,8 @@ object DatasetAnnotation extends SQLSyntaxSupport[DatasetAnnotation] {
     updatedBy: String,
     updatedAt: DateTime,
     deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None)(implicit session: DBSession = autoSession): DatasetAnnotation = {
+    deletedAt: Option[DateTime] = None
+  )(implicit session: DBSession = autoSession): DatasetAnnotation = {
     withSQL {
       insert.into(DatasetAnnotation).columns(
         column.id,
@@ -120,17 +122,17 @@ object DatasetAnnotation extends SQLSyntaxSupport[DatasetAnnotation] {
         column.deletedBy,
         column.deletedAt
       ).values(
-          sqls.uuid(id),
-          sqls.uuid(datasetId),
-          sqls.uuid(annotationId),
-          data,
-          sqls.uuid(createdBy),
-          createdAt,
-          sqls.uuid(updatedBy),
-          updatedAt,
-          deletedBy.map(sqls.uuid),
-          deletedAt
-        )
+        sqls.uuid(id),
+        sqls.uuid(datasetId),
+        sqls.uuid(annotationId),
+        data,
+        sqls.uuid(createdBy),
+        createdAt,
+        sqls.uuid(updatedBy),
+        updatedAt,
+        deletedBy.map(sqls.uuid),
+        deletedAt
+      )
     }.update.apply()
 
     DatasetAnnotation(
@@ -143,7 +145,8 @@ object DatasetAnnotation extends SQLSyntaxSupport[DatasetAnnotation] {
       updatedBy = updatedBy,
       updatedAt = updatedAt,
       deletedBy = deletedBy,
-      deletedAt = deletedAt)
+      deletedAt = deletedAt
+    )
   }
 
   def save(entity: DatasetAnnotation)(implicit session: DBSession = autoSession): DatasetAnnotation = {

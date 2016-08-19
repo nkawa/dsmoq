@@ -23,15 +23,16 @@ import scalikejdbc.update
 import scalikejdbc.withSQL
 
 case class Tag(
-    id: String,
-    tag: String,
-    color: String,
-    createdBy: String,
-    createdAt: DateTime,
-    updatedBy: String,
-    updatedAt: DateTime,
-    deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None) {
+  id: String,
+  tag: String,
+  color: String,
+  createdBy: String,
+  createdAt: DateTime,
+  updatedBy: String,
+  updatedAt: DateTime,
+  deletedBy: Option[String] = None,
+  deletedAt: Option[DateTime] = None
+) {
 
   def save()(implicit session: DBSession = Tag.autoSession): Tag = Tag.save(this)(session)
 
@@ -103,7 +104,8 @@ object Tag extends SQLSyntaxSupport[Tag] {
     updatedBy: String,
     updatedAt: DateTime,
     deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None)(implicit session: DBSession = autoSession): Tag = {
+    deletedAt: Option[DateTime] = None
+  )(implicit session: DBSession = autoSession): Tag = {
     withSQL {
       insert.into(Tag).columns(
         column.id,
@@ -116,16 +118,16 @@ object Tag extends SQLSyntaxSupport[Tag] {
         column.deletedBy,
         column.deletedAt
       ).values(
-          sqls.uuid(id),
-          tag,
-          color,
-          sqls.uuid(createdBy),
-          createdAt,
-          sqls.uuid(updatedBy),
-          updatedAt,
-          deletedBy.map(sqls.uuid),
-          deletedAt
-        )
+        sqls.uuid(id),
+        tag,
+        color,
+        sqls.uuid(createdBy),
+        createdAt,
+        sqls.uuid(updatedBy),
+        updatedAt,
+        deletedBy.map(sqls.uuid),
+        deletedAt
+      )
     }.update.apply()
 
     Tag(
@@ -137,7 +139,8 @@ object Tag extends SQLSyntaxSupport[Tag] {
       updatedBy = updatedBy,
       updatedAt = updatedAt,
       deletedBy = deletedBy,
-      deletedAt = deletedAt)
+      deletedAt = deletedAt
+    )
   }
 
   def save(entity: Tag)(implicit session: DBSession = autoSession): Tag = {

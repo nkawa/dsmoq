@@ -24,12 +24,13 @@ import scalikejdbc.update
 import scalikejdbc.withSQL
 
 case class TaskLog(
-    id: String,
-    taskId: String,
-    logType: Int,
-    message: String,
-    createdBy: String,
-    createdAt: DateTime) {
+  id: String,
+  taskId: String,
+  logType: Int,
+  message: String,
+  createdBy: String,
+  createdAt: DateTime
+) {
 
   def save()(implicit session: DBSession = TaskLog.autoSession): TaskLog = TaskLog.save(this)(session)
 
@@ -90,7 +91,8 @@ object TaskLog extends SQLSyntaxSupport[TaskLog] {
     logType: Int,
     message: String,
     createdBy: String,
-    createdAt: DateTime)(implicit session: DBSession = autoSession): TaskLog = {
+    createdAt: DateTime
+  )(implicit session: DBSession = autoSession): TaskLog = {
     withSQL {
       insert.into(TaskLog).columns(
         column.id,
@@ -100,13 +102,13 @@ object TaskLog extends SQLSyntaxSupport[TaskLog] {
         column.createdBy,
         column.createdAt
       ).values(
-          sqls.uuid(id),
-          sqls.uuid(taskId),
-          logType,
-          message,
-          sqls.uuid(createdBy),
-          createdAt
-        )
+        sqls.uuid(id),
+        sqls.uuid(taskId),
+        logType,
+        message,
+        sqls.uuid(createdBy),
+        createdAt
+      )
     }.update.apply()
 
     TaskLog(
@@ -115,7 +117,8 @@ object TaskLog extends SQLSyntaxSupport[TaskLog] {
       logType = logType,
       message = message,
       createdBy = createdBy,
-      createdAt = createdAt)
+      createdAt = createdAt
+    )
   }
 
   def save(entity: TaskLog)(implicit session: DBSession = autoSession): TaskLog = {

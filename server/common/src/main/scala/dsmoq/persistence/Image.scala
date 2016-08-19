@@ -22,18 +22,19 @@ import scalikejdbc.update
 import scalikejdbc.withSQL
 
 case class Image(
-    id: String,
-    name: String,
-    width: Int,
-    height: Int,
-    filePath: String,
-    presetType: Int,
-    createdBy: String,
-    createdAt: DateTime,
-    updatedBy: String,
-    updatedAt: DateTime,
-    deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None) {
+  id: String,
+  name: String,
+  width: Int,
+  height: Int,
+  filePath: String,
+  presetType: Int,
+  createdBy: String,
+  createdAt: DateTime,
+  updatedBy: String,
+  updatedAt: DateTime,
+  deletedBy: Option[String] = None,
+  deletedAt: Option[DateTime] = None
+) {
 
   def save()(implicit session: DBSession = Image.autoSession): Image = Image.save(this)(session)
 
@@ -109,7 +110,8 @@ object Image extends SQLSyntaxSupport[Image] {
     updatedBy: String,
     updatedAt: DateTime,
     deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None)(implicit session: DBSession = autoSession): Image = {
+    deletedAt: Option[DateTime] = None
+  )(implicit session: DBSession = autoSession): Image = {
     withSQL {
       insert.into(Image).columns(
         column.id,
@@ -125,19 +127,19 @@ object Image extends SQLSyntaxSupport[Image] {
         column.deletedBy,
         column.deletedAt
       ).values(
-          sqls.uuid(id),
-          name,
-          width,
-          height,
-          filePath,
-          presetType,
-          sqls.uuid(createdBy),
-          createdAt,
-          sqls.uuid(updatedBy),
-          updatedAt,
-          deletedBy.map(sqls.uuid),
-          deletedAt
-        )
+        sqls.uuid(id),
+        name,
+        width,
+        height,
+        filePath,
+        presetType,
+        sqls.uuid(createdBy),
+        createdAt,
+        sqls.uuid(updatedBy),
+        updatedAt,
+        deletedBy.map(sqls.uuid),
+        deletedAt
+      )
     }.update.apply()
 
     Image(
@@ -152,7 +154,8 @@ object Image extends SQLSyntaxSupport[Image] {
       updatedBy = updatedBy,
       updatedAt = updatedAt,
       deletedBy = deletedBy,
-      deletedAt = deletedAt)
+      deletedAt = deletedAt
+    )
   }
 
   def save(entity: Image)(implicit session: DBSession = autoSession): Image = {

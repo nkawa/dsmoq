@@ -22,16 +22,17 @@ import scalikejdbc.update
 import scalikejdbc.withSQL
 
 case class Ownership(
-    id: String,
-    datasetId: String,
-    groupId: String,
-    accessLevel: Int,
-    createdBy: String,
-    createdAt: DateTime,
-    updatedBy: String,
-    updatedAt: DateTime,
-    deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None) {
+  id: String,
+  datasetId: String,
+  groupId: String,
+  accessLevel: Int,
+  createdBy: String,
+  createdAt: DateTime,
+  updatedBy: String,
+  updatedAt: DateTime,
+  deletedBy: Option[String] = None,
+  deletedAt: Option[DateTime] = None
+) {
 
   def save()(implicit session: DBSession = Ownership.autoSession): Ownership = Ownership.save(this)(session)
 
@@ -103,7 +104,8 @@ object Ownership extends SQLSyntaxSupport[Ownership] {
     updatedBy: String,
     updatedAt: DateTime,
     deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None)(implicit session: DBSession = autoSession): Ownership = {
+    deletedAt: Option[DateTime] = None
+  )(implicit session: DBSession = autoSession): Ownership = {
     withSQL {
       insert.into(Ownership).columns(
         column.id,
@@ -117,17 +119,17 @@ object Ownership extends SQLSyntaxSupport[Ownership] {
         column.deletedBy,
         column.deletedAt
       ).values(
-          sqls.uuid(id),
-          sqls.uuid(datasetId),
-          sqls.uuid(groupId),
-          accessLevel,
-          sqls.uuid(createdBy),
-          createdAt,
-          sqls.uuid(updatedBy),
-          updatedAt,
-          deletedBy.map(sqls.uuid),
-          deletedAt
-        )
+        sqls.uuid(id),
+        sqls.uuid(datasetId),
+        sqls.uuid(groupId),
+        accessLevel,
+        sqls.uuid(createdBy),
+        createdAt,
+        sqls.uuid(updatedBy),
+        updatedAt,
+        deletedBy.map(sqls.uuid),
+        deletedAt
+      )
     }.update.apply()
 
     Ownership(
@@ -140,7 +142,8 @@ object Ownership extends SQLSyntaxSupport[Ownership] {
       updatedBy = updatedBy,
       updatedAt = updatedAt,
       deletedBy = deletedBy,
-      deletedAt = deletedAt)
+      deletedAt = deletedAt
+    )
   }
 
   def save(entity: Ownership)(implicit session: DBSession = autoSession): Ownership = {

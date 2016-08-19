@@ -22,19 +22,20 @@ import scalikejdbc.update
 import scalikejdbc.withSQL
 
 case class User(
-    id: String,
-    name: String,
-    fullname: String,
-    organization: String,
-    title: String,
-    description: String,
-    imageId: String,
-    createdBy: String,
-    createdAt: DateTime,
-    updatedBy: String,
-    updatedAt: DateTime,
-    deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None) {
+  id: String,
+  name: String,
+  fullname: String,
+  organization: String,
+  title: String,
+  description: String,
+  imageId: String,
+  createdBy: String,
+  createdAt: DateTime,
+  updatedBy: String,
+  updatedAt: DateTime,
+  deletedBy: Option[String] = None,
+  deletedAt: Option[DateTime] = None
+) {
 
   def save()(implicit session: DBSession = User.autoSession): User = User.save(this)(session)
 
@@ -117,7 +118,8 @@ object User extends SQLSyntaxSupport[User] {
     updatedBy: String,
     updatedAt: DateTime,
     deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None)(implicit session: DBSession = autoSession): User = {
+    deletedAt: Option[DateTime] = None
+  )(implicit session: DBSession = autoSession): User = {
     withSQL {
       insert.into(User).columns(
         column.id,
@@ -134,20 +136,20 @@ object User extends SQLSyntaxSupport[User] {
         column.deletedBy,
         column.deletedAt
       ).values(
-          sqls.uuid(id),
-          name,
-          fullname,
-          organization,
-          title,
-          description,
-          sqls.uuid(imageId),
-          sqls.uuid(createdBy),
-          createdAt,
-          sqls.uuid(updatedBy),
-          updatedAt,
-          deletedBy.map(sqls.uuid),
-          deletedAt
-        )
+        sqls.uuid(id),
+        name,
+        fullname,
+        organization,
+        title,
+        description,
+        sqls.uuid(imageId),
+        sqls.uuid(createdBy),
+        createdAt,
+        sqls.uuid(updatedBy),
+        updatedAt,
+        deletedBy.map(sqls.uuid),
+        deletedAt
+      )
     }.update.apply()
 
     User(
@@ -163,7 +165,8 @@ object User extends SQLSyntaxSupport[User] {
       updatedBy = updatedBy,
       updatedAt = updatedAt,
       deletedBy = deletedBy,
-      deletedAt = deletedAt)
+      deletedAt = deletedAt
+    )
   }
 
   def save(entity: User)(implicit session: DBSession = autoSession): User = {
