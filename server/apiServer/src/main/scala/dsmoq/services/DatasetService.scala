@@ -146,6 +146,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             localState = if (saveLocal) { SaveStatus.SAVED } else { SaveStatus.DELETING },
             s3State = if (saveS3) { SaveStatus.SYNCHRONIZING } else { SaveStatus.NOT_SAVED }
           )
+          val realSize = if (isZip) {
+            createZipedFiles(path, historyId, timestamp, myself).getOrElse(f.size)
+          } else {
+            f.size
+          }
           val histroy = persistence.FileHistory.create(
             id = historyId,
             fileId = file.id,
@@ -154,11 +159,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             filePath = "/" + datasetId + "/" + file.id + "/" + historyId,
             fileSize = f.size,
             isZip = isZip,
-            realSize = if (isZip) {
-              createZipedFiles(path, historyId, timestamp, myself).getOrElse(f.size)
-            } else {
-              f.size
-            },
+            realSize = realSize,
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
@@ -202,7 +203,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           createdBy = myself.id,
           createdAt = timestamp,
           updatedBy = myself.id,
-          updatedAt = timestamp)
+          updatedAt = timestamp
+        )
 
         for (id <- AppConf.defaultFeaturedImageIds) {
           persistence.DatasetImage.create(
@@ -214,7 +216,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
-            updatedAt = timestamp)
+            updatedAt = timestamp
+          )
         }
         DatasetData.Dataset(
           id = dataset.id,
@@ -456,8 +459,10 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     attributes: Seq[DataSetAttribute]
   )(implicit s: DBSession): Int = {
     withSQL {
-      createDatasetSql(select.apply[Int](sqls.countDistinct(persistence.Dataset.d.id)),
-        joindGroups, query, ownerUsers, ownerGroups, attributes)
+      createDatasetSql(
+        select.apply[Int](sqls.countDistinct(persistence.Dataset.d.id)),
+        joindGroups, query, ownerUsers, ownerGroups, attributes
+      )
     }.map(implicit rs => rs.int(1)).single.apply().get
   }
 
@@ -600,6 +605,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       }
       .map { sql =>
         if (ownerUsers.nonEmpty || ownerGroups.nonEmpty) {
+          val ownerAccesses = Seq(
+            ownerUsers.map {
+              sqls.eqUuid(o.groupId, _).and.eq(o.accessLevel, UserAccessLevel.Owner)
+            },
+            ownerGroups.map {
+              sqls.eqUuid(o.groupId, _).and.eq(o.accessLevel, GroupAccessLevel.Provider)
+            }
+          ).flatten
           sql.innerJoin(
             select.apply[String](o.result.datasetId)
               .from(persistence.Ownership as o)
@@ -610,17 +623,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
               .withRoundBracket(
                 _.map { q =>
                   q.append(
-                    sqls.join(
-                      Seq(
-                        ownerUsers.map {
-                          sqls.eqUuid(o.groupId, _).and.eq(o.accessLevel, UserAccessLevel.Owner)
-                        },
-                        ownerGroups.map {
-                          sqls.eqUuid(o.groupId, _).and.eq(o.accessLevel, GroupAccessLevel.Provider)
-                        }
-                      ).flatten,
-                      sqls"or"
-                    )
+                    sqls.join(ownerAccesses, sqls"or")
                   )
                 }
               )
@@ -632,7 +635,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           sql
         }
       }
-      .map(sql =>
+      .map { sql =>
         if (attributes.nonEmpty) {
           sql.innerJoin(
             select.apply(da.result.datasetId)
@@ -656,8 +659,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         } else {
           sql
         }
-      )
-      .map(sql =>
+      }
+      .map { sql =>
         if (attributes.nonEmpty) {
           sql.leftJoin(
             select.apply(da.result.datasetId, da.result.data)
@@ -676,7 +679,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         } else {
           sql
         }
-      )
+      }
       .where
       .inUuid(o.groupId, Seq.concat(joinedGroups, Seq(AppConf.guestGroupId)))
       .and
@@ -951,6 +954,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
               case _ => SaveStatus.SYNCHRONIZING
             }
           )
+          val realSize = if (isZip) {
+            createZipedFiles(path, historyId, timestamp, myself).getOrElse(f.size)
+          } else {
+            f.size
+          }
           val history = persistence.FileHistory.create(
             id = historyId,
             fileId = file.id,
@@ -959,11 +967,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             filePath = "/" + id + "/" + file.id + "/" + historyId,
             fileSize = f.size,
             isZip = isZip,
-            realSize = if (isZip) {
-              createZipedFiles(path, historyId, timestamp, myself).getOrElse(f.size)
-            } else {
-              f.size
-            },
+            realSize = realSize,
             createdBy = myself.id,
             createdAt = timestamp,
             updatedBy = myself.id,
@@ -1049,6 +1053,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         FileManager.uploadToLocal(datasetId, fileId, historyId, file)
         val path = Paths.get(AppConf.fileDir, datasetId, fileId, historyId)
 
+        val realSize = if (isZip) {
+          createZipedFiles(path, historyId, timestamp, myself).getOrElse(file.size)
+        } else {
+          file.size
+        }
         val history = persistence.FileHistory.create(
           id = historyId,
           fileId = fileId,
@@ -1057,11 +1066,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           filePath = "/" + datasetId + "/" + fileId + "/" + historyId,
           fileSize = file.size,
           isZip = isZip,
-          realSize = if (isZip) {
-            createZipedFiles(path, historyId, timestamp, myself).getOrElse(file.size)
-          } else {
-            file.size
-          },
+          realSize = realSize,
           createdBy = myself.id,
           createdAt = timestamp,
           updatedBy = myself.id,
@@ -1081,8 +1086,10 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           withSQL {
             val d = persistence.Dataset.column
             update(persistence.Dataset)
-              .set(d.localState -> SaveStatus.DELETING,
-                d.s3State -> SaveStatus.SYNCHRONIZING)
+              .set(
+                d.localState -> SaveStatus.DELETING,
+                d.s3State -> SaveStatus.SYNCHRONIZING
+              )
               .where
               .eq(d.id, sqls.uuid(datasetId))
           }.update.apply()
@@ -2424,7 +2431,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           .append(sqls")")
           .and
           .isNull(o.deletedAt)
-      }.map(rs =>
+      }.map { rs =>
         (
           rs.string(o.resultName.datasetId),
           DatasetData.DatasetOwnership(
@@ -2445,7 +2452,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             }
           )
         )
-      ).list.apply()
+      }.list.apply()
         .groupBy(_._1)
         .map(x => (x._1, x._2.map(_._2)))
 
@@ -2507,7 +2514,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .append(sqls")")
         .and
         .isNull(o.deletedAt)
-    }.map(rs =>
+    }.map { rs =>
       DatasetData.DatasetOwnership(
         id = rs.stringOpt(u.resultName.id).getOrElse(rs.string(g.resultName.id)),
         name = rs.stringOpt(u.resultName.name).getOrElse(rs.string(g.resultName.name)),
@@ -2525,14 +2532,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           case None => OwnerType.Group
         }
       )
-    ).list.apply()
+    }.list.apply()
     // ソート(ログインユーザーがownerであればそれが一番最初に、それ以外はアクセスレベル→ownerTypeの順に降順に並ぶ)
     // ログインユーザーとそれ以外のownershipsとで分ける
     val owner = owners.filter(x => x.id == userInfo.id && x.accessLevel == UserAccessLevel.Owner)
-    val partial = owners.diff(owner)
 
     // accessLevel, ownerTypeから順序付け用重みを計算してソート
-    val sortedPartial = partial.map(x => (x, x.accessLevel * 10 - x.ownerType))
+    val sortedPartial = owners.diff(owner)
+      .map(x => (x, x.accessLevel * 10 - x.ownerType))
       .sortBy(s => (s._2, s._1.fullname)).reverse.map(_._1)
     owner ++ sortedPartial
   }
@@ -2549,17 +2556,17 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .eq(da.datasetId, sqls.uuid(datasetId))
         .and
         .isNull(da.deletedAt)
-    }.map(rs =>
+    }.map { rs =>
       (
         persistence.DatasetAnnotation(da.resultName)(rs),
         persistence.Annotation(a.resultName)(rs)
       )
-    ).list.apply().map(x =>
+    }.list.apply().map { x =>
       DatasetData.DatasetAttribute(
         name = x._2.name,
         value = x._1.data
       )
-    )
+    }
   }
 
   private def getImages(datasetId: String)(implicit s: DBSession): Seq[Image] = {
@@ -2582,12 +2589,12 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         persistence.DatasetImage(di.resultName)(rs),
         persistence.Image(i.resultName)(rs)
       )
-    }.list.apply().map(x =>
+    }.list.apply().map { x =>
       Image(
         id = x._2.id,
         url = datasetImageDownloadRoot + datasetId + "/" + x._2.id
       )
-    )
+    }
   }
 
   private def getFiles(
@@ -2796,45 +2803,48 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     val timestamp = DateTime.now()
 
     val o = persistence.Ownership.o
-    withSQL(
+    val ownership = withSQL {
       select(o.result.*)
         .from(persistence.Ownership as o)
         .where
         .eq(o.datasetId, sqls.uuid(datasetId))
         .and
         .eq(o.groupId, sqls.uuid(groupId))
-    ).map(persistence.Ownership(o.resultName)).single.apply() match {
-        case Some(x) =>
-          if (accessLevel != x.accessLevel) {
-            persistence.Ownership(
-              id = x.id,
-              datasetId = x.datasetId,
-              groupId = x.groupId,
-              accessLevel = accessLevel,
-              createdBy = myself.id,
-              createdAt = x.createdAt,
-              updatedBy = myself.id,
-              updatedAt = timestamp
-            ).save()
-          }
-        case None =>
-          if (accessLevel > 0) {
-            persistence.Ownership.create(
-              id = UUID.randomUUID.toString,
-              datasetId = datasetId,
-              groupId = groupId,
-              accessLevel = accessLevel,
-              createdBy = myself.id,
-              createdAt = timestamp,
-              updatedBy = myself.id,
-              updatedAt = timestamp
-            )
-          }
+    }.map(persistence.Ownership(o.resultName)).single.apply()
+    ownership match {
+      case Some(x) => {
+        if (accessLevel != x.accessLevel) {
+          persistence.Ownership(
+            id = x.id,
+            datasetId = x.datasetId,
+            groupId = x.groupId,
+            accessLevel = accessLevel,
+            createdBy = myself.id,
+            createdAt = x.createdAt,
+            updatedBy = myself.id,
+            updatedAt = timestamp
+          ).save()
+        }
       }
+      case None => {
+        if (accessLevel > 0) {
+          persistence.Ownership.create(
+            id = UUID.randomUUID.toString,
+            datasetId = datasetId,
+            groupId = groupId,
+            accessLevel = accessLevel,
+            createdBy = myself.id,
+            createdAt = timestamp,
+            updatedBy = myself.id,
+            updatedAt = timestamp
+          )
+        }
+      }
+    }
   }
 
   def copyDataset(datasetId: String, user: User): Try[CopiedDataset] = {
-   Try {
+    Try {
       DB.localTx { implicit s =>
         datasetAccessabilityCheck(datasetId, user)
 
@@ -3138,8 +3148,9 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             .orderBy(sqls"own desc")
             .offset(offset.getOrElse(0))
             .limit(limit.getOrElse(20))
-        }.map(
-          rs => (rs.string("id"),
+        }.map { rs =>
+          (
+            rs.string("id"),
             rs.int("access_level"),
             rs.string("name"),
             rs.string("image_id"),
@@ -3147,15 +3158,15 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             rs.string("fullname"),
             rs.int("type"),
             rs.string("organization"),
-            rs.string("title"))
-        ).list.apply().map { o =>
+            rs.string("title")
+          )
+        }.list.apply().map { o =>
+          val image = AppConf.imageDownloadRoot + (if (o._7 == 1) "user/" else "groups/") + o._1 + "/" + o._4
           DatasetOwnership(
             id = o._1,
             name = o._3,
             fullname = o._6,
-            image = AppConf.imageDownloadRoot +
-              (if (o._7 == 1) { "user/" } else { "groups/" }) +
-              o._1 + "/" + o._4,
+            image = image,
             accessLevel = o._2,
             ownerType = o._7,
             description = o._5,
@@ -3370,7 +3381,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           DatasetService.FileInfoS3Zipped(file, path, zippedFile)
         }
         case _ => {
-          logger.error(LOG_MARKER,
+          logger.error(
+            LOG_MARKER,
             "Unknown file info, fileInfo={}, isDownloadFromLocal={}",
             fileInfo,
             isDownloadFromLocal.toString
@@ -3392,7 +3404,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     fileInfo: DatasetService.FileInfo,
     requireData: Boolean = true
   ): Try[DatasetService.DownloadFile] = {
-    logger.trace(LOG_MARKER,
+    logger.trace(
+      LOG_MARKER,
       "Called getDownloadFileByFileInfo, fileInfo={}, requireData={}",
       fileInfo,
       requireData.toString
@@ -3413,7 +3426,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             createRangeInputStream(
               path = Paths.get(AppConf.fileDir, path.substring(1)),
               offset = zippedFile.dataStart,
-              limit = zippedFile.dataSize)
+              limit = zippedFile.dataSize
+            )
           } else { null }
 
           val encoding = if (isSJIS(zippedFile.name)) {
@@ -3427,7 +3441,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
                 data = is,
                 centralHeader = zippedFile.cenHeader,
                 dataSize = zippedFile.dataSize,
-                encoding = encoding)
+                encoding = encoding
+              )
             } else { null }
 
             DatasetService.DownloadFileLocalZipped(zis, zippedFile.name, zippedFile.fileSize)
@@ -3445,7 +3460,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             FileManager.downloadFromS3(
               filePath = path.substring(1),
               start = zippedFile.dataStart,
-              end = zippedFile.dataStart + zippedFile.dataSize - 1)
+              end = zippedFile.dataStart + zippedFile.dataSize - 1
+            )
           } else { null }
           val encoding = if (isSJIS(zippedFile.name)) {
             Charset.forName("Shift-JIS")
@@ -3458,7 +3474,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
                 data = is,
                 centralHeader = zippedFile.cenHeader,
                 dataSize = zippedFile.dataSize,
-                encoding = encoding)
+                encoding = encoding
+              )
             } else { null }
             DatasetService.DownloadFileS3Zipped(zis, zippedFile.name, zippedFile.fileSize)
           } catch {

@@ -62,8 +62,9 @@ import dsmoq.services.StatisticsService
 import dsmoq.services.SystemService
 import dsmoq.services.TaskService
 
-class ApiController(val resource: ResourceBundle) extends ScalatraServlet
-  with JacksonJsonSupport with FileUploadSupport with LazyLogging with AuthTrait {
+class ApiController(
+  val resource: ResourceBundle
+) extends ScalatraServlet with JacksonJsonSupport with FileUploadSupport with LazyLogging with AuthTrait {
   protected implicit val jsonFormats: Formats = DefaultFormats
 
   private implicit def objectToPipe[A](x: A) = Pipe(x)

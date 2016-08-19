@@ -20,11 +20,11 @@ object Main extends App {
       select
         .from(Dataset as d)
         .where
-          .isNull(d.deletedBy)
-          .and
-          .isNull(d.deletedAt)
-          .orderBy(d.createdBy)
-          .limit(1)
+        .isNull(d.deletedBy)
+        .and
+        .isNull(d.deletedAt)
+        .orderBy(d.createdBy)
+        .limit(1)
     }.map(_.jodaDateTime(d.resultName.createdAt)).single().apply() match {
       case Some(date) => new DateTime(date.getYear(), date.getMonthOfYear(), 1, 0, 0)
       case None => {
@@ -53,7 +53,7 @@ object Main extends App {
       date = date.minusMonths(-1)
     }
 
-    if (! hasStatistics(date, 1)) {
+    if (!hasStatistics(date, 1)) {
       Statistics.create(
         id = UUID.randomUUID().toString,
         targetMonth = date,
@@ -73,16 +73,16 @@ object Main extends App {
   DBs.closeAll()
 
   def hasStatistics(from: DateTime, statType: Int)(implicit s: DBSession): Boolean = {
-      val st = Statistics.s
-      val count = withSQL {
-        select(sqls"count(1)")
-          .from(Statistics as st)
-          .where
-            .eq(st.targetMonth, from)
-            .and
-            .eq(st.statisticsType, statType)
-      }.map(_.long(1)).single.apply.get
-      count > 0
+    val st = Statistics.s
+    val count = withSQL {
+      select(sqls"count(1)")
+        .from(Statistics as st)
+        .where
+        .eq(st.targetMonth, from)
+        .and
+        .eq(st.statisticsType, statType)
+    }.map(_.long(1)).single.apply.get
+    count > 0
   }
 
   def countDatasets(from: Option[DateTime])(implicit s: DBSession) = {
@@ -91,20 +91,20 @@ object Main extends App {
       select[Long](sqls"count(1)")
         .from(Dataset as d)
         .where
-          .isNull(d.deletedAt)
-          .and
-          .isNull(d.deletedBy)
-          .map{ sql =>
-            from match {
-              case Some(f) => {
-                sql.and
+        .isNull(d.deletedAt)
+        .and
+        .isNull(d.deletedBy)
+        .map { sql =>
+          from match {
+            case Some(f) => {
+              sql.and
                 .ge(d.createdAt, f)
                 .and
                 .lt(d.createdAt, f.minusMonths(-1))
-              }
-              case None => sql
             }
+            case None => sql
           }
+        }
     }.map(_.long(1)).single.apply.get
   }
 
@@ -114,20 +114,20 @@ object Main extends App {
       select[Long](sqls"coalesce(sum(d.files_size), 0) as total")
         .from(Dataset as d)
         .where
-          .isNull(d.deletedAt)
-          .and
-          .isNull(d.deletedBy)
-          .map{ sql =>
-            from match {
-              case Some(f) => {
-                sql.and
-                  .ge(d.createdAt, f)
-                  .and
-                  .lt(d.createdAt, f.minusMonths(-1))
-              }
-              case None => sql
+        .isNull(d.deletedAt)
+        .and
+        .isNull(d.deletedBy)
+        .map { sql =>
+          from match {
+            case Some(f) => {
+              sql.and
+                .ge(d.createdAt, f)
+                .and
+                .lt(d.createdAt, f.minusMonths(-1))
             }
+            case None => sql
           }
+        }
 
     }.map(_.long("total")).single.apply.get
   }
@@ -143,24 +143,24 @@ object Main extends App {
         .innerJoin(File as f).on(f.datasetId, d.id)
         .innerJoin(FileHistory as fh).on(fh.fileId, f.id)
         .where
-          .isNull(f.deletedAt)
-          .and
-          .isNull(f.deletedBy)
-          .and
-          .isNull(d.deletedAt)
-          .and
-          .isNull(d.deletedBy)
-          .map{ sql =>
-            from match {
-              case Some(f) => {
-                sql.and
-                  .ge(d.createdAt, f)
-                  .and
-                  .lt(d.createdAt, f.minusMonths(-1))
-              }
-              case None => sql
+        .isNull(f.deletedAt)
+        .and
+        .isNull(f.deletedBy)
+        .and
+        .isNull(d.deletedAt)
+        .and
+        .isNull(d.deletedBy)
+        .map { sql =>
+          from match {
+            case Some(f) => {
+              sql.and
+                .ge(d.createdAt, f)
+                .and
+                .lt(d.createdAt, f.minusMonths(-1))
             }
+            case None => sql
           }
+        }
     }.map(_.long("total")).single.apply.get
   }
 
@@ -170,22 +170,22 @@ object Main extends App {
       select[Long](sqls"coalesce(sum(d.files_size), 0) as total")
         .from(Dataset as d)
         .where
-          .isNull(d.deletedAt)
-          .and
-          .isNull(d.deletedBy)
-          .and
-          .eq(d.s3State, 1)
-          .map{ sql =>
-            from match {
-              case Some(f) => {
-                sql.and
-                  .ge(d.createdAt, f)
-                  .and
-                  .lt(d.createdAt, f.minusMonths(-1))
-              }
-              case None => sql
+        .isNull(d.deletedAt)
+        .and
+        .isNull(d.deletedBy)
+        .and
+        .eq(d.s3State, 1)
+        .map { sql =>
+          from match {
+            case Some(f) => {
+              sql.and
+                .ge(d.createdAt, f)
+                .and
+                .lt(d.createdAt, f.minusMonths(-1))
             }
+            case None => sql
           }
+        }
     }.map(_.long("total")).single.apply.get
   }
 
@@ -200,7 +200,7 @@ object Main extends App {
         .isNull(d.deletedBy)
         .and
         .eq(d.localState, 1)
-        .map{ sql =>
+        .map { sql =>
           from match {
             case Some(f) => {
               sql.and

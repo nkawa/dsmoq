@@ -66,7 +66,8 @@ class GoogleAccountService(resource: ResourceBundle) extends LazyLogging {
       val googleAccount = getGoogleAccount(authenticationCode)
       val accountMailaddr = googleAccount.getEmail()
 
-      logger.info(LOG_MARKER,
+      logger.info(
+        LOG_MARKER,
         "Login request... : [id] = {}, [email] = {}",
         googleAccount.getId,
         googleAccount.getEmail
@@ -76,7 +77,8 @@ class GoogleAccountService(resource: ResourceBundle) extends LazyLogging {
       var matched = AppConf.allowedMailaddrs.exists(accountMailaddr.matches(_))
       if (!matched) {
         // 設定された正規表現とメールアドレスがマッチしない場合
-        logger.error(LOG_MARKER,
+        logger.error(
+          LOG_MARKER,
           "Login failed: access denied. [id] = {}, [email] = {}",
           googleAccount.getId,
           googleAccount.getEmail
@@ -84,7 +86,8 @@ class GoogleAccountService(resource: ResourceBundle) extends LazyLogging {
         throw new AccessDeniedException(resource.getString(ResourceNames.INVALID_EMAIL_FORMAT))
       }
 
-      logger.info(LOG_MARKER,
+      logger.info(
+        LOG_MARKER,
         "Allowed address: [id] = {}, [email] = {}",
         googleAccount.getId,
         googleAccount.getEmail
@@ -148,7 +151,8 @@ class GoogleAccountService(resource: ResourceBundle) extends LazyLogging {
             }
           }
         }
-        logger.info(LOG_MARKER,
+        logger.info(
+          LOG_MARKER,
           "Login successed: [id] = {}, [email] = {}",
           googleAccount.getId,
           googleAccount.getEmail

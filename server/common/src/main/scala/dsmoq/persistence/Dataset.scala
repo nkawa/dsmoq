@@ -23,21 +23,22 @@ import scalikejdbc.update
 import scalikejdbc.withSQL
 
 case class Dataset(
-    id: String,
-    name: String,
-    description: String,
-    licenseId: String,
-    filesCount: Int,
-    filesSize: Long,
-    createdBy: String,
-    createdAt: DateTime,
-    updatedBy: String,
-    updatedAt: DateTime,
-    deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None,
-    localState: Int,
-    s3State: Int,
-    files: Seq[File] = Nil) {
+  id: String,
+  name: String,
+  description: String,
+  licenseId: String,
+  filesCount: Int,
+  filesSize: Long,
+  createdBy: String,
+  createdAt: DateTime,
+  updatedBy: String,
+  updatedAt: DateTime,
+  deletedBy: Option[String] = None,
+  deletedAt: Option[DateTime] = None,
+  localState: Int,
+  s3State: Int,
+  files: Seq[File] = Nil
+) {
 
   def save()(implicit session: DBSession = Dataset.autoSession): Dataset = Dataset.save(this)(session)
 
@@ -121,7 +122,8 @@ object Dataset extends SQLSyntaxSupport[Dataset] {
     deletedBy: Option[String] = None,
     deletedAt: Option[DateTime] = None,
     localState: Int,
-    s3State: Int)(implicit session: DBSession = autoSession): Dataset = {
+    s3State: Int
+  )(implicit session: DBSession = autoSession): Dataset = {
     withSQL {
       insert.into(Dataset).columns(
         column.id,

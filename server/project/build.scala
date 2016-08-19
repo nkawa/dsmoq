@@ -2,6 +2,8 @@ import com.earldouglas.xsbtwebplugin.PluginKeys._
 import com.earldouglas.xsbtwebplugin.WebPlugin.container
 import com.mojolly.scalate.ScalatePlugin.ScalateKeys._
 import com.mojolly.scalate.ScalatePlugin._
+import com.typesafe.sbt.SbtScalariform
+import com.typesafe.sbt.SbtScalariform.ScalariformKeys
 import org.scalastyle.sbt.ScalastylePlugin._
 import org.scalatra.sbt.DistPlugin.Dist
 import org.scalatra.sbt.PluginKeys._
@@ -10,6 +12,7 @@ import sbt.Keys._
 import sbt._
 import sbtassembly.Plugin.AssemblyKeys._
 import sbtassembly.Plugin.MergeStrategy
+import scalariform.formatter.preferences._
 
 object DsmoqBuild extends Build {
   lazy val assemblyAdditionalSettings = Seq(
@@ -21,6 +24,13 @@ object DsmoqBuild extends Build {
         case x => old(x)
       }
     }
+  )
+
+  lazy val scalariformSettings = SbtScalariform.scalariformSettings ++ Seq(
+    ScalariformKeys.preferences := ScalariformKeys.preferences.value
+      .setPreference(DanglingCloseParenthesis, Force)
+      .setPreference(DoubleIndentClassDeclaration, false)
+      .setPreference(FormatXml, false)
   )
 
   lazy val scalastyleSettings: Seq[Def.Setting[File]] = {
@@ -42,7 +52,7 @@ object DsmoqBuild extends Build {
     scalaVersion := ScalaVersion,
     resolvers += Classpaths.typesafeReleases,
     ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
-  ) ++ scalastyleSettings
+  ) ++ scalariformSettings ++ scalastyleSettings
 
   lazy val common = (project in file("common"))
     .settings(Defaults.coreDefaultSettings)

@@ -39,12 +39,11 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
     val servlet = new ApiController(resource)
     val holder = new ServletHolder(servlet.getClass.getName, servlet)
     // multi-part file upload config
-    holder.getRegistration.setMultipartConfig(
-      MultipartConfig(
-        maxFileSize = Some(3 * 1024 * 1024),
-        fileSizeThreshold = Some(1 * 1024 * 1024)
-      ).toMultipartConfigElement
-    )
+    val multipartConfig = MultipartConfig(
+      maxFileSize = Some(3 * 1024 * 1024),
+      fileSizeThreshold = Some(1 * 1024 * 1024)
+    ).toMultipartConfigElement
+    holder.getRegistration.setMultipartConfig(multipartConfig)
     servletContextHandler.addServlet(holder, "/api/*")
     addServlet(new FileController(resource), "/files/*")
   }
@@ -1174,10 +1173,11 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
   private def createPermissionedDataset(
     userAccessLevel: Int,
     groupAccessLevel: Int,
-    guestAccessLevel: Int): String = {
+    guestAccessLevel: Int
+  ): String = {
     // グループ作成
     val groupId = createGroup()
-    val memberParams = Map("d" -> compact(render(List(("userId" -> dummyUserId) ~ ("role" -> GroupMemberRole.Member)))))
+    val memberParams = Map("d" -> compact(render(Seq(("userId" -> dummyUserId) ~ ("role" -> GroupMemberRole.Member)))))
     post("/api/groups/" + groupId + "/members", memberParams) { checkStatus() }
     // データセット作成
     val datasetId = createDataset()
@@ -1190,12 +1190,13 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
     groupId: String,
     userAccessLevel: Int,
     groupAccessLevel: Int,
-    guestAccessLevel: Int): Unit = {
+    guestAccessLevel: Int
+  ): Unit = {
     // アクセスレベル設定(ユーザー/グループ)
-    val accessLevelParams = Map("d" ->
-      compact(
+    val accessLevelParams = Map(
+      "d" -> compact(
         render(
-          List(
+          Seq(
             ("id" -> dummyUserId) ~ ("ownerType" -> JInt(OwnerType.User)) ~ ("accessLevel" -> JInt(userAccessLevel)),
             ("id" -> groupId) ~ ("ownerType" -> JInt(OwnerType.Group)) ~ ("accessLevel" -> JInt(groupAccessLevel))
           )

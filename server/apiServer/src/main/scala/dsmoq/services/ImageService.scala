@@ -69,7 +69,8 @@ class ImageService(resource: ResourceBundle) {
     datasetId: String,
     imageId: String,
     size: Option[String],
-    user: User): Try[(java.io.File, String)] = {
+    user: User
+  ): Try[(java.io.File, String)] = {
     Try {
       DB.readOnly { implicit s =>
         if (!isRelatedToDataset(datasetId, imageId)) {

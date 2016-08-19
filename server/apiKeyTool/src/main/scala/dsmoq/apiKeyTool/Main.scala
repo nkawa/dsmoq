@@ -91,7 +91,7 @@ object Main {
             secretKey = secretKey,
             permission = 3,
             createdBy = systemUserId,
-            createdAt =timestamp,
+            createdAt = timestamp,
             updatedBy = systemUserId,
             updatedAt = timestamp
           )
@@ -116,9 +116,9 @@ object Main {
           val c = ApiKey.column
           withSQL {
             update(ApiKey)
-            .set(c.deletedAt -> timestamp, c.deletedBy -> sqls.uuid(systemUserId))
-            .where
-            .eq(c.id, sqls.uuid(k.id))
+              .set(c.deletedAt -> timestamp, c.deletedBy -> sqls.uuid(systemUserId))
+              .where
+              .eq(c.id, sqls.uuid(k.id))
           }.update().apply
         }
         case _ => println("error: そのAPIキーは存在しません。")
@@ -133,7 +133,8 @@ object Main {
         |apiKeyTool search <some login name>  : 指定したユーザ名に割り当てられたAPIキーの一覧を表示します。
         |apiKeyTool publish <some login name> : 指定したユーザ名のユーザに対して、APIキーを発行します。
         |apiKeyTool remove <consumer_key>     : 指定したAPIキーを無効化します。
-      """.stripMargin)
+      """.stripMargin
+    )
   }
 
 }

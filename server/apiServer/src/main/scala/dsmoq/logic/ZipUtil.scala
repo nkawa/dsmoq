@@ -154,16 +154,19 @@ object ZipUtil extends LazyLogging {
       splitExtra(extra).find(_._1 == 0x0001).map(_._2).getOrElse(Array.empty)
     )
 
-    logger.debug(LOG_MARKER,
+    logger.debug(
+      LOG_MARKER,
       "  - converted fileName, fileName = {}, fileNameByte = {}",
       fileName,
       bytes2hex(fileNameByte)
     )
-    logger.debug(LOG_MARKER,
+    logger.debug(
+      LOG_MARKER,
       "  - reading extra..., extra = 0x{}",
       bytes2hex(extra)
     )
-    logger.debug(LOG_MARKER,
+    logger.debug(
+      LOG_MARKER,
       "  - compress size = {}. uncompress size = {}. [in header: compress size = {}, uncompress size = {}]",
       compressSize64.toString,
       uncompressSize64.toString,
@@ -228,7 +231,8 @@ object ZipUtil extends LazyLogging {
     )
     logger.debug(LOG_MARKER, "  - central header. header = 0x{}", bytes2hex(bs))
     logger.debug(LOG_MARKER, "  - central header. extra = 0x{}", bytes2hex(extra))
-    logger.debug(LOG_MARKER,
+    logger.debug(
+      LOG_MARKER,
       "  - compress size = {}. uncompress size = {}. [in header: compress size = {}, uncompress size = {}]",
       compressSize64.toString,
       uncompressSize64.toString,
@@ -321,7 +325,8 @@ object ZipUtil extends LazyLogging {
             logger.debug(LOG_MARKER, "Found Signature: Data descriptor. (0x08074b50)")
           }
           case _ => {
-            logger.debug(LOG_MARKER,
+            logger.debug(
+              LOG_MARKER,
               "signature not found. header = 0x{}, pointer = {}",
               bytes2hex(header),
               ra.getFilePointer.toString
@@ -332,7 +337,8 @@ object ZipUtil extends LazyLogging {
           }
         }
 
-        logger.debug(LOG_MARKER,
+        logger.debug(
+          LOG_MARKER,
           "Check: ra.getFilePointer={}, ra.length={}",
           ra.getFilePointer.toString,
           ra.length.toString
@@ -349,7 +355,8 @@ object ZipUtil extends LazyLogging {
       (key, localHeader, centralHeaders.getOrElse(key, Array.empty))
     }
 
-    logger.debug(LOG_MARKER,
+    logger.debug(
+      LOG_MARKER,
       "Return readRaw function, return data len={}, local header len={}, central header len={}",
       ret.size.toString,
       localHeaders.size.toString,

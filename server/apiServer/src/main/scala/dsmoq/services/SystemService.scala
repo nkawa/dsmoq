@@ -107,7 +107,8 @@ object SystemService extends LazyLogging {
    * @return (条件に該当する) ユーザ一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
    */
   def getUsers(query: Option[String], limit: Option[Int], offset: Option[Int]): Try[Seq[SuggestData.User]] = {
-    logger.debug(LOG_MARKER_USER_GROUP,
+    logger.debug(
+      LOG_MARKER_USER_GROUP,
       "getUsers: start : [query] = {}, [offset] = {}, [limit] = {}",
       query,
       offset,
@@ -164,7 +165,8 @@ object SystemService extends LazyLogging {
             image = userImageDownloadRoot + x.id + "/" + x.imageId
           )
         }
-        logger.info(LOG_MARKER_USER_GROUP,
+        logger.info(
+          LOG_MARKER_USER_GROUP,
           "getUsers: [result size] = {} : [query] = {}, [offset] = {}, [limit] = {}",
           result.size.toString,
           query,
@@ -239,7 +241,8 @@ object SystemService extends LazyLogging {
     offset: Option[Int],
     excludeIds: Seq[String]
   ): Try[Seq[SuggestData.WithType]] = {
-    logger.debug(LOG_MARKER_USER_GROUP,
+    logger.debug(
+      LOG_MARKER_USER_GROUP,
       "getUsersAndGroups: start : [param] = {}, [offset] = {}, [limit] = {}, [excludeIds] = {}",
       param,
       offset,
@@ -344,7 +347,8 @@ object SystemService extends LazyLogging {
             None
           }
         }
-        logger.info(LOG_MARKER_USER_GROUP,
+        logger.info(
+          LOG_MARKER_USER_GROUP,
           "getUsersAndGroups: [result size] = {} : [param] = {}, [offset] = {}, [limit] = {}, [excludeIds] = {}",
           result.size.toString,
           param,

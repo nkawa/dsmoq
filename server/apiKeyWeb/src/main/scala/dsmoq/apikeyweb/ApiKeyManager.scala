@@ -3,28 +3,27 @@ package dsmoq.apikeyweb
 import java.util.UUID
 
 import dsmoq.persistence.PostgresqlHelper._
-import dsmoq.persistence.{ApiKey, User}
+import dsmoq.persistence.{ ApiKey, User }
 import org.apache.commons.codec.digest.DigestUtils
 import org.joda.time.DateTime
 import scalikejdbc._
 import com.typesafe.scalalogging.LazyLogging
 import org.slf4j.MarkerFactory
 
-
 /**
-  * APIキーの発行、削除、取得等の管理を行う。
-  */
+ * APIキーの発行、削除、取得等の管理を行う。
+ */
 object ApiKeyManager extends LazyLogging {
   val systemUserId = "dccc110c-c34f-40ed-be2c-7e34a9f1b8f0"
 
   private val LOG_MARKER = MarkerFactory.getMarker("APIKEY_LOG")
 
   /**
-    * APIキーとSecretキーを生成する。
-    *
-    * @param userName 生成対象のユーザ名 (DB:users.name)
-    * @return 生成したAPIキー情報。対象のユーザが見つからない場合、None。
-    */
+   * APIキーとSecretキーを生成する。
+   *
+   * @param userName 生成対象のユーザ名 (DB:users.name)
+   * @return 生成したAPIキー情報。対象のユーザが見つからない場合、None。
+   */
   def publish(userName: String): Option[KeyInfo] = {
     logger.debug(LOG_MARKER, "publish: start : [userName] = {}", userName)
     DB localTx { implicit s =>
@@ -64,10 +63,10 @@ object ApiKeyManager extends LazyLogging {
   }
 
   /**
-    * 有効なAPIキー情報の一覧を取得する。
-    *
-    * @return APIキー情報のリスト
-    */
+   * 有効なAPIキー情報の一覧を取得する。
+   *
+   * @return APIキー情報のリスト
+   */
   def listKeys(): List[KeyInfo] = {
     logger.debug(LOG_MARKER, "listKeys: start")
     DB readOnly { implicit s =>
@@ -92,11 +91,11 @@ object ApiKeyManager extends LazyLogging {
   }
 
   /**
-    * 指定したユーザ名のidを取得する。
-    *
-    * @param userName ユーザ名 (DB:users.name)
-    * @return ユーザのid (DB:users.id)
-    */
+   * 指定したユーザ名のidを取得する。
+   *
+   * @param userName ユーザ名 (DB:users.name)
+   * @return ユーザのid (DB:users.id)
+   */
   def searchUserId(userName: String): Option[String] = {
     logger.debug(LOG_MARKER, "searchUserId: start : [userName] = {}", userName)
     DB readOnly { implicit s =>
@@ -111,11 +110,11 @@ object ApiKeyManager extends LazyLogging {
   }
 
   /**
-    * 指定したユーザ名の有効なAPIキー情報の一覧を取得する。
-    *
-    * @param loginName ユーザ名 (DB:users.name)
-    * @return APIキー情報のリスト
-    */
+   * 指定したユーザ名の有効なAPIキー情報の一覧を取得する。
+   *
+   * @param loginName ユーザ名 (DB:users.name)
+   * @return APIキー情報のリスト
+   */
   def searchKeyFromName(loginName: String): List[KeyInfo] = {
     logger.debug(LOG_MARKER, "searchKeyFromName: start : [loginName] = {}", loginName)
     DB readOnly { implicit s =>
@@ -142,11 +141,11 @@ object ApiKeyManager extends LazyLogging {
   }
 
   /**
-    * 指定したAPIキーを削除(無効化)する。
-    *
-    * @param key 削除対象のAPIキー (DB:api_key.api_key)
-    * @return true:削除成功、false:削除対象がみつからない
-    */
+   * 指定したAPIキーを削除(無効化)する。
+   *
+   * @param key 削除対象のAPIキー (DB:api_key.api_key)
+   * @return true:削除成功、false:削除対象がみつからない
+   */
   def deleteKey(key: String): Boolean = {
     logger.debug(LOG_MARKER, "deleteKey: start : [key] = {}", key)
     DB localTx { implicit s =>
@@ -179,6 +178,6 @@ object ApiKeyManager extends LazyLogging {
 }
 
 /**
-  * APIキー情報
-  */
+ * APIキー情報
+ */
 case class KeyInfo(userID: String, consumerKey: String, secretKey: String)

@@ -57,8 +57,10 @@ class ImageController(val resource: ResourceBundle) extends ScalatraServlet with
     val imageId = params("imageId")
     val datasetId = params("datasetId")
     val size = params.get("size")
-    logger.info(LOG_MARKER,
-      "Receive dataset image request, datasetId={}, imageId={}, size={}", datasetId, imageId, size)
+    logger.info(
+      LOG_MARKER,
+      "Receive dataset image request, datasetId={}, imageId={}, size={}", datasetId, imageId, size
+    )
     getImage(imageService.getDatasetFile(datasetId, imageId, size, getUserFromSession))
   }
 
@@ -73,8 +75,10 @@ class ImageController(val resource: ResourceBundle) extends ScalatraServlet with
     val imageId = params("imageId")
     val groupId = params("groupId")
     val size = params.get("size")
-    logger.info(LOG_MARKER,
-      "Receive group image request, groupId={}, imageId={}, size={}", groupId, imageId, size)
+    logger.info(
+      LOG_MARKER,
+      "Receive group image request, groupId={}, imageId={}, size={}", groupId, imageId, size
+    )
     getImage(imageService.getGroupFile(groupId, imageId, size))
   }
 

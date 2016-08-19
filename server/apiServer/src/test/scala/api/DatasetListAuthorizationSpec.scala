@@ -43,12 +43,11 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
     val servlet = new ApiController(resource)
     val holder = new ServletHolder(servlet.getClass.getName, servlet)
     // multi-part file upload config
-    holder.getRegistration.setMultipartConfig(
-      MultipartConfig(
-        maxFileSize = Some(3 * 1024 * 1024),
-        fileSizeThreshold = Some(1 * 1024 * 1024)
-      ).toMultipartConfigElement
-    )
+    val multipartConfig = MultipartConfig(
+      maxFileSize = Some(3 * 1024 * 1024),
+      fileSizeThreshold = Some(1 * 1024 * 1024)
+    ).toMultipartConfigElement
+    holder.getRegistration.setMultipartConfig(multipartConfig)
     servletContextHandler.addServlet(holder, "/api/*")
   }
 
@@ -94,8 +93,7 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
                 val accessLevelParams = Map("d" -> compact(render(List(
                   ("id" -> accesscCheckUserID) ~ ("ownerType" -> JInt(OwnerType.User)) ~ ("accessLevel" -> JInt(userAccessLevel)),
                   ("id" -> groupId) ~ ("ownerType" -> JInt(OwnerType.Group)) ~ ("accessLevel" -> JInt(groupAccessLevel))
-                )))
-                )
+                ))))
                 post("/api/datasets/" + datasetId + "/acl", accessLevelParams) {
                   checkStatus()
                 }
@@ -595,8 +593,7 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
       val accessLevelParams = Map("d" -> compact(render(List(
         ("id" -> accesscCheckUserID) ~ ("ownerType" -> JInt(OwnerType.User)) ~ ("accessLevel" -> JInt(userAccessLevel)),
         ("id" -> groupId) ~ ("ownerType" -> JInt(OwnerType.Group)) ~ ("accessLevel" -> JInt(groupAccessLevel))
-      )))
-      )
+      ))))
       post("/api/datasets/" + datasetId + "/acl", accessLevelParams) {
         checkStatus()
       }

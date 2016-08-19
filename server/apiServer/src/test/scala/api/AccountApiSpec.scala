@@ -40,12 +40,11 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     val servlet = new ApiController(ResourceBundle.getBundle("message"))
     val holder = new ServletHolder(servlet.getClass.getName, servlet)
     // multi-part file upload config
-    holder.getRegistration.setMultipartConfig(
-      MultipartConfig(
-        maxFileSize = Some(3 * 1024 * 1024),
-        fileSizeThreshold = Some(1 * 1024 * 1024)
-      ).toMultipartConfigElement
-    )
+    val multipartConfig = MultipartConfig(
+      maxFileSize = Some(3 * 1024 * 1024),
+      fileSizeThreshold = Some(1 * 1024 * 1024)
+    ).toMultipartConfigElement
+    holder.getRegistration.setMultipartConfig(multipartConfig)
     servletContextHandler.addServlet(holder, "/api/*")
   }
 
@@ -96,14 +95,16 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
       "基本情報が更新できるか" in {
         session {
           signIn()
-          val params = Map("d" ->
-            compact(render(
-              ("name" -> "dummy1") ~
-                ("fullname" -> "フルネーム") ~
-                ("organization" -> "テスト所属") ~
-                ("title" -> "テストタイトル") ~
-                ("description" -> "テスト詳細")
-            ))
+          val params = Map(
+            "d" -> compact(
+              render(
+                ("name" -> "dummy1") ~
+                  ("fullname" -> "フルネーム") ~
+                  ("organization" -> "テスト所属") ~
+                  ("title" -> "テストタイトル") ~
+                  ("description" -> "テスト詳細")
+              )
+            )
           )
           put("/api/profile", params) { checkStatus() }
           get("/api/profile") {
@@ -157,8 +158,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             compact(render(
               ("currentPassword" -> "password") ~
                 ("newPassword" -> "new_password")
-            ))
-          )
+            )))
           put("/api/profile/password", params) { checkStatus() }
           post("/api/signout") { checkStatus() }
           val signinParams = Map("d" -> compact(render(("id" -> "dummy1") ~ ("password" -> "new_password"))))
@@ -169,8 +169,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             compact(render(
               ("currentPassword" -> "new_password") ~
                 ("newPassword" -> "password")
-            ))
-          )
+            )))
           put("/api/profile/password", rollbackParams) { checkStatus() }
           post("/api/signout") { checkStatus() }
           signIn()
@@ -283,22 +282,26 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             parse(body).extract[AjaxResponse[Dataset]].data.id
           }
 
-          val params = Map("d" ->
-            compact(render(
-              ("name" -> "変更後データセット") ~
-                ("description" -> "change description") ~
-                ("license" -> AppConf.defaultLicenseId) ~
-                ("attributes" -> List(("name" -> attributeName) ~ ("value" -> "attr_value")))
-            ))
+          val params = Map(
+            "d" -> compact(
+              render(
+                ("name" -> "変更後データセット") ~
+                  ("description" -> "change description") ~
+                  ("license" -> AppConf.defaultLicenseId) ~
+                  ("attributes" -> List(("name" -> attributeName) ~ ("value" -> "attr_value")))
+              )
+            )
           )
           put("/api/datasets/" + datasetId + "/metadata", params) { checkStatus() }
         }
 
         // 属性候補から作成したattributesが取得できるか
-        val params = Map("d" ->
-          compact(render(
-            ("query" -> attributeName)
-          ))
+        val params = Map(
+          "d" -> compact(
+            render(
+              ("query" -> attributeName)
+            )
+          )
         )
         get("/api/suggests/attributes", params) {
           checkStatus()

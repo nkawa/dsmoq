@@ -5,7 +5,7 @@ import java.util.UUID
 
 import com.github.tototoshi.csv.CSVReader
 import dsmoq.persistence
-import dsmoq.persistence.{GroupType, GroupMemberRole}
+import dsmoq.persistence.{ GroupType, GroupMemberRole }
 import dsmoq.persistence.PostgresqlHelper._
 import org.joda.time._
 import scalikejdbc._
@@ -165,7 +165,7 @@ object Main {
               val role = try {
                 val role = ga._2.toInt
                 if (role != GroupMemberRole.Member && role != GroupMemberRole.Manager) {
-                    throw new RuntimeException("\"" + ga._1 + "\"グループの権限設定が間違っています(1:Member, 2:Manager):" + seq)
+                  throw new RuntimeException("\"" + ga._1 + "\"グループの権限設定が間違っています(1:Member, 2:Manager):" + seq)
                 }
                 role
               } catch {

@@ -3,10 +3,10 @@ package dsmoq.taskServer
 import org.joda.time.DateTime
 import org.json4s._
 import org.json4s.jackson.JsonMethods
-import org.json4s.{DefaultFormats, Formats}
+import org.json4s.{ DefaultFormats, Formats }
 import scalikejdbc._
 import dsmoq.persistence.Task
-import akka.actor.{ActorSystem, Props}
+import akka.actor.{ ActorSystem, Props }
 import scala.concurrent.duration._
 import scalikejdbc.config._
 
@@ -36,19 +36,19 @@ object Main {
         select
           .from(Task as t)
           .where
-            .eq(t.status, 0)
-            .and
-            .le(t.executeAt, DateTime.now)
+          .eq(t.status, 0)
+          .and
+          .le(t.executeAt, DateTime.now)
           .orderBy(t.createdAt)
           .limit(50)
       }.map(Task(t)).list().apply()
     }
   }
 
-  def datasetToCommand(taskId:String, param: TaskParameter): Command = {
+  def datasetToCommand(taskId: String, param: TaskParameter): Command = {
     param.commandType match {
       case 0 => MoveToS3(taskId, param.datasetId, param.withDelete.getOrElse(false))
-      case 1 => MoveToLocal(taskId, param.datasetId, param.withDelete.getOrElse (false) )
+      case 1 => MoveToLocal(taskId, param.datasetId, param.withDelete.getOrElse(false))
       case 2 => Delete(taskId, param.datasetId, param.fileId.get)
       case 3 => DeleteS3(taskId, param.datasetId)
       case 4 => DeleteLocal(taskId, param.datasetId)
@@ -58,5 +58,4 @@ object Main {
 
   case class TaskParameter(commandType: Int, datasetId: String, withDelete: Option[Boolean], fileId: Option[String])
 }
-
 

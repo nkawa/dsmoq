@@ -3,8 +3,8 @@ package dsmoq.apikeyweb
 import com.typesafe.config.ConfigFactory
 
 /**
-  * アプリ設定
-  */
+ * アプリ設定
+ */
 object AppConfig {
   private val config = ConfigFactory.load
 

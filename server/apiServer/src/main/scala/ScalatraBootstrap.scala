@@ -31,7 +31,8 @@ class ScalatraBootstrap extends LifeCycle {
       locale: Locale,
       format: String,
       loader: ClassLoader,
-      reload: Boolean): ResourceBundle = {
+      reload: Boolean
+    ): ResourceBundle = {
       val bundleName = toBundleName(baseName, locale)
       val resourceName = toResourceName(bundleName, "properties")
       use(loader.getResourceAsStream(resourceName)) { is =>

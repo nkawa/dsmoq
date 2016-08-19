@@ -63,7 +63,8 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
       }
     }.recoverWith {
       case e: BadRequestException =>
-        logger.error(LOG_MARKER,
+        logger.error(
+          LOG_MARKER,
           "Login failed: input validation error occurred, [id] = {}, [error messages] = {}",
           id,
           e.getMessage(),

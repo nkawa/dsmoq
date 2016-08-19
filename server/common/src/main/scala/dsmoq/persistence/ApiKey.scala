@@ -110,7 +110,8 @@ object ApiKey extends SQLSyntaxSupport[ApiKey] {
     updatedBy: String,
     updatedAt: DateTime,
     deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None)(implicit session: DBSession = autoSession): ApiKey = {
+    deletedAt: Option[DateTime] = None
+  )(implicit session: DBSession = autoSession): ApiKey = {
     withSQL {
       insert.into(ApiKey).columns(
         column.id,

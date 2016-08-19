@@ -74,21 +74,17 @@ trait GuestHeaderBehaviors { this: FreeSpec with ScalatraSuite =>
   }
 
   def createDataset(allowGuest: Boolean = false): String = {
-    val dataset = post(
-      "/api/datasets",
-      params = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1"),
-      files = Map("file[]" -> dummyFile)
-    ) {
-        checkAjaxStatus()
-        parse(body).extract[AjaxResponse[Dataset]].data
-      }
+    val params = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+    val files = Map("file[]" -> dummyFile)
+    val dataset = post("/api/datasets", params, files) {
+      checkAjaxStatus()
+      parse(body).extract[AjaxResponse[Dataset]].data
+    }
     if (allowGuest) {
-      put(
-        s"/api/datasets/${dataset.id}/guest_access",
-        params = Map("d" -> compact(render(("accessLevel" -> JInt(DefaultAccessLevel.FullPublic)))))
-      ) {
-          checkAjaxStatus()
-        }
+      val params = Map("d" -> compact(render(("accessLevel" -> JInt(DefaultAccessLevel.FullPublic)))))
+      put(s"/api/datasets/${dataset.id}/guest_access", params) {
+        checkAjaxStatus()
+      }
     }
     dataset.id
   }
@@ -122,12 +118,10 @@ class GuestHeaderSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter wi
     val servlet = new ApiController(resource)
     val holder = new ServletHolder(servlet.getClass.getName, servlet)
     // multi-part file upload config
-    holder.getRegistration.setMultipartConfig(
-      MultipartConfig(
-        maxFileSize = Some(3 * 1024 * 1024),
-        fileSizeThreshold = Some(1 * 1024 * 1024)
-      ).toMultipartConfigElement
-    )
+    val multipartConfig = MultipartConfig(
+      maxFileSize = Some(3 * 1024 * 1024),
+      fileSizeThreshold = Some(1 * 1024 * 1024)
+    ).toMultipartConfigElement
     servletContextHandler.addServlet(holder, "/api/*")
   }
 

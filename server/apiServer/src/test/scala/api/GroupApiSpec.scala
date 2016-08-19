@@ -45,12 +45,11 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     val servlet = new ApiController(resource)
     val holder = new ServletHolder(servlet.getClass.getName, servlet)
     // multi-part file upload config
-    holder.getRegistration.setMultipartConfig(
-      MultipartConfig(
-        maxFileSize = Some(3 * 1024 * 1024),
-        fileSizeThreshold = Some(1 * 1024 * 1024)
-      ).toMultipartConfigElement
-    )
+    val multipartConfig = MultipartConfig(
+      maxFileSize = Some(3 * 1024 * 1024),
+      fileSizeThreshold = Some(1 * 1024 * 1024)
+    ).toMultipartConfigElement
+    holder.getRegistration.setMultipartConfig(multipartConfig)
     servletContextHandler.addServlet(holder, "/api/*")
     addServlet(new FileController(resource), "/files/*")
     addServlet(new ImageController(resource), "/images/*")
@@ -117,9 +116,7 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           val groupId = createGroup()
           val changeGroupName = "changeName" + UUID.randomUUID().toString
           val changeDescription = "change description"
-          val params = Map("d" ->
-            compact(render(("name" -> changeGroupName) ~ ("description" -> changeDescription)))
-          )
+          val params = Map("d" -> compact(render(("name" -> changeGroupName) ~ ("description" -> changeDescription))))
           put("/api/groups/" + groupId, params) {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Group]]
@@ -233,7 +230,7 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val groupId = createGroup()
-          val params = Map("d" -> compact(render(List(("userId" -> dummyUserUUID) ~ ("role" -> JInt(GroupMemberRole.Member))))))
+          val params = Map("d" -> compact(render(Seq(("userId" -> dummyUserUUID) ~ ("role" -> JInt(GroupMemberRole.Member))))))
           post("/api/groups/" + groupId + "/members", params) { checkStatus() }
 
           get("/api/groups/" + groupId + "/members") {
@@ -248,7 +245,7 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val groupId = createGroup()
-          val params = Map("d" -> compact(render(List(("userId" -> dummyUserUUID) ~ ("role" -> JInt(GroupMemberRole.Member))))))
+          val params = Map("d" -> compact(render(Seq(("userId" -> dummyUserUUID) ~ ("role" -> JInt(GroupMemberRole.Member))))))
           post("/api/groups/" + groupId + "/members", params) { checkStatus() }
 
           // ロール変更
@@ -273,7 +270,7 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         session {
           signIn()
           val groupId = createGroup()
-          val params = Map("d" -> compact(render(List(("userId" -> dummyUserUUID) ~ ("role" -> JInt(GroupMemberRole.Member))))))
+          val params = Map("d" -> compact(render(Seq(("userId" -> dummyUserUUID) ~ ("role" -> JInt(GroupMemberRole.Member))))))
           post("/api/groups/" + groupId + "/members", params) { checkStatus() }
 
           delete("/api/groups/" + groupId + "/members/" + dummyUserUUID) { checkStatus() }
@@ -306,7 +303,7 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             signIn()
             val groupId = createGroup()
             // マネージャ追加1人
-            val addParams = Map("d" -> compact(render(List(("userId" -> "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04") ~ ("role" -> JInt(GroupMemberRole.Manager))))))
+            val addParams = Map("d" -> compact(render(Seq(("userId" -> "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04") ~ ("role" -> JInt(GroupMemberRole.Manager))))))
             post(s"/api/groups/${groupId}/members", addParams) {
               status should be(200)
               val result = parse(body).extract[AjaxResponse[Any]]
@@ -343,7 +340,7 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             signIn()
             val groupId = createGroup()
             // マネージャ追加1人
-            val addParams = Map("d" -> compact(render(List(("userId" -> "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04") ~ ("role" -> JInt(GroupMemberRole.Manager))))))
+            val addParams = Map("d" -> compact(render(Seq(("userId" -> "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04") ~ ("role" -> JInt(GroupMemberRole.Manager))))))
             post(s"/api/groups/${groupId}/members", addParams) {
               status should be(200)
               val result = parse(body).extract[AjaxResponse[Any]]
@@ -391,7 +388,7 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             signIn()
             val groupId = createGroup()
             // メンバー追加1人
-            val addParams = Map("d" -> compact(render(List(("userId" -> dummyUserUUID) ~ ("role" -> JInt(GroupMemberRole.Member))))))
+            val addParams = Map("d" -> compact(render(Seq(("userId" -> dummyUserUUID) ~ ("role" -> JInt(GroupMemberRole.Member))))))
             post(s"/api/groups/${groupId}/members", addParams) {
               checkStatus()
             }
@@ -409,7 +406,7 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             signIn()
             val groupId = createGroup()
             // メンバー追加1人
-            val addParams = Map("d" -> compact(render(List(("userId" -> dummyUserUUID) ~ ("role" -> JInt(GroupMemberRole.Manager))))))
+            val addParams = Map("d" -> compact(render(Seq(("userId" -> dummyUserUUID) ~ ("role" -> JInt(GroupMemberRole.Manager))))))
             post(s"/api/groups/${groupId}/members", addParams) {
               checkStatus()
             }

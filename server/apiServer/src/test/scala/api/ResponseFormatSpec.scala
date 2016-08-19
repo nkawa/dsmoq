@@ -54,12 +54,11 @@ class ResponseFormatSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter
     val servlet = new ApiController(resource)
     val holder = new ServletHolder(servlet.getClass.getName, servlet)
     // multi-part file upload config
-    holder.getRegistration.setMultipartConfig(
-      MultipartConfig(
-        maxFileSize = Some(3 * 1024 * 1024),
-        fileSizeThreshold = Some(1 * 1024 * 1024)
-      ).toMultipartConfigElement
-    )
+    val multipartConfig = MultipartConfig(
+      maxFileSize = Some(3 * 1024 * 1024),
+      fileSizeThreshold = Some(1 * 1024 * 1024)
+    ).toMultipartConfigElement
+    holder.getRegistration.setMultipartConfig(multipartConfig)
     servletContextHandler.addServlet(holder, "/api/*")
     addServlet(new FileController(resource), "/files/*")
     addServlet(new ImageController(resource), "/images/*")
@@ -117,12 +116,14 @@ class ResponseFormatSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter
         session {
           signIn()
           val datasetId = createDataset()
-          val params = Map("d" ->
-            compact(render(
-              ("name" -> "変更後データセット") ~
-                ("description" -> "change description") ~
-                ("license" -> AppConf.defaultLicenseId)
-            ))
+          val params = Map(
+            "d" -> compact(
+              render(
+                ("name" -> "変更後データセット") ~
+                  ("description" -> "change description") ~
+                  ("license" -> AppConf.defaultLicenseId)
+              )
+            )
           )
           put(s"/api/datasets/${datasetId}/metadata", params) {
             status should be(200)
@@ -134,7 +135,7 @@ class ResponseFormatSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter
         session {
           signIn()
           val groupId = createGroup()
-          val params = Map("d" -> compact(render(List(("userId" -> dummyUserId) ~ ("role" -> JInt(GroupMemberRole.Member))))))
+          val params = Map("d" -> compact(render(Seq(("userId" -> dummyUserId) ~ ("role" -> JInt(GroupMemberRole.Member))))))
           post(s"/api/groups/${groupId}/members", params) {
             status should be(200)
             parse(body).extract[AjaxResponse[AddMembers]]
