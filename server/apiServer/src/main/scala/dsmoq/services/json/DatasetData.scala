@@ -136,4 +136,10 @@ object DatasetData {
   case class ChangeDatasetImage(
     imageId: String
   )
+
+  case class App(
+    id: String,
+    name: String,
+    isPrimary: Boolean
+  )
 }

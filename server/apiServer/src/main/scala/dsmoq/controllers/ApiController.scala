@@ -27,10 +27,12 @@ import com.typesafe.scalalogging.LazyLogging
 
 import dsmoq.ResourceNames
 import dsmoq.controllers.json.ChangeGroupPrimaryImageParams
+import dsmoq.controllers.json.ChangePrimaryAppParams
 import dsmoq.controllers.json.ChangePrimaryImageParams
 import dsmoq.controllers.json.CreateGroupParams
 import dsmoq.controllers.json.DatasetStorageParams
 import dsmoq.controllers.json.GetGroupMembersParams
+import dsmoq.controllers.json.SearchAppsParams
 import dsmoq.controllers.json.SearchDatasetsParams
 import dsmoq.controllers.json.SearchGroupsParams
 import dsmoq.controllers.json.SearchRangeParams
@@ -65,14 +67,25 @@ import dsmoq.services.TaskService
 class ApiController(
   val resource: ResourceBundle
 ) extends ScalatraServlet with JacksonJsonSupport with FileUploadSupport with LazyLogging with AuthTrait {
+
   protected implicit val jsonFormats: Formats = DefaultFormats
 
   private implicit def objectToPipe[A](x: A) = Pipe(x)
 
   /**
+   * ログマーカー
+   */
+  val LOG_MARKER = MarkerFactory.getMarker("API_LOG")
+
+  /**
    * AccountServiceのインスタンス
    */
   val accountService = new AccountService(resource)
+
+  /**
+   * CheckUtilのインスタンス
+   */
+  val checkUtil = new CheckUtil(resource)
 
   /**
    * DatasetServiceのインスタンス
@@ -83,16 +96,6 @@ class ApiController(
    * GroupServiceのインスタンス
    */
   val groupService = new GroupService(resource)
-
-  /**
-   * CheckUtilのインスタンス
-   */
-  val checkUtil = new CheckUtil(resource)
-
-  /**
-   * ログマーカー
-   */
-  val LOG_MARKER = MarkerFactory.getMarker("API_LOG")
 
   before() {
     contentType = formats("json")
@@ -634,6 +637,105 @@ class ApiController(
       _ <- checkUtil.validUuidForUrl("fileId", fileId)
       user <- getUser(allowGuest = true)
       result <- datasetService.getDatasetZippedFiles(datasetId, fileId, json.limit, json.offset, user)
+    } yield {
+      result
+    }
+    toActionResult(ret)
+  }
+
+  get("/datasets/:datasetId/apps") {
+    val datasetId = params("datasetId")
+    val ret = for {
+      d <- getJsonValue[SearchAppsParams]
+      json <- Success(d.getOrElse(SearchAppsParams()))
+      _ <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
+      _ <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
+      _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
+      _ <- checkUtil.invokeSeq(json.excludeIds)(checkUtil.validUuidForForm("d.excludeIds", _))
+      user <- getUser(allowGuest = true)
+      result <- datasetService.getApps(
+        datasetId = Some(datasetId),
+        excludeIds = json.excludeIds,
+        deletedType = json.deletedType,
+        offset = json.offset,
+        limit = json.limit,
+        user = user
+      )
+    } yield {
+      result
+    }
+    toActionResult(ret)
+  }
+
+  post("/datasets/:datasetId/apps") {
+    val datasetId = params("datasetId")
+    val ret = for {
+      file <- checkUtil.requireForForm("file", fileParams.get("file"))
+      _ <- checkUtil.checkNonZeroByteFile("file", file)
+      _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
+      user <- getUser(allowGuest = false)
+      result <- datasetService.addApp(datasetId, file, user)
+    } yield {
+      result
+    }
+    toActionResult(ret)
+  }
+
+  get("/datasets/:datasetId/apps/:appId") {
+    val datasetId = params("datasetId")
+    val appId = params("appId")
+    val ret = for {
+      _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
+      _ <- checkUtil.validUuidForUrl("appId", appId)
+      user <- getUser(allowGuest = true)
+      result <- datasetService.getApp(datasetId, appId, user)
+    } yield {
+      result
+    }
+    toActionResult(ret)
+  }
+
+  put("/datasets/:datasetId/apps/:appId") {
+    val datasetId = params("datasetId")
+    val appId = params("appId")
+    val ret = for {
+      file <- checkUtil.requireForForm("file", fileParams.get("file"))
+      _ <- checkUtil.checkNonZeroByteFile("file", file)
+      _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
+      _ <- checkUtil.validUuidForUrl("appId", appId)
+      user <- getUser(allowGuest = false)
+      result <- datasetService.updateApp(datasetId, appId, file, user)
+    } yield {
+      result
+    }
+    toActionResult(ret)
+  }
+
+  delete("/datasets/:datasetId/apps/:appId") {
+    val datasetId = params("datasetId")
+    val appId = params("appId")
+    val ret = for {
+      _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
+      _ <- checkUtil.validUuidForUrl("appId", appId)
+      user <- getUser(allowGuest = false)
+      result <- datasetService.deleteApp(datasetId, appId, user)
+    } yield {
+      result
+    }
+    toActionResult(ret)
+  }
+
+  put("/datasets/:datasetId/apps/primary") {
+    val datasetId = params("datasetId")
+    val ret = for {
+      d <- getJsonValue[ChangePrimaryAppParams]
+      json <- jsonOptToTry(d)
+      appId <- checkUtil.requireForForm("d.appId", json.appId)
+      _ <- checkUtil.nonEmptyTrimmedSpacesForForm("d.appId", appId)
+      _ <- checkUtil.validUuidForForm("d.appId", appId)
+      _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
+      user <- getUser(allowGuest = false)
+      result <- datasetService.changePrimaryApp(datasetId, appId, user)
     } yield {
       result
     }

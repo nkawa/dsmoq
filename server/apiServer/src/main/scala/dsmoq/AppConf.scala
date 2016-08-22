@@ -17,6 +17,7 @@ object AppConf {
   val fileDir = root.getString("apiserver.file_dir")
   val tempDir = root.getString("apiserver.temp_dir")
   val messageDir = root.getString("apiserver.message_dir")
+  val appDir = if (root.hasPath("apiserver.app_dir")) root.getString("apiserver.app_dir") else fileDir + "/../jws"
 
   val systemUserId = "dccc110c-c34f-40ed-be2c-7e34a9f1b8f0"
   val guestUserId = "6afb4198-859d-4053-8a15-5c791f3a8089"
