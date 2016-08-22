@@ -1141,6 +1141,9 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       case Some(_) if !isOwner(user.id, datasetId) => {
         throw new AccessDeniedException(resource.getString(ResourceNames.ONLY_ALLOW_DATASET_OWNER))
       }
+      case _ => {
+        // do nothing
+      }
     }
   }
 

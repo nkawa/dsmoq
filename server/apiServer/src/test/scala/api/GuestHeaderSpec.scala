@@ -122,6 +122,7 @@ class GuestHeaderSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter wi
       maxFileSize = Some(3 * 1024 * 1024),
       fileSizeThreshold = Some(1 * 1024 * 1024)
     ).toMultipartConfigElement
+    holder.getRegistration.setMultipartConfig(multipartConfig)
     servletContextHandler.addServlet(holder, "/api/*")
   }
 

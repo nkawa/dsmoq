@@ -142,7 +142,7 @@ class ApiController(
       case Success(user) =>
         AjaxResponse("OK", user)
       case Failure(e) => {
-        log(e.getMessage, e)
+        logger.error(LOG_MARKER, e.getMessage, e)
         clearSession()
         e match {
           case e: BadRequestException => BadRequest(AjaxResponse("BadRequest", e.getMessage())) // 400
@@ -970,7 +970,7 @@ class ApiController(
       case Success(()) => Ok(AjaxResponse("OK"))
       case Success(x) => Ok(AjaxResponse("OK", x))
       case Failure(e) =>
-        log(e.getMessage, e)
+        logger.error(LOG_MARKER, e.getMessage, e)
         e match {
           case e: NotAuthorizedException => Forbidden(AjaxResponse("Unauthorized", e.getMessage)) // 403
           case e: AccessDeniedException => Forbidden(AjaxResponse("AccessDenied", e.getMessage)) // 403
