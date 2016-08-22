@@ -6,17 +6,17 @@ import java.util.ResourceBundle
 import org.eclipse.jetty.servlet.ServletHolder
 
 import _root_.api.api.logic.SpecCommonLogic
-import org.scalatest.{BeforeAndAfter, FreeSpec}
+import org.scalatest.{ BeforeAndAfter, FreeSpec }
 import org.scalatra.test.scalatest.ScalatraSuite
-import org.json4s.{DefaultFormats, Formats}
-import dsmoq.controllers.{ApiController, AjaxResponse}
-import scalikejdbc.config.{DBsWithEnv, DBs}
+import org.json4s.{ DefaultFormats, Formats }
+import dsmoq.controllers.{ ApiController, AjaxResponse }
+import scalikejdbc.config.{ DBsWithEnv, DBs }
 import java.io.File
 import org.scalatra.servlet.MultipartConfig
 import org.json4s.JsonDSL._
 import org.json4s.jackson.JsonMethods._
-import org.json4s.{DefaultFormats, Formats, _}
-import org.scalatest.{BeforeAndAfter, FreeSpec}
+import org.json4s.{ DefaultFormats, Formats, _ }
+import org.scalatest.{ BeforeAndAfter, FreeSpec }
 import org.scalatra.servlet.MultipartConfig
 import org.scalatra.test.scalatest.ScalatraSuite
 import scalikejdbc._
@@ -42,7 +42,7 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   private val testUserName = "dummy1"
   private val dummyUserName = "dummy4"
   private val testUserId = "023bfa40-e897-4dad-96db-9fd3cf001e79" // dummy1
-  private val dummyUserId = "eb7a596d-e50c-483f-bbc7-50019eea64d7"  // dummy 4
+  private val dummyUserId = "eb7a596d-e50c-483f-bbc7-50019eea64d7" // dummy 4
   private val dummyUserLoginParams = Map("d" -> compact(render(("id" -> "dummy4") ~ ("password" -> "password"))))
 
   private val host = "http://localhost:8080"
@@ -56,12 +56,11 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     val servlet = new ApiController(resource)
     val holder = new ServletHolder(servlet.getClass.getName, servlet)
     // multi-part file upload config
-    holder.getRegistration.setMultipartConfig(
-      MultipartConfig(
-        maxFileSize = Some(3 * 1024 * 1024),
-        fileSizeThreshold = Some(1 * 1024 * 1024)
-      ).toMultipartConfigElement
-    )
+    val multipartConfig = MultipartConfig(
+      maxFileSize = Some(3 * 1024 * 1024),
+      fileSizeThreshold = Some(1 * 1024 * 1024)
+    ).toMultipartConfigElement
+    holder.getRegistration.setMultipartConfig(multipartConfig)
     servletContextHandler.addServlet(holder, "/api/*")
   }
 
@@ -341,38 +340,38 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           block {
             val params = Map("d" -> compact(render(Seq(("id" -> testUserId) ~ ("ownerType" -> "") ~ ("accessLevel" -> JInt(3))))))
             post(s"/api/datasets/${datasetId}/acl", params) {
-              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") 
+              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument")
             }
           }
           block {
             val params = Map("d" -> compact(render(Seq(("id" -> testUserId) ~ ("ownerType" -> JInt(-1)) ~ ("accessLevel" -> JInt(3))))))
             post(s"/api/datasets/${datasetId}/acl", params) {
-              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") 
+              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument")
             }
           }
           block {
             val params = Map("d" -> compact(render(Seq(("id" -> testUserId) ~ ("ownerType" -> JInt(0)) ~ ("accessLevel" -> JInt(3))))))
             post(s"/api/datasets/${datasetId}/acl", params) {
-              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") 
+              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument")
             }
           }
           // 正常範囲チェック(accessLevel)
           block {
             val params = Map("d" -> compact(render(Seq(("id" -> testUserId) ~ ("ownerType" -> JInt(1)) ~ ("accessLevel" -> "")))))
             post(s"/api/datasets/${datasetId}/acl", params) {
-              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") 
+              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument")
             }
           }
           block {
             val params = Map("d" -> compact(render(Seq(("id" -> testUserId) ~ ("ownerType" -> JInt(1)) ~ ("accessLevel" -> JInt(-1))))))
             post(s"/api/datasets/${datasetId}/acl", params) {
-              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") 
+              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument")
             }
           }
           block {
             val params = Map("d" -> compact(render(Seq(("id" -> testUserId) ~ ("ownerType" -> JInt(1)) ~ ("accessLevel" -> JInt(4))))))
             post(s"/api/datasets/${datasetId}/acl", params) {
-              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") 
+              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument")
             }
           }
         }
@@ -414,13 +413,13 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           block {
             val file = Map("file" -> zeroByteCsv)
             post(s"/api/datasets/${datasetId}/attributes/import", Map.empty, file) {
-              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") 
+              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument")
             }
           }
           block {
             val file = Map("file" -> nonZeroByteCsv)
             post(s"/api/datasets/${datasetId}/attributes/import", Map.empty, file) {
-              parse(body).extract[AjaxResponse[Any]].status should be("OK") 
+              parse(body).extract[AjaxResponse[Any]].status should be("OK")
             }
           }
         }
@@ -522,19 +521,19 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           block {
             val params = Map("d" -> compact(render(("accessLevel" -> ""))))
             put(s"/api/datasets/${datasetId}/guest_access", params) {
-              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") 
+              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument")
             }
           }
           block {
             val params = Map("d" -> compact(render(("accessLevel" -> JInt(-1)))))
             put(s"/api/datasets/${datasetId}/guest_access", params) {
-              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") 
+              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument")
             }
           }
           block {
             val params = Map("d" -> compact(render(("accessLevel" -> JInt(3)))))
             put(s"/api/datasets/${datasetId}/guest_access", params) {
-              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") 
+              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument")
             }
           }
         }
@@ -682,26 +681,26 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             requireCheck(PUT, s"/api/datasets/${datasetId}/metadata", params)
           }
           // json4sでは、Listの要素がListの型に変換できない場合、その要素をなかったことにするため、テストできない
-//          // 省略不可能パラメータ省略(attribute.name)
-//          block {
-//            val params = Map("d" -> compact(render(
-//              ("name" -> "test1") ~
-//              ("description" -> "") ~
-//              ("license" -> AppConf.defaultLicenseId) ~
-//              ("attributes" -> Seq(("value" -> "v1")))
-//            )))
-//            requireCheck(PUT, s"/api/datasets/${datasetId}/metadata", params)
-//          }
-//          // 省略不可能パラメータ省略(attribute.value)
-//          block {
-//            val params = Map("d" -> compact(render(
-//              ("name" -> "test1") ~
-//              ("description" -> "") ~
-//              ("license" -> AppConf.defaultLicenseId) ~
-//              ("attributes" -> Seq(("name" -> "name1")))
-//            )))
-//            requireCheck(PUT, s"/api/datasets/${datasetId}/metadata", params)
-//          }
+          //          // 省略不可能パラメータ省略(attribute.name)
+          //          block {
+          //            val params = Map("d" -> compact(render(
+          //              ("name" -> "test1") ~
+          //              ("description" -> "") ~
+          //              ("license" -> AppConf.defaultLicenseId) ~
+          //              ("attributes" -> Seq(("value" -> "v1")))
+          //            )))
+          //            requireCheck(PUT, s"/api/datasets/${datasetId}/metadata", params)
+          //          }
+          //          // 省略不可能パラメータ省略(attribute.value)
+          //          block {
+          //            val params = Map("d" -> compact(render(
+          //              ("name" -> "test1") ~
+          //              ("description" -> "") ~
+          //              ("license" -> AppConf.defaultLicenseId) ~
+          //              ("attributes" -> Seq(("name" -> "name1")))
+          //            )))
+          //            requireCheck(PUT, s"/api/datasets/${datasetId}/metadata", params)
+          //          }
           // 空文字不許可チェック(name)
           block {
             val generator = (x: String) => Map("d" -> compact(render(("name" -> x) ~ ("description" -> "") ~ ("license" -> AppConf.defaultLicenseId) ~ ("attributes" -> Seq()))))
@@ -711,9 +710,9 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           block {
             val generator = (x: String) => Map("d" -> compact(render(
               ("name" -> "test1") ~
-              ("description" -> "") ~
-              ("license" -> AppConf.defaultLicenseId) ~
-              ("attributes" -> Seq(("name" -> x) ~ ("value" -> "v1")))
+                ("description" -> "") ~
+                ("license" -> AppConf.defaultLicenseId) ~
+                ("attributes" -> Seq(("name" -> x) ~ ("value" -> "v1")))
             )))
             nonEmptyCheck(PUT, s"/api/datasets/${datasetId}/metadata", "name1", generator)
           }
@@ -721,9 +720,9 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           block {
             val generator = (x: String) => Map("d" -> compact(render(
               ("name" -> "test1") ~
-              ("description" -> "") ~
-              ("license" -> AppConf.defaultLicenseId) ~
-              ("attributes" -> Seq(("name" -> "name1") ~ ("value" -> x)))
+                ("description" -> "") ~
+                ("license" -> AppConf.defaultLicenseId) ~
+                ("attributes" -> Seq(("name" -> "name1") ~ ("value" -> x)))
             )))
             nonEmptyCheck(PUT, s"/api/datasets/${datasetId}/metadata", "v1", generator)
           }
@@ -736,12 +735,12 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           block {
             val params = Map("d" -> compact(render(
               ("name" -> "test1") ~
-              ("description" -> "") ~
-              ("license" -> AppConf.defaultLicenseId) ~
-              ("attributes" -> Seq(("name" -> "featured") ~ ("value" -> "v1"), ("name" -> "featured") ~ ("value" -> "v2")))
+                ("description" -> "") ~
+                ("license" -> AppConf.defaultLicenseId) ~
+                ("attributes" -> Seq(("name" -> "featured") ~ ("value" -> "v1"), ("name" -> "featured") ~ ("value" -> "v2")))
             )))
             put(s"/api/datasets/${datasetId}/metadata", params) {
-              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") 
+              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument")
             }
           }
         }
@@ -773,12 +772,12 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           // booleanチェック(saveLocal)
           block {
             val generator = (x: JValue) => Map("d" -> compact(render(("saveLocal" -> x) ~ ("saveS3" -> JBool(true)))))
-            booleanCheckForJson(PUT,s"/api/datasets/${datasetId}/storage", generator)
+            booleanCheckForJson(PUT, s"/api/datasets/${datasetId}/storage", generator)
           }
           // booleanチェック(saveS3)
           block {
             val generator = (x: JValue) => Map("d" -> compact(render(("saveLocal" -> JBool(true)) ~ ("saveS3" -> x))))
-            booleanCheckForJson(PUT,s"/api/datasets/${datasetId}/storage", generator)
+            booleanCheckForJson(PUT, s"/api/datasets/${datasetId}/storage", generator)
           }
         }
       }
@@ -1129,13 +1128,13 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           block {
             val params = Map("d" -> compact(render(Seq(("userId" -> testUserId) ~ ("role" -> "")))))
             post(s"/api/groups/${groupId}/members", params) {
-              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") 
+              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument")
             }
           }
           block {
             val params = Map("d" -> compact(render(Seq(("userId" -> testUserId) ~ ("role" -> JInt(-1))))))
             post(s"/api/groups/${groupId}/members", params) {
-              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") 
+              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument")
             }
           }
         }
@@ -1169,13 +1168,13 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           block {
             val params = Map("d" -> compact(render(("role" -> ""))))
             put(s"/api/groups/${groupId}/members/${dummyUserId}", params) {
-              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") 
+              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument")
             }
           }
           block {
             val params = Map("d" -> compact(render(("role" -> JInt(-1)))))
             put(s"/api/groups/${groupId}/members/${dummyUserId}", params) {
-              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") 
+              parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument")
             }
           }
         }
@@ -1362,7 +1361,7 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
    * Httpメソッドを表す型
    */
   sealed trait HttpMethod
-  
+
   /**
    * GETメソッドを表す型
    */
@@ -1385,13 +1384,13 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
   /**
    * JSON未指定、JSONフォーマット不正のケースをテストします。
-   * 
+   *
    * @param method Httpメソッド
    * @param url テストするAPIのURL
    * @return テスト結果
    */
   private def jsonFormatCheck(method: HttpMethod, url: String) = {
-    val params = Map("d" -> "hoge") 
+    val params = Map("d" -> "hoge")
     method match {
       case GET => {
         get(url) { parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") }
@@ -1414,13 +1413,13 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
   /**
    * JSONフォーマット不正のケースのみをテストします。
-   * 
+   *
    * @param method Httpメソッド
    * @param url テストするAPIのURL
    * @return テスト結果
    */
   private def jsonFormatOnlyCheck(method: HttpMethod, url: String) = {
-    val params = Map("d" -> "null") 
+    val params = Map("d" -> "null")
     method match {
       case GET => {
         get(url, params) { parse(body).extract[AjaxResponse[Any]].status should be("Illegal Argument") }
@@ -1439,7 +1438,7 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
   /**
    * 項目の必須チェックをテストします。
-   * 
+   *
    * @param method Httpメソッド
    * @param url テストするAPIのURL
    * @param params APIのFORMパラメータ
@@ -1457,7 +1456,7 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
   /**
    * 項目の空文字チェックをテストします。
-   * 
+   *
    * @param method Httpメソッド
    * @param url テストするAPIのURL
    * @param valid 正常なケースで使用する値
@@ -1495,7 +1494,7 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
   /**
    * 項目のfileチェックをテストします。
-   * 
+   *
    * @param method Httpメソッド
    * @param url テストするAPIのURL
    * @param paramGenerator APIのFORMパラメータ(file)を生成するための関数
@@ -1520,7 +1519,7 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
   /**
    * 項目のbooleanチェック(JSON項目向け)をテストします。
-   * 
+   *
    * @param method Httpメソッド
    * @param url テストするAPIのURL
    * @param paramGenerator APIのFORMパラメータを生成するための関数
@@ -1578,7 +1577,7 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
   /**
    * 項目のbooleanチェック(FORMパラメータに直に入ってくる場合向け)をテストします。
-   * 
+   *
    * @param method Httpメソッド
    * @param url テストするAPIのURL
    * @param paramGenerator APIのFORMパラメータを生成するための関数
@@ -1636,7 +1635,7 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
   /**
    * 項目の非マイナス数値チェックをテストします。
-   * 
+   *
    * @param method Httpメソッド
    * @param url テストするAPIのURL
    * @param paramGenerator APIのFORMパラメータを生成するための関数
@@ -1678,7 +1677,7 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
   /**
    * 項目のUUIDチェック(URLパラメータ向け)をテストします。
-   * 
+   *
    * @param method Httpメソッド
    * @param urlGenerator テストするAPIのURLを生成するための関数
    * @param valid 正常なケースで使用する値
@@ -1721,7 +1720,7 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
   /**
    * 項目のUUIDチェック(FORMパラメータ向け)をテストします。
-   * 
+   *
    * @param method Httpメソッド
    * @param url テストするAPIのURL
    * @param valid 正常なケースで使用する値
@@ -1764,7 +1763,7 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
   /**
    * 項目の長さチェック(file以外)をテストします。
-   * 
+   *
    * @param method Httpメソッド
    * @param url テストするAPIのURL
    * @param valid 正常なケースで使用する値
@@ -1797,7 +1796,7 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
   /**
    * 項目の長さチェック(fileの場合)をテストします。
-   * 
+   *
    * @param method Httpメソッド
    * @param url テストするAPIのURL
    * @param valid 正常なケースで使用する値
@@ -1806,7 +1805,7 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
    * @return テスト結果
    */
   private def nonZeroLengthCheckForFile(method: HttpMethod, url: String, valid: File, params: Iterable[(String, String)] = Map.empty, fileGenerator: File => Iterable[(String, Any)]) = {
-    val zeroLengthParam = Map.empty 
+    val zeroLengthParam = Map.empty
     val nonZeroLengthParam = fileGenerator(valid)
     method match {
       case PUT => {
@@ -1823,7 +1822,7 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
   /**
    * 項目の日付チェックをテストします。
-   * 
+   *
    * @param method Httpメソッド
    * @param url テストするAPIのURL
    * @param paramGenerator APIのFORMパラメータを生成するための関数

@@ -15,7 +15,7 @@ object Main {
       DBs.setup()
       args.toList match {
         case "list" :: Nil => list()
-        case "add" :: tagName :: colorCode ::Nil => addTag(tagName, colorCode)
+        case "add" :: tagName :: colorCode :: Nil => addTag(tagName, colorCode)
         case "change" :: tagName :: colorCode :: Nil => updateTag(tagName, colorCode)
         case "remove" :: tagName :: Nil => removeTag(tagName)
         case _ => printUsage()
@@ -35,10 +35,10 @@ object Main {
         select
           .from(Tag as t)
           .where
-            .isNull(t.deletedBy)
-            .and
-            .isNull(t.deletedAt)
-            .orderBy(t.tag)
+          .isNull(t.deletedBy)
+          .and
+          .isNull(t.deletedAt)
+          .orderBy(t.tag)
       }.map(Tag(t.resultName)).list.apply()
       println("%s found.".format(tags.size))
       println("tag name/color code")
@@ -92,7 +92,7 @@ object Main {
             update(Tag)
               .set(c.color -> colorCode, c.updatedAt -> timestamp)
               .where
-                .eq(c.tag, tagName)
+              .eq(c.tag, tagName)
           }
         }
         case None => println("指定したタグは存在しません。")
@@ -124,7 +124,8 @@ object Main {
         |tagManager add <tag name> <color code>    : 指定したタグの色設定を追加します。
         |tagManager change <tag name> <color code> : 指定したタグの色設定を変更します。
         |tagManager remove <tag name>              : 指定したタグの色設定を削除します。
-      """.stripMargin)
+      """.stripMargin
+    )
   }
 
 }

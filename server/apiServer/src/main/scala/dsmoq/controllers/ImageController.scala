@@ -2,13 +2,18 @@ package dsmoq.controllers
 
 import java.util.ResourceBundle
 
-import com.typesafe.scalalogging.LazyLogging
-import org.scalatra.{NotFound, ScalatraServlet}
-import org.slf4j.MarkerFactory
-import scala.util.{Try, Success, Failure}
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 
-import dsmoq.exceptions.{AccessDeniedException, NotFoundException}
-import dsmoq.services.{ImageService, User}
+import org.scalatra.ScalatraServlet
+import org.slf4j.MarkerFactory
+
+import com.typesafe.scalalogging.LazyLogging
+
+import dsmoq.exceptions.AccessDeniedException
+import dsmoq.exceptions.NotFoundException
+import dsmoq.services.ImageService
 
 class ImageController(val resource: ResourceBundle) extends ScalatraServlet with LazyLogging with AuthTrait {
 
@@ -18,8 +23,8 @@ class ImageController(val resource: ResourceBundle) extends ScalatraServlet with
   val imageService = new ImageService(resource)
 
   /**
-    * ログマーカー
-    */
+   * ログマーカー
+   */
   val LOG_MARKER = MarkerFactory.getMarker("IMAGE_LOG")
 
   before("/*") {
@@ -52,7 +57,10 @@ class ImageController(val resource: ResourceBundle) extends ScalatraServlet with
     val imageId = params("imageId")
     val datasetId = params("datasetId")
     val size = params.get("size")
-    logger.info(LOG_MARKER, "Receive dataset image request, datasetId={}, imageId={}, size={}", datasetId, imageId, size)
+    logger.info(
+      LOG_MARKER,
+      "Receive dataset image request, datasetId={}, imageId={}, size={}", datasetId, imageId, size
+    )
     getImage(imageService.getDatasetFile(datasetId, imageId, size, getUserFromSession))
   }
 
@@ -67,7 +75,10 @@ class ImageController(val resource: ResourceBundle) extends ScalatraServlet with
     val imageId = params("imageId")
     val groupId = params("groupId")
     val size = params.get("size")
-    logger.info(LOG_MARKER, "Receive group image request, groupId={}, imageId={}, size={}", groupId, imageId, size)
+    logger.info(
+      LOG_MARKER,
+      "Receive group image request, groupId={}, imageId={}, size={}", groupId, imageId, size
+    )
     getImage(imageService.getGroupFile(groupId, imageId, size))
   }
 
@@ -81,9 +92,18 @@ class ImageController(val resource: ResourceBundle) extends ScalatraServlet with
       case Failure(exp) => {
         logger.error(LOG_MARKER, "getImage failed", exp)
         exp match {
-          case _: NotFoundException => halt(status = 404, reason = "Not Found", body = "Not Found") // 403 Forbidden
-          case _: AccessDeniedException => halt(status = 403, reason = "Forbidden", body = "Access Denied") // 403 Forbidden
-          case _: Exception => halt(status = 500, reason = "Internal Server Error", body = "Internal Server Error") // 500 Internal Server Error
+          case _: NotFoundException => {
+            // 403 Forbidden
+            halt(status = 404, reason = "Not Found", body = "Not Found")
+          }
+          case _: AccessDeniedException => {
+            // 403 Forbidden
+            halt(status = 403, reason = "Forbidden", body = "Access Denied")
+          }
+          case _: Exception => {
+            // 500 Internal Server Error
+            halt(status = 500, reason = "Internal Server Error", body = "Internal Server Error")
+          }
         }
       }
     }

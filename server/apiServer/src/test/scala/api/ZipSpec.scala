@@ -3,7 +3,7 @@ package api
 import java.io.File
 import java.net.URLEncoder
 import java.nio.file.Paths
-import java.util.{Base64, UUID}
+import java.util.{ Base64, UUID }
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 import java.util.ResourceBundle
@@ -14,17 +14,17 @@ import _root_.api.api.logic.SpecCommonLogic
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.AmazonS3Client
 import dsmoq.AppConf
-import dsmoq.controllers.{AjaxResponse, ApiController, FileController, ImageController}
-import dsmoq.persistence.{DefaultAccessLevel, GroupAccessLevel, OwnerType, UserAccessLevel}
-import dsmoq.services.json.DatasetData.{Dataset, DatasetAddFiles, DatasetAddImages, DatasetDeleteImage, _}
+import dsmoq.controllers.{ AjaxResponse, ApiController, FileController, ImageController }
+import dsmoq.persistence.{ DefaultAccessLevel, GroupAccessLevel, OwnerType, UserAccessLevel }
+import dsmoq.services.json.DatasetData.{ Dataset, DatasetAddFiles, DatasetAddImages, DatasetDeleteImage, _ }
 import dsmoq.services.json.GroupData.Group
 import dsmoq.services.json.RangeSlice
 import dsmoq.services.json.TaskData._
 import org.eclipse.jetty.server.Connector
 import org.json4s.JsonDSL._
 import org.json4s.jackson.JsonMethods._
-import org.json4s.{DefaultFormats, Formats, _}
-import org.scalatest.{BeforeAndAfter, FreeSpec}
+import org.json4s.{ DefaultFormats, Formats, _ }
+import org.scalatest.{ BeforeAndAfter, FreeSpec }
 import org.scalatra.servlet.MultipartConfig
 import org.scalatra.test.scalatest.ScalatraSuite
 import scalikejdbc._
@@ -44,12 +44,11 @@ class ZipSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     val servlet = new ApiController(resource)
     val holder = new ServletHolder(servlet.getClass.getName, servlet)
     // multi-part file upload config
-    holder.getRegistration.setMultipartConfig(
-      MultipartConfig(
-        maxFileSize = Some(3 * 1024 * 1024),
-        fileSizeThreshold = Some(1 * 1024 * 1024)
-      ).toMultipartConfigElement
-    )
+    val multipartConfig = MultipartConfig(
+      maxFileSize = Some(3 * 1024 * 1024),
+      fileSizeThreshold = Some(1 * 1024 * 1024)
+    ).toMultipartConfigElement
+    holder.getRegistration.setMultipartConfig(multipartConfig)
     servletContextHandler.addServlet(holder, "/api/*")
     addServlet(new FileController(resource), "/files/*")
     addServlet(new ImageController(resource), "/images/*")

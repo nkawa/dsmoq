@@ -23,5 +23,5 @@ object SaveStatus {
   /**
    * データセットのファイルをS3またはローカルから削除中であることを表す値
    */
-   val DELETING = 3
+  val DELETING = 3
 }

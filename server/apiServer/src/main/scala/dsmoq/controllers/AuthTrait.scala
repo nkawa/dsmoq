@@ -1,17 +1,23 @@
 package dsmoq.controllers
 
 import java.util.ResourceBundle
-import javax.servlet.http.HttpServletRequest
-import scala.util.{ Try, Success, Failure }
+
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+
 import org.scalatra.ScalatraServlet
+import org.slf4j.MarkerFactory
 
 import com.typesafe.scalalogging.LazyLogging
-import org.slf4j.MarkerFactory
 
 import dsmoq.AppConf
 import dsmoq.ResourceNames
 import dsmoq.exceptions.NotAuthorizedException
-import dsmoq.services.{ AccountService, CheckUtil, User }
+import dsmoq.services.AccountService
+import dsmoq.services.CheckUtil
+import dsmoq.services.User
+import javax.servlet.http.HttpServletRequest
 
 /**
  * 認証処理、セッション操作を取り扱うトレイト
@@ -39,9 +45,7 @@ trait AuthTrait { this: ScalatraServlet with LazyLogging =>
   def updateSessionUser(user: User): Try[Unit] = {
     Try {
       CheckUtil.checkNull(user, "user")
-      if (hasAuthorizationHeader()) {
-        ()
-      } else {
+      if (!hasAuthorizationHeader()) {
         session.setAttribute(SESSION_KEY, user)
       }
     }
@@ -144,7 +148,13 @@ trait AuthTrait { this: ScalatraServlet with LazyLogging =>
             logger.info(LOG_MARKER, "Auth: Get user from Authorization Header: User found. user={}", user)
             user
           }.getOrElse {
-            logger.error(LOG_MARKER, "Auth: Get user from Authorization Header: User not found. api_key={}, signature={}", apiKey, signature)
+            logger.error(
+              LOG_MARKER,
+              "Auth: Get user from Authorization Header: "
+                + "User not found. api_key={}, signature={}",
+              apiKey,
+              signature
+            )
             throw new NotAuthorizedException(resource.getString(ResourceNames.INVALID_APIKEY_OR_SIGNATURE))
           }
         }

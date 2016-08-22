@@ -1,7 +1,5 @@
 package dsmoq.controllers.json
 
-import org.scalatra.servlet.FileItem
-
 case class UpdateProfileParams(
   name: Option[String] = None,
   fullname: Option[String] = None,

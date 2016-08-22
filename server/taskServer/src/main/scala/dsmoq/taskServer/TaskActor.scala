@@ -8,7 +8,7 @@ import akka.actor.ActorLogging
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.AmazonS3Client
 import dsmoq.persistence
-import dsmoq.persistence.{Dataset, Task, TaskLog}
+import dsmoq.persistence.{ Dataset, Task, TaskLog }
 import org.joda.time.DateTime
 import dsmoq.persistence.PostgresqlHelper._
 import org.json4s.JsonAST.JInt
@@ -93,15 +93,15 @@ class TaskActor extends Actor with ActorLogging {
               log.info("UploadToS3 " + filePath)
               FileManager.moveFromLocalToS3(filePath, client)
             }
-              finishTask(taskId, FINISH_TASK)
-              createTaskLog(taskId, END_LOG, "")
-              changeS3State(datasetId, SAVED_STATE)
-              if (withDelete) {
-                changeLocalState(datasetId, DELETING_STATE)
-                val timestamp = DateTime.now()
-                val executedAt = timestamp.plus(Duration(AppConf.delete_cycle, AppConf.delete_unit).toMillis)
-                createTask(4, datasetId, executedAt, timestamp)
-              }
+            finishTask(taskId, FINISH_TASK)
+            createTaskLog(taskId, END_LOG, "")
+            changeS3State(datasetId, SAVED_STATE)
+            if (withDelete) {
+              changeLocalState(datasetId, DELETING_STATE)
+              val timestamp = DateTime.now()
+              val executedAt = timestamp.plus(Duration(AppConf.delete_cycle, AppConf.delete_unit).toMillis)
+              createTask(4, datasetId, executedAt, timestamp)
+            }
           } catch {
             case e: Exception => {
               finishTask(taskId, ERROR_TASK)
@@ -247,7 +247,7 @@ class TaskActor extends Actor with ActorLogging {
       case Some(t) => {
         Task(
           id = t.id,
-          taskType =  t.taskType,
+          taskType = t.taskType,
           parameter = t.parameter,
           status = status,
           executeAt = t.executeAt,
@@ -289,7 +289,7 @@ class TaskActor extends Actor with ActorLogging {
               c.s3State -> s3State
             )
             .where
-              .eqUuid(c.datasetId, datasetId)
+            .eqUuid(c.datasetId, datasetId)
         }.update.apply
       }
       case None => throw new IllegalArgumentException("datasetId=%sに対応するDatasetが存在しません".format(datasetId))
@@ -332,7 +332,7 @@ class TaskActor extends Actor with ActorLogging {
   }
 
   def flattenFilePath(file: File): List[File] = file match {
-    case f:File if f.isDirectory => {
+    case f: File if f.isDirectory => {
       def flatten(files: List[File]): List[File] = files match {
         case x :: xs if x.isDirectory => flatten(x.listFiles.toList) ::: flatten(xs)
         case x :: xs if x.isFile => x :: flatten(xs)

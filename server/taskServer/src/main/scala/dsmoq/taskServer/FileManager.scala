@@ -1,10 +1,10 @@
 package dsmoq.taskServer
 
-import java.io.{File, FileInputStream, IOException, InputStream}
-import java.nio.file.{Files, Paths}
+import java.io.{ File, FileInputStream, IOException, InputStream }
+import java.nio.file.{ Files, Paths }
 import com.amazonaws.services.s3.AmazonS3Client
-import com.amazonaws.services.s3.model.{GetObjectRequest, ObjectMetadata}
-import com.amazonaws.services.s3.transfer.{TransferManager, TransferManagerConfiguration}
+import com.amazonaws.services.s3.model.{ GetObjectRequest, ObjectMetadata }
+import com.amazonaws.services.s3.transfer.{ TransferManager, TransferManagerConfiguration }
 import scala.collection.JavaConversions._
 
 object FileManager {
@@ -34,33 +34,33 @@ object FileManager {
     } finally {
       in.close()
     }
-    
-//    val fullPath = Paths.get(AppConf.fileDir, filePath).toFile
-//    val file = new File(fullPath.toString)
-//    loanStream(file)( x => uploadToS3(filePath, x, client) )
+
+    //    val fullPath = Paths.get(AppConf.fileDir, filePath).toFile
+    //    val file = new File(fullPath.toString)
+    //    loanStream(file)( x => uploadToS3(filePath, x, client) )
   }
 
-//  private def loanStream(file: File)(f: InputStream => Unit)
-//  {
-//    var stream :InputStream = null
-//    try
-//    {
-//      stream = new FileInputStream(file)
-//      f(stream)
-//    }
-//    finally
-//    {
-//      try {
-//        if (stream != null) {
-//          stream.close()
-//        }
-//      }
-//      catch
-//      {
-//        case _:IOException =>
-//      }
-//    }
-//  }
+  //  private def loanStream(file: File)(f: InputStream => Unit)
+  //  {
+  //    var stream :InputStream = null
+  //    try
+  //    {
+  //      stream = new FileInputStream(file)
+  //      f(stream)
+  //    }
+  //    finally
+  //    {
+  //      try {
+  //        if (stream != null) {
+  //          stream.close()
+  //        }
+  //      }
+  //      catch
+  //      {
+  //        case _:IOException =>
+  //      }
+  //    }
+  //  }
 
   def moveFromS3ToLocal(filePath: String)(implicit client: AmazonS3Client) {
     if (Paths.get(AppConf.fileDir, filePath).toFile.exists()) {
@@ -96,7 +96,7 @@ object FileManager {
       return
     }
 
-    if (! client.doesBucketExist(AppConf.s3UploadRoot)) {
+    if (!client.doesBucketExist(AppConf.s3UploadRoot)) {
       throw new BucketNotFoundException("対象のBucket(%s)が作成されていません。".format(AppConf.s3UploadRoot))
     }
 
@@ -116,7 +116,7 @@ object FileManager {
     try {
       upload.waitForCompletion()
     } catch {
-      case e : InterruptedException => throw new IOException(e)
+      case e: InterruptedException => throw new IOException(e)
     }
   }
 }

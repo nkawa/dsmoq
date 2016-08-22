@@ -1,5 +1,3 @@
 package dsmoq.exceptions
 
-class NotFoundException extends RuntimeException {
-
-}
+class NotFoundException(message: String = "") extends RuntimeException(message)

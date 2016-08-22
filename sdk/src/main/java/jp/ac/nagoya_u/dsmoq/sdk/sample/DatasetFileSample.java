@@ -10,6 +10,8 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -60,10 +62,12 @@ public class DatasetFileSample {
 
         // csvファイルの行数をカウントし、記録する
         for (File f : files) {
-            try (BufferedReader bf = new BufferedReader(new FileReader(f))) {
+            try (BufferedReader bf = Files.newBufferedReader(f.toPath(), StandardCharsets.UTF_8)) {
                 int i = 0;
-                while (bf.readLine() != null) {
+                String line = bf.readLine();
+                while (line != null) {
                     i++;
+                    line = bf.readLine();
                 }
                 results.add(f.getName() + ":" + i);
             } catch (FileNotFoundException e) {
@@ -74,7 +78,7 @@ public class DatasetFileSample {
         }
 
         // 集計結果をファイルに書き込む
-        try (BufferedWriter bw = new BufferedWriter(new FileWriter(new File("summary.txt")))) {
+        try (BufferedWriter bw = Files.newBufferedWriter(Paths.get("summary.txt"), StandardCharsets.UTF_8)) {
             bw.write("total files: " + files.size());
             for (String line : results) {
                 bw.write(line);

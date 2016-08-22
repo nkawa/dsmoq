@@ -40,7 +40,7 @@ class ZipedFilesSpec extends Specification {
       // TODO modify something
       val modified = entity
       val updated = ZipedFiles.save(modified)
-      updated should not equalTo(entity)
+      updated should not equalTo (entity)
     }
     "destroy a record" in new AutoRollback {
       val entity = ZipedFiles.findAll().head
@@ -51,4 +51,3 @@ class ZipedFilesSpec extends Specification {
   }
 
 }
-        

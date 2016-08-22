@@ -17,3 +17,9 @@ addSbtPlugin("org.scalikejdbc" %% "scalikejdbc-mapper-generator" % "2.1.1")
 addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.11.2")
 
 addSbtPlugin("com.mojolly.scalate" % "xsbt-scalate-generator" % "0.5.0")
+
+addSbtPlugin("org.scalastyle" %% "scalastyle-sbt-plugin" % "0.8.0")
+
+addSbtPlugin("com.typesafe.sbteclipse" % "sbteclipse-plugin" % "4.0.0")
+
+addSbtPlugin("org.scalariform" % "sbt-scalariform" % "1.6.0")

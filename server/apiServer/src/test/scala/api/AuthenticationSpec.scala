@@ -1,9 +1,9 @@
 package api
 
 import _root_.api.api.logic.SpecCommonLogic
-import dsmoq.controllers.{AjaxResponse, FileController, ApiController}
+import dsmoq.controllers.{ AjaxResponse, FileController, ApiController }
 import dsmoq.persistence.DefaultAccessLevel
-import dsmoq.services.json.DatasetData.{Dataset, DatasetFile}
+import dsmoq.services.json.DatasetData.{ Dataset, DatasetFile }
 import dsmoq.services.json.RangeSlice
 import java.io.File
 import java.net.URLEncoder
@@ -16,11 +16,11 @@ import org.eclipse.jetty.servlet.ServletHolder
 import org.json4s.JInt
 import org.json4s.JsonDSL._
 import org.json4s.jackson.JsonMethods._
-import org.json4s.{DefaultFormats, Formats}
-import org.scalatest.{BeforeAndAfter, FreeSpec}
+import org.json4s.{ DefaultFormats, Formats }
+import org.scalatest.{ BeforeAndAfter, FreeSpec }
 import org.scalatra.servlet.MultipartConfig
 import org.scalatra.test.scalatest.ScalatraSuite
-import scalikejdbc.config.{DBsWithEnv, DBs}
+import scalikejdbc.config.{ DBsWithEnv, DBs }
 
 trait AuthenticationBehaviors { this: FreeSpec with ScalatraSuite =>
 
@@ -54,7 +54,7 @@ trait AuthenticationBehaviors { this: FreeSpec with ScalatraSuite =>
           checkAjaxStatus()
           val files = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]].data.results
           val file = files.headOption.orNull
-          file should not be(null)
+          file should not be (null)
           file.id
         }
         (datasetId, fileId)
@@ -81,19 +81,15 @@ trait AuthenticationBehaviors { this: FreeSpec with ScalatraSuite =>
   }
 
   def createDataset(allowGuest: Boolean = false): String = {
-    val dataset = post(
-      "/api/datasets",
-      params = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1"),
-      files = Map("file[]" -> dummyFile)
-    ) {
+    val params = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
+    val files = Map("file[]" -> dummyFile)
+    val dataset = post("/api/datasets", params, files) {
       checkAjaxStatus()
       parse(body).extract[AjaxResponse[Dataset]].data
     }
     if (allowGuest) {
-      put(
-        s"/api/datasets/${dataset.id}/guest_access",
-        params = Map("d" -> compact(render(("accessLevel" -> JInt(DefaultAccessLevel.FullPublic)))))
-      ) {
+      val params = Map("d" -> compact(render(("accessLevel" -> JInt(DefaultAccessLevel.FullPublic)))))
+      put(s"/api/datasets/${dataset.id}/guest_access", params) {
         checkAjaxStatus()
       }
     }
@@ -127,12 +123,11 @@ class AuthenticationSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter
     val servlet = new ApiController(resource)
     val holder = new ServletHolder(servlet.getClass.getName, servlet)
     // multi-part file upload config
-    holder.getRegistration.setMultipartConfig(
-      MultipartConfig(
-        maxFileSize = Some(3 * 1024 * 1024),
-        fileSizeThreshold = Some(1 * 1024 * 1024)
-      ).toMultipartConfigElement
-    )
+    val multipartConfig = MultipartConfig(
+      maxFileSize = Some(3 * 1024 * 1024),
+      fileSizeThreshold = Some(1 * 1024 * 1024)
+    ).toMultipartConfigElement
+    holder.getRegistration.setMultipartConfig(multipartConfig)
     servletContextHandler.addServlet(holder, "/api/*")
     addServlet(new FileController(resource), "/files/*")
   }
@@ -191,7 +186,7 @@ class AuthenticationSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter
   private def datasetExpected(sessionUser: Boolean, allowGuest: Boolean, headers: Map[String, String]): Unit = {
     headers.get("Authorization") match {
       case None | Some("") => {
-        checkAjaxStatus(if (sessionUser || allowGuest) 200 else 403, Some(if (sessionUser || allowGuest) "OK" else"AccessDenied"))
+        checkAjaxStatus(if (sessionUser || allowGuest) 200 else 403, Some(if (sessionUser || allowGuest) "OK" else "AccessDenied"))
       }
       case Some(v) if v.startsWith("api_key=5dac067a4c91de87ee04db3e3c34034e84eb4a599165bcc9741bb9a91e8212cb,signature=nFGVWB7iGxemC2D0wQ177hjla7Q") => {
         checkAjaxStatus()

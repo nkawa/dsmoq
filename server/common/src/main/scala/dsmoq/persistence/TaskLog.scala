@@ -1,23 +1,42 @@
 package dsmoq.persistence
 
-import scalikejdbc._
-import org.joda.time.{DateTime}
-import PostgresqlHelper._
+import org.joda.time.DateTime
+
+import PostgresqlHelper.PgSQLSyntaxType
+import scalikejdbc.AutoSession
+import scalikejdbc.DBSession
+import scalikejdbc.ResultName
+import scalikejdbc.ResultName
+import scalikejdbc.SQLSyntax
+import scalikejdbc.SQLSyntaxSupport
+import scalikejdbc.SQLSyntaxSupport
+import scalikejdbc.SyntaxProvider
+import scalikejdbc.SyntaxProvider
+import scalikejdbc.WrappedResultSet
+import scalikejdbc.convertJavaSqlTimestampToConverter
+import scalikejdbc.delete
+import scalikejdbc.insert
+import scalikejdbc.scalikejdbcSQLInterpolationImplicitDef
+import scalikejdbc.scalikejdbcSQLSyntaxToStringImplicitDef
+import scalikejdbc.select
+import scalikejdbc.sqls
+import scalikejdbc.update
+import scalikejdbc.withSQL
 
 case class TaskLog(
   id: String,
   taskId: String,
-  logType: Int, 
-  message: String, 
+  logType: Int,
+  message: String,
   createdBy: String,
-  createdAt: DateTime) {
+  createdAt: DateTime
+) {
 
   def save()(implicit session: DBSession = TaskLog.autoSession): TaskLog = TaskLog.save(this)(session)
 
   def destroy()(implicit session: DBSession = TaskLog.autoSession): Unit = TaskLog.destroy(this)(session)
 
 }
-      
 
 object TaskLog extends SQLSyntaxSupport[TaskLog] {
 
@@ -26,7 +45,8 @@ object TaskLog extends SQLSyntaxSupport[TaskLog] {
   override val columns = Seq("id", "task_id", "log_type", "message", "created_by", "created_at")
 
   def apply(tl: SyntaxProvider[TaskLog])(rs: WrappedResultSet): TaskLog = apply(tl.resultName)(rs)
-  def apply(tl: ResultName[TaskLog])(rs: WrappedResultSet): TaskLog = new TaskLog(
+
+  def apply(tl: ResultName[TaskLog])(rs: WrappedResultSet): TaskLog = TaskLog(
     id = rs.string(tl.id),
     taskId = rs.string(tl.taskId),
     logType = rs.int(tl.logType),
@@ -34,7 +54,7 @@ object TaskLog extends SQLSyntaxSupport[TaskLog] {
     createdBy = rs.string(tl.createdBy),
     createdAt = rs.timestamp(tl.createdAt).toJodaDateTime
   )
-      
+
   val tl = TaskLog.syntax("tl")
 
   override val autoSession = AutoSession
@@ -44,34 +64,35 @@ object TaskLog extends SQLSyntaxSupport[TaskLog] {
       select.from(TaskLog as tl).where.eq(tl.id, sqls.uuid(id))
     }.map(TaskLog(tl.resultName)).single.apply()
   }
-          
+
   def findAll()(implicit session: DBSession = autoSession): List[TaskLog] = {
     withSQL(select.from(TaskLog as tl)).map(TaskLog(tl.resultName)).list.apply()
   }
-          
+
   def countAll()(implicit session: DBSession = autoSession): Long = {
     withSQL(select(sqls"count(1)").from(TaskLog as tl)).map(rs => rs.long(1)).single.apply().get
   }
-          
+
   def findAllBy(where: SQLSyntax)(implicit session: DBSession = autoSession): List[TaskLog] = {
-    withSQL { 
+    withSQL {
       select.from(TaskLog as tl).where.append(sqls"${where}")
     }.map(TaskLog(tl.resultName)).list.apply()
   }
-      
+
   def countBy(where: SQLSyntax)(implicit session: DBSession = autoSession): Long = {
-    withSQL { 
+    withSQL {
       select(sqls"count(1)").from(TaskLog as tl).where.append(sqls"${where}")
     }.map(_.long(1)).single.apply().get
   }
-      
+
   def create(
     id: String,
     taskId: String,
     logType: Int,
     message: String,
     createdBy: String,
-    createdAt: DateTime)(implicit session: DBSession = autoSession): TaskLog = {
+    createdAt: DateTime
+  )(implicit session: DBSession = autoSession): TaskLog = {
     withSQL {
       insert.into(TaskLog).columns(
         column.id,
@@ -96,7 +117,8 @@ object TaskLog extends SQLSyntaxSupport[TaskLog] {
       logType = logType,
       message = message,
       createdBy = createdBy,
-      createdAt = createdAt)
+      createdAt = createdAt
+    )
   }
 
   def save(entity: TaskLog)(implicit session: DBSession = autoSession): TaskLog = {
@@ -112,9 +134,9 @@ object TaskLog extends SQLSyntaxSupport[TaskLog] {
     }.update.apply()
     entity
   }
-        
+
   def destroy(entity: TaskLog)(implicit session: DBSession = autoSession): Unit = {
     withSQL { delete.from(TaskLog).where.eq(column.id, sqls.uuid(entity.id)) }.update.apply()
   }
-        
+
 }

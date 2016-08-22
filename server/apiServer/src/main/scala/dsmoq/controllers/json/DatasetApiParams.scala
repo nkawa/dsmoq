@@ -1,6 +1,6 @@
 package dsmoq.controllers.json
 
-import dsmoq.services.{User, DataSetAttribute}
+import dsmoq.services.DataSetAttribute
 
 case class SearchDatasetsParams(
   query: Option[String] = None,

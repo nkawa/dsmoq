@@ -1,24 +1,27 @@
 package dsmoq.logic
 
-import java.io.{File, FileOutputStream, InputStream}
+import java.io.File
+import java.io.InputStream
 import java.nio.file.Paths
 import java.util.Calendar
 
 import scala.language.reflectiveCalls
 
+import org.scalatra.servlet.FileItem
+
 import com.amazonaws.HttpMethod
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.AmazonS3Client
-import com.amazonaws.services.s3.model.{ResponseHeaderOverrides, GetObjectRequest, GeneratePresignedUrlRequest}
-import org.scalatra.servlet.FileItem
-import scalax.io.Resource
-import scalikejdbc._
+import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest
+import com.amazonaws.services.s3.model.GetObjectRequest
+import com.amazonaws.services.s3.model.ResponseHeaderOverrides
 
 import dsmoq.AppConf
+import scalikejdbc.Closable
 
 object FileManager {
 
-  def uploadToLocal(datasetId: String, fileId: String, historyId: String, file: FileItem) = {
+  def uploadToLocal(datasetId: String, fileId: String, historyId: String, file: FileItem): Unit = {
     val datasetDir = Paths.get(AppConf.fileDir, datasetId).toFile
     if (!datasetDir.exists()) datasetDir.mkdir()
 
@@ -60,9 +63,12 @@ object FileManager {
 
     // ファイル名を指定
     val response = new ResponseHeaderOverrides
-    response.setContentDisposition("attachment; filename*=UTF-8''" + java.net.URLEncoder.encode(fileName.split(Array[Char]('\\', '/')).last,"UTF-8"))
+    val contentDispositionFilename = java.net.URLEncoder.encode(fileName.split(Array[Char]('\\', '/')).last, "UTF-8")
+    response.setContentDisposition(s"attachment; filename*=UTF-8''${contentDispositionFilename}")
 
-    val request = new GeneratePresignedUrlRequest(AppConf.s3UploadRoot, filePath).withExpiration(limit).withResponseHeaders(response)
+    val request = new GeneratePresignedUrlRequest(AppConf.s3UploadRoot, filePath)
+      .withExpiration(limit)
+      .withResponseHeaders(response)
     if (isHead) {
       request.setMethod(HttpMethod.HEAD)
     }

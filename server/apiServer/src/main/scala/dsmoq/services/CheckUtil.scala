@@ -1,7 +1,8 @@
 package dsmoq.services
 
-import com.typesafe.scalalogging.LazyLogging
 import org.slf4j.MarkerFactory
+
+import com.typesafe.scalalogging.LazyLogging
 
 /**
  * Service用のチェックユーティリティオブジェクト
@@ -9,8 +10,8 @@ import org.slf4j.MarkerFactory
 object CheckUtil extends LazyLogging {
 
   /**
-    * ログマーカー
-    */
+   * ログマーカー
+   */
   private val LOG_MARKER = MarkerFactory.getMarker("SERVICE_CHECK_LOG")
 
   /**

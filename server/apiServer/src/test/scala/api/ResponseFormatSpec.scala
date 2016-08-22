@@ -6,11 +6,11 @@ import org.eclipse.jetty.servlet.ServletHolder
 
 import _root_.api.api.logic.SpecCommonLogic
 import org.eclipse.jetty.server.Connector
-import org.scalatest.{BeforeAndAfter, FreeSpec}
+import org.scalatest.{ BeforeAndAfter, FreeSpec }
 import org.scalatra.test.scalatest.ScalatraSuite
-import org.json4s.{DefaultFormats, Formats}
-import dsmoq.controllers.{ImageController, FileController, ApiController}
-import scalikejdbc.config.{DBsWithEnv, DBs}
+import org.json4s.{ DefaultFormats, Formats }
+import dsmoq.controllers.{ ImageController, FileController, ApiController }
+import scalikejdbc.config.{ DBsWithEnv, DBs }
 import org.json4s.jackson.JsonMethods._
 import java.io.File
 import dsmoq.persistence._
@@ -26,8 +26,8 @@ import dsmoq.controllers.AjaxResponse
 import dsmoq.services.json.DatasetData.DatasetAddImages
 import dsmoq.services.json.RangeSlice
 import dsmoq.services.json.GroupData.Group
-import java.util.{Base64, UUID}
-import dsmoq.persistence.{DefaultAccessLevel, OwnerType, UserAccessLevel, GroupAccessLevel}
+import java.util.{ Base64, UUID }
+import dsmoq.persistence.{ DefaultAccessLevel, OwnerType, UserAccessLevel, GroupAccessLevel }
 import org.json4s._
 import org.json4s.JsonDSL._
 import scalikejdbc._
@@ -41,7 +41,7 @@ class ResponseFormatSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter
   private val testUserName = "dummy1"
   private val dummyUserName = "dummy4"
   private val testUserId = "023bfa40-e897-4dad-96db-9fd3cf001e79" // dummy1
-  private val dummyUserId = "eb7a596d-e50c-483f-bbc7-50019eea64d7"  // dummy 4
+  private val dummyUserId = "eb7a596d-e50c-483f-bbc7-50019eea64d7" // dummy 4
 
   private val host = "http://localhost:8080"
 
@@ -54,12 +54,11 @@ class ResponseFormatSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter
     val servlet = new ApiController(resource)
     val holder = new ServletHolder(servlet.getClass.getName, servlet)
     // multi-part file upload config
-    holder.getRegistration.setMultipartConfig(
-      MultipartConfig(
-        maxFileSize = Some(3 * 1024 * 1024),
-        fileSizeThreshold = Some(1 * 1024 * 1024)
-      ).toMultipartConfigElement
-    )
+    val multipartConfig = MultipartConfig(
+      maxFileSize = Some(3 * 1024 * 1024),
+      fileSizeThreshold = Some(1 * 1024 * 1024)
+    ).toMultipartConfigElement
+    holder.getRegistration.setMultipartConfig(multipartConfig)
     servletContextHandler.addServlet(holder, "/api/*")
     addServlet(new FileController(resource), "/files/*")
     addServlet(new ImageController(resource), "/images/*")
@@ -117,12 +116,14 @@ class ResponseFormatSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter
         session {
           signIn()
           val datasetId = createDataset()
-          val params = Map("d" ->
-            compact(render(
-              ("name" -> "変更後データセット") ~
-              ("description" -> "change description") ~
-              ("license" -> AppConf.defaultLicenseId)
-            ))
+          val params = Map(
+            "d" -> compact(
+              render(
+                ("name" -> "変更後データセット") ~
+                  ("description" -> "change description") ~
+                  ("license" -> AppConf.defaultLicenseId)
+              )
+            )
           )
           put(s"/api/datasets/${datasetId}/metadata", params) {
             status should be(200)
@@ -134,7 +135,7 @@ class ResponseFormatSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter
         session {
           signIn()
           val groupId = createGroup()
-          val params = Map("d" -> compact(render(List(("userId" -> dummyUserId) ~ ("role" -> JInt(GroupMemberRole.Member))))))
+          val params = Map("d" -> compact(render(Seq(("userId" -> dummyUserId) ~ ("role" -> JInt(GroupMemberRole.Member))))))
           post(s"/api/groups/${groupId}/members", params) {
             status should be(200)
             parse(body).extract[AjaxResponse[AddMembers]]

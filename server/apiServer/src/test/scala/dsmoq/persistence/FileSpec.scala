@@ -36,7 +36,7 @@ class FileSpec extends Specification {
     "save a record" in new AutoRollback {
       val entity = File.findAll().head
       val updated = File.save(entity)
-      updated should not equalTo(entity)
+      updated should not equalTo (entity)
     }
     "destroy a record" in new AutoRollback {
       val entity = File.findAll().head
@@ -47,4 +47,3 @@ class FileSpec extends Specification {
   }
 
 }
-        

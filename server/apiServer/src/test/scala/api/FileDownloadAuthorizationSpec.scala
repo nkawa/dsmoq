@@ -7,18 +7,18 @@ import java.util.ResourceBundle
 import org.eclipse.jetty.servlet.ServletHolder
 
 import _root_.api.api.logic.SpecCommonLogic
-import dsmoq.controllers.{FileController, ApiController, AjaxResponse}
+import dsmoq.controllers.{ FileController, ApiController, AjaxResponse }
 import dsmoq.persistence._
-import dsmoq.services.json.DatasetData.{Dataset, DatasetFile}
+import dsmoq.services.json.DatasetData.{ Dataset, DatasetFile }
 import dsmoq.services.json.GroupData.Group
 import dsmoq.services.json.RangeSlice
 import org.eclipse.jetty.server.Connector
-import org.json4s.{DefaultFormats, Formats}
+import org.json4s.{ DefaultFormats, Formats }
 import org.json4s.jackson.JsonMethods._
-import org.scalatest.{BeforeAndAfter, FreeSpec}
+import org.scalatest.{ BeforeAndAfter, FreeSpec }
 import org.scalatra.servlet.MultipartConfig
 import org.scalatra.test.scalatest.ScalatraSuite
-import scalikejdbc.config.{DBsWithEnv, DBs}
+import scalikejdbc.config.{ DBsWithEnv, DBs }
 import org.json4s._
 import org.json4s.JsonDSL._
 
@@ -26,7 +26,7 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
   protected implicit val jsonFormats: Formats = DefaultFormats
 
   private val dummyFile = new File("../README.md")
-  private val dummyUserId = "eb7a596d-e50c-483f-bbc7-50019eea64d7"  // dummy 4
+  private val dummyUserId = "eb7a596d-e50c-483f-bbc7-50019eea64d7" // dummy 4
   private val dummyUserLoginParams = Map("d" -> compact(render(("id" -> "dummy4") ~ ("password" -> "password"))))
   private val anotherUserLoginParams = Map("d" -> compact(render(("id" -> "dummy2") ~ ("password" -> "password"))))
 
@@ -39,12 +39,11 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
     val servlet = new ApiController(resource)
     val holder = new ServletHolder(servlet.getClass.getName, servlet)
     // multi-part file upload config
-    holder.getRegistration.setMultipartConfig(
-      MultipartConfig(
-        maxFileSize = Some(3 * 1024 * 1024),
-        fileSizeThreshold = Some(1 * 1024 * 1024)
-      ).toMultipartConfigElement
-    )
+    val multipartConfig = MultipartConfig(
+      maxFileSize = Some(3 * 1024 * 1024),
+      fileSizeThreshold = Some(1 * 1024 * 1024)
+    ).toMultipartConfigElement
+    holder.getRegistration.setMultipartConfig(multipartConfig)
     servletContextHandler.addServlet(holder, "/api/*")
     addServlet(new FileController(resource), "/files/*")
   }
@@ -1178,7 +1177,7 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
   ): String = {
     // グループ作成
     val groupId = createGroup()
-    val memberParams = Map("d" -> compact(render(List(("userId" -> dummyUserId) ~ ("role" -> GroupMemberRole.Member)))))
+    val memberParams = Map("d" -> compact(render(Seq(("userId" -> dummyUserId) ~ ("role" -> GroupMemberRole.Member)))))
     post("/api/groups/" + groupId + "/members", memberParams) { checkStatus() }
     // データセット作成
     val datasetId = createDataset()
@@ -1194,10 +1193,10 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
     guestAccessLevel: Int
   ): Unit = {
     // アクセスレベル設定(ユーザー/グループ)
-    val accessLevelParams = Map("d" ->
-      compact(
+    val accessLevelParams = Map(
+      "d" -> compact(
         render(
-          List(
+          Seq(
             ("id" -> dummyUserId) ~ ("ownerType" -> JInt(OwnerType.User)) ~ ("accessLevel" -> JInt(userAccessLevel)),
             ("id" -> groupId) ~ ("ownerType" -> JInt(OwnerType.Group)) ~ ("accessLevel" -> JInt(groupAccessLevel))
           )

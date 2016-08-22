@@ -1,39 +1,58 @@
-import sbt._
-import Keys._
-import org.scalatra.sbt._
-import org.scalatra.sbt.PluginKeys._
-import org.scalatra.sbt.DistPlugin.Dist
 import com.earldouglas.xsbtwebplugin.PluginKeys._
 import com.earldouglas.xsbtwebplugin.WebPlugin.container
+import com.mojolly.scalate.ScalatePlugin.ScalateKeys._
+import com.mojolly.scalate.ScalatePlugin._
+import com.typesafe.sbt.SbtScalariform
+import com.typesafe.sbt.SbtScalariform.ScalariformKeys
+import org.scalastyle.sbt.ScalastylePlugin._
+import org.scalatra.sbt.DistPlugin.Dist
+import org.scalatra.sbt.PluginKeys._
+import org.scalatra.sbt._
+import sbt.Keys._
+import sbt._
 import sbtassembly.Plugin.AssemblyKeys._
 import sbtassembly.Plugin.MergeStrategy
-import com.mojolly.scalate.ScalatePlugin._
-import ScalateKeys._
+import scalariform.formatter.preferences._
 
 object DsmoqBuild extends Build {
   lazy val assemblyAdditionalSettings = Seq(
-    mergeStrategy in assembly ~= { (old) => {
-      case "application.conf" => MergeStrategy.concat
-      case "application.conf.sample" => MergeStrategy.discard
-      case "mime.types" => MergeStrategy.discard
-      case x => old(x)
-    }
+    mergeStrategy in assembly ~= {
+      old => {
+        case "application.conf" => MergeStrategy.concat
+        case "application.conf.sample" => MergeStrategy.discard
+        case "mime.types" => MergeStrategy.discard
+        case x => old(x)
+      }
     }
   )
 
+  lazy val scalariformSettings = SbtScalariform.scalariformSettings ++ Seq(
+    ScalariformKeys.preferences := ScalariformKeys.preferences.value
+      .setPreference(DanglingCloseParenthesis, Force)
+      .setPreference(DoubleIndentClassDeclaration, false)
+      .setPreference(FormatXml, false)
+  )
+
+  lazy val scalastyleSettings: Seq[Def.Setting[File]] = {
+    val ssc: Def.Initialize[File] = Def.setting(file("project/scalastyle-config.xml"))
+    Seq(
+      scalastyleConfig in Compile := ssc.value,
+      scalastyleConfig in Test := ssc.value
+    )
+  }
+
   val Organization = "dsmoq"
-  val Name = "dsmoq"
   val Version = "0.1.0-SNAPSHOT"
   val ScalaVersion = "2.11.4"
   val ScalatraVersion = "2.3.0"
 
   lazy val dsmoqSettings = Seq(
-      organization := Organization,
-      version := Version,
-      scalaVersion := ScalaVersion,
-      resolvers += Classpaths.typesafeReleases,
-      ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
-    )
+    organization := Organization,
+    version := Version,
+    scalaVersion := ScalaVersion,
+    resolvers += Classpaths.typesafeReleases,
+    ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
+  ) ++ scalariformSettings ++ scalastyleSettings
 
   lazy val common = (project in file("common"))
     .settings(Defaults.coreDefaultSettings)

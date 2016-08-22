@@ -36,7 +36,7 @@ class MemberSpec extends Specification {
     "save a record" in new AutoRollback {
       val entity = Member.findAll().head
       val updated = Member.save(entity)
-      updated should not equalTo(entity)
+      updated should not equalTo (entity)
     }
     "destroy a record" in new AutoRollback {
       val entity = Member.findAll().head
@@ -47,4 +47,3 @@ class MemberSpec extends Specification {
   }
 
 }
-        

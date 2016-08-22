@@ -1,36 +1,60 @@
 package dsmoq.persistence
 
-import scalikejdbc._
-import scalikejdbc.SQLInterpolation._
-import org.joda.time.{DateTime}
-import PostgresqlHelper._
+import org.joda.time.DateTime
+
+import PostgresqlHelper.PgSQLSyntaxType
+import scalikejdbc.DBSession
+import scalikejdbc.ResultName
+import scalikejdbc.ResultName
+import scalikejdbc.SQLSyntax
+import scalikejdbc.SQLSyntaxSupport
+import scalikejdbc.SQLSyntaxSupport
+import scalikejdbc.WrappedResultSet
+import scalikejdbc.convertJavaSqlTimestampToConverter
+import scalikejdbc.delete
+import scalikejdbc.insert
+import scalikejdbc.scalikejdbcSQLInterpolationImplicitDef
+import scalikejdbc.scalikejdbcSQLSyntaxToStringImplicitDef
+import scalikejdbc.select
+import scalikejdbc.sqls
+import scalikejdbc.update
+import scalikejdbc.withSQL
 
 case class DatasetAnnotation(
   id: String,
   datasetId: String,
   annotationId: String,
-  data: String, 
+  data: String,
   createdBy: String,
-  createdAt: DateTime, 
+  createdAt: DateTime,
   updatedBy: String,
-  updatedAt: DateTime, 
+  updatedAt: DateTime,
   deletedBy: Option[String] = None,
-  deletedAt: Option[DateTime] = None) {
+  deletedAt: Option[DateTime] = None
+) {
 
-  def save()(implicit session: DBSession = DatasetAnnotation.autoSession): DatasetAnnotation = DatasetAnnotation.save(this)(session)
+  def save()(implicit session: DBSession = DatasetAnnotation.autoSession): DatasetAnnotation = {
+    DatasetAnnotation.save(this)(session)
+  }
 
-  def destroy()(implicit session: DBSession = DatasetAnnotation.autoSession): Unit = DatasetAnnotation.destroy(this)(session)
+  def destroy()(implicit session: DBSession = DatasetAnnotation.autoSession): Unit = {
+    DatasetAnnotation.destroy(this)(session)
+  }
 
 }
-      
 
 object DatasetAnnotation extends SQLSyntaxSupport[DatasetAnnotation] {
 
   override val tableName = "dataset_annotations"
 
-  override val columns = Seq("id", "dataset_id", "annotation_id", "data", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
+  override val columns = Seq(
+    "id", "dataset_id", "annotation_id", "data",
+    "created_by", "created_at",
+    "updated_by", "updated_at",
+    "deleted_by", "deleted_at"
+  )
 
-  def apply(da: ResultName[DatasetAnnotation])(rs: WrappedResultSet): DatasetAnnotation = new DatasetAnnotation(
+  def apply(da: ResultName[DatasetAnnotation])(rs: WrappedResultSet): DatasetAnnotation = DatasetAnnotation(
     id = rs.string(da.id),
     datasetId = rs.string(da.datasetId),
     annotationId = rs.string(da.annotationId),
@@ -42,37 +66,37 @@ object DatasetAnnotation extends SQLSyntaxSupport[DatasetAnnotation] {
     deletedBy = rs.stringOpt(da.deletedBy),
     deletedAt = rs.timestampOpt(da.deletedAt).map(_.toJodaDateTime)
   )
-      
+
   val da = DatasetAnnotation.syntax("da")
 
   //val autoSession = AutoSession
 
   def find(id: String)(implicit session: DBSession = autoSession): Option[DatasetAnnotation] = {
-    withSQL { 
+    withSQL {
       select.from(DatasetAnnotation as da).where.eq(da.id, sqls.uuid(id))
     }.map(DatasetAnnotation(da.resultName)).single.apply()
   }
-          
+
   def findAll()(implicit session: DBSession = autoSession): List[DatasetAnnotation] = {
     withSQL(select.from(DatasetAnnotation as da)).map(DatasetAnnotation(da.resultName)).list.apply()
   }
-          
+
   def countAll()(implicit session: DBSession = autoSession): Long = {
     withSQL(select(sqls"count(1)").from(DatasetAnnotation as da)).map(rs => rs.long(1)).single.apply().get
   }
-          
+
   def findAllBy(where: SQLSyntax)(implicit session: DBSession = autoSession): List[DatasetAnnotation] = {
-    withSQL { 
+    withSQL {
       select.from(DatasetAnnotation as da).where.append(sqls"${where}")
     }.map(DatasetAnnotation(da.resultName)).list.apply()
   }
-      
+
   def countBy(where: SQLSyntax)(implicit session: DBSession = autoSession): Long = {
-    withSQL { 
+    withSQL {
       select(sqls"count(1)").from(DatasetAnnotation as da).where.append(sqls"${where}")
     }.map(_.long(1)).single.apply().get
   }
-      
+
   def create(
     id: String,
     datasetId: String,
@@ -83,7 +107,8 @@ object DatasetAnnotation extends SQLSyntaxSupport[DatasetAnnotation] {
     updatedBy: String,
     updatedAt: DateTime,
     deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None)(implicit session: DBSession = autoSession): DatasetAnnotation = {
+    deletedAt: Option[DateTime] = None
+  )(implicit session: DBSession = autoSession): DatasetAnnotation = {
     withSQL {
       insert.into(DatasetAnnotation).columns(
         column.id,
@@ -120,11 +145,12 @@ object DatasetAnnotation extends SQLSyntaxSupport[DatasetAnnotation] {
       updatedBy = updatedBy,
       updatedAt = updatedAt,
       deletedBy = deletedBy,
-      deletedAt = deletedAt)
+      deletedAt = deletedAt
+    )
   }
 
   def save(entity: DatasetAnnotation)(implicit session: DBSession = autoSession): DatasetAnnotation = {
-    withSQL { 
+    withSQL {
       update(DatasetAnnotation).set(
         column.id -> sqls.uuid(entity.id),
         column.datasetId -> sqls.uuid(entity.datasetId),
@@ -138,11 +164,11 @@ object DatasetAnnotation extends SQLSyntaxSupport[DatasetAnnotation] {
         column.deletedAt -> entity.deletedAt
       ).where.eq(column.id, sqls.uuid(entity.id))
     }.update.apply()
-    entity 
+    entity
   }
-        
+
   def destroy(entity: DatasetAnnotation)(implicit session: DBSession = autoSession): Unit = {
     withSQL { delete.from(DatasetAnnotation).where.eq(column.id, sqls.uuid(entity.id)) }.update.apply()
   }
-        
+
 }

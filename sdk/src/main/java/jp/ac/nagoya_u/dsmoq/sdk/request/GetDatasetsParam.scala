@@ -6,7 +6,7 @@ import jp.ac.nagoya_u.dsmoq.sdk.request.ConvertOptional._
 import scala.beans.BeanProperty
 import scala.collection.JavaConverters._
 
-case class GetDatasetsParam(
+class GetDatasetsParam(
     @BeanProperty var query: Optional[String],
     @BeanProperty var owners: java.util.List[String],
     @BeanProperty var groups: java.util.List[String],

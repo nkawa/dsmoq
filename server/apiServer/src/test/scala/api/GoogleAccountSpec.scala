@@ -7,12 +7,12 @@ import org.eclipse.jetty.servlet.ServletHolder
 import _root_.api.api.logic.SpecCommonLogic
 import com.google.api.services.oauth2.model.Userinfoplus
 import dsmoq.AppConf
-import dsmoq.controllers.{GoogleOAuthController, AjaxResponse, ApiController, FileController}
+import dsmoq.controllers.{ GoogleOAuthController, AjaxResponse, ApiController, FileController }
 import dsmoq.persistence._
 import dsmoq.services.GoogleAccountService
 import org.eclipse.jetty.server.Connector
-import org.json4s.{DefaultFormats, Formats, _}
-import org.scalatest.{BeforeAndAfter, FreeSpec}
+import org.json4s.{ DefaultFormats, Formats, _ }
+import org.scalatest.{ BeforeAndAfter, FreeSpec }
 import org.scalatra.servlet.MultipartConfig
 import org.scalatra.test.scalatest.ScalatraSuite
 import scalikejdbc._
@@ -33,12 +33,11 @@ class GoogleAccountSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
     val servlet = new ApiController(resource)
     val holder = new ServletHolder(servlet.getClass.getName, servlet)
     // multi-part file upload config
-    holder.getRegistration.setMultipartConfig(
-      MultipartConfig(
-        maxFileSize = Some(3 * 1024 * 1024),
-        fileSizeThreshold = Some(1 * 1024 * 1024)
-      ).toMultipartConfigElement
-    )
+    val multipartConfig = MultipartConfig(
+      maxFileSize = Some(3 * 1024 * 1024),
+      fileSizeThreshold = Some(1 * 1024 * 1024)
+    ).toMultipartConfigElement
+    holder.getRegistration.setMultipartConfig(multipartConfig)
     servletContextHandler.addServlet(holder, "/api/*")
     addServlet(new GoogleOAuthController(resource), "/google_oauth/*")
   }
@@ -64,7 +63,7 @@ class GoogleAccountSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
       dummyGoogleUser.setName("dummyName")
       val user = googleService.getUser(dummyGoogleUser).get
 
-      DB readOnly { implicit s =>
+      DB.readOnly { implicit s =>
         val u = User.u
         val ma = MailAddress.ma
         val g = Group.g
@@ -72,7 +71,7 @@ class GoogleAccountSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
         val gu = GoogleUser.gu
         withSQL {
           select.from(User as u).where.eqUuid(u.id, user.id)
-        }.map(User(u.resultName)).single().apply() match {
+        }.map(User(u.resultName)).single.apply() match {
           case Some(usr) => {
             usr.name should be(dummyGoogleUser.getEmail)
             usr.fullname should be(dummyGoogleUser.getName)
@@ -83,7 +82,7 @@ class GoogleAccountSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
 
         withSQL {
           select.from(MailAddress as ma).where.eqUuid(ma.userId, user.id)
-        }.map(MailAddress(ma.resultName)).single().apply() match {
+        }.map(MailAddress(ma.resultName)).single.apply() match {
           case Some(mailAddr) => {
             mailAddr.address should be(dummyGoogleUser.getEmail)
             mailAddr.status should be(1)
@@ -93,7 +92,7 @@ class GoogleAccountSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
 
         withSQL {
           select.from(Group as g).where.eq(g.name, dummyGoogleUser.getEmail)
-        }.map(Group(g.resultName)).single().apply() match {
+        }.map(Group(g.resultName)).single.apply() match {
           case Some(group) => {
             group.groupType should be(GroupType.Personal)
           }
@@ -102,7 +101,7 @@ class GoogleAccountSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
 
         withSQL {
           select.from(Member as m).where.eqUuid(m.userId, user.id)
-        }.map(Member(m.resultName)).single().apply() match {
+        }.map(Member(m.resultName)).single.apply() match {
           case Some(member) => {
             member.role should be(GroupMemberRole.Manager)
             member.status should be(1)
@@ -112,7 +111,7 @@ class GoogleAccountSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
 
         withSQL {
           select.from(GoogleUser as gu).where.eqUuid(gu.userId, user.id)
-        }.map(GoogleUser(gu.resultName)).single().apply() match {
+        }.map(GoogleUser(gu.resultName)).single.apply() match {
           case Some(googleUsr) => {
             googleUsr.googleId should be(dummyGoogleUser.getId)
           }

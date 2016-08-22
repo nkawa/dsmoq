@@ -16,9 +16,8 @@ trait SessionTrait extends ScalatraServlet {
   private val SessionKey = "user"
   private val sessionId = "JSESSIONID"
 
-  def isValidSession() = {
-    sessionOption.map(_ => true)
-      .getOrElse(cookies.get(sessionId).map(_ => true).getOrElse(false))
+  def isValidSession(): Boolean = {
+    sessionOption.isDefined || cookies.get(sessionId).isDefined
   }
 
   def signedInUser: SessionUser = {
@@ -31,16 +30,16 @@ trait SessionTrait extends ScalatraServlet {
     }
   }
 
-  def setSignedInUser(x: User) = {
+  def setSignedInUser(x: User): User = {
     session.setAttribute(SessionKey, x)
     x
   }
 
-  def guestUser = {
+  def guestUser: User = {
     User(AppConf.guestUserId, "", "", "", "", "http://xxxx", "", "", true, false)
   }
 
-  def clearSession() {
+  def clearSession(): Unit = {
     // sessionを参照すると新規sessionが作成されてしまうため、sessionOptionで存在チェック
     sessionOption match {
       case Some(_) => session.invalidate()

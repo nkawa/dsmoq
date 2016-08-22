@@ -14,7 +14,7 @@ import org.json4s._
 import org.json4s.JsonDSL._
 import org.json4s.jackson.JsonMethods
 import org.json4s.jackson.JsonMethods._
-import org.scalatest.{FreeSpecLike, BeforeAndAfterAll, BeforeAndAfter }
+import org.scalatest.{ FreeSpecLike, BeforeAndAfterAll, BeforeAndAfter }
 import org.scalatest.Matchers._
 import scalikejdbc.config.DBsWithEnv
 import scalikejdbc._
@@ -58,9 +58,9 @@ class TaskServerSpec extends TestKit(ActorSystem()) with FreeSpecLike with Befor
   "Test" - {
     "Main" - {
       "未実行のタスクのみを取得できるか" in {
-        for(i <- 1 to 10) { createTask(0, UUID.randomUUID().toString, 0, true) }
-        for(i <- 1 to 10) { createTask(1, UUID.randomUUID().toString, 0, true) }
-        for(i <- 1 to 10) { createTask(2, UUID.randomUUID().toString, 0, true) }
+        for (i <- 1 to 10) { createTask(0, UUID.randomUUID().toString, 0, true) }
+        for (i <- 1 to 10) { createTask(1, UUID.randomUUID().toString, 0, true) }
+        for (i <- 1 to 10) { createTask(2, UUID.randomUUID().toString, 0, true) }
         val tasks = Main.getNewTasks()
         tasks.length should be(10)
         tasks.forall(x => x.status == 0) should be(true)
@@ -82,14 +82,14 @@ class TaskServerSpec extends TestKit(ActorSystem()) with FreeSpecLike with Befor
 
         val tasks = Main.getNewTasks()
         val commands = tasks.map(x => Main.datasetToCommand(x.id, JsonMethods.parse(x.parameter).extract[TaskParameter]))
-        commands.collect{ case MoveToLocal(taskId, datasetId, withDelete) if withDelete == false => true }.length should be(1)
-        commands.collect{ case MoveToLocal(taskId, datasetId, withDelete) if withDelete == true => true }.length should be(1)
-        commands.collect{ case MoveToS3(taskId, datasetId, withDelete) if withDelete == false => true }.length should be(1)
-        commands.collect{ case MoveToS3(taskId, datasetId, withDelete) if withDelete == true => true }.length should be(1)
-        commands.collect{ case Delete(taskId, datasetId, fileId) => true }.length should be(2)
-        commands.collect{ case DeleteS3(taskId, datasetId) => true }.length should be(2)
-        commands.collect{ case DeleteLocal(taskId, datasetId) => true }.length should be(2)
-        commands.collect{ case DoNothing() => true }.length should be(2)
+        commands.collect { case MoveToLocal(taskId, datasetId, withDelete) if withDelete == false => true }.length should be(1)
+        commands.collect { case MoveToLocal(taskId, datasetId, withDelete) if withDelete == true => true }.length should be(1)
+        commands.collect { case MoveToS3(taskId, datasetId, withDelete) if withDelete == false => true }.length should be(1)
+        commands.collect { case MoveToS3(taskId, datasetId, withDelete) if withDelete == true => true }.length should be(1)
+        commands.collect { case Delete(taskId, datasetId, fileId) => true }.length should be(2)
+        commands.collect { case DeleteS3(taskId, datasetId) => true }.length should be(2)
+        commands.collect { case DeleteLocal(taskId, datasetId) => true }.length should be(2)
+        commands.collect { case DoNothing() => true }.length should be(2)
       }
     }
     "TaskActor" - {
@@ -327,8 +327,7 @@ class TaskServerSpec extends TestKit(ActorSystem()) with FreeSpecLike with Befor
     }.update().apply
   }
 
-  private def deleteAllFile(): Unit =
-  {
+  private def deleteAllFile(): Unit = {
     val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
     val client = new AmazonS3Client(cre)
     val l = client.listObjects(AppConf.s3UploadRoot)

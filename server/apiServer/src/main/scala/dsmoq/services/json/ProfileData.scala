@@ -15,17 +15,19 @@ case class ProfileData(
 )
 
 object ProfileData {
-  def apply(x: dsmoq.services.User, isGoogleUser: Boolean) = new ProfileData(
-    id = x.id,
-    name = x.name,
-    fullname = x.fullname,
-    organization = x.organization,
-    title = x.title,
-    image = x.image,
-    mailAddress = x.mailAddress,
-    description = x.description,
-    isGuest = x.isGuest,
-    isDeleted = x.isDeleted,
-    isGoogleUser = isGoogleUser
-  )
+  def apply(x: dsmoq.services.User, isGoogleUser: Boolean): ProfileData = {
+    ProfileData(
+      id = x.id,
+      name = x.name,
+      fullname = x.fullname,
+      organization = x.organization,
+      title = x.title,
+      image = x.image,
+      mailAddress = x.mailAddress,
+      description = x.description,
+      isGuest = x.isGuest,
+      isDeleted = x.isDeleted,
+      isGoogleUser = isGoogleUser
+    )
+  }
 }

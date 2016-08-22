@@ -36,7 +36,7 @@ class GoogleUserSpec extends Specification {
     "save a record" in new AutoRollback {
       val entity = GoogleUser.findAll().head
       val updated = GoogleUser.save(entity)
-      updated should not equalTo(entity)
+      updated should not equalTo (entity)
     }
     "destroy a record" in new AutoRollback {
       val entity = GoogleUser.findAll().head
@@ -47,4 +47,3 @@ class GoogleUserSpec extends Specification {
   }
 
 }
-        

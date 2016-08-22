@@ -1,7 +1,6 @@
 package dsmoq.services.json
 
 import dsmoq.services.User
-import org.scalatra.servlet.FileItem
 
 object DatasetData {
   // response
@@ -43,7 +42,7 @@ object DatasetData {
   case class DatasetMetaData(
     name: String,
     description: String,
-    license : String,
+    license: String,
     attributes: Seq[DatasetAttribute]
   )
 
@@ -67,7 +66,7 @@ object DatasetData {
     primaryImage: String
   )
 
-  case class DatasetGetImage (
+  case class DatasetGetImage(
     id: String,
     name: String,
     url: String,
@@ -94,14 +93,14 @@ object DatasetData {
     zipCount: Int
   )
 
-  case class DatasetZipedFile (
+  case class DatasetZipedFile(
     id: String,
     name: String,
     size: Long,
     url: String
   )
 
-  case class DatasetOwnership (
+  case class DatasetOwnership(
     id: String,
     name: String,
     fullname: String,
@@ -113,17 +112,17 @@ object DatasetData {
     ownerType: Int
   )
 
-  case class DatasetTask (
+  case class DatasetTask(
     taskId: String
   )
 
-  case class CopiedDataset (
+  case class CopiedDataset(
     datasetId: String
   )
 
   /**
    * データセットに設定したゲストアクセスレベルを返却するためのJSON型
-   * 
+   *
    * @param defaultAccessLevel ゲストユーザが対象のデータセットに持っているロール(DefaultAccessLevelの定義値)
    */
   case class DatasetGuestAccessLevel(

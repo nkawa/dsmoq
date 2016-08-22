@@ -1,17 +1,27 @@
 package dsmoq.services
 
+import java.nio.file.Paths
 import java.util.ResourceBundle
 
-import dsmoq.exceptions.{AccessDeniedException, NotFoundException}
-import dsmoq.persistence.GroupType
-import dsmoq.{persistence, AppConf}
-import scalikejdbc.{DB, DBSession, select, sqls, withSQL}
-import scalikejdbc.interpolation.Implicits._
 import scala.util.Try
+
+import dsmoq.AppConf
 import dsmoq.ResourceNames
+import dsmoq.exceptions.AccessDeniedException
+import dsmoq.exceptions.NotFoundException
 import dsmoq.logic.ImageSaveLogic
+import dsmoq.persistence
 import dsmoq.persistence.GroupAccessLevel
-import dsmoq.persistence.PostgresqlHelper._
+import dsmoq.persistence.GroupType
+import dsmoq.persistence.PostgresqlHelper.PgConditionSQLBuilder
+import dsmoq.persistence.PostgresqlHelper.PgSQLSyntaxType
+import scalikejdbc.DB
+import scalikejdbc.DBSession
+import scalikejdbc.interpolation.Implicits.scalikejdbcSQLInterpolationImplicitDef
+import scalikejdbc.interpolation.Implicits.scalikejdbcSQLSyntaxToStringImplicitDef
+import scalikejdbc.select
+import scalikejdbc.sqls
+import scalikejdbc.withSQL
 
 /**
  * 画像ファイル取得操作を取り扱うサービスクラス
@@ -22,7 +32,7 @@ class ImageService(resource: ResourceBundle) {
 
   /**
    * 指定されたユーザの画像を取得します。
-   * 
+   *
    * @param userId 画像を持っているユーザのID
    * @param imageId 取得する画像ID
    * @param size 取得する画像サイズ、Noneでオリジナル
@@ -32,7 +42,7 @@ class ImageService(resource: ResourceBundle) {
    */
   def getUserFile(userId: String, imageId: String, size: Option[String]): Try[(java.io.File, String)] = {
     Try {
-      DB readOnly { implicit s =>
+      DB.readOnly { implicit s =>
         val user = persistence.User.find(userId)
         if (user.filter(_.imageId == imageId).isEmpty) {
           // ユーザが存在しないが、ユーザの画像が指定の画像IDと一致しない場合、画像が存在しないとして処理を打ち切る
@@ -45,7 +55,7 @@ class ImageService(resource: ResourceBundle) {
 
   /**
    * 指定されたデータセットの画像を取得します。
-   * 
+   *
    * @param datasetId 画像を持っているデータセットのID
    * @param imageId 取得する画像ID
    * @param size 取得する画像サイズ、Noneでオリジナル
@@ -55,9 +65,14 @@ class ImageService(resource: ResourceBundle) {
    *   Failure(NotFoundException) 対象画像が存在しない場合
    *   Failure(AccessDeniedException) 画像を取得しようとしているユーザに、対象データセットへのアクセス権限がない場合
    */
-  def getDatasetFile(datasetId: String, imageId: String, size: Option[String], user: User): Try[(java.io.File, String)] = {
+  def getDatasetFile(
+    datasetId: String,
+    imageId: String,
+    size: Option[String],
+    user: User
+  ): Try[(java.io.File, String)] = {
     Try {
-      DB readOnly { implicit s =>
+      DB.readOnly { implicit s =>
         if (!isRelatedToDataset(datasetId, imageId)) {
           // 指定した画像が、指定のデータセットのものではない場合、画像が存在しないとして処理を打ち切る
           throw new NotFoundException
@@ -74,7 +89,7 @@ class ImageService(resource: ResourceBundle) {
 
   /**
    * 指定されたグループの画像を取得します。
-   * 
+   *
    * @param groupId 画像を持っているグループのID
    * @param imageId 取得する画像ID
    * @param size 取得する画像サイズ、Noneでオリジナル
@@ -84,7 +99,7 @@ class ImageService(resource: ResourceBundle) {
    */
   def getGroupFile(groupId: String, imageId: String, size: Option[String]): Try[(java.io.File, String)] = {
     Try {
-      DB readOnly { implicit s =>
+      DB.readOnly { implicit s =>
         if (!isRelatedToGroup(groupId, imageId)) {
           // 指定した画像が、指定のグループのものではない場合、画像が存在しないとして処理を打ち切る
           throw new NotFoundException
@@ -96,7 +111,7 @@ class ImageService(resource: ResourceBundle) {
 
   /**
    * 指定された画像IDのファイルを取得します。
-   * 
+   *
    * @param imageId 取得する画像ファイルのImageID
    * @param size 取得する画像サイズ、Noneでオリジナル
    * @return ファイルオブジェクトとファイル名のペア
@@ -109,23 +124,26 @@ class ImageService(resource: ResourceBundle) {
     } yield {
       (file, image.name)
     }
-    ret match { 
-      case Some(x) => x
-      case None => throw new NotFoundException // 対象画像IDがDBに存在しない、またはファイルが存在しない
+    ret.getOrElse {
+      // 対象画像IDがDBに存在しない、またはファイルが存在しない
+      throw new NotFoundException
     }
   }
   /**
    * 指定された画像のファイルを取得します。
-   * 
+   *
    * @param image DB上の画像情報
    * @param size 取得する画像のサイズ、Noneでオリジナル
    * @return 画像ファイル、存在しない場合None
    */
   def getImageFile(image: persistence.Image, size: Option[String]): Option[java.io.File] = {
     // ファイルサイズ指定が合致すればその画像サイズ
-    val fileName = size.filter(x => ImageSaveLogic.imageSizes.contains(x.toInt)).getOrElse(ImageSaveLogic.defaultFileName)
-    
-    val file = new java.io.File(java.nio.file.Paths.get(AppConf.imageDir, image.filePath, fileName).toString)
+    val fileName = size
+      .filter(x => ImageSaveLogic.imageSizes.contains(x.toInt))
+      .getOrElse(ImageSaveLogic.defaultFileName)
+    val file = new java.io.File(
+      Paths.get(AppConf.imageDir, image.filePath, fileName).toString
+    )
     Option(file).filter(_.exists)
   }
 
@@ -145,13 +163,13 @@ class ImageService(resource: ResourceBundle) {
           .isNull(g.deletedAt)
           .and
           .isNull(m.deletedAt)
-      }.map(_.string("id")).list().apply()
+      }.map(_.string("id")).list.apply()
     }
   }
 
   /**
    * 指定されたDatasetに対する権限を取得します。
-   * 
+   *
    * @param id Dataset ID
    * @param groups 所属しているグループ
    * @return アクセスレベル (@see dsmoq.persistence.GroupAccessLevel)
@@ -167,13 +185,17 @@ class ImageService(resource: ResourceBundle) {
         .eq(o.datasetId, sqls.uuid(id))
         .and
         .inUuid(o.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
-    }.map(rs => (rs.int(o.resultName.accessLevel), rs.int(g.resultName.groupType))).list().apply
+    }.map(rs => (rs.int(o.resultName.accessLevel), rs.int(g.resultName.groupType))).list.apply()
     // 上記のSQLではゲストユーザーは取得できないため、別途取得する必要がある
     val guestPermission = (getGuestAccessLevel(id), GroupType.Personal)
     // Provider権限のGroupはWriteできない
     (guestPermission :: permissions).map {
       case (accessLevel, groupType) =>
-        if (accessLevel == GroupAccessLevel.Provider && groupType == GroupType.Public) GroupAccessLevel.FullPublic else accessLevel
+        if (accessLevel == GroupAccessLevel.Provider && groupType == GroupType.Public) {
+          GroupAccessLevel.FullPublic
+        } else {
+          accessLevel
+        }
     }.max
   }
 
@@ -183,9 +205,9 @@ class ImageService(resource: ResourceBundle) {
       select(sqls"count(1)")
         .from(persistence.DatasetImage as di)
         .where
-          .eqUuid(di.imageId, imageId)
-          .and
-          .eqUuid(di.datasetId, datasetId)
+        .eqUuid(di.imageId, imageId)
+        .and
+        .eqUuid(di.datasetId, datasetId)
     }.map(_.long(1)).single.apply().get
     count > 0
   }
@@ -214,6 +236,6 @@ class ImageService(resource: ResourceBundle) {
         .eq(o.groupId, sqls.uuid(AppConf.guestGroupId))
         .and
         .isNull(o.deletedAt)
-    }.map(_.int(o.resultName.accessLevel)).single().apply().getOrElse(GroupAccessLevel.Deny)
+    }.map(_.int(o.resultName.accessLevel)).single.apply().getOrElse(GroupAccessLevel.Deny)
   }
 }

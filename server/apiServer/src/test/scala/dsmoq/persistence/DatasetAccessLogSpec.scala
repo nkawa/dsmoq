@@ -40,7 +40,7 @@ class DatasetAccessLogSpec extends Specification {
       // TODO modify something
       val modified = entity
       val updated = DatasetAccessLog.save(modified)
-      updated should not equalTo(entity)
+      updated should not equalTo (entity)
     }
     "destroy a record" in new AutoRollback {
       val entity = DatasetAccessLog.findAll().head
@@ -51,4 +51,3 @@ class DatasetAccessLogSpec extends Specification {
   }
 
 }
-        

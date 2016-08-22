@@ -3,6 +3,10 @@ package dsmoq.services.json
 import dsmoq.persistence.SuggestType
 
 object SuggestData {
+  sealed trait WithType {
+    def dataType: Int
+  }
+
   case class User(
     id: String,
     name: String,
@@ -22,7 +26,7 @@ object SuggestData {
     // TODO title: String,
     // TODO description: String,
     dataType: Int = SuggestType.User
-   )
+  ) extends WithType
 
   case class Group(
     id: String,
@@ -35,5 +39,5 @@ object SuggestData {
     name: String,
     image: String,
     dataType: Int = SuggestType.Group
-  )
+  ) extends WithType
 }

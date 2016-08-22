@@ -36,7 +36,7 @@ class GroupImageSpec extends Specification {
     "save a record" in new AutoRollback {
       val entity = GroupImage.findAll().head
       val updated = GroupImage.save(entity)
-      updated should not equalTo(entity)
+      updated should not equalTo (entity)
     }
     "destroy a record" in new AutoRollback {
       val entity = GroupImage.findAll().head
@@ -47,4 +47,3 @@ class GroupImageSpec extends Specification {
   }
 
 }
-        

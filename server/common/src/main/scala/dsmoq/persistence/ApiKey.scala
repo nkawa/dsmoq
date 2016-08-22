@@ -1,37 +1,61 @@
 package dsmoq.persistence
 
-import scalikejdbc._
-import org.joda.time.{DateTime}
-import PostgresqlHelper._
+import org.joda.time.DateTime
+
+import PostgresqlHelper.PgSQLSyntaxType
+import scalikejdbc.DBSession
+import scalikejdbc.ResultName
+import scalikejdbc.ResultName
+import scalikejdbc.SQLSyntax
+import scalikejdbc.SQLSyntaxSupport
+import scalikejdbc.SQLSyntaxSupport
+import scalikejdbc.SyntaxProvider
+import scalikejdbc.SyntaxProvider
+import scalikejdbc.WrappedResultSet
+import scalikejdbc.convertJavaSqlTimestampToConverter
+import scalikejdbc.delete
+import scalikejdbc.insert
+import scalikejdbc.scalikejdbcSQLInterpolationImplicitDef
+import scalikejdbc.scalikejdbcSQLSyntaxToStringImplicitDef
+import scalikejdbc.select
+import scalikejdbc.sqls
+import scalikejdbc.update
+import scalikejdbc.withSQL
 
 case class ApiKey(
   id: String,
   userId: String,
-  apiKey: String, 
-  secretKey: String, 
-  permission: Int, 
+  apiKey: String,
+  secretKey: String,
+  permission: Int,
   createdBy: String,
-  createdAt: DateTime, 
+  createdAt: DateTime,
   updatedBy: String,
-  updatedAt: DateTime, 
+  updatedAt: DateTime,
   deletedBy: Option[String] = None,
-  deletedAt: Option[DateTime] = None) {
+  deletedAt: Option[DateTime] = None
+) {
 
   def save()(implicit session: DBSession = ApiKey.autoSession): ApiKey = ApiKey.save(this)(session)
 
   def destroy()(implicit session: DBSession = ApiKey.autoSession): Unit = ApiKey.destroy(this)(session)
 
 }
-      
 
 object ApiKey extends SQLSyntaxSupport[ApiKey] {
 
   override val tableName = "api_key"
 
-  override val columns = Seq("id", "user_id", "api_key", "secret_key", "permission", "created_by", "created_at", "updated_by", "updated_at", "deleted_by", "deleted_at")
+  override val columns = Seq(
+    "id", "user_id",
+    "api_key", "secret_key", "permission",
+    "created_by", "created_at",
+    "updated_by", "updated_at",
+    "deleted_by", "deleted_at"
+  )
 
   def apply(ak: SyntaxProvider[ApiKey])(rs: WrappedResultSet): ApiKey = apply(ak.resultName)(rs)
-  def apply(ak: ResultName[ApiKey])(rs: WrappedResultSet): ApiKey = new ApiKey(
+  def apply(ak: ResultName[ApiKey])(rs: WrappedResultSet): ApiKey = ApiKey(
     id = rs.string(ak.id),
     userId = rs.string(ak.userId),
     apiKey = rs.string(ak.apiKey),
@@ -44,7 +68,7 @@ object ApiKey extends SQLSyntaxSupport[ApiKey] {
     deletedBy = rs.stringOpt(ak.deletedBy),
     deletedAt = rs.timestampOpt(ak.deletedAt).map(_.toJodaDateTime)
   )
-      
+
   val ak = ApiKey.syntax("ak")
 
   //override val autoSession = AutoSession
@@ -54,27 +78,27 @@ object ApiKey extends SQLSyntaxSupport[ApiKey] {
       select.from(ApiKey as ak).where.eq(ak.id, sqls.uuid(id))
     }.map(ApiKey(ak.resultName)).single.apply()
   }
-          
+
   def findAll()(implicit session: DBSession = autoSession): List[ApiKey] = {
     withSQL(select.from(ApiKey as ak)).map(ApiKey(ak.resultName)).list.apply()
   }
-          
+
   def countAll()(implicit session: DBSession = autoSession): Long = {
     withSQL(select(sqls"count(1)").from(ApiKey as ak)).map(rs => rs.long(1)).single.apply().get
   }
-          
+
   def findAllBy(where: SQLSyntax)(implicit session: DBSession = autoSession): List[ApiKey] = {
-    withSQL { 
+    withSQL {
       select.from(ApiKey as ak).where.append(sqls"${where}")
     }.map(ApiKey(ak.resultName)).list.apply()
   }
-      
+
   def countBy(where: SQLSyntax)(implicit session: DBSession = autoSession): Long = {
-    withSQL { 
+    withSQL {
       select(sqls"count(1)").from(ApiKey as ak).where.append(sqls"${where}")
     }.map(_.long(1)).single.apply().get
   }
-      
+
   def create(
     id: String,
     userId: String,
@@ -86,7 +110,8 @@ object ApiKey extends SQLSyntaxSupport[ApiKey] {
     updatedBy: String,
     updatedAt: DateTime,
     deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None)(implicit session: DBSession = autoSession): ApiKey = {
+    deletedAt: Option[DateTime] = None
+  )(implicit session: DBSession = autoSession): ApiKey = {
     withSQL {
       insert.into(ApiKey).columns(
         column.id,
@@ -126,7 +151,8 @@ object ApiKey extends SQLSyntaxSupport[ApiKey] {
       updatedBy = updatedBy,
       updatedAt = updatedAt,
       deletedBy = deletedBy,
-      deletedAt = deletedAt)
+      deletedAt = deletedAt
+    )
   }
 
   def save(entity: ApiKey)(implicit session: DBSession = autoSession): ApiKey = {
@@ -147,9 +173,9 @@ object ApiKey extends SQLSyntaxSupport[ApiKey] {
     }.update.apply()
     entity
   }
-        
+
   def destroy(entity: ApiKey)(implicit session: DBSession = autoSession): Unit = {
     withSQL { delete.from(ApiKey).where.eq(column.id, sqls.uuid(entity.id)) }.update.apply()
   }
-        
+
 }

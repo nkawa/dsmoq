@@ -1,10 +1,12 @@
 package dsmoq.logic
 
-import org.scalatra.servlet.FileItem
-import java.nio.file.Paths
-import javax.imageio.ImageIO
-import dsmoq.AppConf
 import java.awt.image.BufferedImage
+import java.nio.file.Paths
+
+import org.scalatra.servlet.FileItem
+
+import dsmoq.AppConf
+import javax.imageio.ImageIO
 
 object ImageSaveLogic {
   val defaultFileName = "original"
@@ -43,8 +45,8 @@ object ImageSaveLogic {
     "/" + uploadPath + "/" + imageId
   }
 
-  def calcResizeScale(width: Int, height: Int) = {
-    imageSizes.map{size =>
+  def calcResizeScale(width: Int, height: Int): Map[Int, (Int, Int)] = {
+    imageSizes.map { size =>
       if (width > height) {
         val resizeHeight = (height * (size.toDouble / width)).toInt
         (size, (size, if (resizeHeight == 0) 1 else resizeHeight))

@@ -1,17 +1,27 @@
 package dsmoq.controllers
 
-import com.typesafe.scalalogging.LazyLogging
-import dsmoq.exceptions.{AccessDeniedException, NotAuthorizedException, NotFoundException}
-import dsmoq.services.DatasetService.{DownloadFileLocalNormal, DownloadFileLocalZipped, DownloadFileS3Normal, DownloadFileS3Zipped}
-import dsmoq.services.{DatasetService, User}
+import java.util.ResourceBundle
+
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+
 import org.apache.commons.io.input.BoundedInputStream
 import org.scalatra.ScalatraServlet
 import org.slf4j.MarkerFactory
 
-import java.util.ResourceBundle
-import javax.servlet.http.HttpServletRequest
+import com.typesafe.scalalogging.LazyLogging
 
-import scala.util.{Failure, Success, Try}
+import dsmoq.exceptions.AccessDeniedException
+import dsmoq.exceptions.NotAuthorizedException
+import dsmoq.exceptions.NotFoundException
+import dsmoq.services.DatasetService
+import dsmoq.services.DatasetService.DownloadFileLocalNormal
+import dsmoq.services.DatasetService.DownloadFileLocalZipped
+import dsmoq.services.DatasetService.DownloadFileS3Normal
+import dsmoq.services.DatasetService.DownloadFileS3Zipped
+import dsmoq.services.User
+import javax.servlet.http.HttpServletRequest
 
 class FileController(val resource: ResourceBundle) extends ScalatraServlet with LazyLogging with AuthTrait {
 
@@ -21,18 +31,18 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
   val datasetService = new DatasetService(resource)
 
   /**
-    * ログマーカー
-    */
+   * ログマーカー
+   */
   val LOG_MARKER = MarkerFactory.getMarker("FILE_LOG")
 
   /**
-    * Rangeヘッダから開始、終了位置を取得するための正規表現
-    */
+   * Rangeヘッダから開始、終了位置を取得するための正規表現
+   */
   val RANGE_REGEX = "bytes=(\\d+)-(\\d*)".r
 
   /**
-    * HEADリクエスト
-    */
+   * HEADリクエスト
+   */
   head("/:datasetId/:id") {
     val datasetId = params("datasetId")
     val id = params("id")
@@ -52,7 +62,12 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
     result match {
       case Success(DatasetService.DownloadFileLocalNormal(_, fileName, fileSize)) => {
         // ローカルファイルで、Zip内のファイル指定でない場合
-        logger.debug(LOG_MARKER, "Found local file, fileName={}, fileSize={}", fileName, fileSize.toString)
+        logger.debug(
+          LOG_MARKER,
+          "Found local file, fileName={}, fileSize={}",
+          fileName,
+          fileSize.toString
+        )
 
         verifyRangeHeader(rangeHeader, fileSize) match {
           case VerifyRangeLegalFromTo(from, to) => {
@@ -80,7 +95,11 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
             ""
           }
           case _: VerifyRangeType => {
-            logger.debug(LOG_MARKER, "Found Range header, but unsupported or illegal Range format. Range={}", rangeHeader)
+            logger.debug(
+              LOG_MARKER,
+              "Found Range header, but unsupported or illegal Range format. Range={}",
+              rangeHeader
+            )
 
             haltRangeNotSatisfiable(fileSize)
           }
@@ -88,7 +107,12 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
       }
       case Success(DatasetService.DownloadFileLocalZipped(_, fileName, fileSize)) => {
         // ローカルファイルで、Zip内のファイル指定の場合
-        logger.debug(LOG_MARKER, "Found local zipped inner file, fileName={}, fileSize={}", fileName, fileSize.toString)
+        logger.debug(
+          LOG_MARKER,
+          "Found local zipped inner file, fileName={}, fileSize={}",
+          fileName,
+          fileSize.toString
+        )
 
         verifyRangeHeader(rangeHeader, fileSize) match {
           case VerifyRangeNotFound() => {
@@ -101,7 +125,11 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
           }
           case _: VerifyRangeType => {
             // Rangeヘッダがある場合
-            logger.debug(LOG_MARKER, "Found Range header, but unsupported or illegal Range format. Range={}", rangeHeader)
+            logger.debug(
+              LOG_MARKER,
+              "Found Range header, but unsupported or illegal Range format. Range={}",
+              rangeHeader
+            )
 
             haltBadRequest()
           }
@@ -116,7 +144,12 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
       }
       case Success(DatasetService.DownloadFileS3Zipped(_, fileName, fileSize)) => {
         // S3上のファイルで、Zip内のファイル指定の場合
-        logger.debug(LOG_MARKER, "Found S3 zipped inner file, fileName={}, fileSize={}", fileName, fileSize.toString)
+        logger.debug(
+          LOG_MARKER,
+          "Found S3 zipped inner file, fileName={}, fileSize={}",
+          fileName,
+          fileSize.toString
+        )
 
         verifyRangeHeader(rangeHeader, fileSize) match {
           case VerifyRangeNotFound() => {
@@ -129,7 +162,11 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
           }
           case _: VerifyRangeType => {
             // Rangeヘッダがある場合
-            logger.debug(LOG_MARKER, "Found Range header, but unsupported or illegal Range format. Range={}", rangeHeader)
+            logger.debug(
+              LOG_MARKER,
+              "Found Range header, but unsupported or illegal Range format. Range={}",
+              rangeHeader
+            )
 
             haltBadRequest()
           }
@@ -139,18 +176,30 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
         logger.error(LOG_MARKER, "Failure occurred.", e)
 
         e match {
-          case _: NotFoundException => halt(status = 404, reason = "Not Found", body = "Not Found") // 404 Not Found
-          case _: NotAuthorizedException => halt(status = 403, reason = "Forbidden", body = "Unauthorized") // 403 Forbidden (401 Unauthorized はブラウザ標準の認証処理が走るので不可)
-          case _: AccessDeniedException => halt(status = 403, reason = "Forbidden", body = "Access Denied") // 403 Forbidden
-          case _: Exception => halt(status = 500, reason = "Internal Server Error", body = "Internal Server Error") // 500 Internal Server Error
+          case _: NotFoundException => {
+            // 404 Not Found
+            halt(status = 404, reason = "Not Found", body = "Not Found")
+          }
+          case _: NotAuthorizedException => {
+            // 403 Forbidden (401 Unauthorized はブラウザ標準の認証処理が走るので不可)
+            halt(status = 403, reason = "Forbidden", body = "Unauthorized")
+          }
+          case _: AccessDeniedException => {
+            // 403 Forbidden
+            halt(status = 403, reason = "Forbidden", body = "Access Denied")
+          }
+          case _: Exception => {
+            // 500 Internal Server Error
+            halt(status = 500, reason = "Internal Server Error", body = "Internal Server Error")
+          }
         }
       }
     }
   }
 
   /**
-    * GETリクエスト
-    */
+   * GETリクエスト
+   */
   get("/:datasetId/:id") {
     val datasetId = params("datasetId")
     val id = params("id")
@@ -219,7 +268,11 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
             data
           }
           case _: VerifyRangeType => {
-            logger.debug(LOG_MARKER, "Found Range header, but unsupported or illegal Range format. Range={}", rangeHeader)
+            logger.debug(
+              LOG_MARKER,
+              "Found Range header, but unsupported or illegal Range format. Range={}",
+              rangeHeader
+            )
 
             haltRangeNotSatisfiable(fileSize)
           }
@@ -233,7 +286,12 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
       }
       case Success(DatasetService.DownloadFileLocalZipped(fileData, fileName, fileSize)) => {
         // ローカルファイルで、Zip内のファイル指定の場合
-        logger.debug(LOG_MARKER, "Found local zipped inner file, fileName={}, fileSize={}", fileName, fileSize.toString)
+        logger.debug(
+          LOG_MARKER,
+          "Found local zipped inner file, fileName={}, fileSize={}",
+          fileName,
+          fileSize.toString
+        )
 
         verifyRangeHeader(rangeHeader, fileSize) match {
           case VerifyRangeNotFound() => {
@@ -248,7 +306,11 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
           }
           case _: VerifyRangeType => {
             // Rangeヘッダがある場合
-            logger.debug(LOG_MARKER, "Found Range header, but unsupported or illegal Range format. Range={}", rangeHeader)
+            logger.debug(
+              LOG_MARKER,
+              "Found Range header, but unsupported or illegal Range format. Range={}",
+              rangeHeader
+            )
 
             haltBadRequest()
           }
@@ -256,7 +318,12 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
       }
       case Success(DatasetService.DownloadFileS3Zipped(fileData, fileName, fileSize)) => {
         // S3上のファイルで、Zip内のファイル指定の場合
-        logger.debug(LOG_MARKER, "Found S3 zipped inner file, fileName={}, fileSize={}", fileName, fileSize.toString)
+        logger.debug(
+          LOG_MARKER,
+          "Found S3 zipped inner file, fileName={}, fileSize={}",
+          fileName,
+          fileSize.toString
+        )
 
         verifyRangeHeader(rangeHeader, fileSize) match {
           case VerifyRangeNotFound() => {
@@ -271,7 +338,11 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
           }
           case _: VerifyRangeType => {
             // Rangeヘッダがある場合
-            logger.debug(LOG_MARKER, "Found Range header, but unsupported or illegal Range format. Range={}", rangeHeader)
+            logger.debug(
+              LOG_MARKER,
+              "Found Range header, but unsupported or illegal Range format. Range={}",
+              rangeHeader
+            )
 
             haltBadRequest()
           }
@@ -281,22 +352,34 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
         logger.error(LOG_MARKER, "Failure occurred.", e)
 
         e match {
-          case _: NotFoundException => halt(status = 404, reason = "Not Found", body = "Not Found") // 404 Not Found
-          case _: NotAuthorizedException => halt(status = 403, reason = "Forbidden", body = "Unauthorized") // 403 Forbidden (401 Unauthorized はブラウザ標準の認証処理が走るので不可)
-          case _: AccessDeniedException => halt(status = 403, reason = "Forbidden", body = "Access Denied") // 403 Forbidden
-          case _: Exception => halt(status = 500, reason = "Internal Server Error", body = "Internal Server Error") // 500 Internal Server Error
+          case _: NotFoundException => {
+            // 404 Not Found
+            halt(status = 404, reason = "Not Found", body = "Not Found")
+          }
+          case _: NotAuthorizedException => {
+            // 403 Forbidden (401 Unauthorized はブラウザ標準の認証処理が走るので不可)
+            halt(status = 403, reason = "Forbidden", body = "Unauthorized")
+          }
+          case _: AccessDeniedException => {
+            // 403 Forbidden
+            halt(status = 403, reason = "Forbidden", body = "Access Denied")
+          }
+          case _: Exception => {
+            // 500 Internal Server Error
+            halt(status = 500, reason = "Internal Server Error", body = "Internal Server Error")
+          }
         }
       }
     }
   }
 
   /**
-    * Rangeヘッダが適切かどうか判定する。
-    *
-    * @param rangeHeader リクエストヘッダから取得したRangeヘッダの値
-    * @param fileSize 対象となるファイルサイズ
-    * @return 判定結果
-    */
+   * Rangeヘッダが適切かどうか判定する。
+   *
+   * @param rangeHeader リクエストヘッダから取得したRangeヘッダの値
+   * @param fileSize 対象となるファイルサイズ
+   * @return 判定結果
+   */
   private def verifyRangeHeader(rangeHeader: String, fileSize: Long): VerifyRangeType = {
     rangeHeader match {
       case RANGE_REGEX(fromPos, toPos) if (toPos != "") => {
@@ -332,61 +415,63 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
   }
 
   /**
-    * 指定の値をレスポンスヘッダに設定する。
-    *
-    * @param status ステータスコード
-    * @param headers レスポンスヘッダに設定する項目を保持するMap
-    */
-  private def progress(
-                        status: Int
-                        , headers: Map[String, AnyRef] = Map.empty
-                      ): Unit = {
+   * 指定の値をレスポンスヘッダに設定する。
+   *
+   * @param status ステータスコード
+   * @param headers レスポンスヘッダに設定する項目を保持するMap
+   */
+  private def progress(status: Int, headers: Map[String, AnyRef] = Map.empty): Unit = {
     response.setStatus(status)
 
-    if (headers.contains("Content-Disposition"))
+    if (headers.contains("Content-Disposition")) {
       response.setHeader("Content-Disposition", headers.get("Content-Disposition").get.toString)
+    }
 
-    if (headers.contains("Content-Type"))
+    if (headers.contains("Content-Type")) {
       response.setContentType(headers.get("Content-Type").get.toString)
+    }
 
-    if (headers.contains("Content-Length"))
+    if (headers.contains("Content-Length")) {
       response.setContentLengthLong(headers.get("Content-Length").get.toString.toLong)
+    }
 
-    if (headers.contains("Content-Range"))
+    if (headers.contains("Content-Range")) {
       response.setHeader("Content-Range", headers.get("Content-Range").get.toString)
+    }
   }
 
   /**
-    * レスポンスヘッダのContent-Dispositionに設定する文字列を返す。
-    *
-    * @param fileName ファイル名
-    * @return Content-Dispositionに設定する文字列
-    */
+   * レスポンスヘッダのContent-Dispositionに設定する文字列を返す。
+   *
+   * @param fileName ファイル名
+   * @return Content-Dispositionに設定する文字列
+   */
   private def genarateContentDispositionValue(fileName: String): String = {
     "attachment; filename*=UTF-8''" + java.net.URLEncoder.encode(fileName.split(Array[Char]('\\', '/')).last, "UTF-8")
   }
 
   /**
-    * Content-Lengthのみをレスポンスヘッダに設定する。
-    * ステータスコードは、200:OK とする。
-    *
-    * @param contentLength レスポンスで返すバイト長
-    */
+   * Content-Lengthのみをレスポンスヘッダに設定する。
+   * ステータスコードは、200:OK とする。
+   *
+   * @param contentLength レスポンスで返すバイト長
+   */
   private def progressTotalRequest(contentLength: Long): Unit = {
     val status = 200
     val headers = Map(
-      "Content-Length" -> contentLength.toString)
+      "Content-Length" -> contentLength.toString
+    )
     progress(status, headers)
   }
 
   /**
-    * Rangeリクエストがない場合のレスポンスヘッダを設定する。
-    * Content-Disposition, Content-Typeを設定する。
-    * ステータスコードは、200:OK とする。
-    *
-    * @param fileName ファイル名
-    * @param contentLength レスポンスで返すバイト長
-    */
+   * Rangeリクエストがない場合のレスポンスヘッダを設定する。
+   * Content-Disposition, Content-Typeを設定する。
+   * ステータスコードは、200:OK とする。
+   *
+   * @param fileName ファイル名
+   * @param contentLength レスポンスで返すバイト長
+   */
   private def progressTotalRequest(fileName: String, contentLength: Long): Unit = {
     // ボディ要素を送信する場合、Content-Lengthがヘッダにあると、ブラウザによっては
     // 正常にダウンロードできているにも関わらず、通信終了処理に問題があり、サーバ側
@@ -396,61 +481,63 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
 
     val status = 200
     val headers = Map(
-      "Content-Disposition" -> genarateContentDispositionValue(fileName)
-      , "Content-Type" -> "application/octet-stream;charset=binary")
+      "Content-Disposition" -> genarateContentDispositionValue(fileName),
+      "Content-Type" -> "application/octet-stream;charset=binary"
+    )
     progress(status, headers)
   }
 
   /**
-    * Rangeリクエスト受付時のレスポンスヘッダを設定する。
-    * Content-Disposition, Content-Type, Content-Lengthを設定する。
-    * ステータスコードは、206:Partial Content とする。
-    *
-    * @param fileName ファイル名
-    * @param contentRange レスポンスで返すContent-Range文字列
-    * @param contentLength レスポンスで返すバイト長
-    */
+   * Rangeリクエスト受付時のレスポンスヘッダを設定する。
+   * Content-Disposition, Content-Type, Content-Lengthを設定する。
+   * ステータスコードは、206:Partial Content とする。
+   *
+   * @param fileName ファイル名
+   * @param contentRange レスポンスで返すContent-Range文字列
+   * @param contentLength レスポンスで返すバイト長
+   */
   private def progressPartialRequest(fileName: String, contentRange: String, contentLength: Long): Unit = {
     val status = 206
     val headers = Map(
-      "Content-Disposition" -> genarateContentDispositionValue(fileName)
-      , "Content-Type" -> "application/octet-stream;charset=binary"
-      , "Content-Range" -> contentRange
-      , "Content-Length" -> contentLength.toString)
+      "Content-Disposition" -> genarateContentDispositionValue(fileName),
+      "Content-Type" -> "application/octet-stream;charset=binary",
+      "Content-Range" -> contentRange,
+      "Content-Length" -> contentLength.toString
+    )
     progress(status, headers)
   }
 
   /**
-    * Rangeリクエストサポート外のファイル対象などでの場合のエラーレスポンスを返す。
-    * 返すエラーコードは400:Bad Request とする。
-    *
-    * @param reason エラー原因。未指定の場合、デフォルト文字列を設定
-    * @param body エラー本文。未指定の場合、デフォルト文字列を設定
-    * @return the HTTP status reason to set, or null to leave unchanged.
-    */
+   * Rangeリクエストサポート外のファイル対象などでの場合のエラーレスポンスを返す。
+   * 返すエラーコードは400:Bad Request とする。
+   *
+   * @param reason エラー原因。未指定の場合、デフォルト文字列を設定
+   * @param body エラー本文。未指定の場合、デフォルト文字列を設定
+   * @return the HTTP status reason to set, or null to leave unchanged.
+   */
   private def haltBadRequest(
-                        reason: String = "Unsupported range request for zip local file."
-                        , body: String = "Unsupported range request for zip local file."
-                        ): Nothing = {
+    reason: String = "Unsupported range request for zip local file.",
+    body: String = "Unsupported range request for zip local file."
+  ): Nothing = {
     // 400 Bad Request
     halt(status = 400, reason = reason, body = body)
   }
 
   /**
-    * 複数の範囲指定があるなどで、本サービスでサポートしない場合のエラーレスポンスを返す。
-    * Content-Rangeを設定する。
-    * 返すエラーコードは416:Range Not Satisfiable とする。
-    *
-    * @param fileSize ファイルサイズ
-    * @param reason エラー原因。未指定の場合、デフォルト文字列を設定
-    * @param body エラー本文。未指定の場合、デフォルト文字列を設定
-    * @return the HTTP status reason to set, or null to leave unchanged.
-    */
+   * 複数の範囲指定があるなどで、本サービスでサポートしない場合のエラーレスポンスを返す。
+   * Content-Rangeを設定する。
+   * 返すエラーコードは416:Range Not Satisfiable とする。
+   *
+   * @param fileSize ファイルサイズ
+   * @param reason エラー原因。未指定の場合、デフォルト文字列を設定
+   * @param body エラー本文。未指定の場合、デフォルト文字列を設定
+   * @return the HTTP status reason to set, or null to leave unchanged.
+   */
   private def haltRangeNotSatisfiable(
-                        fileSize: Long
-                        , reason: String = "Unsupported or illegal Range format."
-                        , body: String = "Unsupported or illegal Range format."
-                        ): Nothing = {
+    fileSize: Long,
+    reason: String = "Unsupported or illegal Range format.",
+    body: String = "Unsupported or illegal Range format."
+  ): Nothing = {
     // 複数の範囲指定があるなどで正規表現にマッチしない場合など、
     // 416エラーで返す場合
     val contentRange = "bytes */" + fileSize.toString
@@ -460,47 +547,47 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
   }
 
   /**
-    * Rangeヘッダが有効か判定するためのケースオブジェクト
-    */
+   * Rangeヘッダが有効か判定するためのケースオブジェクト
+   */
   sealed trait VerifyRangeType
 
   /**
-    * Rangeヘッダ：Rangeヘッダがない場合
-    */
+   * Rangeヘッダ：Rangeヘッダがない場合
+   */
   case class VerifyRangeNotFound() extends VerifyRangeType
 
   /**
-    * Rangeヘッダ：from, toがあり、有効なフォーマットで、範囲指定が有効な場合
-    *
-    * @param from 開始位置
-    * @param to 終了位置
-    */
+   * Rangeヘッダ：from, toがあり、有効なフォーマットで、範囲指定が有効な場合
+   *
+   * @param from 開始位置
+   * @param to 終了位置
+   */
   case class VerifyRangeLegalFromTo(from: Long, to: Long) extends VerifyRangeType
 
   /**
-    * Rangeヘッダ：fromがあり、有効なフォーマットで、範囲指定が有効な場合
-    *
-    * @param from 開始位置
-    */
+   * Rangeヘッダ：fromがあり、有効なフォーマットで、範囲指定が有効な場合
+   *
+   * @param from 開始位置
+   */
   case class VerifyRangeLegalFrom(from: Long) extends VerifyRangeType
 
   /**
-    * Rangeヘッダ：from, toがあり、有効なフォーマットだが、範囲指定が無効な場合
-    *
-    * @param from 開始位置
-    * @param to 終了位置
-    */
+   * Rangeヘッダ：from, toがあり、有効なフォーマットだが、範囲指定が無効な場合
+   *
+   * @param from 開始位置
+   * @param to 終了位置
+   */
   case class VerifyRangeIllegalFromTo(from: Long, to: Long) extends VerifyRangeType
 
   /**
-    * Rangeヘッダ：fromがあり、有効なフォーマットだが、範囲指定が無効な場合
-    *
-    * @param from 開始位置
-    */
+   * Rangeヘッダ：fromがあり、有効なフォーマットだが、範囲指定が無効な場合
+   *
+   * @param from 開始位置
+   */
   case class VerifyRangeIllegalFrom(from: Long) extends VerifyRangeType
 
   /**
-    * Rangeヘッダ：無効なフォーマットの場合
-    */
+   * Rangeヘッダ：無効なフォーマットの場合
+   */
   case class VerifyRangeIllegalFormat() extends VerifyRangeType
 }

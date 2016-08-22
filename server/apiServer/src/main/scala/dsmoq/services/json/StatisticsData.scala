@@ -2,7 +2,7 @@ package dsmoq.services.json
 
 object StatisticsData {
   case class StatisticsBase(
-    statistics : Seq[StatisticsDetail]
+    statistics: Seq[StatisticsDetail]
   )
 
   case class StatisticsDetail(

@@ -5,4 +5,4 @@ package dsmoq.exceptions
  *
  * @param message エラーメッセージ
  */
-case class AccessDeniedException(message: String) extends Exception(message)
+class AccessDeniedException(message: String) extends Exception(message)

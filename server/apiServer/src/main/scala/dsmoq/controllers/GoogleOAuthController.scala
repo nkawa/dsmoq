@@ -2,10 +2,13 @@ package dsmoq.controllers
 
 import java.util.ResourceBundle
 
-import com.typesafe.scalalogging.LazyLogging
+import scala.util.Failure
+import scala.util.Success
+
 import org.scalatra.ScalatraServlet
 import org.slf4j.MarkerFactory
-import scala.util.{Failure, Success}
+
+import com.typesafe.scalalogging.LazyLogging
 
 import dsmoq.services.GoogleAccountService
 
@@ -16,8 +19,8 @@ class GoogleOAuthController(val resource: ResourceBundle) extends ScalatraServle
   val googleAccountService = new GoogleAccountService(resource)
 
   /**
-    * ログマーカー
-    */
+   * ログマーカー
+   */
   val LOG_MARKER = MarkerFactory.getMarker("GOOGLE_OAUTH_LOG")
 
   get("/*") {
@@ -30,7 +33,7 @@ class GoogleOAuthController(val resource: ResourceBundle) extends ScalatraServle
     redirect(googleAccountService.getOAuthUrl(location))
   }
 
-  get ("/oauth2callback") {
+  get("/oauth2callback") {
     logger.info(LOG_MARKER, "Receive oauth2callback request")
 
     val userRedirectUri = params.get("state") match {

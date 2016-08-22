@@ -36,7 +36,7 @@ class LicenseSpec extends Specification {
     "save a record" in new AutoRollback {
       val entity = License.findAll().head
       val updated = License.save(entity)
-      updated should not equalTo(entity)
+      updated should not equalTo (entity)
     }
     "destroy a record" in new AutoRollback {
       val entity = License.findAll().head
@@ -47,4 +47,3 @@ class LicenseSpec extends Specification {
   }
 
 }
-        

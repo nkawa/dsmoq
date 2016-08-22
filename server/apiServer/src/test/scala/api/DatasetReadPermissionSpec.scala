@@ -12,11 +12,11 @@ import _root_.api.api.logic.SpecCommonLogic
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.AmazonS3Client
 import org.eclipse.jetty.server.Connector
-import org.scalatest.{BeforeAndAfter, FreeSpec}
+import org.scalatest.{ BeforeAndAfter, FreeSpec }
 import org.scalatra.test.scalatest.ScalatraSuite
-import org.json4s.{DefaultFormats, Formats}
-import dsmoq.controllers.{ImageController, FileController, ApiController}
-import scalikejdbc.config.{DBsWithEnv, DBs}
+import org.json4s.{ DefaultFormats, Formats }
+import dsmoq.controllers.{ ImageController, FileController, ApiController }
+import scalikejdbc.config.{ DBsWithEnv, DBs }
 import org.json4s.jackson.JsonMethods._
 import java.io.File
 import dsmoq.persistence._
@@ -31,8 +31,8 @@ import dsmoq.controllers.AjaxResponse
 import dsmoq.services.json.DatasetData.DatasetAddImages
 import dsmoq.services.json.RangeSlice
 import dsmoq.services.json.GroupData.Group
-import java.util.{Base64, UUID}
-import dsmoq.persistence.{DefaultAccessLevel, OwnerType, UserAccessLevel, GroupAccessLevel}
+import java.util.{ Base64, UUID }
+import dsmoq.persistence.{ DefaultAccessLevel, OwnerType, UserAccessLevel, GroupAccessLevel }
 import org.json4s._
 import org.json4s.JsonDSL._
 import scalikejdbc._
@@ -47,7 +47,7 @@ class DatasetReadPermissionSpec extends FreeSpec with ScalatraSuite with BeforeA
   private val testUserName = "dummy1"
   private val dummyUserName = "dummy4"
   private val testUserId = "023bfa40-e897-4dad-96db-9fd3cf001e79" // dummy1
-  private val dummyUserId = "eb7a596d-e50c-483f-bbc7-50019eea64d7"  // dummy 4
+  private val dummyUserId = "eb7a596d-e50c-483f-bbc7-50019eea64d7" // dummy 4
   private val dummyUserLoginParams = Map("d" -> compact(render(("id" -> "dummy4") ~ ("password" -> "password"))))
 
   private val host = "http://localhost:8080"
@@ -61,12 +61,11 @@ class DatasetReadPermissionSpec extends FreeSpec with ScalatraSuite with BeforeA
     val servlet = new ApiController(resource)
     val holder = new ServletHolder(servlet.getClass.getName, servlet)
     // multi-part file upload config
-    holder.getRegistration.setMultipartConfig(
-      MultipartConfig(
-        maxFileSize = Some(3 * 1024 * 1024),
-        fileSizeThreshold = Some(1 * 1024 * 1024)
-      ).toMultipartConfigElement
-    )
+    val multipartConfig = MultipartConfig(
+      maxFileSize = Some(3 * 1024 * 1024),
+      fileSizeThreshold = Some(1 * 1024 * 1024)
+    ).toMultipartConfigElement
+    holder.getRegistration.setMultipartConfig(multipartConfig)
     servletContextHandler.addServlet(holder, "/api/*")
     addServlet(new FileController(resource), "/files/*")
     addServlet(new ImageController(resource), "/images/*")
@@ -645,7 +644,7 @@ class DatasetReadPermissionSpec extends FreeSpec with ScalatraSuite with BeforeA
   ): String = {
     // グループ作成
     val groupId = createGroup()
-    val memberParams = Map("d" -> compact(render(List(("userId" -> dummyUserId) ~ ("role" -> GroupMemberRole.Member)))))
+    val memberParams = Map("d" -> compact(render(Seq(("userId" -> dummyUserId) ~ ("role" -> GroupMemberRole.Member)))))
     post(s"/api/groups/${groupId}/members", memberParams) { checkStatus() }
     // データセット作成
     val datasetId = createDataset()
@@ -669,10 +668,10 @@ class DatasetReadPermissionSpec extends FreeSpec with ScalatraSuite with BeforeA
     groupAccessLevel: Int
   ): Unit = {
     // アクセスレベル設定(ユーザー/グループ)
-    val accessLevelParams = Map("d" ->
-      compact(
+    val accessLevelParams = Map(
+      "d" -> compact(
         render(
-          List(
+          Seq(
             ("id" -> dummyUserId) ~ ("ownerType" -> JInt(OwnerType.User)) ~ ("accessLevel" -> JInt(userAccessLevel)),
             ("id" -> groupId) ~ ("ownerType" -> JInt(OwnerType.Group)) ~ ("accessLevel" -> JInt(groupAccessLevel))
           )
