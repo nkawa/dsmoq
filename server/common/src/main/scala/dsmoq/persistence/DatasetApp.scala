@@ -126,6 +126,7 @@ object DatasetApp extends SQLSyntaxSupport[DatasetApp] {
         sqls.uuid(datasetId),
         sqls.uuid(appId),
         isPrimary,
+        sqls.uuid(createdBy),
         createdAt,
         sqls.uuid(updatedBy),
         updatedAt,

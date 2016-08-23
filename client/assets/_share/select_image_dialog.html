@@ -3,17 +3,19 @@
     <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
     <h4 class="modal-title">Select Image</h4>
   </div>
-
   <div class="modal-body">
-	<form>
+    <form>
     {^{for items}}
       <div class="media image-box">
-        <div class="media-body">
-		  <div style="height:100px; width:100px">
-			<img src="{{:item.url}}/96" srcset="{{:item.url}}/96 1x, {{:item.url}}/192 2x" />
-		  </div>
-        </div>
-		<input type="radio" name="selected-image" data-link="selected" value="{{>item.id}}">{{>item.name}}
+        <label style="max-width: none; font-weight: normal;">
+          <div class="media-body">
+            <div style="height:100px; width:100px">
+              <img src="{{:item.url}}/96" srcset="{{:item.url}}/96 1x, {{:item.url}}/192 2x" />
+            </div>
+          </div>
+          <input type="radio" name="selected-image" data-link="selected" value="{{>item.id}}">
+          <span>{{>item.name}}</span>
+        </label>
       </div>
     {{/for}}
     {^{range ^start=items.length end=6}}
@@ -25,29 +27,27 @@
       </div>
     {{/range}}
     </form>
-	<div class="clear"></div>
-	
+    <div class="clear"></div>
     <div class="text-right">
       <button id="image-list-prev" class="btn btn-default btn-sm" type="button" data-link="disabled{:!hasPrev}">&larr; Prev</button>
       <button id="image-list-next" class="btn btn-default btn-sm" type="button" data-link="disabled{:!hasNext}">Next &rarr;</button>
     </div>
-	<div class="text-left">
-		<form id="image-form" method="POST">
-			<button type="button" id="delete-image" class="btn btn-default" data-link="disabled{:selectedIds.length <= 0}"><div type="button" data-loading-text="Deleting...">Delete</div></button>
-			<div type="button" id="upload-image" class="btn btn-default"><div type="button" data-loading-text="Uploading...">Upload</div>
-				<input type="file" name="images" accept="image/jpeg,image/png,image/gif">
-			</div>
-		</form>
+    <div class="text-left">
+      <button type="button" id="delete-image" class="btn btn-default" data-link="disabled{:selectedIds.length <= 0}"><div type="button" data-loading-text="Deleting...">Delete</div></button>
+      <div type="button" id="upload-image" class="btn btn-default">
+        <div type="button" data-loading-text="Uploading...">Upload</div>
+        <form id="upload-image-form" method="POST">
+          <input type="file" name="images" accept="image/jpeg,image/png,image/gif">
+        </form>
+      </div>
     </div>
   </div>
-
   <div class="modal-footer">
-	<div class="pull-left">
-		
-	</div>
-	<div class="pull-right">
-		<button type="button" class="btn btn-primary" id="select-image-dialog-submit" data-link="disabled{:selectedIds.length <= 0}">Apply</button>
-		<button type="button" data-dismiss="modal" id="select-image-dialog-cancel" class="btn btn-default">Cancel</button>
-	</div>
+    <div class="pull-left">
+    </div>
+    <div class="pull-right">
+      <button type="button" class="btn btn-primary" id="select-image-dialog-submit" data-link="disabled{:selectedIds.length <= 0}">Apply</button>
+      <button type="button" data-dismiss="modal" id="select-image-dialog-cancel" class="btn btn-default">Cancel</button>
+    </div>
   </div>
 </div>

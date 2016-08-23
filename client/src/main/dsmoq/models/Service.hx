@@ -71,7 +71,7 @@ class Service extends Stream<ServiceEvent> {
     }
 
     public function updateImage(form: JqHtml): Promise<Profile> {
-        return sendForm("/api/profile/image", form).then(function (x: Profile) {
+        return sendForm(Post, "/api/profile/image", form).then(function (x: Profile) {
             profile = x;
             update(ProfileUpdated);
         });
@@ -87,7 +87,7 @@ class Service extends Stream<ServiceEvent> {
 
     // ---
     public function createDataset(form: JqHtml, saveLocal: Bool, saveS3: Bool): Promise<{id: String}> {
-        return sendForm("/api/datasets", form, { saveLocal: saveLocal, saveS3: saveS3 });
+        return sendForm(Post, "/api/datasets", form, { saveLocal: saveLocal, saveS3: saveS3 });
     }
 
     public function findDatasets(?params: {?query: String,
@@ -123,13 +123,13 @@ class Service extends Stream<ServiceEvent> {
     }
 
     public function addDatasetFiles(datasetId: String, form: JqHtml): Promise<Array<DatasetFile>> {
-        return sendForm('/api/datasets/$datasetId/files', form).map(function (res) {
+        return sendForm(Post, '/api/datasets/$datasetId/files', form).map(function (res) {
             return cast res.files;
         });
     }
 
     public function replaceDatasetFile(datasetId: String, fileId: String, form: JqHtml): Promise<DatasetFile> {
-        return sendForm('/api/datasets/$datasetId/files/$fileId', form);
+        return sendForm(Post, '/api/datasets/$datasetId/files/$fileId', form);
     }
 
     public function updateDatatetFileMetadata(datasetId: String, fileId: String, name: String, description: String): Promise<DatasetFile> {
@@ -145,7 +145,7 @@ class Service extends Stream<ServiceEvent> {
     }
 
     //public function addDatasetImage(datasetId: String, form: JqHtml): Promise<{images: Array<Image>, primaryImage: String}> {
-        //return sendForm('/api/datasets/$datasetId/images', form);
+        //return sendForm(Post, '/api/datasets/$datasetId/images', form);
     //}
 //
     //public function setDatasetPrimaryImage(datasetId: String, imageId: String): Promise<Unit> {
@@ -154,7 +154,7 @@ class Service extends Stream<ServiceEvent> {
 //
     public function changeDatasetImage(datasetId: String, form: JqHtml): Promise<{images: Array<Image>, primaryImage: String}> {
         // TODO 既存イメージ削除
-        return sendForm('/api/datasets/$datasetId/images', form).flatMap(function (res) {
+        return sendForm(Post, '/api/datasets/$datasetId/images', form).flatMap(function (res) {
             return send(Put, '/api/datasets/$datasetId/images/primary', { imageId: res.images[0].id } ).map(function (_) {
                 return { images: cast res.images, primaryImage: cast res.images[0].id };
             });
@@ -166,7 +166,7 @@ class Service extends Stream<ServiceEvent> {
     }
     
     public function addDatasetImage(datasetId: String, form: JqHtml): Promise<{images: Array<Image>, primaryImage: String}> {
-        return sendForm('/api/datasets/$datasetId/images', form);
+        return sendForm(Post, '/api/datasets/$datasetId/images', form);
     }
 
     public function getDatasetImage(datasetId: String, ?params: { ?limit: Int, ?offset: Int } ): Promise<RangeSlice<DatasetImage>> {
@@ -202,6 +202,30 @@ class Service extends Stream<ServiceEvent> {
     
     public function changeDatasetStorage(datasetId: String, saveLocal: Bool, saveS3: Bool): Promise<Unit> {
         return send(Put, '/api/datasets/$datasetId/storage', { saveLocal: saveLocal, saveS3: saveS3 });
+    }
+
+    public function getDatasetApps(datasetId: String, ?params: { ?limit: Int, ?offset: Int}): Promise<RangeSlice<DatasetApp>> {
+        return send(Get, '/api/datasets/${datasetId}/apps', params);
+    }
+
+    public function addDatasetApp(datasetId: String, form: JqHtml): Promise<DatasetApp> {
+        return sendForm(Post, '/api/datasets/${datasetId}/apps', form);
+    }
+
+    public function upgradeDatasetApp(datasetId: String, appId: String, form: JqHtml): Promise<DatasetApp> {
+        return sendForm(Put, '/api/datasets/${datasetId}/apps/${appId}', form);
+    }
+
+    public function removeDatasetApp(datasetId: String, appId: String): Promise<Unit> {
+        return send(Delete, '/api/datasets/${datasetId}/apps/${appId}');
+    }
+
+    public function getPrimaryDatasetApp(datasetId: String): Promise<Null<DatasetApp>> {
+        return send(Get, '/api/datasets/${datasetId}/apps/primary');
+    }
+
+    public function setDatasetAppPrimary(datasetId: String, appId: String): Promise<DatasetApp> {
+        return send(Put, '/api/datasets/${datasetId}/apps/primary', { appId: appId });
     }
 
     // ---
@@ -245,7 +269,7 @@ class Service extends Stream<ServiceEvent> {
 
     public function changeGroupImage(groupId: String, form: JqHtml): Promise<{images: Array<Image>, primaryImage: String}> {
         // TODO 既存イメージ削除
-        return sendForm('/api/groups/$groupId/images', form).flatMap(function (res) {
+        return sendForm(Post, '/api/groups/$groupId/images', form).flatMap(function (res) {
             return send(Put, '/api/groups/$groupId/images/primary', { imageId: res.images[0].id } ).map(function (_) {
                 return { images: cast res.images, primaryImage: cast res.images[0].id };
             });
@@ -258,7 +282,7 @@ class Service extends Stream<ServiceEvent> {
     }
     
     public function addGroupImages(groupId: String, form: JqHtml): Promise<Unit> {
-        return sendForm('/api/groups/$groupId/images', form);
+        return sendForm(Post, '/api/groups/$groupId/images', form);
     }
 
     public function setGroupPrimaryImage(groupId: String, imageId: String): Promise<Unit> {
@@ -418,18 +442,19 @@ class Service extends Stream<ServiceEvent> {
     }
 
     /**
-     * FormをPOSTする。
+     * Formを送信する。
      *
+     * @param method HTTPメソッド
      * @param url 送信先のAPIのURL
      * @param form 送信するForm
      * @param optData 送信するデータ
      * @return 処理結果のPromise
      */
-    function sendForm<T>(url: String, form: JqHtml, ?optData: {}): Promise<T> {
+    function sendForm<T>(method: RequestMethod, url: String, form: JqHtml, ?optData: {}): Promise<T> {
         return new Promise(function (ctx) {
             untyped form.ajaxSubmit({
                 url: url,
-                type: "post",
+                type: method,
                 dataType: "json",
                 data: optData,
                 success: function (response) {

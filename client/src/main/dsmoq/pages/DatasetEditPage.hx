@@ -1,50 +1,54 @@
 package dsmoq.pages;
 
 import conduitbox.Navigation;
+import dsmoq.CKEditor;
+import dsmoq.CSV;
+import dsmoq.View;
+import dsmoq.models.ApiStatus;
+import dsmoq.models.DatasetApp;
 import dsmoq.models.DatasetFile;
 import dsmoq.models.DatasetImage;
 import dsmoq.models.DatasetPermission;
-import dsmoq.models.Profile;
-import dsmoq.models.Service;
-import dsmoq.models.ApiStatus;
-import dsmoq.views.AutoComplete;
 import dsmoq.models.GroupRole;
+import dsmoq.models.Image;
+import dsmoq.models.Profile;
+import dsmoq.models.RangeSlice;
+import dsmoq.models.Service;
 import dsmoq.models.SuggestedOwner;
-import dsmoq.View;
+import dsmoq.pages.datas.DatasetEdit;
+import dsmoq.views.AutoComplete;
+import dsmoq.views.AutoComplete;
 import dsmoq.views.ViewTools;
 import haxe.Json;
-import haxe.ds.Option;
 import haxe.Resource;
+import haxe.ds.Option;
 import hxgnd.ArrayTools;
-import hxgnd.js.Html;
-import hxgnd.js.JqHtml;
-import hxgnd.js.JQuery;
-import hxgnd.js.JsTools;
-import hxgnd.js.jsviews.JsViews;
+import hxgnd.Error;
 import hxgnd.Promise;
 import hxgnd.PromiseBroker;
+import hxgnd.Result;
 import hxgnd.Unit;
+import hxgnd.js.Html;
+import hxgnd.js.JQuery;
+import hxgnd.js.JqHtml;
+import hxgnd.js.JsTools;
+import hxgnd.js.jsviews.JsViews;
+import js.Browser;
+import js.Lib;
 import js.bootstrap.BootstrapButton;
 import js.html.Element;
 import js.html.Event;
-import dsmoq.views.AutoComplete;
-import hxgnd.Result;
-import hxgnd.Error;
-import js.Browser;
+import js.html.EventTarget;
 import js.html.FileReader;
 import js.html.InputElement;
-import dsmoq.CSV;
-import js.html.EventTarget;
 import js.html.OptionElement;
-import js.Lib;
-import dsmoq.CKEditor;
-import dsmoq.pages.datas.DatasetEdit;
 
 using hxgnd.OptionTools;
 
 class DatasetEditPage {
     inline static var OwnerCandicateSize = 5;
     inline static var ImageCandicateSize = 10;
+    inline static var AppCandicateSize = 9;
 
     public static function render(root: Html, onClose: Promise<Unit>, id: String): Promise<Navigation<Page>> {
         var navigation = new PromiseBroker();
@@ -111,6 +115,7 @@ class DatasetEditPage {
                     featuredImage: x.featuredImage,
                     localState: x.localState,
                     s3State: x.s3State,
+                    primaryApp: null,
                     errors: {
                         meta: {
                             name: "",
@@ -494,8 +499,29 @@ class DatasetEditPage {
                     );
                 });
             });
+            
+            // app
+            root.find("#dataset-app-select").on("click", function (_) {
+                showSelectAppDialog(id, binding).then(function(app) {
+                    Service.instance.setDatasetAppPrimary(id, app.id).then(
+                        function (_) {
+                            if (data.dataset.primaryApp == null) {
+                                binding.setProperty("dataset.primaryApp", app);
+                            } else {
+                                binding.setProperty("dataset.primaryApp.id", app.id);
+                                binding.setProperty("dataset.primaryApp.name", app.name);
+                            }
+                            Notification.show("success", "save successful");
+                        }
+                    );
+                });
+            });
+            Service.instance.getPrimaryDatasetApp(id).then(function(app) {
+                binding.setProperty("dataset.primaryApp", app);
+            });
+
         });
-        
+
         return navigation.promise;
     }
 
@@ -605,167 +631,241 @@ class DatasetEditPage {
      * @param rootBinding JsViewsのObservable
      * @return モーダルダイアログを表示するPromise
      */
-    static function showSelectImageDialog(id: String, rootBinding: Observable) {
+    static function showSelectImageDialog(id: String, rootBinding: Observable): Promise<DatasetImage> {
+        return showSelectDialog(
+            id,
+            rootBinding,
+            "image",
+            "template/share/select_image_dialog",
+            ImageCandicateSize,
+            function(datasetId, offset, limit): Promise<RangeSlice<DatasetImage>> {
+                return Service.instance.getDatasetImage(datasetId, { offset: offset, limit: limit });
+            },
+            function(datasetId, file): Promise<{images: Array<Image>, primaryImage: String}> {
+                return Service.instance.addDatasetImage(datasetId, file);
+            },
+            null,
+            null,
+            function(datasetId, imageId): Promise<{primaryImage: String, featuredImage: String}> {
+                return Service.instance.removeDatasetImage(datasetId, imageId);
+            },
+            function(ids, data) {
+                function getUrl(id: String) {
+                    return data.items
+                        .filter(function(x) { return x.item.id == id; })
+                        .map(function(x) { return x.item.url; })[0]
+                    ;
+                }
+                rootBinding.setProperty("dataset.primaryImage.id", ids.primaryImage);
+                rootBinding.setProperty("dataset.primaryImage.url", getUrl(ids.primaryImage));
+                rootBinding.setProperty("dataset.featuredImage.id", ids.featuredImage);
+                rootBinding.setProperty("dataset.featuredImage.url", getUrl(ids.featuredImage));
+            }
+        );
+    }
+    /**
+     * アプリを選択するダイアログを表示する。
+     *
+     * @param id データセットID
+     * @param rootBinding JsViewsのObservable
+     * @return モーダルダイアログを表示するPromise
+     */
+    static function showSelectAppDialog(id: String, rootBinding: Observable): Promise<DatasetApp> {
+        return showSelectDialog(
+            id,
+            rootBinding,
+            "app",
+            "template/dataset/select_app_dialog",
+            AppCandicateSize,
+            function(datasetId, offset, limit): Promise<RangeSlice<DatasetApp>> {
+                return Service.instance.getDatasetApps(datasetId, { offset: offset, limit: limit });
+            },
+            function(datasetId, file): Promise<DatasetApp> {
+                return Service.instance.addDatasetApp(datasetId, file);
+            },
+            function(datasetId, appId, file): Promise<DatasetApp> {
+                return Service.instance.upgradeDatasetApp(datasetId, appId, file);
+            },
+            null,
+            function(datasetId, appId): Promise<Unit> {
+                return Service.instance.removeDatasetApp(datasetId, appId);
+            },
+            function(_, data) {
+                var primary = data.items
+                    .filter(function(x) { return x.item.isPrimary; })
+                    .map(function(x) { return x.item; })
+                ;
+                if (primary.length == 0) {
+                    rootBinding.setProperty("dataset.primaryApp", null);
+                } else {
+                    rootBinding.setProperty("dataset.primaryApp", { id: primary[0].id, name: primary[0].name });
+                }
+            }
+        );
+    }
+
+    /**
+     * 選択ダイアログを表示する。
+     *
+     * @param id データセットID
+     * @param rootBinding JsViewsのObservable
+     * @return モーダルダイアログを表示するPromise
+     */
+    static function showSelectDialog<T: { id: String }, U, R>(
+        datasetId: String,
+        rootBinding: Observable,
+        name: String,
+        templatePath: String,
+        candicateSize: Int,
+        get: String -> Int -> Int -> Promise<RangeSlice<T>>,
+        add: String -> JqHtml -> Promise<Dynamic>,
+        upgrade: String -> String -> JqHtml -> Promise<U>,
+        upgraded: U -> DatasetEditSelect<T> -> Void,
+        remove: String -> String -> Promise<R>,
+        removed: R -> DatasetEditSelect<T> -> Void
+    ): Promise<T> {
         var data = {
             offset: 0,
             hasPrev: false,
             hasNext: false,
-            items: new Array<{selected: Bool, item: DatasetImage}>(),
+            items: new Array<{selected: Bool, item: T}>(),
             selectedIds: new Array<String>()
         }
         var binding = JsViews.observable(data);
-        var tpl = JsViews.template(Resource.getString("template/share/select_image_dialog"));
-        
-        return ViewTools.showModal(tpl, data, function (html, ctx) {
-            function searchImageCandidate(offset = 0) {
-                var limit = ImageCandicateSize + 1;
-                Service.instance.getDatasetImage(id, { offset: offset, limit: limit }).then(function (images) {
-                    var list = images.results.slice(0, ImageCandicateSize)
-                                    .map(function (x) return {
-                                        selected: data.selectedIds.indexOf(x.id) >= 0,
-                                        item: x
-                                    });
+        var tpl = JsViews.template(Resource.getString(templatePath));
+        return ViewTools.showModal(tpl, data, function(html, ctx) {
+            function searchCandidate(offset: Int = 0): Promise<RangeSlice<T>> {
+                var limit = candicateSize + 1;
+                return get(datasetId, offset, limit).then(function(res) {
+                    var list = res.results.slice(0, candicateSize).map(function (x) {
+                        return {
+                            selected: data.selectedIds.indexOf(x.id) >= 0,
+                            item: x
+                        };
+                    });
                     var hasPrev = offset > 0;
-                    var hasNext = images.results.length > ImageCandicateSize;
+                    var hasNext = res.results.length > ImageCandicateSize;
                     binding.setProperty("offset", offset);
                     binding.setProperty("hasPrev", hasPrev);
                     binding.setProperty("hasNext", hasNext);
                     JsViews.observable(data.items).refresh(list);
                 });
             }
-            
-            function filterSelectedOwner() {
+            function filterSelected() {
                 return data.items
-                            .filter(function (x) return x.selected)
-                            .map(function (x) return x.item);
+                    .filter(function (x) return x.selected)
+                    .map(function (x) return x.item)
+                ;
             }
-            
-            function getUrl(id: String) {
-                return data.items.filter(function(x) {
-                    return x.item.id == id;
-                }).map(function(x) return x.item.url)[0];
-            }
-
-            JsViews.observable(data.items).observeAll(function (e, args) {
-                if (args.path == "selected") {
-                    var image: DatasetImage = e.target.item;
-                    var ids = data.selectedIds.copy();
-                    var b = JsViews.observable(data.selectedIds);
-                    if (args.value) {
-                        if (ids.indexOf(image.id) < 0) {
-                            ids.push(image.id);
-                            b.refresh(ids);
-                        }
-                    } else {
-                        if (ids.remove(image.id)) {
-                            b.refresh(ids);
-                        }
-                    }
-                }
-            });
-
-            var binding = JsViews.observable(data.selectedIds).refresh([]);
-            searchImageCandidate();
-            
-            html.find("#image-form input").on("change", function(_) {
-
-                var isPrevEnabled = html.find("#image-list-prev").attr("disabled") != "disabled";
-                var isNextEnabled = html.find("#image-list-next").attr("disabled") != "disabled";
-                
+            function execute<T>(type: String, exec: Void -> Promise<T>, after: Null<T -> Void> = null) {
+                var isPrevEnabled = html.find('#${name}-list-prev').attr("disabled") != "disabled";
+                var isNextEnabled = html.find('#${name}-list-next').attr("disabled") != "disabled";
                 // ApplyとDeleteをDisableにするために必要
-                var b = JsViews.observable(data.selectedIds);
-                b.refresh([]);
-                html.find("#image-list-prev").attr("disabled", "disabled");
-                html.find("#image-list-next").attr("disabled", "disabled");
-                html.find("#select-image-dialog-cancel").attr("disabled", "disabled");
-                html.find("#upload-image").attr("disabled", "disabled");
+                var b = JsViews.observable(data.selectedIds).refresh([]);
+                html.find('#${name}-list-prev').attr("disabled", "disabled");
+                html.find('#${name}-list-next').attr("disabled", "disabled");
+                html.find('#select-${name}-dialog-cancel').attr("disabled", "disabled");
+                html.find('#upload-${name}').attr("disabled", "disabled");
+                html.find('#upgrade-${name}').attr("disabled", "disabled");
+                html.find('#delete-${name}').attr("disabled", "disabled");
                 // 直接Loadingを指定すると、内部のinput要素までloading-textで置き換わるため、模倣している。
-                // メッセージは内部のdivに担当させ、disableのみを#upload-imageボタンに設定する
-                BootstrapButton.setLoading(html.find("#upload-image > div"));
-                Service.instance.addDatasetImage(id, html.find("#image-form")).then(
-                    function (_) {
+                // メッセージは内部のdivに担当させ、disableのみを#type-nameボタンに設定する
+                BootstrapButton.setLoading(html.find('#${type}-${name} > div'));
+                exec().then(
+                    function (x) {
                         Notification.show("success", "save successful");
-                        searchImageCandidate();
-                        // TODO IE11で要検証
-                        html.find("#image-form input").val("");
-
+                        html.find('#${type}-${name}-form input').val(""); // TODO IE11で要検証
+                        var p = searchCandidate();
+                        if (after != null) {
+                            p.then(function(_) {
+                                after(x);
+                            });
+                        }
                     },
                     function (e) {
                         // Service内でNotificationを出力するようにしたため、この箇所でのNotification出力は不要。
                         // このfunctionはfinally時に呼び出されるfunctionを指定するための引数の数合わせです。
                     },
                     function () {
-                        BootstrapButton.reset(html.find("#upload-image > div"));
-                        html.find("#upload-image").removeAttr("disabled");
-
+                        BootstrapButton.reset(html.find('#${type}-${name} > div'));
+                        html.find('#upload-${name}').removeAttr("disabled");
+                        html.find('#upgrade-${name}').removeAttr("disabled");
+                        html.find('#upload-${name}').removeAttr("disabled");
                         if (isPrevEnabled) {
-                            html.find("#image-list-prev").removeAttr("disabled");
+                            html.find('#${name}-list-prev').removeAttr("disabled");
                         }
                         if (isNextEnabled) {
-                            html.find("#image-list-next").removeAttr("disabled");
+                            html.find('#${name}-list-next').removeAttr("disabled");
                         }
-                        html.find("#select-image-dialog-cancel").removeAttr("disabled");
-                    });
+                        html.find('#select-${name}-dialog-cancel').removeAttr("disabled");
+                    }
+                );
+            }
+            JsViews.observable(data.items).observeAll(function (e, args) {
+                if (args.path == "selected") {
+                    var item: T = e.target.item;
+                    var ids = data.selectedIds.copy();
+                    var b = JsViews.observable(data.selectedIds);
+                    if (args.value) {
+                        if (ids.indexOf(item.id) < 0) {
+                            ids.push(item.id);
+                            b.refresh(ids);
+                        }
+                    } else {
+                        if (ids.remove(item.id)) {
+                            b.refresh(ids);
+                        }
+                    }
+                }
             });
-            
-            html.find("#delete-image").on("click", function(_) {
-                var isPrevEnabled = html.find("#image-list-prev").attr("disabled") != "disabled";
-                var isNextEnabled = html.find("#image-list-next").attr("disabled") != "disabled";
-
-                html.find("#upload-image").attr("disabled", "disabled");
-                html.find("#image-list-prev").attr("disabled", "disabled");
-                html.find("#image-list-next").attr("disabled", "disabled");
-                html.find("#select-image-dialog-cancel").attr("disabled", "disabled");
-                var selected = html.find("input:checked").val();
-                // 直接Loadingを指定すると、完了後に#delete-imageがアクティブになってしまうため、模倣している。
-                // メッセージは内部のdivに担当させ、disableのみを#delete-imageボタンに設定する
-                html.find("#delete-image").attr("disabled", "disabled");
-                BootstrapButton.setLoading(html.find("#delete-image > div"));
-                // ApplyをDisableにするために必要
-                var b = JsViews.observable(data.selectedIds);
-                b.refresh([]);
-                Service.instance.removeDatasetImage(id, selected).then(
-                    function (ids) {
-                        Notification.show("success", "delete successful");
-                        searchImageCandidate();
-                        binding.refresh([]);
-                        rootBinding.setProperty("dataset.primaryImage.id", ids.primaryImage);
-                        rootBinding.setProperty("dataset.primaryImage.url", getUrl(ids.primaryImage));
-                        rootBinding.setProperty("dataset.featuredImage.id", ids.featuredImage);
-                        rootBinding.setProperty("dataset.featuredImage.url", getUrl(ids.featuredImage));
-                    },
-                    function (e) {
-                        // Service内でNotificationを出力するようにしたため、この箇所でのNotification出力は不要。
-                        // このfunctionはfinally時に呼び出されるfunctionを指定するための引数の数合わせです。
-                    },
+            var binding = JsViews.observable(data.selectedIds).refresh([]);
+            searchCandidate();
+            html.find('#upload-${name}-form input').on("change", function(_) {
+                execute(
+                    "upload",
                     function() {
-                        BootstrapButton.reset(html.find("#delete-image > div"));
-                        html.find("#upload-image").removeAttr("disabled");
-                        if (isPrevEnabled) {
-                            html.find("#image-list-prev").removeAttr("disabled");
-                        }
-                        if (isNextEnabled) {
-                            html.find("#image-list-next").removeAttr("disabled");
-                        }
-                        html.find("#select-image-dialog-cancel").removeAttr("disabled");
-                    });
-            } );
-            
-            html.find("#image-list-prev").on("click", function (_) {
-                var offset = data.offset - ImageCandicateSize;
-                searchImageCandidate(offset);
+                        return add(datasetId, html.find('#upload-${name}-form'));
+                    }
+                );
             });
-
-            html.find("#image-list-next").on("click", function (_) {
-                var offset = data.offset + ImageCandicateSize;
-                searchImageCandidate(offset);
+            html.find('#upgrade-${name}-form input').on("change", function(_) {
+                execute(
+                    "upgrade",
+                    function() {
+                        var selected = html.find("input:checked").val();
+                        return upgrade(datasetId, selected, html.find('#upgrade-${name}-form'));
+                    },
+                    function(x) {
+                        upgraded(x, data);
+                    }
+                );
             });
-
-            html.on("click", "#select-image-dialog-submit", function (e) {
-                ctx.fulfill(filterSelectedOwner()[0]);
+            html.find('#delete-${name}').on("click", function(_) {
+                execute(
+                    "delete",
+                    function() {
+                        var selected = html.find("input:checked").val();
+                        return remove(datasetId, selected);
+                    },
+                    function(x) {
+                        removed(x, data);
+                    }
+                );
+            });
+            html.find('#${name}-list-prev').on("click", function (_) {
+                var offset = data.offset - candicateSize;
+                searchCandidate(offset);
+            });
+            html.find('#${name}-list-next').on("click", function (_) {
+                var offset = data.offset + candicateSize;
+                searchCandidate(offset);
+            });
+            html.on("click", '#select-${name}-dialog-submit', function (e) {
+                ctx.fulfill(filterSelected()[0]);
             });
         });
     }
+
     /**
      * 指定したページのファイル一覧を読み込みます。
      * 

@@ -652,7 +652,7 @@ class ApiController(
       _ <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
       _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
       _ <- checkUtil.invokeSeq(json.excludeIds)(checkUtil.validUuidForForm("d.excludeIds", _))
-      user <- getUser(allowGuest = true)
+      user <- getUser(allowGuest = false)
       result <- datasetService.getApps(
         datasetId = Some(datasetId),
         excludeIds = json.excludeIds,
@@ -687,7 +687,7 @@ class ApiController(
     val ret = for {
       _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
       _ <- checkUtil.validUuidForUrl("appId", appId)
-      user <- getUser(allowGuest = true)
+      user <- getUser(allowGuest = false)
       result <- datasetService.getApp(datasetId, appId, user)
     } yield {
       result
@@ -719,6 +719,18 @@ class ApiController(
       _ <- checkUtil.validUuidForUrl("appId", appId)
       user <- getUser(allowGuest = false)
       result <- datasetService.deleteApp(datasetId, appId, user)
+    } yield {
+      result
+    }
+    toActionResult(ret)
+  }
+
+  get("/datasets/:datasetId/apps/primary") {
+    val datasetId = params("datasetId")
+    val ret = for {
+      _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
+      user <- getUser(allowGuest = false)
+      result <- datasetService.getPrimaryApp(datasetId, user)
     } yield {
       result
     }

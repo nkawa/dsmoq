@@ -126,6 +126,7 @@ object AppVersion extends SQLSyntaxSupport[AppVersion] {
         sqls.uuid(appId),
         fileName,
         version,
+        sqls.uuid(createdBy),
         createdAt,
         sqls.uuid(updatedBy),
         updatedAt,

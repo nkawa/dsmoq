@@ -3728,9 +3728,9 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           case _ => sql.isNull(a.deletedAt)
         }
       }.map { sql =>
-        if (excludeIds.isEmpty) sql else sql.and.notIn(a.id, excludeIds)
+        if (excludeIds.isEmpty) sql else sql.and.notIn(a.id, excludeIds.map(sqls.uuid))
       }.map { sql =>
-        datasetId.map(id => sql.and.eq(da.datasetId, id)).getOrElse(sql)
+        datasetId.map(id => sql.and.eq(da.datasetId, sqls.uuid(id))).getOrElse(sql)
       }.get
     }
     def withPagingSql(sql: ConditionSQLBuilder[Unit]): SQLBuilder[Unit] = {
@@ -3818,11 +3818,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           update(persistence.App)
             .set(
               a.name -> appNameOf(fileName),
-              a.updatedBy -> user.id,
+              a.updatedBy -> sqls.uuid(user.id),
               a.updatedAt -> timestamp
             )
             .where
-            .eq(a.id, appId)
+            .eq(a.id, sqls.uuid(appId))
             .and
             .isNull(a.deletedAt)
         }.update.apply()
@@ -3887,6 +3887,39 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  def getPrimaryApp(datasetId: String, user: User): Try[Option[DatasetData.App]] = {
+    Try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(user, "user")
+      DB.localTx { implicit s =>
+        getDatasetWithOwnerAccess(datasetId, user)
+        val a = persistence.App.syntax("a")
+        val da = persistence.DatasetApp.syntax("da")
+        withSQL {
+          select(a.result.*, da.result.*)
+            .from(persistence.App as a)
+            .innerJoin(persistence.DatasetApp as da).on(a.id, da.appId)
+            .where
+            .eq(da.datasetId, sqls.uuid(datasetId))
+            .and
+            .eq(da.isPrimary, true)
+            .and
+            .isNull(a.deletedAt)
+            .and
+            .isNull(da.deletedAt)
+        }.map { rs =>
+          val app = persistence.App(a.resultName)(rs)
+          val datasetApp = persistence.DatasetApp(da.resultName)(rs)
+          DatasetData.App(
+            id = app.id,
+            name = app.name,
+            isPrimary = datasetApp.isPrimary
+          )
+        }.single.apply()
+      }
+    }
+  }
+
   def changePrimaryApp(datasetId: String, appId: String, user: User): Try[DatasetData.App] = {
     Try {
       CheckUtil.checkNull(datasetId, "datasetId")
@@ -3900,7 +3933,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           val da = persistence.DatasetApp.column
           update(persistence.DatasetApp)
             .set(
-              da.isPrimary -> sqls.eq(da.appId, appId),
+              da.isPrimary -> sqls.eq(da.appId, sqls.uuid(appId)),
               da.updatedBy -> sqls.uuid(user.id),
               da.updatedAt -> timestamp
             )
