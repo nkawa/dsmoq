@@ -1198,7 +1198,7 @@ public class DsmoqClient {
     /**
      * グループにメンバーを追加する。（POST /api/groups/${group_id}/members相当）
      * @param groupId グループID
-     * @param param メンバー追加情報
+     * @param params メンバー追加情報
      * @throws NullPointerException groupId、params、paramsの要素のいずれかがnullの場合
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
      * @throws TimeoutException 接続がタイムアウトした場合
