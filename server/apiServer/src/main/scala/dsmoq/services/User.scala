@@ -10,7 +10,7 @@ case class User(
   mailAddress: String,
   description: String,
   isGuest: Boolean,
-  isDeleted: Boolean
+  isDisabled: Boolean
 )
 
 object User {
@@ -24,6 +24,6 @@ object User {
     mailAddress = address,
     description = x.description,
     isGuest = false,
-    isDeleted = x.deletedAt.isDefined
+    isDisabled = x.disabled
   )
 }

@@ -60,7 +60,7 @@ class Frame {
             binding.setProperty("profile.image", profile.image);
             binding.setProperty("profile.mailAddress", profile.mailAddress);
             binding.setProperty("profile.isGuest", profile.isGuest);
-            binding.setProperty("profile.isDeleted", profile.isDeleted);
+            binding.setProperty("profile.isDisabled", profile.isDisabled);
         }
 
         Service.instance.then(function (e) {

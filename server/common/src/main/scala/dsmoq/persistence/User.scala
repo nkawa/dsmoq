@@ -33,8 +33,7 @@ case class User(
   createdAt: DateTime,
   updatedBy: String,
   updatedAt: DateTime,
-  deletedBy: Option[String] = None,
-  deletedAt: Option[DateTime] = None
+  disabled: Boolean = false
 ) {
 
   def save()(implicit session: DBSession = User.autoSession): User = User.save(this)(session)
@@ -56,7 +55,7 @@ object User extends SQLSyntaxSupport[User] {
     "id", "name", "fullname", "organization", "title", "description", "image_id",
     "created_by", "created_at",
     "updated_by", "updated_at",
-    "deleted_by", "deleted_at"
+    "disabled"
   )
 
   def apply(u: ResultName[User])(rs: WrappedResultSet): User = User(
@@ -71,8 +70,7 @@ object User extends SQLSyntaxSupport[User] {
     createdAt = rs.timestamp(u.createdAt).toJodaDateTime,
     updatedBy = rs.string(u.updatedBy),
     updatedAt = rs.timestamp(u.updatedAt).toJodaDateTime,
-    deletedBy = rs.stringOpt(u.deletedBy),
-    deletedAt = rs.timestampOpt(u.deletedAt).map(_.toJodaDateTime)
+    disabled = rs.boolean(u.disabled)
   )
 
   val u = User.syntax("u")
@@ -117,8 +115,7 @@ object User extends SQLSyntaxSupport[User] {
     createdAt: DateTime,
     updatedBy: String,
     updatedAt: DateTime,
-    deletedBy: Option[String] = None,
-    deletedAt: Option[DateTime] = None
+    disabled: Boolean = false
   )(implicit session: DBSession = autoSession): User = {
     withSQL {
       insert.into(User).columns(
@@ -133,8 +130,7 @@ object User extends SQLSyntaxSupport[User] {
         column.createdAt,
         column.updatedBy,
         column.updatedAt,
-        column.deletedBy,
-        column.deletedAt
+        column.disabled
       ).values(
         sqls.uuid(id),
         name,
@@ -147,8 +143,7 @@ object User extends SQLSyntaxSupport[User] {
         createdAt,
         sqls.uuid(updatedBy),
         updatedAt,
-        deletedBy.map(sqls.uuid),
-        deletedAt
+        disabled
       )
     }.update.apply()
 
@@ -164,8 +159,7 @@ object User extends SQLSyntaxSupport[User] {
       createdAt = createdAt,
       updatedBy = updatedBy,
       updatedAt = updatedAt,
-      deletedBy = deletedBy,
-      deletedAt = deletedAt
+      disabled = disabled
     )
   }
 
@@ -183,8 +177,7 @@ object User extends SQLSyntaxSupport[User] {
         column.createdAt -> entity.createdAt,
         column.updatedBy -> sqls.uuid(entity.updatedBy),
         column.updatedAt -> entity.updatedAt,
-        column.deletedBy -> entity.deletedBy.map(sqls.uuid),
-        column.deletedAt -> entity.deletedAt
+        column.disabled -> entity.disabled
       ).where.eqUuid(column.id, entity.id)
     }.update.apply()
     entity

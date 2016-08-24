@@ -10,6 +10,6 @@ typedef Profile = {
     var image(default, never): String;
     var mailAddress(default, never): String;
     var isGuest(default, never): Bool;
-    var isDeleted(default, never): Bool;
+    var isDisabled(default, never): Bool;
     var isGoogleUser(default, never): Bool;
 }
