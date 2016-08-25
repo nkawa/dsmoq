@@ -53,12 +53,17 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
 
     Try {
       DB.readOnly { implicit s =>
-        val user = findUser(id, password)
-        user.foreach { _ =>
-          logger.info(LOG_MARKER, "Login successed: [id] = {}", id)
-        }
-        user.getOrElse {
-          throw new BadRequestException(resource.getString(ResourceNames.INVALID_PASSWORD))
+        findUser(id, password) match {
+          case None => {
+            throw new BadRequestException(resource.getString(ResourceNames.INVALID_PASSWORD))
+          }
+          case Some(u) if u.isDisabled => {
+            throw new BadRequestException(resource.getString(ResourceNames.DISABLED_USER))
+          }
+          case Some(u) if !u.isDisabled => {
+            logger.info(LOG_MARKER, "Login successed: [id] = {}", id)
+            u
+          }
         }
       }
     }.recoverWith {
@@ -93,8 +98,6 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
         }
         .and
         .eq(p.hash, createPasswordHash(password))
-        .and
-        .eq(u.disabled, false)
     }
       .map(rs => (persistence.User(u.resultName)(rs), rs.string(ma.resultName.address))).single.apply()
       .map(x => User(x._1, x._2))

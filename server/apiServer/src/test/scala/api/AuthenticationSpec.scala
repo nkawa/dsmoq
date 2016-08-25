@@ -2,7 +2,8 @@ package api
 
 import _root_.api.api.logic.SpecCommonLogic
 import dsmoq.controllers.{ AjaxResponse, FileController, ApiController }
-import dsmoq.persistence.DefaultAccessLevel
+import dsmoq.persistence.{ DefaultAccessLevel, User }
+import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.services.json.DatasetData.{ Dataset, DatasetFile }
 import dsmoq.services.json.RangeSlice
 import java.io.File
@@ -20,6 +21,7 @@ import org.json4s.{ DefaultFormats, Formats }
 import org.scalatest.{ BeforeAndAfter, FreeSpec }
 import org.scalatra.servlet.MultipartConfig
 import org.scalatra.test.scalatest.ScalatraSuite
+import scalikejdbc._
 import scalikejdbc.config.{ DBsWithEnv, DBs }
 
 trait AuthenticationBehaviors { this: FreeSpec with ScalatraSuite =>
@@ -28,7 +30,11 @@ trait AuthenticationBehaviors { this: FreeSpec with ScalatraSuite =>
 
   private val dummyFile = new File("../README.md")
 
-  def authenticationCheckForDataset(sessionUser: Boolean = false, allowGuest: Boolean = false, headers: Map[String, String] = Map.empty)(expected: => Any): Unit = {
+  def authenticationCheckForDataset(
+    sessionUser: Boolean = false,
+    allowGuest: Boolean = false,
+    headers: Map[String, String] = Map.empty
+  )(expected: => Any): Unit = {
     s"authentication check for dataset (sessionUser: ${sessionUser}, allowGuest: ${allowGuest}, headers: ${headers}) - ${UUID.randomUUID.toString}" in {
       val datasetId = session {
         signInDummy1()
@@ -45,7 +51,11 @@ trait AuthenticationBehaviors { this: FreeSpec with ScalatraSuite =>
     }
   }
 
-  def authenticationCheckForFile(sessionUser: Boolean = false, allowGuest: Boolean = false, headers: Map[String, String] = Map.empty)(expected: => Any): Unit = {
+  def authenticationCheckForFile(
+    sessionUser: Boolean = false,
+    allowGuest: Boolean = false,
+    headers: Map[String, String] = Map.empty
+  )(expected: => Any): Unit = {
     s"authentication check for file (sessionUser: ${sessionUser}, allowGuest: ${allowGuest}, headers: ${headers}) - ${UUID.randomUUID.toString}" in {
       val (datasetId, fileId) = session {
         signInDummy1()
@@ -77,6 +87,18 @@ trait AuthenticationBehaviors { this: FreeSpec with ScalatraSuite =>
   def signIn(id: String, password: String) {
     post("/api/signin", params = Map("d" -> compact(render(("id" -> id) ~ ("password" -> password))))) {
       checkAjaxStatus()
+    }
+  }
+
+  def disableDummy1() {
+    DB.localTx { implicit s =>
+      withSQL {
+        val u = User.column
+        update(User)
+          .set(u.disabled -> true)
+          .where
+          .eqUuid(u.id, "023bfa40-e897-4dad-96db-9fd3cf001e79")
+      }.update.apply()
     }
   }
 
@@ -162,6 +184,30 @@ class AuthenticationSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter
         headers <- testHeaders
       } {
         authenticationCheckForFile(sessionUser, allowGuest, headers)(fileExpected(sessionUser, allowGuest, headers))
+      }
+    }
+  }
+
+  "Disabled user" - {
+    "Authorization Header" in {
+      val datasetId = session {
+        signInDummy1()
+        createDataset(true)
+      }
+      disableDummy1()
+      val apiKey = "5dac067a4c91de87ee04db3e3c34034e84eb4a599165bcc9741bb9a91e8212cb"
+      val signature = "nFGVWB7iGxemC2D0wQ177hjla7Q%3D"
+      val headers = Map("Authorization" -> s"api_key=${apiKey},signature=${signature}")
+      get(s"/api/datasets/${datasetId}", headers = headers) {
+        checkAjaxStatus(403, Some("Unauthorized"))
+      }
+    }
+    "Session" in {
+      disableDummy1()
+      session {
+        post("/api/signin", params = Map("d" -> compact(render(("id" -> "dummy1") ~ ("password" -> "password"))))) {
+          checkAjaxStatus(400, Some("BadRequest"))
+        }
       }
     }
   }

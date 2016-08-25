@@ -5,7 +5,7 @@ import java.io.File
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.AmazonS3Client
 import org.joda.time.DateTime
-import scalikejdbc._, SQLInterpolation._
+import scalikejdbc._
 import dsmoq._
 import dsmoq.persistence.PostgresqlHelper._
 import scala.collection.JavaConversions._
