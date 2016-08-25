@@ -847,7 +847,7 @@ public class SDKTest {
         thrown.expect(HttpStatusExceptionMatcher.is(400, "BadRequest"));
         DsmoqClient client = create();
         Dataset dataset = client.createDataset("hello", true, false);
-        client.changeAccessLevel(dataset.getId(), Arrays.asList(SetAccessLevelParam.apply("023bfa40-e897-4dad-96db-9fd3cf001e79", 1, 0)));
+        client.changeAccessLevel(dataset.getId(), Arrays.asList(new SetAccessLevelParam("023bfa40-e897-4dad-96db-9fd3cf001e79", 1, 0)));
     }
 
     @Test
@@ -855,7 +855,7 @@ public class SDKTest {
         thrown.expect(HttpStatusException.class);
         thrown.expect(HttpStatusExceptionMatcher.is(400, "Illegal Argument"));
         DsmoqClient client = create();
-        client.changeAccessLevel("hello", Arrays.asList(SetAccessLevelParam.apply("world", 1, 0)));
+        client.changeAccessLevel("hello", Arrays.asList(new SetAccessLevelParam("world", 1, 0)));
     }
 
     @Test
