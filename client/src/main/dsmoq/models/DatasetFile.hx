@@ -8,8 +8,8 @@ typedef DatasetFile = {
     var size: UInt;
     var createdAt: String; //TODO Date
     var createdBy: Null<Profile>;
-    var updatedAt: Null<String>; //TODO Date
-    var updatedBy: Profile;
+    var updatedAt: String; //TODO Date
+    var updatedBy: Null<Profile>;
     var isZip: Bool;
     var zipedFiles: Array<DatasetZipedFile>;
     var zipCount: Int;

@@ -117,9 +117,9 @@ case class DatasetFile(
   private val description: String,
   private val url: String,
   private val size: Long,
-  private val createdBy: User,
+  private val createdBy: Option[User],
   private val createdAt: String,
-  private val updatedBy: User,
+  private val updatedBy: Option[User],
   private val updatedAt: String,
   val isZip: Boolean,
   private val zipedFiles: Seq[DatasetZipedFile],
@@ -130,9 +130,9 @@ case class DatasetFile(
   def getDescription = description
   def getUrl = url
   def getSize = size
-  def getCreatedBy = createdBy
+  def getCreatedBy = createdBy.orNull
   def getCreatedAt = createdAt
-  def getUpdatedBy = updatedBy
+  def getUpdatedBy = updatedBy.orNull
   def getUpdatedAt = updatedAt
   def getZipedFiles = zipedFiles.asJava
   def getZipCount = zipCount
