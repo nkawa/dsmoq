@@ -239,9 +239,9 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
               description = x._1.description,
               size = x._2.fileSize,
               url = AppConf.fileDownloadRoot + datasetId + "/" + x._1.id,
-              createdBy = user,
+              createdBy = Some(user),
               createdAt = timestamp.toString(),
-              updatedBy = user,
+              updatedBy = Some(user),
               updatedAt = timestamp.toString(),
               isZip = x._2.isZip,
               zipedFiles = zipedFiles,
@@ -418,7 +418,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           .and
           .isNull(m.deletedAt)
           .and
-          .isNull(u.deletedAt)
+          .eq(u.disabled, false)
       }.map(rs => rs.string(1)).list.apply()
       if (groups.nonEmpty) {
         Some(groups)
@@ -786,7 +786,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             sqls.eq(o.accessLevel, persistence.UserAccessLevel.Owner),
             sqls.isNotNull(u.id),
             sqls.isNull(m.deletedAt),
-            sqls.isNull(u.deletedAt)
+            sqls.eq(u.disabled, false)
           ))
           .append(sqls"end")
       }.map(rs => {
@@ -993,9 +993,9 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
               description = x._1.description,
               size = x._2.fileSize,
               url = AppConf.fileDownloadRoot + id + "/" + x._1.id,
-              createdBy = user,
+              createdBy = Some(user),
               createdAt = timestamp.toString(),
-              updatedBy = user,
+              updatedBy = Some(user),
               updatedAt = timestamp.toString(),
               isZip = x._2.isZip,
               zipedFiles = zipedFiles,
@@ -1098,26 +1098,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         // datasetsのfiles_size, files_countの更新
         updateDatasetFileStatus(datasetId, myself.id, timestamp)
 
-        val result = persistence.File.find(fileId).get
-        val zipedFiles = if (history.isZip) {
-          getZipedFiles(datasetId, history.id)
-        } else {
-          Seq.empty
-        }
-        DatasetData.DatasetFile(
-          id = result.id,
-          name = result.name,
-          description = result.description,
-          size = result.fileSize,
-          url = AppConf.fileDownloadRoot + datasetId + "/" + result.id,
-          createdBy = user,
-          createdAt = timestamp.toString(),
-          updatedBy = user,
-          updatedAt = timestamp.toString(),
-          isZip = history.isZip,
-          zipedFiles = zipedFiles,
-          zipCount = zipedFiles.size
-        )
+        getFile(datasetId, fileId).get
       }
     }
   }
@@ -1199,27 +1180,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
 
         updateFileNameAndDescription(fileId, datasetId, filename, description, myself.id, timestamp)
 
-        val result = persistence.File.find(fileId).get
-        val history = persistence.FileHistory.find(result.historyId).get
-        val zipedFiles = if (history.isZip) {
-          getZipedFiles(datasetId, history.id)
-        } else {
-          Seq.empty
-        }
-        DatasetData.DatasetFile(
-          id = result.id,
-          name = result.name,
-          description = result.description,
-          size = result.fileSize,
-          url = AppConf.fileDownloadRoot + datasetId + "/" + result.id,
-          createdBy = user,
-          createdAt = timestamp.toString(),
-          updatedBy = user,
-          updatedAt = timestamp.toString(),
-          isZip = history.isZip,
-          zipedFiles = zipedFiles,
-          zipCount = zipedFiles.size
-        )
+        getFile(datasetId, fileId).get
       }
     }
   }
@@ -1887,7 +1848,9 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         acl.map { x =>
           x.ownerType match {
             case OwnerType.User =>
-              val groupId = findGroupIdByUserId(x.id)
+              val groupId = findGroupIdByUserId(x.id).getOrElse {
+                throw new BadRequestException(resource.getString(ResourceNames.DISABLED_USER))
+              }
               saveOrCreateOwnerships(user, datasetId, groupId, x.accessLevel)
 
               val user_ = persistence.User.find(x.id).get
@@ -1953,7 +1916,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.map(persistence.User(u.resultName)).list.apply()
   }
 
-  def findGroupIdByUserId(userId: String)(implicit s: DBSession): String = {
+  def findGroupIdByUserId(userId: String)(implicit s: DBSession): Option[String] = {
     val u = persistence.User.u
     val m = persistence.Member.m
     val g = persistence.Group.g
@@ -1961,7 +1924,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       select(g.result.id)
         .from(persistence.Group as g)
         .innerJoin(persistence.Member as m).on(sqls.eq(g.id, m.groupId).and.isNull(m.deletedAt))
-        .innerJoin(persistence.User as u).on(sqls.eq(u.id, m.userId).and.isNull(u.deletedAt))
+        .innerJoin(persistence.User as u).on(sqls.eq(u.id, m.userId).and.eq(u.disabled, false))
         .where
         .eq(u.id, sqls.uuid(userId))
         .and
@@ -1971,7 +1934,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .and
         .isNull(m.deletedAt)
         .limit(1)
-    }.map(rs => rs.string(g.resultName.id)).single.apply().get
+    }.map(rs => rs.string(g.resultName.id)).single.apply()
   }
 
   /**
@@ -2079,7 +2042,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .from(persistence.Ownership as o)
         .innerJoin(persistence.Group as g).on(sqls.eq(o.groupId, g.id).and.isNull(g.deletedAt))
         .innerJoin(persistence.Member as m).on(sqls.eq(g.id, m.groupId).and.isNull(m.deletedAt))
-        .innerJoin(persistence.User as u).on(sqls.eq(u.id, m.userId).and.isNull(u.deletedAt))
+        .innerJoin(persistence.User as u).on(sqls.eq(u.id, m.userId).and.eq(u.disabled, false))
         .innerJoin(persistence.Dataset as d).on(sqls.eq(o.datasetId, d.id).and.isNull(d.deletedAt))
         .where
         .eq(u.id, sqls.uuid(userId))
@@ -2409,7 +2372,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             .and.eq(m.role, persistence.GroupMemberRole.Manager)
             .and.isNull(m.deletedAt))
           .leftJoin(persistence.User as u)
-          .on(sqls.eq(m.userId, u.id).and.isNull(u.deletedAt))
+          .on(sqls.eq(m.userId, u.id).and.eq(u.disabled, false))
           .leftJoin(persistence.GroupImage as gi)
           .on(sqls.eq(g.id, gi.groupId).and.eq(gi.isPrimary, true).and.isNull(gi.deletedAt))
           .where
@@ -2487,32 +2450,43 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .innerJoin(persistence.Group as g)
         .on(sqls.eq(g.id, o.groupId).and.isNull(g.deletedAt))
         .leftJoin(persistence.Member as m)
-        .on(sqls.eq(g.id, m.groupId)
-          .and.eq(g.groupType, persistence.GroupType.Personal)
-          .and.eq(m.role, persistence.GroupMemberRole.Manager)
-          .and.isNull(m.deletedAt))
+        .on(
+          sqls.eq(g.id, m.groupId)
+            .and.eq(g.groupType, persistence.GroupType.Personal)
+            .and.eq(m.role, persistence.GroupMemberRole.Manager)
+            .and.isNull(m.deletedAt)
+        )
         .leftJoin(persistence.User as u)
-        .on(sqls.eq(m.userId, u.id).and.isNull(u.deletedAt))
+        .on(sqls.eq(m.userId, u.id))
         .leftJoin(persistence.GroupImage as gi)
         .on(sqls.eq(g.id, gi.groupId).and.eq(gi.isPrimary, true).and.isNull(gi.deletedAt))
         .where
         .eq(o.datasetId, sqls.uuid(datasetId))
         .and
-        .append(sqls"(")
-        .append(sqls"(")
-        .eq(g.groupType, GroupType.Personal)
-        .and
-        .gt(o.accessLevel, UserAccessLevel.Deny)
-        .append(sqls")")
-        .or
-        .append(sqls"(")
-        .eq(g.groupType, GroupType.Public)
-        .and
-        .gt(o.accessLevel, GroupAccessLevel.Deny)
-        .append(sqls")")
-        .append(sqls")")
+        .withRoundBracket { sql =>
+          sql.withRoundBracket { sql =>
+            sql
+              .eq(g.groupType, GroupType.Personal)
+              .and
+              .gt(o.accessLevel, UserAccessLevel.Deny)
+          }
+            .or
+            .withRoundBracket { sql =>
+              sql
+                .eq(g.groupType, GroupType.Public)
+                .and
+                .gt(o.accessLevel, GroupAccessLevel.Deny)
+            }
+        }
         .and
         .isNull(o.deletedAt)
+        .and
+        .withRoundBracket { sql =>
+          sql
+            .eq(u.disabled, false)
+            .or
+            .isNull(u.disabled)
+        }
     }.map { rs =>
       DatasetData.DatasetOwnership(
         id = rs.stringOpt(u.resultName.id).getOrElse(rs.string(g.resultName.id)),
@@ -2609,10 +2583,10 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     withSQL {
       select(f.result.*, u1.result.*, u2.result.*, ma1.result.address, ma2.result.address)
         .from(persistence.File as f)
-        .innerJoin(persistence.User as u1).on(f.createdBy, u1.id)
-        .innerJoin(persistence.User as u2).on(f.updatedBy, u2.id)
-        .innerJoin(persistence.MailAddress as ma1).on(u1.id, ma1.userId)
-        .innerJoin(persistence.MailAddress as ma2).on(u2.id, ma2.userId)
+        .leftJoin(persistence.User as u1).on(sqls.eq(f.createdBy, u1.id).and.eq(u1.disabled, false))
+        .leftJoin(persistence.User as u2).on(sqls.eq(f.updatedBy, u2.id).and.eq(u2.disabled, false))
+        .leftJoin(persistence.MailAddress as ma1).on(u1.id, ma1.userId)
+        .leftJoin(persistence.MailAddress as ma2).on(u2.id, ma2.userId)
         .where
         .eq(f.datasetId, sqls.uuid(datasetId))
         .and
@@ -2623,28 +2597,87 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.map { rs =>
       (
         persistence.File(f.resultName)(rs),
-        persistence.User(u1.resultName)(rs),
-        persistence.User(u2.resultName)(rs),
-        rs.string(ma1.resultName.address),
-        rs.string(ma2.resultName.address)
+        rs.stringOpt(u1.resultName.id).map { _ =>
+          persistence.User(u1.resultName)(rs)
+        },
+        rs.stringOpt(u2.resultName.id).map { _ =>
+          persistence.User(u2.resultName)(rs)
+        },
+        rs.stringOpt(ma1.resultName.address),
+        rs.stringOpt(ma2.resultName.address)
       )
-    }.list.apply().map { x =>
-      val history = persistence.FileHistory.find(x._1.historyId).get
-      val zipCount = if (history.isZip) { getZipedFiles(datasetId, history.id).size } else { 0 }
-      DatasetData.DatasetFile(
-        id = x._1.id,
-        name = x._1.name,
-        description = x._1.description,
-        url = AppConf.fileDownloadRoot + datasetId + "/" + x._1.id,
-        size = x._1.fileSize,
-        createdBy = User(x._2, x._4),
-        createdAt = x._1.createdAt.toString(),
-        updatedBy = User(x._3, x._5),
-        updatedAt = x._1.updatedAt.toString(),
-        isZip = history.isZip,
-        zipedFiles = Seq.empty,
-        zipCount = zipCount
+    }.list.apply().map {
+      case (file, createdUser, updatedUser, createdUserMail, updatedUserMail) => {
+        val history = persistence.FileHistory.find(file.historyId).get
+        val zipCount = if (history.isZip) { getZipedFiles(datasetId, history.id).size } else { 0 }
+        DatasetData.DatasetFile(
+          id = file.id,
+          name = file.name,
+          description = file.description,
+          url = AppConf.fileDownloadRoot + datasetId + "/" + file.id,
+          size = file.fileSize,
+          createdBy = createdUser.map(u => User(u, createdUserMail.getOrElse(""))),
+          createdAt = file.createdAt.toString(),
+          updatedBy = updatedUser.map(u => User(u, updatedUserMail.getOrElse(""))),
+          updatedAt = file.updatedAt.toString(),
+          isZip = history.isZip,
+          zipedFiles = Seq.empty,
+          zipCount = zipCount
+        )
+      }
+    }
+  }
+
+  private def getFile(datasetId: String, fileId: String)(implicit s: DBSession): Option[DatasetData.DatasetFile] = {
+    val f = persistence.File.f
+    val u1 = persistence.User.syntax("u1")
+    val u2 = persistence.User.syntax("u2")
+    val ma1 = persistence.MailAddress.syntax("ma1")
+    val ma2 = persistence.MailAddress.syntax("ma2")
+    withSQL {
+      select(f.result.*, u1.result.*, u2.result.*, ma1.result.address, ma2.result.address)
+        .from(persistence.File as f)
+        .leftJoin(persistence.User as u1).on(sqls.eq(f.createdBy, u1.id).and.eq(u1.disabled, false))
+        .leftJoin(persistence.User as u2).on(sqls.eq(f.updatedBy, u2.id).and.eq(u2.disabled, false))
+        .leftJoin(persistence.MailAddress as ma1).on(u1.id, ma1.userId)
+        .leftJoin(persistence.MailAddress as ma2).on(u2.id, ma2.userId)
+        .where
+        .eq(f.id, sqls.uuid(fileId))
+        .and
+        .eq(f.datasetId, sqls.uuid(datasetId))
+        .and
+        .isNull(f.deletedAt)
+    }.map { rs =>
+      (
+        persistence.File(f.resultName)(rs),
+        rs.stringOpt(u1.resultName.id).map { _ =>
+          persistence.User(u1.resultName)(rs)
+        },
+        rs.stringOpt(u2.resultName.id).map { _ =>
+          persistence.User(u2.resultName)(rs)
+        },
+        rs.stringOpt(ma1.resultName.address),
+        rs.stringOpt(ma2.resultName.address)
       )
+    }.single.apply().map {
+      case (file, createdUser, updatedUser, createdUserMail, updatedUserMail) => {
+        val history = persistence.FileHistory.find(file.historyId).get
+        val zipedFiles = if (history.isZip) { getZipedFiles(datasetId, history.id) } else { Seq.empty }
+        DatasetData.DatasetFile(
+          id = file.id,
+          name = file.name,
+          description = file.description,
+          url = AppConf.fileDownloadRoot + datasetId + "/" + file.id,
+          size = file.fileSize,
+          createdBy = createdUser.map(u => User(u, createdUserMail.getOrElse(""))),
+          createdAt = file.createdAt.toString(),
+          updatedBy = updatedUser.map(u => User(u, updatedUserMail.getOrElse(""))),
+          updatedAt = file.updatedAt.toString(),
+          isZip = history.isZip,
+          zipedFiles = zipedFiles,
+          zipCount = zipedFiles.size
+        )
+      }
     }
   }
 
@@ -2657,10 +2690,10 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     withSQL {
       select(sqls.count)
         .from(persistence.File as f)
-        .innerJoin(persistence.User as u1).on(f.createdBy, u1.id)
-        .innerJoin(persistence.User as u2).on(f.updatedBy, u2.id)
-        .innerJoin(persistence.MailAddress as ma1).on(u1.id, ma1.userId)
-        .innerJoin(persistence.MailAddress as ma2).on(u2.id, ma2.userId)
+        .leftJoin(persistence.User as u1).on(sqls.eq(f.createdBy, u1.id).and.eq(u1.disabled, false))
+        .leftJoin(persistence.User as u2).on(sqls.eq(f.updatedBy, u2.id).and.eq(u2.disabled, false))
+        .leftJoin(persistence.MailAddress as ma1).on(u1.id, ma1.userId)
+        .leftJoin(persistence.MailAddress as ma2).on(u2.id, ma2.userId)
         .where
         .eq(f.datasetId, sqls.uuid(datasetId))
         .and
@@ -3093,7 +3126,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
                 .innerJoin(persistence.Group as g)
                 .on(sqls.eq(o.groupId, g.id).and.eq(g.groupType, GroupType.Personal))
                 .innerJoin(persistence.Member as m).on(sqls.eq(g.id, m.groupId).and.isNull(m.deletedAt))
-                .innerJoin(persistence.User as u).on(sqls.eq(u.id, m.userId).and.isNull(u.deletedAt))
+                .innerJoin(persistence.User as u).on(sqls.eq(u.id, m.userId).and.eq(u.disabled, false))
                 .where
                 .eq(o.datasetId, sqls.uuid(datasetId))
                 .and
@@ -3134,7 +3167,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
                 .innerJoin(persistence.Group as g)
                 .on(sqls.eq(o.groupId, g.id).and.eq(g.groupType, GroupType.Personal))
                 .innerJoin(persistence.Member as m).on(sqls.eq(g.id, m.groupId).and.isNull(m.deletedAt))
-                .innerJoin(persistence.User as u).on(sqls.eq(u.id, m.userId).and.isNull(u.deletedAt))
+                .innerJoin(persistence.User as u).on(sqls.eq(u.id, m.userId).and.eq(u.disabled, false))
                 .where
                 .eq(o.datasetId, sqls.uuid(datasetId))
                 .and

@@ -1,8 +1,11 @@
 import com.etsy.sbt.checkstyle.CheckstylePlugin.autoImport._
+import com.typesafe.sbt.SbtScalariform
+import com.typesafe.sbt.SbtScalariform.ScalariformKeys
 import de.johoop.findbugs4sbt.FindBugs._
 import org.scalastyle.sbt.ScalastylePlugin._
 import sbt.Keys._
 import sbt._
+import scalariform.formatter.preferences._
 
 object DsmoqSdkBuild extends Build {
   lazy val scalastyleSettings: Seq[Def.Setting[File]] = {
@@ -12,6 +15,13 @@ object DsmoqSdkBuild extends Build {
       scalastyleConfig in Test := ssc.value
     )
   }
+
+  lazy val scalariformSettings = SbtScalariform.scalariformSettings ++ Seq(
+    ScalariformKeys.preferences := ScalariformKeys.preferences.value
+      .setPreference(DanglingCloseParenthesis, Force)
+      .setPreference(DoubleIndentClassDeclaration, false)
+      .setPreference(FormatXml, false)
+  )
 
   val Organization = "dsmoq"
   val Version = "1.0.0"
@@ -58,6 +68,7 @@ object DsmoqSdkBuild extends Build {
       parallelExecution in Test := false
     )
     .settings(scalastyleSettings)
+    .settings(scalariformSettings)
     .settings(findbugsSettings)
     .settings(
       findbugsReportPath := Some(target.value / "findbugs-report.xml"),

@@ -87,7 +87,9 @@
                         {{else}}
                         <span>{{>file.name}}</span>
                         {{/if}}
-                        uploaded by <strong>{{img src=file.updatedBy.image+"/16" class="icon"/}}{{>file.updatedBy.fullname}}</strong>
+                        {^{if file.createdBy}}
+                        uploaded by <strong>{{img src=file.createdBy.image+"/16" class="icon"/}}{{>file.createdBy.fullname}}</strong>
+                        {{/if}}
                         <input type="hidden" class="index" value="{{>index}}" />
                       </div>
                       {^{if file.description.length > 0}}

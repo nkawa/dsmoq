@@ -166,9 +166,11 @@
                     <div class="col-sm-12">
                         <span class="glyphicon glyphicon-file"></span>
                         {^{>name}} ({^{datasize size/}})
+                        {^{if createdBy}}
                         uploaded by
                         <img data-link="src{>createdBy.image}" class="icon">
                         <strong>{^{>createdBy.fullname}}</strong>
+                        {{/if}}
                     </div>
                   </div>
                   <div class="row">

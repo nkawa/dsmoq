@@ -2,7 +2,6 @@ package dsmoq.controllers
 
 import java.util.ResourceBundle
 
-import scala.language.implicitConversions
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
@@ -14,7 +13,6 @@ import org.json4s.jvalue2extractable
 import org.json4s.string2JsonInput
 import org.scalatra.ActionResult
 import org.scalatra.BadRequest
-import org.scalatra.Forbidden
 import org.scalatra.InternalServerError
 import org.scalatra.NotFound
 import org.scalatra.Ok
@@ -26,6 +24,7 @@ import org.slf4j.MarkerFactory
 import com.typesafe.scalalogging.LazyLogging
 
 import dsmoq.ResourceNames
+import dsmoq.controllers.AjaxResponse.toActionResult
 import dsmoq.controllers.json.ChangeGroupPrimaryImageParams
 import dsmoq.controllers.json.ChangePrimaryAppParams
 import dsmoq.controllers.json.ChangePrimaryImageParams
@@ -70,8 +69,6 @@ class ApiController(
 
   protected implicit val jsonFormats: Formats = DefaultFormats
 
-  private implicit def objectToPipe[A](x: A) = Pipe(x)
-
   /**
    * ログマーカー
    */
@@ -105,7 +102,14 @@ class ApiController(
   after() {
     if (!hasAuthorizationHeader) {
       // APIキーでの認証でない(セッションでの認証)なら、isGuestヘッダを付与する
-      response.setHeader("isGuest", getUserFromSession.isGuest.toString)
+      try {
+        response.setHeader("isGuest", getUserFromSession.isGuest.toString)
+      } catch {
+        case e: Exception => {
+          // エラー時はログにのみ残し、レスポンスには反映しない
+          logger.error(LOG_MARKER, "error occurred during set guest header.", e)
+        }
+      }
     }
   }
 
@@ -173,7 +177,7 @@ class ApiController(
     } yield {
       result
     }
-    ret |> toActionResult
+    toActionResult(ret)
   }
 
   put("/profile") {
@@ -1073,36 +1077,6 @@ class ApiController(
     toActionResult(ret)
   }
 
-  /**
-   * 処理結果をActionResultに変換します。
-   *
-   * @param result 処理結果
-   * @return 処理結果のActionResult表現
-   */
-  private def toActionResult(result: Try[_]): ActionResult = {
-    result match {
-      case Success(()) => Ok(AjaxResponse("OK"))
-      case Success(x) => Ok(AjaxResponse("OK", x))
-      case Failure(e) =>
-        logger.error(LOG_MARKER, e.getMessage, e)
-        e match {
-          case e: NotAuthorizedException => Forbidden(AjaxResponse("Unauthorized", e.getMessage)) // 403
-          case e: AccessDeniedException => Forbidden(AjaxResponse("AccessDenied", e.getMessage)) // 403
-          case e: NotFoundException => NotFound(AjaxResponse("NotFound")) // 404
-          case e: InputCheckException => {
-            if (e.isUrlParam) {
-              NotFound(AjaxResponse("Illegal Argument", CheckError(e.target, e.message))) // 404
-            } else {
-              BadRequest(AjaxResponse("Illegal Argument", CheckError(e.target, e.message))) // 400
-            }
-          }
-          case e: InputValidationException => BadRequest(AjaxResponse("BadRequest", e.getErrorMessage())) // 400
-          case e: BadRequestException => BadRequest(AjaxResponse("BadRequest", e.getMessage)) // 400
-          case _ => InternalServerError(AjaxResponse("NG")) // 500
-        }
-    }
-  }
-
   private def jsonOptToTry[T](obj: Option[T]): Try[T] = {
     obj match {
       case None => {
@@ -1131,12 +1105,4 @@ class ApiController(
       }
     }
   }
-}
-
-case class AjaxResponse[A](status: String, data: A = {})
-
-case class CheckError(key: String, value: String)
-
-case class Pipe[A](x: A) {
-  def |>[B](f: A => B): B = f.apply(x)
 }

@@ -53,12 +53,17 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
 
     Try {
       DB.readOnly { implicit s =>
-        val user = findUser(id, password)
-        user.foreach { _ =>
-          logger.info(LOG_MARKER, "Login successed: [id] = {}", id)
-        }
-        user.getOrElse {
-          throw new BadRequestException(resource.getString(ResourceNames.INVALID_PASSWORD))
+        findUser(id, password) match {
+          case None => {
+            throw new BadRequestException(resource.getString(ResourceNames.INVALID_PASSWORD))
+          }
+          case Some(u) if u.isDisabled => {
+            throw new BadRequestException(resource.getString(ResourceNames.DISABLED_USER))
+          }
+          case Some(u) if !u.isDisabled => {
+            logger.info(LOG_MARKER, "Login successed: [id] = {}", id)
+            u
+          }
         }
       }
     }.recoverWith {
@@ -99,6 +104,30 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
   }
 
   /**
+   * 指定したIDのユーザを取得します。
+   *
+   * @param id ユーザID
+   * @return 取得したユーザ
+   */
+  def getUser(id: String): Option[User] = {
+    DB.readOnly { implicit s =>
+      val u = persistence.User.u
+      val ma = persistence.MailAddress.ma
+      withSQL {
+        select(u.result.*, ma.result.address)
+          .from(persistence.User as u)
+          .innerJoin(persistence.MailAddress as ma).on(u.id, ma.userId)
+          .where
+          .eq(u.id, sqls.uuid(id))
+      }.map { rs =>
+        val user = persistence.User(u.resultName)(rs)
+        val address = rs.string(ma.resultName.address)
+        User(user, address)
+      }.single.apply()
+    }
+  }
+
+  /**
    * 指定したユーザのメールアドレスを更新します。
    *
    * @param id ユーザID
@@ -122,7 +151,7 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
         }
 
         val user = for {
-          user <- persistence.User.find(id)
+          user <- persistence.User.find(id) if !user.disabled
           address <- persistence.MailAddress.findByUserId(id)
         } yield {
           // TODO 本当はメールアドレス変更確認フローを行わなければならない
@@ -199,7 +228,7 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
         .and
         .eq(p.hash, oldPasswordHash)
         .and
-        .isNull(u.deletedAt)
+        .eq(u.disabled, false)
         .and
         .isNull(p.deletedAt)
     }.map(persistence.Password(p.resultName)).single.apply()
@@ -250,7 +279,7 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
 
         if (isGoogleUser(id)) {
           // Googleアカウントユーザーはアカウント名の変更禁止(importスクリプトでusersテーブルのname列を使用しているため)
-          persistence.User.find(id) match {
+          persistence.User.find(id).filter(!_.disabled) match {
             case None => {
               throw new NotFoundException
             }
@@ -268,7 +297,7 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
           throw new BadRequestException(message)
         }
 
-        persistence.User.find(id) match {
+        persistence.User.find(id).filter(!_.disabled) match {
           case None => {
             throw new NotFoundException()
           }
@@ -307,7 +336,7 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
   def changeIcon(id: String, icon: FileItem): Try[String] = {
     Try {
       DB.localTx { implicit s =>
-        persistence.User.find(id) match {
+        persistence.User.find(id).filter(!_.disabled) match {
           case None => {
             throw new NotFoundException()
           }
@@ -372,9 +401,7 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
           .where
           .eq(ak.apiKey, apiKey)
           .and
-          .isNull(u.deletedAt)
-          .and
-          .isNull(u.deletedBy)
+          .eq(u.disabled, false)
           .and
           .isNull(ak.deletedAt)
           .and
@@ -399,7 +426,7 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
           mailAddress = user._4,
           description = user._1.description,
           isGuest = false,
-          isDeleted = false
+          isDisabled = false
         )
       }
     }

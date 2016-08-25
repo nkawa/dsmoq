@@ -7,9 +7,9 @@ typedef DatasetFile = {
     var url: String;
     var size: UInt;
     var createdAt: String; //TODO Date
-    var createdBy: Profile;
+    var createdBy: Null<Profile>;
     var updatedAt: String; //TODO Date
-    var updatedBy: Profile;
+    var updatedBy: Null<Profile>;
     var isZip: Bool;
     var zipedFiles: Array<DatasetZipedFile>;
     var zipCount: Int;

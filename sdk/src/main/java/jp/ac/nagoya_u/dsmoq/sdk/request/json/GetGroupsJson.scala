@@ -4,4 +4,5 @@ private[request] case class GetGroupsJson(
   query: Option[String] = None,
   user: Option[String] = None,
   limit: Option[Int] = Some(20),
-  offset: Option[Int] = Some(0)) extends Jsonable
+  offset: Option[Int] = Some(0)
+) extends Jsonable

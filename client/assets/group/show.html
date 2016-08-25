@@ -10,12 +10,12 @@
       <div class="row">
         <div class="col-sm-10">
           <h1>
-			<div class="pull-left group-image">
-				<img data-link="src{>group.primaryImage.url+'/128'} srcset{>group.primaryImage.url+'/128 1x, '+group.primaryImage.url+'/256 2x'}" alt="group image">
-			</div>
-			<div>
-				{^{>group.name}} {^{if group.role >= 1}}<small>(joined)</small>{{/if}}
-			</div>
+            <div class="pull-left group-image">
+              <img data-link="src{>group.primaryImage.url+'/128'} srcset{>group.primaryImage.url+'/128 1x, '+group.primaryImage.url+'/256 2x'}" alt="group image">
+            </div>
+            <div>
+              {^{>group.name}} {^{if group.role >= 1}}<small>(joined)</small>{{/if}}
+            </div>
           </h1>
           <p class="group-description">{^{: ~trimScriptTags(group.description)}}</p>
         </div>
@@ -30,39 +30,42 @@
       </div>
     </div>
   </div>
-	
 <div class="panel">
-	<div class="col-md-12 caption">
-		<p><h3>Members</h3></p>
-	</div>
+  <div class="col-md-12 caption">
+    <p><h3>Members</h3></p>
+  </div>
 </div>
   {^{async members}}
-    <div class="panel panel-default panel-with-pagination">
-      <div class="panel-heading">
-        <div class="row">
-          <div class="col-sm-6">Members: {{>total}} records</div>
-          <div class="col-sm-6 text-right">
-            {^{pagination index pages id="group-members-pagination" class="pagination-sm" pagedelta=5 /}}
+    {^{if total > 0}}
+      <div class="panel panel-default panel-with-pagination">
+        <div class="panel-heading">
+          <div class="row">
+            <div class="col-sm-6">Members: {{>total}} records</div>
+            <div class="col-sm-6 text-right">
+              {^{pagination index pages id="group-members-pagination" class="pagination-sm" pagedelta=5 /}}
+            </div>
           </div>
         </div>
+        <table class="table">
+          <tbody>
+            {^{for items}}
+              <tr>
+                <td><img class="icon" data-link="src{>image+'/16'}"> {{>fullname}}</td>
+                <td>{{>organization}}</td>
+                <td>{{if role == 2}}Manager{{/if}}</td>
+              </tr>
+            {{/for}}
+          </tbody>
+        </table>
       </div>
-      <table class="table">
-        <tbody>
-          {^{for items}}
-            <tr>
-              <td><img class="icon" data-link="src{>image+'/16'}"> {{>fullname}}</td>
-              <td>{{>organization}}</td>
-              <td>{{if role == 2}}Manager{{/if}}</td>
-            </tr>
-          {{/for}}
-        </tbody>
-      </table>
-    </div>
+    {{else}}
+      <p style="margin-bottom: 30px;">There are no members.</p>
+    {{/if}}
   {{/async}}
 <div class="panel">
-	<div class="col-md-12 caption">
-		<p><h3>Datasets</h3></p>
-	</div>
+  <div class="col-md-12 caption">
+    <p><h3>Datasets</h3></p>
+  </div>
 </div>
   {^{async datasets ~tag=tag ~count=group.providedDatasetCount}}
 	  {^{if ~count > 0}}

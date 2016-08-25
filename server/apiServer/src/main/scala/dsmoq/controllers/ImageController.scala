@@ -11,6 +11,7 @@ import org.slf4j.MarkerFactory
 
 import com.typesafe.scalalogging.LazyLogging
 
+import dsmoq.controllers.ResponseUtil.toActionResult
 import dsmoq.exceptions.AccessDeniedException
 import dsmoq.exceptions.NotFoundException
 import dsmoq.services.ImageService
@@ -35,7 +36,12 @@ class ImageController(val resource: ResourceBundle) extends ScalatraServlet with
     val imageId = params("imageId")
     val userId = params("userId")
     logger.info(LOG_MARKER, "Receive user image request, userId={}, imageId={}", userId, imageId)
-    getImage(imageService.getUserFile(userId, imageId, None))
+    val ret = for {
+      (image, name) <- imageService.getUserFile(userId, imageId, None)
+    } yield {
+      getImage(image, name)
+    }
+    toActionResult(ret)
   }
 
   get("/user/:userId/:imageId/:size") {
@@ -43,14 +49,25 @@ class ImageController(val resource: ResourceBundle) extends ScalatraServlet with
     val userId = params("userId")
     val size = params.get("size")
     logger.info(LOG_MARKER, "Receive user image request, userId={}, imageId={}, size={}", userId, imageId, size)
-    getImage(imageService.getUserFile(userId, imageId, size))
+    val ret = for {
+      (image, name) <- imageService.getUserFile(userId, imageId, size)
+    } yield {
+      getImage(image, name)
+    }
+    toActionResult(ret)
   }
 
   get("/datasets/:datasetId/:imageId") {
     val imageId = params("imageId")
     val datasetId = params("datasetId")
     logger.info(LOG_MARKER, "Receive dataset image request, datasetId={}, imageId={}", datasetId, imageId)
-    getImage(imageService.getDatasetFile(datasetId, imageId, None, getUserFromSession))
+    val ret = for {
+      user <- getUser(allowGuest = true)
+      (image, name) <- imageService.getDatasetFile(datasetId, imageId, None, user)
+    } yield {
+      getImage(image, name)
+    }
+    toActionResult(ret)
   }
 
   get("/datasets/:datasetId/:imageId/:size") {
@@ -61,14 +78,25 @@ class ImageController(val resource: ResourceBundle) extends ScalatraServlet with
       LOG_MARKER,
       "Receive dataset image request, datasetId={}, imageId={}, size={}", datasetId, imageId, size
     )
-    getImage(imageService.getDatasetFile(datasetId, imageId, size, getUserFromSession))
+    val ret = for {
+      user <- getUser(allowGuest = true)
+      (image, name) <- imageService.getDatasetFile(datasetId, imageId, size, user)
+    } yield {
+      getImage(image, name)
+    }
+    toActionResult(ret)
   }
 
   get("/groups/:groupId/:imageId") {
     val imageId = params("imageId")
     val groupId = params("groupId")
     logger.info(LOG_MARKER, "Receive group image request, groupId={}, imageId={}", groupId, imageId)
-    getImage(imageService.getGroupFile(groupId, imageId, None))
+    val ret = for {
+      (image, name) <- imageService.getGroupFile(groupId, imageId, None)
+    } yield {
+      getImage(image, name)
+    }
+    toActionResult(ret)
   }
 
   get("/groups/:groupId/:imageId/:size") {
@@ -79,33 +107,18 @@ class ImageController(val resource: ResourceBundle) extends ScalatraServlet with
       LOG_MARKER,
       "Receive group image request, groupId={}, imageId={}, size={}", groupId, imageId, size
     )
-    getImage(imageService.getGroupFile(groupId, imageId, size))
+    val ret = for {
+      (image, name) <- imageService.getGroupFile(groupId, imageId, size)
+    } yield {
+      getImage(image, name)
+    }
+    toActionResult(ret)
   }
 
-  private def getImage(result: Try[(java.io.File, String)]) = {
-    result match {
-      case Success(x) =>
-        logger.debug(LOG_MARKER, "getImage succeeded")
-        response.setHeader("Content-Disposition", "inline; filename=" + x._2)
-        response.setHeader("Content-Type", "application/octet-stream;charset=binary")
-        x._1
-      case Failure(exp) => {
-        logger.error(LOG_MARKER, "getImage failed", exp)
-        exp match {
-          case _: NotFoundException => {
-            // 403 Forbidden
-            halt(status = 404, reason = "Not Found", body = "Not Found")
-          }
-          case _: AccessDeniedException => {
-            // 403 Forbidden
-            halt(status = 403, reason = "Forbidden", body = "Access Denied")
-          }
-          case _: Exception => {
-            // 500 Internal Server Error
-            halt(status = 500, reason = "Internal Server Error", body = "Internal Server Error")
-          }
-        }
-      }
-    }
+  private def getImage(image: java.io.File, name: String) = {
+    logger.debug(LOG_MARKER, "getImage succeeded")
+    response.setHeader("Content-Disposition", "inline; filename=" + name)
+    response.setHeader("Content-Type", "application/octet-stream;charset=binary")
+    image
   }
 }

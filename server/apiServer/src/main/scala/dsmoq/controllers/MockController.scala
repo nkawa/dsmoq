@@ -161,7 +161,7 @@ class MockController extends ScalatraServlet with SessionTrait {
           mailAddress = "",
           description = "",
           isGuest = false,
-          isDeleted = false
+          isDisabled = false
         )
       case None =>
         // ユーザー作成

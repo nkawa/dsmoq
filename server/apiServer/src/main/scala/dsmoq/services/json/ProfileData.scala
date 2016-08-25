@@ -10,7 +10,7 @@ case class ProfileData(
   mailAddress: String,
   description: String,
   isGuest: Boolean,
-  isDeleted: Boolean,
+  isDisabled: Boolean,
   isGoogleUser: Boolean
 )
 
@@ -26,7 +26,7 @@ object ProfileData {
       mailAddress = x.mailAddress,
       description = x.description,
       isGuest = x.isGuest,
-      isDeleted = x.isDeleted,
+      isDisabled = x.isDisabled,
       isGoogleUser = isGoogleUser
     )
   }
