@@ -2666,7 +2666,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.single.apply().map {
       case (file, createdUser, updatedUser, createdUserMail, updatedUserMail) => {
         val history = persistence.FileHistory.find(file.historyId).get
-        val zipCount = if (history.isZip) { getZipedFiles(datasetId, history.id).size } else { 0 }
+        val zipedFiles = if (history.isZip) { getZipedFiles(datasetId, history.id) } else { Seq.empty }
         DatasetData.DatasetFile(
           id = file.id,
           name = file.name,
@@ -2678,8 +2678,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           updatedBy = updatedUser.map(u => User(u, updatedUserMail.getOrElse(""))),
           updatedAt = file.updatedAt.toString(),
           isZip = history.isZip,
-          zipedFiles = Seq.empty,
-          zipCount = zipCount
+          zipedFiles = zipedFiles,
+          zipCount = zipedFiles.size
         )
       }
     }

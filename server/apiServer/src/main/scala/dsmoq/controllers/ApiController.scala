@@ -99,7 +99,14 @@ class ApiController(
   after() {
     if (!hasAuthorizationHeader) {
       // APIキーでの認証でない(セッションでの認証)なら、isGuestヘッダを付与する
-      response.setHeader("isGuest", getUserFromSession.isGuest.toString)
+      try {
+        response.setHeader("isGuest", getUserFromSession.isGuest.toString)
+      } catch {
+        case e: Exception => {
+          // エラー時はログにのみ残し、レスポンスには反映しない
+          logger.error(LOG_MARKER, "error occurred during set guest header.", e)
+        }
+      }
     }
   }
 
