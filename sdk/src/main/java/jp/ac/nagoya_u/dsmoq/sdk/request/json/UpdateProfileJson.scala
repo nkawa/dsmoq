@@ -5,4 +5,5 @@ private[request] case class UpdateProfileJson(
   fullname: String,
   organization: String,
   title: String,
-  description: String) extends Jsonable
+  description: String
+) extends Jsonable

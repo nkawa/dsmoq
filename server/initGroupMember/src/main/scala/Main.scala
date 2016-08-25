@@ -71,7 +71,7 @@ object Main {
             .where
             .eq(u.name, mailAddress)
             .and
-            .isNull(u.deletedAt)
+            .eq(u.disabled, false)
             .and
             .isNull(gu.deletedAt)
         }.map(persistence.User(u.resultName)).single().apply

@@ -88,8 +88,8 @@ trait AuthTrait { this: ScalatraServlet with LazyLogging =>
     val ret = for {
       s <- sessionOption
       sessionUser <- s.get(SESSION_KEY)
+      user <- accountService.getUser(sessionUser.asInstanceOf[User].id)
     } yield {
-      val user = sessionUser.asInstanceOf[User]
       logger.info(LOG_MARKER, "Auth: Get user from Session: User found. user={}", user)
       user
     }
@@ -112,17 +112,15 @@ trait AuthTrait { this: ScalatraServlet with LazyLogging =>
    *   Failure(NotAuthorizedException) Authorizationヘッダからのユーザ取得に失敗した場合、またはゲストユーザを許可せずユーザが取得できなかった場合
    */
   def getUser(allowGuest: Boolean): Try[User] = {
-    val ret = getUser(request)
-    if (allowGuest) {
-      ret
-    } else {
-      ret.flatMap { user =>
-        if (user.isGuest) {
-          logger.error(LOG_MARKER, "Auth: Not Allow Guest.")
-          Failure(new NotAuthorizedException(resource.getString(ResourceNames.NOT_ALLOW_GUEST)))
-        } else {
-          Success(user)
-        }
+    getUser(request).flatMap { user =>
+      if (user.isDisabled) {
+        logger.info(LOG_MARKER, "Auth: Disabled User.")
+        Failure(new NotAuthorizedException(resource.getString(ResourceNames.DISABLED_USER)))
+      } else if (user.isGuest && !allowGuest) {
+        logger.info(LOG_MARKER, "Auth: Not Allow Guest.")
+        Failure(new NotAuthorizedException(resource.getString(ResourceNames.NOT_ALLOW_GUEST)))
+      } else {
+        Success(user)
       }
     }
   }
@@ -148,7 +146,7 @@ trait AuthTrait { this: ScalatraServlet with LazyLogging =>
             logger.info(LOG_MARKER, "Auth: Get user from Authorization Header: User found. user={}", user)
             user
           }.getOrElse {
-            logger.error(
+            logger.info(
               LOG_MARKER,
               "Auth: Get user from Authorization Header: "
                 + "User not found. api_key={}, signature={}",
@@ -159,11 +157,11 @@ trait AuthTrait { this: ScalatraServlet with LazyLogging =>
           }
         }
         case ApiKeyAndSignatureNotFound => {
-          logger.error(LOG_MARKER, "Auth: Get user from Authorization Header: ApiKey and Signature not found.")
+          logger.info(LOG_MARKER, "Auth: Get user from Authorization Header: ApiKey and Signature not found.")
           throw new NotAuthorizedException(resource.getString(ResourceNames.REQUIRE_APIKEY_AND_SIGNATURE))
         }
         case InvalidAuthorizationHeader => {
-          logger.error(LOG_MARKER, "Auth: Get user from Authorization Header: Invalid Authorization Header")
+          logger.info(LOG_MARKER, "Auth: Get user from Authorization Header: Invalid Authorization Header")
           throw new NotAuthorizedException(resource.getString(ResourceNames.INVALID_AUTHORIZATION_HEADER))
         }
         case NoAuthorizationHeader => {
@@ -208,7 +206,7 @@ object AuthTrait {
     mailAddress = "",
     description = "",
     isGuest = true,
-    isDeleted = false
+    isDisabled = false
   )
 
   /**

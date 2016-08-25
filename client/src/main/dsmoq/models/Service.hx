@@ -346,7 +346,7 @@ class Service extends Stream<ServiceEvent> {
             image: "",
             mailAddress: "",
             isGuest: true,
-            isDeleted: false,
+            isDisabled: false,
             isGoogleUser: false,
         }
     }

@@ -169,4 +169,9 @@ object ResourceNames {
    * 対象のユーザには更新権限がありません
    */
   val NO_UPDATE_PERMISSION = "no_update_permission"
+
+  /**
+   * 対象のユーザは無効です
+   */
+  val DISABLED_USER = "disabled_user"
 }

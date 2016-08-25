@@ -475,6 +475,7 @@ class GroupService(resource: ResourceBundle) {
    *        Failure(NullPointerException) 引数がnullの場合
    *        Failure(NotFoundException) グループが見つからない場合
    *        Failure(AccessDeniedException) ログインユーザがグループのマネージャでない場合
+   *        Failure(BadRequestException) membersに不正なユーザが指定されている場合
    */
   def addMembers(groupId: String, members: Seq[GroupMember], user: User): Try[GroupData.AddMembers] = {
     Try {
@@ -493,14 +494,15 @@ class GroupService(resource: ResourceBundle) {
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
         val userMap = persistence.User
-          .findAllBy(sqls.inUuid(u.id, members.map { _.userId }).and.isNull(u.deletedAt))
+          .findAllBy(sqls.inUuid(u.id, members.map { _.userId }).and.eq(u.disabled, false))
           .map { x => (x.id, x) }.toMap
         val memberMap = persistence.Member
           .findAllBy(sqls.inUuid(m.userId, members.map { _.userId }).and.eq(m.groupId, sqls.uuid(groupId)))
           .map { x => (x.userId, x) }.toMap
-        val updatedMembers = members.filter { x => userMap.contains(x.userId) }.map { item =>
-          // ユーザIDが一致したものだけ処理しているため、必ず成功する
-          val user = userMap(item.userId)
+        val updatedMembers = members.map { item =>
+          val user = userMap.getOrElse(item.userId, {
+            throw new BadRequestException(resource.getString(ResourceNames.DISABLED_USER))
+          })
           val updatedMember = if (!memberMap.contains(item.userId)) {
             persistence.Member.create(
               id = UUID.randomUUID.toString,
@@ -556,10 +558,11 @@ class GroupService(resource: ResourceBundle) {
    * @param role ロール
    * @param user ログインユーザ情報
    * @return
-   *        Success(Unit) 更新されたメンバー情報
+   *        Success(GroupData.MemberSummary) 更新されたメンバー情報
    *        Failure(NullPointerException) 引数がnullの場合
    *        Failure(NotFoundException) グループ、ユーザが見つからない場合
    *        Failure(AccessDeniedException) ログインユーザがグループのマネージャでない場合
+   *        Failure(BadRequestException) 更新によってマネージャが0人になる場合
    */
   def updateMemberRole(
     groupId: String,
@@ -637,7 +640,7 @@ class GroupService(resource: ResourceBundle) {
     val u = persistence.User.u
     withSQL {
       select(u.resultAll).from(persistence.User as u)
-        .where.eqUuid(u.id, userId).and.isNull(u.deletedAt)
+        .where.eqUuid(u.id, userId).and.eq(u.disabled, false)
     }.map(persistence.User(u.resultName)).single.apply()
   }
 
@@ -651,6 +654,7 @@ class GroupService(resource: ResourceBundle) {
    *        Failure(NullPointerException) 引数がnullの場合
    *        Failure(NotFoundException) グループ、またはメンバーが見つからない場合
    *        Failure(AccessDeniedException) ログインユーザがグループのマネージャでない場合
+   *        Failure(BadRequestException) 削除によってマネージャが0人になる場合
    */
   def removeMember(groupId: String, userId: String, user: User): Try[Unit] = {
     Try {
@@ -1003,9 +1007,11 @@ class GroupService(resource: ResourceBundle) {
 
   private def countMembers(groups: Seq[String])(implicit s: DBSession): Map[String, Int] = {
     val m = persistence.Member.syntax("m")
+    val u = persistence.User.u
     withSQL {
       select(m.groupId, sqls.count(sqls.distinct(m.id)).append(sqls"count"))
         .from(persistence.Member as m)
+        .innerJoin(persistence.User as u).on(sqls.eq(m.userId, u.id).and.eq(u.disabled, false))
         .where
         .inUuid(m.groupId, Seq.concat(groups, Seq(AppConf.guestGroupId)))
         .and
@@ -1110,7 +1116,7 @@ class GroupService(resource: ResourceBundle) {
       .and
       .isNull(m.deletedAt)
       .and
-      .isNull(u.deletedAt)
+      .eq(u.disabled, false)
   }
 
   private def getPrimaryImageId(groupId: String)(implicit s: DBSession): Option[String] = {
@@ -1198,7 +1204,7 @@ class GroupService(resource: ResourceBundle) {
         .where
         .eq(u.id, sqls.uuid(userId))
         .and
-        .isNull(u.deletedAt)
+        .eq(u.disabled, false)
     }.map(rs => rs.string(u.resultName.id)).single.apply().isDefined
   }
 

@@ -84,7 +84,7 @@ object SystemService extends LazyLogging {
             .from(persistence.User as u)
             .innerJoin(persistence.MailAddress as ma).on(u.id, ma.userId)
             .where
-            .isNull(u.deletedAt)
+            .eq(u.disabled, false)
             .and
             .isNull(ma.deletedAt)
             .orderBy(u.name)
@@ -142,7 +142,7 @@ object SystemService extends LazyLogging {
             .leftJoin(persistence.MailAddress as ma)
             .on(u.id, ma.userId)
             .where
-            .isNull(u.deletedAt)
+            .eq(u.disabled, false)
             .map { sql =>
               query match {
                 case Some(x) =>
@@ -295,7 +295,7 @@ object SystemService extends LazyLogging {
             .like(ma.address, query)
             .append(sqls")")
             .and
-            .isNull(u.deletedAt)
+            .eq(u.disabled, false)
             .union(
               select(g.id, g.name, gi.imageId, sqls"null, null, '2' as type")
                 .from(persistence.Group as g)

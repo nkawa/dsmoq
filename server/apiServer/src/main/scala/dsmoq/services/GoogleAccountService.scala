@@ -62,7 +62,7 @@ class GoogleAccountService(resource: ResourceBundle) extends LazyLogging {
    *        Failure(AccessDeniedException) 設定された正規表現とメールアドレスがマッチしない場合
    */
   def loginWithGoogle(authenticationCode: String): Try[User] = {
-    try {
+    Try {
       val googleAccount = getGoogleAccount(authenticationCode)
       val accountMailaddr = googleAccount.getEmail()
 
@@ -77,7 +77,7 @@ class GoogleAccountService(resource: ResourceBundle) extends LazyLogging {
       var matched = AppConf.allowedMailaddrs.exists(accountMailaddr.matches(_))
       if (!matched) {
         // 設定された正規表現とメールアドレスがマッチしない場合
-        logger.error(
+        logger.info(
           LOG_MARKER,
           "Login failed: access denied. [id] = {}, [email] = {}",
           googleAccount.getId,
@@ -92,16 +92,9 @@ class GoogleAccountService(resource: ResourceBundle) extends LazyLogging {
         googleAccount.getId,
         googleAccount.getEmail
       )
+      googleAccount
+    }.flatMap { googleAccount =>
       getUser(googleAccount)
-    } catch {
-      case e: AccessDeniedException => {
-        logger.error(LOG_MARKER, "Login failed: error occurred.", e)
-        Failure(e)
-      }
-      case t: Throwable => {
-        logger.error(LOG_MARKER, "Login failed: error occurred.", t)
-        Failure(t)
-      }
     }
   }
 
@@ -122,7 +115,16 @@ class GoogleAccountService(resource: ResourceBundle) extends LazyLogging {
           .map(x => User(x, googleAccount.getEmail))
 
         val user = googleUser match {
-          case Some(x) => {
+          case Some(x) if x.isDisabled => {
+            logger.info(
+              LOG_MARKER,
+              "Login failed: access denied (disabled google user). [id] = {}, [email] = {}",
+              googleAccount.getId,
+              googleAccount.getEmail
+            )
+            throw new AccessDeniedException(resource.getString(ResourceNames.DISABLED_USER))
+          }
+          case Some(x) if !x.isDisabled => {
             updateUser(x, googleAccount)
             x
           }
