@@ -9,6 +9,7 @@ import scala.language.reflectiveCalls
 import org.scalatra.LifeCycle
 
 import dsmoq.controllers.ApiController
+import dsmoq.controllers.AppController
 import dsmoq.controllers.FileController
 import dsmoq.controllers.GoogleOAuthController
 import dsmoq.controllers.ImageController
@@ -69,6 +70,7 @@ class ScalatraBootstrap extends LifeCycle {
     context.mount(new GoogleOAuthController(resource), "/google_oauth/*")
     context.mount(new ImageController(resource), "/images/*")
     context.mount(new FileController(resource), "/files/*")
+    context.mount(new AppController(resource), "/apps/*")
 
     // mock
     context.mount(new MockController, "/mock")

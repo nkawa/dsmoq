@@ -758,6 +758,18 @@ class ApiController(
     toActionResult(ret)
   }
 
+  get("/datasets/:datasetId/apps/primary/url") {
+    val datasetId = params("datasetId")
+    val ret = for {
+      _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
+      user <- getUser(allowGuest = false)
+      result <- datasetService.getPrimaryAppUrl(datasetId, user)
+    } yield {
+      result
+    }
+    toActionResult(ret)
+  }
+
   // --------------------------------------------------------------------------
   // group api
   // --------------------------------------------------------------------------

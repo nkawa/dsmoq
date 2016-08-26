@@ -36,8 +36,10 @@ object AppConf {
     "59ae7029-fafc-4f7e-8578-e7a00db2d147"
   )
 
+  val urlRoot = root.getString("apiserver.url_root")
   val imageDownloadRoot = root.getString("apiserver.image_url_root")
   val fileDownloadRoot = root.getString("apiserver.file_url_root")
+  val appDownloadRoot = if (root.hasPath("apiserver.app_url_root")) root.getString("apiserver.app_url_root") else fileDownloadRoot + "../apps/"
 
   val clientId = root.getString("google.client_id")
   val clientSecret = root.getString("google.client_secret")

@@ -177,6 +177,11 @@
           </div>
         </div>
       </div>
+      {^{if appUrl}}
+      <div class="dataset-view-body">
+        <a class="btn btn-primary" href="{{:appUrl}}">App Download</a>
+      </div>
+      {{/if}}
     </div>
   </div>
 {{/async}}

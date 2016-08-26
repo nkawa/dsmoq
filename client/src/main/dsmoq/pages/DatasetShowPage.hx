@@ -50,6 +50,7 @@ class DatasetShowPage {
                     case DatasetPermission.Write, DatasetPermission.Read: true;
                     case _: false;
                 },
+                appUrl: null,
                 accessCount: res.accessCount,
                 filesCount: res.filesCount,
                 fileLimit: res.fileLimit
@@ -115,7 +116,11 @@ class DatasetShowPage {
                 });
                 setTopMoreClickEvent(html, navigation, binding, data, id);
             });
-            
+
+            Service.instance.getDatasetAppUrl(id).then(function(url) {
+                JsViews.observable(data).setProperty("appUrl", url);
+            });
+
         }, function (err: Dynamic) {
             html.html(err.responseJSON.status);
         });

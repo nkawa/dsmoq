@@ -228,6 +228,10 @@ class Service extends Stream<ServiceEvent> {
         return send(Put, '/api/datasets/${datasetId}/apps/primary', { appId: appId });
     }
 
+    public function getDatasetAppUrl(datasetId: String): Promise<Null<String>> {
+        return send(Get, '/api/datasets/${datasetId}/apps/primary/url');
+    }
+
     // ---
     public function createGroup(name: String): Promise<Group> {
         // TODO descriptionをAPIパラメータから削除

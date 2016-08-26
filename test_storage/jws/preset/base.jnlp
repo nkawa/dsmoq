@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<jnlp spec="6.0+">
+  <information>
+    <title>Nagoya COI Dataset Application</title>
+    <vendor>Nagoya COI</vendor>
+  </information>
+  <security>
+    <all-permissions/>
+  </security>
+  <resources>
+    <javase version="1.8+"/>
+    <jar href=""/>
+    <property name="jnlp.dsmoq.url" value=""/>
+    <property name="jnlp.dsmoq.user.apiKey" value=""/>
+    <property name="jnlp.dsmoq.user.secretKey" value=""/>
+    <property name="jnlp.dsmoq.dataset.id" value=""/>
+  </resources>
+  <application-desc main-class="Main">
+  </application-desc>
+</jnlp> 

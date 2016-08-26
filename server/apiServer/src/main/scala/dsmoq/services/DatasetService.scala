@@ -76,6 +76,7 @@ import scalikejdbc.SQLBuilder
 import scalikejdbc.SQLSyntax
 import scalikejdbc.SelectSQLBuilder
 import scalikejdbc.SubQuery
+import scalikejdbc.convertJavaSqlTimestampToConverter
 import scalikejdbc.delete
 import scalikejdbc.interpolation.Implicits.scalikejdbcSQLInterpolationImplicitDef
 import scalikejdbc.interpolation.Implicits.scalikejdbcSQLSyntaxToStringImplicitDef
@@ -3924,7 +3925,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     Try {
       CheckUtil.checkNull(datasetId, "datasetId")
       CheckUtil.checkNull(user, "user")
-      DB.localTx { implicit s =>
+      DB.readOnly { implicit s =>
         getDatasetWithOwnerAccess(datasetId, user)
         val a = persistence.App.syntax("a")
         val da = persistence.DatasetApp.syntax("da")
@@ -4013,6 +4014,155 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     fileName
   }
 
+  def getPrimaryAppUrl(datasetId: String, user: User): Try[Option[String]] = {
+    Try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(user, "user")
+      DB.readOnly { implicit s =>
+        getDatasetWithOwnerAccess(datasetId, user)
+        for {
+          _ <- getUserKey(user)
+          app <- getNewestPrimaryApp(datasetId)
+        } yield {
+          AppManager.getJnlpUrl(app.datasetId, app.appId)
+        }
+      }
+    }
+  }
+
+  private def getNewestPrimaryApp(datasetId: String)(implicit s: DBSession): Option[DatasetService.DatasetApp] = {
+    val a = persistence.App.syntax("a")
+    val v = persistence.AppVersion.syntax("v")
+    val da = persistence.DatasetApp.syntax("da")
+    withSQL {
+      select(a.result.id, v.result.id, v.result.updatedAt, da.result.isPrimary)
+        .from(persistence.App as a)
+        .innerJoin(persistence.AppVersion as v).on(a.id, v.appId)
+        .innerJoin(persistence.DatasetApp as da).on(a.id, da.appId)
+        .where
+        .eq(da.datasetId, sqls.uuid(datasetId))
+        .and
+        .eq(da.isPrimary, true)
+        .and
+        .isNull(a.deletedAt)
+        .and
+        .isNull(v.deletedAt)
+        .and
+        .isNull(da.deletedAt)
+        .orderBy(v.version.desc)
+        .limit(1)
+    }.map { rs =>
+      DatasetService.DatasetApp(
+        datasetId = datasetId,
+        appId = rs.string(a.resultName.id),
+        appVersionId = rs.string(v.resultName.id),
+        updatedAt = rs.timestamp(v.resultName.updatedAt).toJodaDateTime
+      )
+    }.single.apply()
+  }
+
+  private def getUserKey(user: User)(implicit s: DBSession): Option[DatasetService.AppUser] = {
+    val u = persistence.User.syntax("u")
+    val ak = persistence.ApiKey.syntax("ak")
+    withSQL {
+      select(u.result.id, ak.result.apiKey, ak.result.secretKey)
+        .from(persistence.User as u)
+        .innerJoin(persistence.ApiKey as ak).on(u.id, ak.userId)
+        .where
+        .eq(u.id, sqls.uuid(user.id))
+        .and
+        .eq(u.disabled, false)
+        .and
+        .isNull(ak.deletedAt)
+        .and
+        .isNull(ak.deletedBy)
+    }.map { rs =>
+      DatasetService.AppUser(
+        id = rs.string(u.resultName.id),
+        apiKey = rs.string(ak.resultName.apiKey),
+        secretKey = rs.string(ak.resultName.secretKey)
+      )
+    }.single.apply()
+  }
+
+  def getAppJnlp(datasetId: String, appId: String, user: User): Try[(String, DateTime)] = {
+    Try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(appId, "appId")
+      CheckUtil.checkNull(user, "user")
+      DB.readOnly { implicit s =>
+        getDatasetWithOwnerAccess(datasetId, user)
+        getApp(datasetId, appId)
+        val ret = for {
+          uk <- getUserKey(user)
+          app <- getNewestPrimaryApp(datasetId)
+        } yield {
+          val content = AppManager.getJnlp(
+            datasetId = app.datasetId,
+            appId = app.appId,
+            appVersionId = app.appVersionId,
+            apiKey = uk.apiKey,
+            secretKey = uk.secretKey
+          )
+          (content, app.updatedAt)
+        }
+        ret.getOrElse {
+          throw new NotFoundException
+        }
+      }
+    }
+  }
+
+  def getAppFileLastModified(datasetId: String, appId: String, appVersionId: String, user: User): Try[DateTime] = {
+    Try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(appId, "appId")
+      CheckUtil.checkNull(appVersionId, "appVersionId")
+      CheckUtil.checkNull(user, "user")
+      DB.readOnly { implicit s =>
+        getDatasetWithOwnerAccess(datasetId, user)
+        getApp(datasetId, appId)
+        getAppVersionUpdatedAt(appId, appVersionId)
+      }.getOrElse {
+        throw new NotFoundException
+      }
+    }
+  }
+
+  def getAppFile(datasetId: String, appId: String, appVersionId: String, user: User): Try[(InputStream, DateTime)] = {
+    Try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(appId, "appId")
+      CheckUtil.checkNull(appVersionId, "appVersionId")
+      CheckUtil.checkNull(user, "user")
+      val updatedAt = DB.readOnly { implicit s =>
+        getDatasetWithOwnerAccess(datasetId, user)
+        getApp(datasetId, appId)
+        getAppVersionUpdatedAt(appId, appVersionId)
+      }.getOrElse {
+        throw new NotFoundException
+      }
+      val file = AppManager.download(appId, appVersionId)
+      val content = Files.newInputStream(file.toPath)
+      (content, updatedAt)
+    }
+  }
+
+  private def getAppVersionUpdatedAt(appId: String, appVersionId: String)(implicit s: DBSession): Option[DateTime] = {
+    val v = persistence.AppVersion.syntax("v")
+    withSQL {
+      select(v.result.updatedAt)
+        .from(persistence.AppVersion as v)
+        .where
+        .eq(v.id, sqls.uuid(appVersionId))
+        .and
+        .eq(v.appId, sqls.uuid(appId))
+        .and
+        .isNull(v.deletedAt)
+    }.map { rs =>
+      rs.timestamp(v.resultName.updatedAt).toJodaDateTime
+    }.single.apply()
+  }
 }
 
 object DatasetService {
@@ -4120,4 +4270,17 @@ object DatasetService {
     val LOGICAL_DELETED_INCLUDE = 1
     val LOGICAL_DELETED_ONLY = 2
   }
+
+  case class DatasetApp(
+    datasetId: String,
+    appId: String,
+    appVersionId: String,
+    updatedAt: DateTime
+  )
+
+  case class AppUser(
+    id: String,
+    apiKey: String,
+    secretKey: String
+  )
 }
