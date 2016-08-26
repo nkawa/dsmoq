@@ -163,10 +163,10 @@ public class AsyncDsmoqClient {
      * POST /api/groups/${group_id}/members を呼ぶ。
      * 
      * @param groupId グループID
-     * @param param メンバー追加情報
+     * @param params メンバー追加情報
      * @return 実行結果のCompletableFuture
      * @throws NullPointerException groupId、params、paramsの要素のいずれかがnullの場合
-     * @see DsmoqClient#addMember(String, List<AddMemberParam>)
+     * @see DsmoqClient#addMember(String, List)
      */
     public CompletableFuture<Void> addMember(String groupId, List<AddMemberParam> params) {
         logger.debug(LOG_MARKER, "AsyncDsmoqClient#addMember start : [groupId] = {}, [params] = {}", groupId, params);
@@ -185,7 +185,7 @@ public class AsyncDsmoqClient {
      * @param params アクセス権制御情報
      * @return 変更後のアクセス権情報のCompletableFuture
      * @throws NullPointerException datasetId、params、paramsの要素のいずれかがnullの場合
-     * @see DsmoqClient#changeAccessLevel(String, List<SetAccessLevelParam>)
+     * @see DsmoqClient#changeAccessLevel(String, List)
      */
     public CompletableFuture<DatasetOwnerships> changeAccessLevel(String datasetId, List<SetAccessLevelParam> params) {
         logger.debug(LOG_MARKER, "AsyncDsmoqClient#changeAccessLevel start : [datasetId] = {}, [params] = {}",
@@ -467,8 +467,7 @@ public class AsyncDsmoqClient {
      * @param datasetFileFunc ファイルデータを処理する関数 (引数のDatasetFileはこの処理関数中でのみ利用可能)
      * @return 処理結果のCompletableFuture
      * @throws NullPointerException datasetIdまたはfileIdまたはdatasetFileFuncがnullの場合
-     * @see DsmoqClient#downloadFilet(String, String,
-     *      Function<DatasetFileContent, T>)
+     * @see DsmoqClient#downloadFile(String, String, Function)
      */
     public <T> CompletableFuture<T> downloadFile(String datasetId, String fileId,
             Function<DatasetFileContent, T> datasetFileFunc) {
@@ -495,8 +494,7 @@ public class AsyncDsmoqClient {
      * @return 処理結果のCompletableFuture
      * @throws NullPointerException datasetIdまたはfileIdまたはdatasetFileFuncがnullの場合
      * @throws IllegalArgumentException fromまたはtoが0未満の場合
-     * @see DsmoqClient#downloadFileWithRange(String, String, Long, Long,
-     *      Function<DatasetFileContent, T>)
+     * @see DsmoqClient#downloadFileWithRange(String, String, Long, Long, Function)
      */
     public <T> CompletableFuture<T> downloadFileWithRange(String datasetId, String fileId, Long from, Long to,
             Function<DatasetFileContent, T> datasetFileFunc) {
@@ -522,7 +520,7 @@ public class AsyncDsmoqClient {
      * @param fileFunc CSVデータを処理する関数 (引数のDatasetFileContentはこの処理関数中でのみ利用可能)
      * @return 処理結果
      * @throws NullPointerException datasetIdまたはfileFuncがnullの場合
-     * @see DsmoqClient#exportAttribute(String, Function<DatasetFileContent, T>)
+     * @see DsmoqClient#exportAttribute(String, Function)
      */
     public <T> CompletableFuture<T> exportAttribute(String datasetId, Function<DatasetFileContent, T> fileFunc) {
         logger.debug(LOG_MARKER, "AsyncDsmoqClient#exportAttribute start : [datasetId] = {}", datasetId);
@@ -717,8 +715,7 @@ public class AsyncDsmoqClient {
      * @param param グループ一覧取得情報
      * @return グループ一覧情報のCompletableFuture
      * @throws NullPointerException paramがnullの場合
-     * @see DsmoqClient#downloadFileWithRange(String, String, Long, Long,
-     *      Function<DatasetFileContent, T>)
+     * @see DsmoqClient#downloadFileWithRange(String, String, Long, Long, Function)
      */
     public CompletableFuture<RangeSlice<GroupsSummary>> getGroups(GetGroupsParam param) {
         logger.debug(LOG_MARKER, "AsyncDsmoqClient#getGroups start : [param] = {}", param);
@@ -1001,7 +998,7 @@ public class AsyncDsmoqClient {
      * @param file 更新対象のファイル
      * @return 更新されたファイル情報のCompletableFuture
      * @throws NullPointerException datasetId、fileId、fileのいずれかがnullの場合
-     * @see DsmoqClient#updateFile(String, String, File...)
+     * @see DsmoqClient#updateFile(String, String, File)
      */
     public CompletableFuture<DatasetFile> updateFile(String datasetId, String fileId, File file) {
         logger.debug(LOG_MARKER, "AsyncDsmoqClient#updateFile start : [datasetId] = {}, [fileId] = {}, [file] = {}",

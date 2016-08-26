@@ -25,6 +25,7 @@ public class CheckUtil {
      * 
      * 値がnullの場合は検査を行いません。
      * 
+     * @param <T> チェック対象の型
      * @param x チェック対象
      * @param base 基準値
      * @param position チェック位置
@@ -43,6 +44,7 @@ public class CheckUtil {
     /**
      * コレクションの要素に対して非空チェックを行う。
      * 
+     * @param <T> チェック対象の型
      * @param params チェック対象のコレクション
      * @param position チェック位置(String.formatでチェックに違反した要素のインデックスが入ります)
      * @throws NoSuchElementException 引数が空の場合
@@ -58,6 +60,7 @@ public class CheckUtil {
     /**
      * 配列の要素に対して非空チェックを行う。
      * 
+     * @param <T> チェック対象の型
      * @param params チェック対象の配列
      * @param position チェック位置(String.formatでチェックに違反した要素のインデックスが入ります)
      * @throws NoSuchElementException 引数が空の場合
@@ -73,6 +76,7 @@ public class CheckUtil {
     /**
      * 非nullチェックを行う。
      * 
+     * @param <T> チェック対象の型
      * @param x チェック対象
      * @param position チェック位置
      * @throws NullPointerException 引数がnullの場合
@@ -87,6 +91,7 @@ public class CheckUtil {
     /**
      * コレクションの要素に対して非nullチェックを行う。
      * 
+     * @param <T> チェック対象の型
      * @param params チェック対象のコレクション
      * @param position チェック位置(String.formatでチェックに違反した要素のインデックスが入ります)
      * @throws NullPointerException コレクション内にnull要素がある場合場合
@@ -105,6 +110,7 @@ public class CheckUtil {
     /**
      * 配列の要素に対して非nullチェックを行う。
      * 
+     * @param <T> チェック対象の型
      * @param params チェック対象の配列
      * @param position チェック位置(String.formatでチェックに違反した要素のインデックスが入ります)
      * @throws NullPointerException 配列内にnull要素がある場合場合

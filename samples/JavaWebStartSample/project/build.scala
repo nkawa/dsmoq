@@ -15,6 +15,9 @@ object JavaWebStartSampleBuild extends Build {
       version := Version,
       scalaVersion := ScalaVersion,
       scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
-      javacOptions ++= Seq("-encoding", "UTF-8")
+      javacOptions ++= Seq("-encoding", "UTF-8"),
+      libraryDependencies ++= Seq(
+        "dsmoq" %% "dsmoq-sdk" % "1.0.0"
+      )
     )
 }
