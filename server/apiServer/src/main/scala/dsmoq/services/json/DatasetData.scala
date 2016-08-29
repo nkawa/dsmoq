@@ -1,5 +1,9 @@
 package dsmoq.services.json
 
+import java.io.InputStream
+
+import org.joda.time.DateTime
+
 import dsmoq.services.User
 
 object DatasetData {
@@ -137,9 +141,54 @@ object DatasetData {
     imageId: String
   )
 
+  /**
+   * アプリ情報を返却するためのJSON型
+   *
+   * @param id アプリID
+   * @param name アプリ名
+   * @param datasetId データセットID
+   * @param isPrimary データセットにアプリとして設定されているか
+   * @param lastModified 最終更新日時
+   */
   case class App(
     id: String,
     name: String,
-    isPrimary: Boolean
+    datasetId: String,
+    isPrimary: Boolean,
+    lastModified: DateTime
+  )
+
+  /**
+   * アプリのJNLPファイルを返却するためのJSON型
+   *
+   * @param id アプリID
+   * @param name アプリ名
+   * @param versionId アプリバージョンID
+   * @param datasetId データセットID
+   * @param lastModified 最終更新日時
+   * @param content JNLPファイルの中身
+   */
+  case class AppJnlp(
+    id: String,
+    name: String,
+    versionId: String,
+    datasetId: String,
+    lastModified: DateTime,
+    content: String
+  )
+
+  /**
+   * アプリのJARファイルを返却するためのJSON型
+   *
+   * @param appId アプリID
+   * @param appVersionId アプリバージョンID
+   * @param lastModified 最終更新日時
+   * @param content JARファイルの中身
+   */
+  case class AppFile(
+    appId: String,
+    appVersionId: String,
+    lastModified: DateTime,
+    content: InputStream
   )
 }

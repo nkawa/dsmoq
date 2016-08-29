@@ -11,6 +11,7 @@ import org.slf4j.MarkerFactory
 
 import com.typesafe.scalalogging.LazyLogging
 
+import dsmoq.controllers.ResponseUtil.generateContentDispositionValue
 import dsmoq.controllers.ResponseUtil.toActionResult
 import dsmoq.logic.CheckUtil
 import dsmoq.services.DatasetService
@@ -31,11 +32,6 @@ class AppController(val resource: ResourceBundle) extends ScalatraServlet with L
    */
   val checkUtil = new CheckUtil(resource)
 
-  /**
-   * HTTPレスポンスのLast-Modifiedヘッダ名
-   */
-  val LAST_MODIFIED_HEADER = "Last-Modified"
-
   get("/:datasetId/:appId.jnlp") {
     val datasetId = params("datasetId")
     val appId = params("appId")
@@ -43,11 +39,12 @@ class AppController(val resource: ResourceBundle) extends ScalatraServlet with L
       _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
       _ <- checkUtil.validUuidForUrl("appId", appId)
       user <- getUser(allowGuest = false)
-      (jnlp, lastModified) <- datasetService.getAppJnlp(datasetId, appId, user)
+      jnlp <- datasetService.getAppJnlp(datasetId, appId, user)
     } yield {
       contentType = "application/x-java-jnlp-file"
-      response.setDateHeader(LAST_MODIFIED_HEADER, lastModified.getMillis)
-      jnlp
+      response.setDateHeader("Last-Modified", jnlp.lastModified.getMillis)
+      response.setHeader("Content-Disposition", generateContentDispositionValue(s"${jnlp.name}.jnlp"))
+      jnlp.content
     }
     toActionResult(ret)
   }
@@ -61,11 +58,11 @@ class AppController(val resource: ResourceBundle) extends ScalatraServlet with L
       _ <- checkUtil.validUuidForUrl("appId", appId)
       _ <- checkUtil.validUuidForUrl("appVersionId", appVersionId)
       user <- getUser(allowGuest = false)
-      (stream, lastModified) <- datasetService.getAppFile(datasetId, appId, appVersionId, user)
+      file <- datasetService.getAppFile(datasetId, appId, appVersionId, user)
     } yield {
       contentType = "application/java-archive"
-      response.setDateHeader(LAST_MODIFIED_HEADER, lastModified.getMillis)
-      stream
+      response.setDateHeader("Last-Modified", file.lastModified.getMillis)
+      file.content
     }
     toActionResult(ret)
   }

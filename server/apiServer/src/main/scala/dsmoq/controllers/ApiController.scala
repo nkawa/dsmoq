@@ -762,7 +762,7 @@ class ApiController(
     val datasetId = params("datasetId")
     val ret = for {
       _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
-      user <- getUser(allowGuest = false)
+      user <- getUser(allowGuest = true)
       result <- datasetService.getPrimaryAppUrl(datasetId, user)
     } yield {
       result
