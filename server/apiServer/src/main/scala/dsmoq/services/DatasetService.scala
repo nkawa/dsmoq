@@ -1104,6 +1104,16 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * ファイルの存在を確認した後、指定されたデータセットを管理権限で取得します。
+   *
+   * @param datasetId データセットID
+   * @param fileId ファイルID
+   * @param user ユーザ情報
+   * @return データセット
+   * @throws NotFoundException データセットまたはファイルが存在しない場合
+   * @throws AccessDeniedException ユーザに管理権限がない場合
+   */
   private def getDatasetWithOwnerFileAccess(
     datasetId: String,
     fileId: String,
@@ -1115,6 +1125,15 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     getDatasetWithOwnerAccess(datasetId, user)
   }
 
+  /**
+   * 指定されたデータセットを管理権限で取得します。
+   *
+   * @param datasetId データセットID
+   * @param user ユーザ情報
+   * @return データセット
+   * @throws NotFoundException データセットが存在しない場合
+   * @throws AccessDeniedException ユーザに管理権限がない場合
+   */
   private def getDatasetWithOwnerAccess(datasetId: String, user: User)(implicit s: DBSession): persistence.Dataset = {
     getDataset(datasetId) match {
       case None => {
