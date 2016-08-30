@@ -1,3 +1,5 @@
+package sample;
+
 import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient;
 import jp.ac.nagoya_u.dsmoq.sdk.request.GetRangeParam;
 import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetFile;
@@ -5,8 +7,6 @@ import jp.ac.nagoya_u.dsmoq.sdk.response.RangeSlice;
 
 /**
  * アプリケーションのエントリークラス
- *
- * Java Web Start 実行の際は、無名パッケージ下のMainクラスが呼び出されます。
  **/
 public class Main {
     public static void main(String[] args) {

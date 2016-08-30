@@ -8,9 +8,9 @@ package dsmoq.logic
  */
 case class Identity[T](get: T) {
   /**
-   * Apply the given function f to the value. 
-   * 
-   * @tparam R return type 
+   * Apply the given function f to the value.
+   *
+   * @tparam R return type
    * @param f the function to apply
    * @return the result of applying the given function f
    */

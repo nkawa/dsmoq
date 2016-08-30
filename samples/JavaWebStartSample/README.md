@@ -19,7 +19,7 @@ sbt publishLocal
 dsmoq-jws-sample-assembly-1.0.0.jar ファイルが作成されます。
 
 ```
-sbt assemble
+sbt assembly
 ```
 
 ### 署名の付与
@@ -32,5 +32,5 @@ Java Web Start のアプリケーションとして登録するためには、
 #### 署名付与コマンド例
 ```
 keytool -genkey -keyalg rsa -alias sample
-jarsigne dsmoq-jws-sample-assembly-1.0.0.jar sample
+jarsigner dsmoq-jws-sample-assembly-1.0.0.jar sample
 ```

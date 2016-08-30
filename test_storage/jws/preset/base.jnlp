@@ -9,12 +9,12 @@
   </security>
   <resources>
     <javase version="1.8+"/>
-    <jar href=""/>
+    <jar/>
     <property name="jnlp.dsmoq.url" value=""/>
     <property name="jnlp.dsmoq.user.apiKey" value=""/>
     <property name="jnlp.dsmoq.user.secretKey" value=""/>
     <property name="jnlp.dsmoq.dataset.id" value=""/>
   </resources>
-  <application-desc main-class="Main">
+  <application-desc>
   </application-desc>
 </jnlp> 
