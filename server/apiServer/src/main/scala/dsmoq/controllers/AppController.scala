@@ -13,8 +13,11 @@ import com.typesafe.scalalogging.LazyLogging
 
 import dsmoq.controllers.ResponseUtil.generateContentDispositionValue
 import dsmoq.controllers.ResponseUtil.toActionResult
+import dsmoq.exceptions.NotFoundException
 import dsmoq.logic.CheckUtil
+import dsmoq.services.AccountService
 import dsmoq.services.DatasetService
+import dsmoq.services.User
 
 class AppController(val resource: ResourceBundle) extends ScalatraServlet with LazyLogging with AuthTrait {
   /**
@@ -28,17 +31,24 @@ class AppController(val resource: ResourceBundle) extends ScalatraServlet with L
   val datasetService = new DatasetService(resource)
 
   /**
+   * AccountServiceのインスタンス
+   */
+  val accountService = new AccountService(resource)
+
+  /**
    * CheckUtilのインスタンス
    */
   val checkUtil = new CheckUtil(resource)
 
-  get("/:datasetId/:appId.jnlp") {
+  get("/:userId/:datasetId/:appId.jnlp") {
+    val userId = params("userId")
     val datasetId = params("datasetId")
     val appId = params("appId")
     val ret = for {
+      _ <- checkUtil.validUuidForUrl("userId", userId)
       _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
       _ <- checkUtil.validUuidForUrl("appId", appId)
-      user <- getUser(allowGuest = false)
+      user <- getUser(userId)
       jnlp <- datasetService.getAppJnlp(datasetId, appId, user)
     } yield {
       contentType = "application/x-java-jnlp-file"
@@ -49,15 +59,17 @@ class AppController(val resource: ResourceBundle) extends ScalatraServlet with L
     toActionResult(ret)
   }
 
-  get("/:datasetId/:appId/:appVersionId.jar") {
+  get("/:userId/:datasetId/:appId/:appVersionId.jar") {
+    val userId = params("userId")
     val datasetId = params("datasetId")
     val appId = params("appId")
     val appVersionId = params("appVersionId")
     val ret = for {
+      _ <- checkUtil.validUuidForUrl("userId", userId)
       _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
       _ <- checkUtil.validUuidForUrl("appId", appId)
       _ <- checkUtil.validUuidForUrl("appVersionId", appVersionId)
-      user <- getUser(allowGuest = false)
+      user <- getUser(userId)
       file <- datasetService.getAppFile(datasetId, appId, appVersionId, user)
     } yield {
       contentType = "application/java-archive"
@@ -65,5 +77,19 @@ class AppController(val resource: ResourceBundle) extends ScalatraServlet with L
       file.content
     }
     toActionResult(ret)
+  }
+
+  /**
+   * 指定したIDのユーザを取得します。
+   *
+   * @param id ユーザID
+   * @return
+   *   Success(User) 取得したユーザ
+   *   Failure(NotFoundException) 取得したユーザ
+   */
+  private def getUser(id: String): Try[User] = {
+    accountService.getUser(id)
+      .map(Success.apply)
+      .getOrElse(Failure(new NotFoundException))
   }
 }

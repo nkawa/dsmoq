@@ -30,7 +30,17 @@ Java Web Start のアプリケーションとして登録するためには、
 署名を付与しないとユーザ実行時にエラーとなります。
 
 #### 署名付与コマンド例
+
+証明書を取得しない場合、以下のコマンドで署名を付与できます。
+
 ```
-keytool -genkey -keyalg rsa -alias sample
-jarsigner dsmoq-jws-sample-assembly-1.0.0.jar sample
+keytool -genkey -keyalg rsa -keystore sample.jks -alias sample
+jarsigner -keystore sample.jks dsmoq-jws-sample-assembly-1.0.0.jar sample
 ```
+
+証明書を取得していないので、アプリ利用者側のJavaセキュリティ設定で
+例外サイト・リストにdsmoqサイトを登録する必要があります。
+
+証明書を取得する方法については、
+[公開/秘密鍵のペアと信頼できるエンティティからの証明書を管理するためのキーストアを作成する手順](http://docs.oracle.com/javase/jp/8/docs/technotes/tools/unix/keytool.html#keytool_examples)
+ を参照ください。

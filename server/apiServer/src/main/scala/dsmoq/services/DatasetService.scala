@@ -4177,7 +4177,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           app <- getNewestPrimaryApp(datasetId)
           if isOwner(user.id, datasetId)
         } yield {
-          AppManager.getJnlpUrl(app.datasetId, app.appId)
+          AppManager.getJnlpUrl(app.datasetId, app.appId, user.id)
         }
       }
     }
@@ -4283,6 +4283,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             datasetId = primaryApp.datasetId,
             appId = primaryApp.appId,
             appVersionId = primaryApp.appVersionId,
+            userId = user.id,
             apiKey = uk.apiKey,
             secretKey = uk.secretKey
           )
