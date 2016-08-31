@@ -4103,6 +4103,48 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   }
 
   /**
+   * ファイル名からアプリ名を取得する。
+   *
+   * @param fileName ファイル名
+   * @return アプリ名
+   */
+  def appNameOf(fileName: String): String = {
+    // アプリ名はファイル名からリソースの指定と拡張子を除く
+    fileName match {
+      case DatasetService.APP_FILE_NAME_REG(name, _, _) => name
+      case _ => fileName
+    }
+  }
+
+  /**
+   * データセットに設定されているアプリのURLを取得する。
+   *
+   * @param datasetId データセットID
+   * @param user ユーザ情報
+   * @return
+   *   Success(None) 設定されていない、ユーザにAPIキーがない、ユーザに権限がない場合
+   *   Success(Some(String)) アプリのJNLPファイルへのURL
+   *   Failure(NullPointerException) datasetId,またはuserがnullの場合
+   *   Failure(NotFoundException) データセットが存在しない場合
+   */
+  def getPrimaryAppUrl(datasetId: String, user: User): Try[Option[String]] = {
+    Try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(user, "user")
+      DB.readOnly { implicit s =>
+        checkDatasetExisitence(datasetId)
+        for {
+          _ <- getUserKey(user)
+          app <- getNewestPrimaryApp(datasetId)
+          if isOwner(user.id, datasetId)
+        } yield {
+          AppManager.getJnlpUrl(datasetId, app.appId, user.id)
+        }
+      }
+    }
+  }
+
+  /**
    * アプリ情報を取得する。
    *
    * @param datasetId データセットID
@@ -4142,44 +4184,45 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   }
 
   /**
-   * ファイル名からアプリ名を取得する。
-   *
-   * @param fileName ファイル名
-   * @return アプリ名
-   */
-  def appNameOf(fileName: String): String = {
-    // アプリ名はファイル名からリソースの指定と拡張子を除く
-    fileName match {
-      case DatasetService.APP_FILE_NAME_REG(name, _, _) => name
-      case _ => fileName
-    }
-  }
-
-  /**
-   * データセットに設定されているアプリのURLを取得する。
+   * アプリの最新版情報を取得する。
    *
    * @param datasetId データセットID
-   * @param user ユーザ情報
-   * @return
-   *   Success(None) 設定されていない、ユーザにAPIキーがない、ユーザに権限がない場合
-   *   Success(Some(String)) アプリのJNLPファイルへのURL
-   *   Failure(NullPointerException) datasetId,またはuserがnullの場合
-   *   Failure(NotFoundException) データセットが存在しない場合
+   * @param appId アプリID
+   * @param s DBセッション
+   * @return アプリの最新版情報
+   * @throws NotFoundException アプリまたは関連付けが存在しない場合
    */
-  def getPrimaryAppUrl(datasetId: String, user: User): Try[Option[String]] = {
-    Try {
-      CheckUtil.checkNull(datasetId, "datasetId")
-      CheckUtil.checkNull(user, "user")
-      DB.readOnly { implicit s =>
-        checkDatasetExisitence(datasetId)
-        for {
-          _ <- getUserKey(user)
-          app <- getNewestPrimaryApp(datasetId)
-          if isOwner(user.id, datasetId)
-        } yield {
-          AppManager.getJnlpUrl(app.datasetId, app.appId, user.id)
-        }
-      }
+  private def getNewestApp(datasetId: String, appId: String)(implicit s: DBSession): DatasetService.DatasetApp = {
+    val a = persistence.App.syntax("a")
+    val v = persistence.AppVersion.syntax("v")
+    val da = persistence.DatasetApp.syntax("da")
+    withSQL {
+      select(a.result.*, v.result.*)
+        .from(persistence.App as a)
+        .innerJoin(persistence.AppVersion as v).on(a.id, v.appId)
+        .innerJoin(persistence.DatasetApp as da).on(a.id, da.appId)
+        .where
+        .eq(a.id, sqls.uuid(appId))
+        .and
+        .eq(da.datasetId, sqls.uuid(datasetId))
+        .and
+        .isNull(a.deletedAt)
+        .and
+        .isNull(v.deletedAt)
+        .and
+        .isNull(da.deletedAt)
+        .orderBy(v.version.desc)
+        .limit(1)
+    }.map { rs =>
+      DatasetService.DatasetApp(
+        datasetId = datasetId,
+        appId = rs.string(a.resultName.id),
+        appName = rs.string(a.resultName.name),
+        appVersionId = rs.string(v.resultName.id),
+        updatedAt = rs.timestamp(v.resultName.updatedAt).toJodaDateTime
+      )
+    }.single.apply().getOrElse {
+      throw new NotFoundException
     }
   }
 
@@ -4195,7 +4238,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     val v = persistence.AppVersion.syntax("v")
     val da = persistence.DatasetApp.syntax("da")
     withSQL {
-      select(a.result.id, v.result.id, v.result.updatedAt, da.result.isPrimary)
+      select(a.result.*, v.result.*, da.result.isPrimary)
         .from(persistence.App as a)
         .innerJoin(persistence.AppVersion as v).on(a.id, v.appId)
         .innerJoin(persistence.DatasetApp as da).on(a.id, da.appId)
@@ -4215,6 +4258,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       DatasetService.DatasetApp(
         datasetId = datasetId,
         appId = rs.string(a.resultName.id),
+        appName = rs.string(a.resultName.name),
         appVersionId = rs.string(v.resultName.id),
         updatedAt = rs.timestamp(v.resultName.updatedAt).toJodaDateTime
       )
@@ -4272,34 +4316,32 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(datasetId, "datasetId")
       CheckUtil.checkNull(appId, "appId")
       CheckUtil.checkNull(user, "user")
-      DB.readOnly { implicit s =>
+      val (app, uk) = DB.readOnly { implicit s =>
         getDatasetWithOwnerAccess(datasetId, user)
-        val app = getApp(datasetId, appId)
-        val ret = for {
+        for {
+          app <- getNewestPrimaryApp(datasetId)
           uk <- getUserKey(user)
-          primaryApp <- getNewestPrimaryApp(datasetId)
         } yield {
-          val content = AppManager.getJnlp(
-            datasetId = primaryApp.datasetId,
-            appId = primaryApp.appId,
-            appVersionId = primaryApp.appVersionId,
-            userId = user.id,
-            apiKey = uk.apiKey,
-            secretKey = uk.secretKey
-          )
-          DatasetData.AppJnlp(
-            id = appId,
-            name = app.name,
-            versionId = primaryApp.appVersionId,
-            datasetId = datasetId,
-            lastModified = app.lastModified,
-            content = content
-          )
+          (app, uk)
         }
-        ret.getOrElse {
-          throw new NotFoundException
-        }
+      }.getOrElse {
+        throw new NotFoundException
       }
+      val content = AppManager.getJnlp(
+        datasetId = datasetId,
+        appId = appId,
+        userId = user.id,
+        apiKey = uk.apiKey,
+        secretKey = uk.secretKey
+      )
+      DatasetData.AppJnlp(
+        id = appId,
+        name = app.appName,
+        versionId = app.appVersionId,
+        datasetId = datasetId,
+        lastModified = app.updatedAt,
+        content = content
+      )
     }
   }
 
@@ -4308,7 +4350,6 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    *
    * @param datasetId データセットID
    * @param appId アプリID
-   * @param appVersionId アプリバージョンID
    * @param user ユーザ情報
    * @return
    *   Success(AppFile) 取得成功時、アプリのJARファイル情報
@@ -4317,26 +4358,21 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    *     データセット,アプリまたはアプリバージョンが存在しない場合
    *   Failure(AccessDeniedException) ユーザに管理権限がない場合
    */
-  def getAppFile(datasetId: String, appId: String, appVersionId: String, user: User): Try[DatasetData.AppFile] = {
+  def getAppFile(datasetId: String, appId: String, user: User): Try[DatasetData.AppFile] = {
     Try {
       CheckUtil.checkNull(datasetId, "datasetId")
       CheckUtil.checkNull(appId, "appId")
-      CheckUtil.checkNull(appVersionId, "appVersionId")
       CheckUtil.checkNull(user, "user")
-      val updatedAt = DB.readOnly { implicit s =>
+      val app = DB.readOnly { implicit s =>
         getDatasetWithOwnerAccess(datasetId, user)
-        getApp(datasetId, appId)
-        val updatedAt = getAppVersionUpdatedAt(appId, appVersionId)
-        updatedAt
-      }.getOrElse {
-        throw new NotFoundException
+        getNewestApp(datasetId, appId)
       }
-      val file = AppManager.download(appId, appVersionId)
+      val file = AppManager.download(appId, app.appVersionId)
       val content = Files.newInputStream(file.toPath)
       DatasetData.AppFile(
         appId = appId,
-        appVersionId = appVersionId,
-        lastModified = updatedAt,
+        appVersionId = app.appVersionId,
+        lastModified = app.updatedAt,
         content = content
       )
     }
@@ -4483,12 +4519,14 @@ object DatasetService {
    *
    * @param datasetId データセットID
    * @param appId アプリID
+   * @param appName アプリ名
    * @param appVersionId アプリバージョンID
    * @param updatedAt アプリバージョンの更新日時
    */
   case class DatasetApp(
     datasetId: String,
     appId: String,
+    appName: String,
     appVersionId: String,
     updatedAt: DateTime
   )

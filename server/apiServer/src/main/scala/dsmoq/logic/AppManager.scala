@@ -76,8 +76,8 @@ object AppManager {
    * @param userId ユーザID
    * @return JARファイルのURL
    */
-  def getJarUrl(datasetId: String, appId: String, appVersionId: String, userId: String): String = {
-    s"${AppConf.appDownloadRoot}${userId}/${datasetId}/${appId}/${appVersionId}.jar"
+  def getJarUrl(datasetId: String, appId: String, userId: String): String = {
+    s"${AppConf.appDownloadRoot}${userId}/${datasetId}/${appId}.jar"
   }
 
   /**
@@ -85,7 +85,6 @@ object AppManager {
    *
    * @param datasetId データセットID
    * @param appId アプリID
-   * @param appVersionId アプリバージョンID
    * @param userId 利用ユーザのユーザID
    * @param apiKey 利用ユーザのAPIキー
    * @param secretKey 利用ユーザのシークレットキー
@@ -94,7 +93,6 @@ object AppManager {
   def getJnlp(
     datasetId: String,
     appId: String,
-    appVersionId: String,
     userId: String,
     apiKey: String,
     secretKey: String
@@ -106,7 +104,7 @@ object AppManager {
       override def transform(n: Node) = n match {
         case <jar></jar> => {
           // JARファイルのURLを埋め込み
-          <jar href={ getJarUrl(datasetId, appId, appVersionId, userId) }></jar>
+          <jar href={ getJarUrl(datasetId, appId, userId) }></jar>
         }
         case <property></property> => {
           val attrs = n.asInstanceOf[Elem].attributes.asAttrMap

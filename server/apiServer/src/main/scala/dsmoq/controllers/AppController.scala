@@ -59,18 +59,16 @@ class AppController(val resource: ResourceBundle) extends ScalatraServlet with L
     toActionResult(ret)
   }
 
-  get("/:userId/:datasetId/:appId/:appVersionId.jar") {
+  get("/:userId/:datasetId/:appId.jar") {
     val userId = params("userId")
     val datasetId = params("datasetId")
     val appId = params("appId")
-    val appVersionId = params("appVersionId")
     val ret = for {
       _ <- checkUtil.validUuidForUrl("userId", userId)
       _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
       _ <- checkUtil.validUuidForUrl("appId", appId)
-      _ <- checkUtil.validUuidForUrl("appVersionId", appVersionId)
       user <- getUser(userId)
-      file <- datasetService.getAppFile(datasetId, appId, appVersionId, user)
+      file <- datasetService.getAppFile(datasetId, appId, user)
     } yield {
       contentType = "application/java-archive"
       response.setDateHeader("Last-Modified", file.lastModified.getMillis)
