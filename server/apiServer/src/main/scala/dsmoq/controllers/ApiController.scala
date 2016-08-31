@@ -675,7 +675,7 @@ class ApiController(
     val datasetId = params("datasetId")
     val ret = for {
       file <- checkUtil.requireForForm("file", fileParams.get("file"))
-      _ <- checkUtil.checkNonZeroByteFile("file", file)
+      _ <- checkUtil.checkJarFile("file", file)
       _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
       user <- getUser(allowGuest = false)
       result <- datasetService.addApp(datasetId, file, user)
@@ -704,7 +704,7 @@ class ApiController(
     val appId = params("appId")
     val ret = for {
       file <- checkUtil.requireForForm("file", fileParams.get("file"))
-      _ <- checkUtil.checkNonZeroByteFile("file", file)
+      _ <- checkUtil.checkJarFile("file", file)
       _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
       _ <- checkUtil.validUuidForUrl("appId", appId)
       user <- getUser(allowGuest = false)

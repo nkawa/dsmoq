@@ -1,6 +1,7 @@
 package dsmoq.logic
 
 import java.util.ResourceBundle
+import java.util.jar.JarInputStream
 
 import scala.util.Failure
 import scala.util.Success
@@ -299,6 +300,36 @@ class CheckUtil(resource: ResourceBundle) extends LazyLogging {
     } else {
       val message = resource.getString(ResourceNames.SELECT_EMPTY_FILE)
       Failure(new InputCheckException(name, message, false))
+    }
+  }
+
+  /**
+   * ファイルがJAR形式であるかどうかをチェックする。チェックに違反した場合はエラーを返す。
+   *
+   * @param name 項目名
+   * @param file ファイル
+   * @return エラーがあれば、Failureで例外を包んで返す。
+   *         返却する可能性のある例外は、InputCheckExceptionである。
+   */
+  def checkJarFile(name: String, file: FileItem): Try[Unit] = {
+    var jar: JarInputStream = null
+    try {
+      jar = new JarInputStream(file.getInputStream)
+      if (jar.getManifest == null) {
+        val message = resource.getString(ResourceNames.INVALID_JAR_FILE)
+        Failure(new InputCheckException(name, message, false))
+      } else {
+        Success(())
+      }
+    } catch {
+      case e: Exception => {
+        val message = resource.getString(ResourceNames.INVALID_JAR_FILE)
+        Failure(new InputCheckException(name, message, false))
+      }
+    } finally {
+      if (jar != null) {
+        jar.close()
+      }
     }
   }
 

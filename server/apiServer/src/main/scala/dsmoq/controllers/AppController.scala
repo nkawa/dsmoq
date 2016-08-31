@@ -19,7 +19,7 @@ import dsmoq.services.AccountService
 import dsmoq.services.DatasetService
 import dsmoq.services.User
 
-class AppController(val resource: ResourceBundle) extends ScalatraServlet with LazyLogging with AuthTrait {
+class AppController(val resource: ResourceBundle) extends ScalatraServlet with LazyLogging {
   /**
    * ログマーカー
    */
@@ -88,7 +88,7 @@ class AppController(val resource: ResourceBundle) extends ScalatraServlet with L
    *   Failure(NotFoundException) 取得したユーザ
    */
   private def getUser(id: String): Try[User] = {
-    accountService.getUser(id)
+    accountService.getUser(id).filter(!_.isDisabled)
       .map(Success.apply)
       .getOrElse(Failure(new NotFoundException))
   }
