@@ -4,6 +4,10 @@ import java.io.File
 import java.io.StringWriter
 import java.nio.charset.StandardCharsets
 import java.nio.file.Paths
+import javax.crypto.Cipher
+import javax.crypto.SecretKeyFactory
+import javax.crypto.spec.DESedeKeySpec
+import javax.xml.bind.DatatypeConverter
 
 import scala.xml.Elem
 import scala.xml.Node
@@ -97,6 +101,8 @@ object AppManager {
     apiKey: String,
     secretKey: String
   ): String = {
+    val encriptedApiKey = encript(datasetId, apiKey)
+    val encriptedSecretKey = encript(datasetId, secretKey)
     val path = Paths.get(AppConf.appDir, "preset", "base.jnlp")
     val parser = ConstructingParser.fromFile(path.toFile, false)
     val doc = parser.document
@@ -115,11 +121,11 @@ object AppManager {
             }
             case Some("jnlp.dsmoq.user.apiKey") => {
               // 利用ユーザのAPIキーを埋め込み
-              <property name="jnlp.dsmoq.user.apiKey" value={ apiKey }></property>
+              <property name="jnlp.dsmoq.user.apiKey" value={ encriptedApiKey }></property>
             }
             case Some("jnlp.dsmoq.user.secretKey") => {
               // 利用ユーザのシークレットキーを埋め込み
-              <property name="jnlp.dsmoq.user.secretKey" value={ secretKey }></property>
+              <property name="jnlp.dsmoq.user.secretKey" value={ encriptedSecretKey }></property>
             }
             case Some("jnlp.dsmoq.dataset.id") => {
               // データセットIDを埋め込み
@@ -140,5 +146,22 @@ object AppManager {
     // XML宣言出力のためXML.writeを使用 (node.toStringだとXML宣言を含まない)
     XML.write(sw, transformed, doc.encoding.getOrElse(DEFAULT_JNLP_CHAESAET.name()), true, null)
     sw.toString
+  }
+
+  /**
+   * 指定された文字列を暗号化する。
+   *
+   * @param key 暗号化に用いる鍵
+   * @param value 暗号化する文字列
+   * @return 暗号化された文字列
+   */
+  def encript(key: String, value: String): String = {
+    val spec = new DESedeKeySpec(key.getBytes)
+    val skf = SecretKeyFactory.getInstance("DESede")
+    val sk = skf.generateSecret(spec)
+    val cipher = Cipher.getInstance("DESede")
+    cipher.init(Cipher.ENCRYPT_MODE, sk)
+    val bytes = cipher.doFinal(value.getBytes)
+    DatatypeConverter.printBase64Binary(bytes)
   }
 }
