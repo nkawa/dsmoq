@@ -67,7 +67,7 @@ class ApiController(
   val resource: ResourceBundle
 ) extends ScalatraServlet with JacksonJsonSupport with FileUploadSupport with LazyLogging with AuthTrait {
 
-  protected implicit val jsonFormats: Formats = DefaultFormats
+  protected implicit val jsonFormats: Formats = DefaultFormats + DateTimeSerializer
 
   /**
    * ログマーカー
