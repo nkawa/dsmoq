@@ -1,0 +1,10 @@
+# Maintenance Page settings
+maintenance {
+  port = 8092
+
+  user = "coi"
+  password = "coicoi"
+
+  search_limit = 10
+  dsmoq_url_root = "http://localhost:8080/"
+}
