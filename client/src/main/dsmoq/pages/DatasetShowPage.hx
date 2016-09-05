@@ -39,7 +39,7 @@ class DatasetShowPage {
                 root: {
                     name: res.filesCount + " files",
                     files: new Array<FileItem>(),
-                    opened: false,
+                    opened: res.filesCount > 0,
                     useProgress: false
                 },
                 attributes: res.meta.attributes,
@@ -54,45 +54,52 @@ class DatasetShowPage {
                 filesCount: res.filesCount,
                 fileLimit: res.fileLimit
             };
-            binding.setProperty("data", data);
 
-            html.find("#dataset-edit").on("click", function (_) {
-                navigation.fulfill(Navigation.Navigate(Page.DatasetEdit(id)));
-            });
+            function setEvents() {
+                html.find("#dataset-edit").on("click", function (_) {
+                    navigation.fulfill(Navigation.Navigate(Page.DatasetEdit(id)));
+                });
 
-            html.find("#dataset-delete").createEventStream("click").flatMap(function (_) {
-                return JsTools.confirm("Are you sure you want to delete this dataset?");
-            }).flatMap(function (_) {
-                return Service.instance.deleteDeataset(id);
-            }).then(function (_) {
-                // TODO 削除対象データセット閲覧履歴（このページ）をHistoryから消す
-                navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, "", new Array<{type: String, item: Dynamic}>())));
-            });
-            
-            html.find("#dataset-copy").createEventStream("click").flatMap(function (_) {
-                return JsTools.confirm("Are you sure you want to copy this dataset?");
-            }).flatMap(function (_) {
-                return Service.instance.copyDataset(id);
-            }).then(function(x) {
-                navigation.fulfill(Navigation.Navigate(Page.DatasetShow(x.datasetId)));
-            });
-            
-            html.find(".accordion-head-item").on("click", function (_) {
-                binding.setProperty("data.root.opened", !data.root.opened);
-                if (!data.root.opened || data.root.files.length > 0) {
-                    if (data.root.opened) {
-                        setTopMoreClickEvent(html, navigation, binding, data, id);
-                        setZipClickEvent(html, navigation, data, id);
-                        for (i in 0...data.root.files.length) {
-                            var fileitem = data.root.files[i];
-                            if (fileitem.opened && fileitem.zippedFiles.length < fileitem.file.zipCount) {
-                                setZipMoreClickEvent(html, navigation, data, id, i);
+                html.find("#dataset-delete").createEventStream("click").flatMap(function (_) {
+                    return JsTools.confirm("Are you sure you want to delete this dataset?");
+                }).flatMap(function (_) {
+                    return Service.instance.deleteDeataset(id);
+                }).then(function (_) {
+                    // TODO 削除対象データセット閲覧履歴（このページ）をHistoryから消す
+                    navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, "", new Array<{type: String, item: Dynamic}>())));
+                });
+                
+                html.find("#dataset-copy").createEventStream("click").flatMap(function (_) {
+                    return JsTools.confirm("Are you sure you want to copy this dataset?");
+                }).flatMap(function (_) {
+                    return Service.instance.copyDataset(id);
+                }).then(function(x) {
+                    navigation.fulfill(Navigation.Navigate(Page.DatasetShow(x.datasetId)));
+                });
+                
+                html.find(".accordion-head-item").on("click", function (_) {
+                    binding.setProperty("data.root.opened", !data.root.opened);
+                    if (!data.root.opened || data.root.files.length > 0) {
+                        if (data.root.opened) {
+                            setTopMoreClickEvent(html, navigation, binding, data, id);
+                            setZipClickEvent(html, navigation, data, id);
+                            for (i in 0...data.root.files.length) {
+                                var fileitem = data.root.files[i];
+                                if (fileitem.opened && fileitem.zippedFiles.length < fileitem.file.zipCount) {
+                                    setZipMoreClickEvent(html, navigation, data, id, i);
+                                }
                             }
                         }
                     }
-                    return;
-                }
-                setDatasetFiles(data, id, data.fileLimit, 0).then(function (_) {
+                });
+            }
+
+            if (res.filesCount > 0) {
+                // ファイルがある場合は初期表示分のファイルを取得してから、初期表示を完了させる
+                setDatasetFiles(data, id, data.fileLimit, 0, false).then(function (_) {
+                    binding.setProperty("data", data);
+                    // 画面のレンダリングが完了してからEventを割り当てる
+                    setEvents();
                     setTopMoreClickEvent(html, navigation, binding, data, id);
                     setZipClickEvent(html, navigation, data, id);
                 }, function (err: Dynamic) {
@@ -113,9 +120,11 @@ class DatasetShowPage {
                             html.html("Network error");
                     }
                 });
-                setTopMoreClickEvent(html, navigation, binding, data, id);
-            });
-            
+            } else {
+                binding.setProperty("data", data);
+                // 画面のレンダリングが完了してからEventを割り当てる
+                setEvents();
+            }
         }, function (err: Dynamic) {
             html.html(err.responseJSON.status);
         });
@@ -130,12 +139,17 @@ class DatasetShowPage {
      * @param datasetId データセットID
      * @param limit データセットのファイルの取得Limit
      * @param offset データセットのファイルの取得位置
+     * @param useObservable observableを更新するか否か
      * @return データセットのファイル一覧取得のPromise
      */
-    static function setDatasetFiles(data: Dynamic, datasetId: String, limit: Int, offset: Int): Promise<RangeSlice<DatasetFile>> {
-        JsViews.observable(data.root).setProperty("useProgress", true);
+    static function setDatasetFiles(data: Dynamic, datasetId: String, limit: Int, offset: Int, useObservable: Bool): Promise<RangeSlice<DatasetFile>> {
+        if (useObservable) {
+            JsViews.observable(data.root).setProperty("useProgress", true);
+        }
         return Service.instance.getDatasetFiles(datasetId, { limit: limit, offset: offset }).then(function (res) {
-            JsViews.observable(data.root).setProperty("useProgress", false);
+            if (useObservable) {
+                JsViews.observable(data.root).setProperty("useProgress", false);
+            }
             for (i in 0...res.results.length) {
                 var file = res.results[i];
                 var item = {
@@ -145,7 +159,11 @@ class DatasetShowPage {
                     index: offset + i,
                     useProgress: false
                 };
-                JsViews.observable(data.root.files).insert(item);
+                if (useObservable) {
+                    JsViews.observable(data.root.files).insert(item);
+                } else {
+                    data.root.files.push(item);
+                }
             }
         });
     }
@@ -239,7 +257,7 @@ class DatasetShowPage {
     static function setTopMoreClickEvent(html: Html, navigation: PromiseBroker<Navigation<Page>>, binding: Observable, data: Dynamic, datasetId: String): Void {
         html.find(".more-head-item").on("click", function (_) {
             binding.setProperty("data.root.useProgress", true);
-            setDatasetFiles(data, datasetId, data.fileLimit, data.root.files.length).then(function (_){
+            setDatasetFiles(data, datasetId, data.fileLimit, data.root.files.length, true).then(function (_){
                 binding.setProperty("data.root.useProgress", false);
                 setTopMoreClickEvent(html, navigation, binding, data, datasetId);
                 setZipClickEvent(html, navigation, data, datasetId);
