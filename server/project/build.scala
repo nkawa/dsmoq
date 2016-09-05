@@ -51,6 +51,9 @@ object DsmoqBuild extends Build {
     version := Version,
     scalaVersion := ScalaVersion,
     resolvers += Classpaths.typesafeReleases,
+    libraryDependencies ++= Seq(
+      "org.scalatest" %% "scalatest" % "2.2.1" % "test"
+    ),
     ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
   ) ++ scalariformSettings ++ scalastyleSettings
 
@@ -60,8 +63,8 @@ object DsmoqBuild extends Build {
     .settings(
       name := "common",
       libraryDependencies ++= Seq(
-        "org.scalatra" %% "scalatra" % ScalatraVersion,
         "org.postgresql" % "postgresql" % "9.3-1101-jdbc41",
+        "org.scalatra" %% "scalatra" % ScalatraVersion,
         "org.scalikejdbc" %% "scalikejdbc" % "2.2.3",
         "org.scalikejdbc" %% "scalikejdbc-config" % "2.2.3",
         "org.scalikejdbc" %% "scalikejdbc-interpolation" % "2.2.3",
@@ -92,7 +95,6 @@ object DsmoqBuild extends Build {
         "org.eclipse.jetty.orbit" % "javax.servlet" % "3.0.0.v201112011016" % "container;provided;test" artifacts (Artifact("javax.servlet", "jar", "jar")),
         "org.json4s" %% "json4s-jackson" % "3.2.10",
         "org.scala-lang.modules" %% "scala-xml" % "1.0.5",
-        "org.scalatest" %% "scalatest" % "2.2.1" % "test",
         "org.scalatra" %% "scalatra" % ScalatraVersion,
         "org.scalatra" %% "scalatra-auth" % ScalatraVersion,
         "org.scalatra" %% "scalatra-json" % ScalatraVersion,
@@ -112,7 +114,6 @@ object DsmoqBuild extends Build {
     .settings(
       name := "initGroupMember",
       libraryDependencies ++= Seq(
-        "org.scalatest" % "scalatest_2.11" % "2.2.1" % "test",
         "com.github.tototoshi" %% "scala-csv" % "1.1.0"
       )
     )
@@ -127,7 +128,6 @@ object DsmoqBuild extends Build {
         "com.amazonaws" % "aws-java-sdk" % "1.9.4",
         "org.json4s" %% "json4s-jackson" % "3.2.10",
         "org.slf4j" % "slf4j-nop" % "1.7.7",
-        "org.scalatest" % "scalatest_2.11" % "2.2.1" % "test",
         "com.typesafe.akka" % "akka-http-core-experimental_2.11" % "0.11",
         "com.typesafe.akka" % "akka-testkit_2.11" % "2.3.7"
       ),

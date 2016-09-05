@@ -1,15 +1,8 @@
-package dsmoq.maintenance.views.user
+package dsmoq.maintenance.data.user
 
 import org.joda.time.DateTime
 
-case class SearchResult(
-  from: Int,
-  to: Int,
-  total: Int,
-  data: Seq[User]
-)
-
-case class User(
+case class SearchResultUser(
   id: String,
   name: String,
   fullname: String,

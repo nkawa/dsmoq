@@ -1,15 +1,16 @@
 package dsmoq.maintenance.controllers
 
-import scala.util.Try
-
+import org.scalatra.Ok
 import org.scalatra.ScalatraServlet
+import org.scalatra.SeeOther
 import org.scalatra.scalate.ScalateSupport
 import org.slf4j.MarkerFactory
 
 import com.typesafe.scalalogging.LazyLogging
 
 import dsmoq.maintenance.AppConfig
-import dsmoq.maintenance.views.{ user => view }
+import dsmoq.maintenance.controllers.ResponseUtil.resultAs
+import dsmoq.maintenance.data.user.SearchCondition
 import dsmoq.maintenance.services.UserService
 
 class UserServlet extends ScalatraServlet with ScalateSupport with LazyLogging {
@@ -23,31 +24,36 @@ class UserServlet extends ScalatraServlet with ScalateSupport with LazyLogging {
   }
 
   get("/") {
-    search()
+    val condition = SearchCondition.fromMap(params)
+    Ok(search(condition))
   }
 
   post("/proc") {
-    // TODO: proc
-
-    search()
+    val originals = multiParams("disabled.originals")
+    val updates = multiParams("disabled.updates")
+    val condition = SearchCondition.fromMap(params)
+    val result = for {
+      _ <- UserService.updateDisabled(originals, updates)
+    } yield {
+      SeeOther(searchUrl(condition.toMap))
+    }
+    resultAs(result) { error =>
+      search(condition, Some(error))
+    }
   }
 
-  def search() = {
-    val condition = view.SearchCondition(
-      userType = view.SearchCondition.UserType(params.get("userType")),
-      query = params.getOrElse("query", ""),
-      offset = toInt(params.get("offset"), 0),
-      limit = toInt(params.get("limit"), AppConfig.searchLimit)
-    )
+  def search(condition: SearchCondition, error: Option[String] = None): String = {
     val result = UserService.search(condition)
     ssp(
       "user/index",
       "condition" -> condition,
-      "result" -> result
+      "result" -> result,
+      "error" -> error,
+      "url" -> searchUrl _
     )
   }
 
-  def toInt(str: Option[String], default: Int): Int = {
-    str.flatMap(s => Try(s.toInt).toOption).getOrElse(default)
+  def searchUrl(params: Map[String, String]): String = {
+    url("/", params)
   }
 }

@@ -1,0 +1,34 @@
+<%@ val params: Map[String, String] %>
+<%@ val url: Function[Map[String, String], String] %>
+<%@ val offset: Int %>
+<%@ val limit: Int %>
+<%@ val total: Int %>
+<% import dsmoq.maintenance.views.Pagenation %>
+<% val page = Pagenation.pageOf(offset, limit) %>
+<% val lastPage = Pagenation.pageOf(total - limit, limit) %>
+<% val from = Pagenation.minPageOf(offset, limit, total) %>
+<% val to = Pagenation.maxPageOf(offset, limit, total) %>
+
+<div class="pagenation">
+#if(page == 1)
+  <span>&lt;&lt;</span>
+  <span>&lt;</span>
+#else
+  <a href="${url(params + ("offset" -> "0"))}">&lt;&lt;</a>
+  <a href="${url(params + ("offset" -> math.max(0, offset - limit).toString))}">&lt;</a>
+#end
+#for(p <- from to to)
+  #if(p == page)
+  <span><b>${p}</b></span>
+  #else
+  <a href="${url(params + ("offset" -> (offset + limit * (p - page)).toString))}">${p}</a>
+  #end
+#end
+#if(page == lastPage)
+  <span>&gt;</span>
+  <span>&gt;&gt;</span>
+#else
+  <a href="${url(params + ("offset" -> (offset + limit).toString))}">&gt;</a>
+  <a href="${url(params + ("offset" -> (offset + limit * (lastPage - page)).toString))}">&gt;&gt;</a>
+#end
+</div>
