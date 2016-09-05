@@ -29,7 +29,7 @@ class DatasetShowPage {
         var binding = JsViews.observable({ data: Async.Pending });
         View.getTemplate("dataset/show").link(html, binding.data());
 
-        Service.instance.getDataset(id).then(function (res) {
+        Service.instance.getDataset(id).flatMap(function (res) {
             var data = {
                 name: res.meta.name,
                 description: res.meta.description,
@@ -54,55 +54,15 @@ class DatasetShowPage {
                 filesCount: res.filesCount,
                 fileLimit: res.fileLimit
             };
-
-            function setEvents() {
-                html.find("#dataset-edit").on("click", function (_) {
-                    navigation.fulfill(Navigation.Navigate(Page.DatasetEdit(id)));
-                });
-
-                html.find("#dataset-delete").createEventStream("click").flatMap(function (_) {
-                    return JsTools.confirm("Are you sure you want to delete this dataset?");
-                }).flatMap(function (_) {
-                    return Service.instance.deleteDeataset(id);
-                }).then(function (_) {
-                    // TODO 削除対象データセット閲覧履歴（このページ）をHistoryから消す
-                    navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, "", new Array<{type: String, item: Dynamic}>())));
-                });
-                
-                html.find("#dataset-copy").createEventStream("click").flatMap(function (_) {
-                    return JsTools.confirm("Are you sure you want to copy this dataset?");
-                }).flatMap(function (_) {
-                    return Service.instance.copyDataset(id);
-                }).then(function(x) {
-                    navigation.fulfill(Navigation.Navigate(Page.DatasetShow(x.datasetId)));
-                });
-                
-                html.find(".accordion-head-item").on("click", function (_) {
-                    binding.setProperty("data.root.opened", !data.root.opened);
-                    if (!data.root.opened || data.root.files.length > 0) {
-                        if (data.root.opened) {
-                            setTopMoreClickEvent(html, navigation, binding, data, id);
-                            setZipClickEvent(html, navigation, data, id);
-                            for (i in 0...data.root.files.length) {
-                                var fileitem = data.root.files[i];
-                                if (fileitem.opened && fileitem.zippedFiles.length < fileitem.file.zipCount) {
-                                    setZipMoreClickEvent(html, navigation, data, id, i);
-                                }
-                            }
-                        }
-                    }
-                });
+            if (res.filesCount == 0) {
+                return Promise.fulfilled(data);
             }
-
-            if (res.filesCount > 0) {
-                // ファイルがある場合は初期表示分のファイルを取得してから、初期表示を完了させる
-                setDatasetFiles(data, id, data.fileLimit, 0, false).then(function (_) {
-                    binding.setProperty("data", data);
-                    // 画面のレンダリングが完了してからEventを割り当てる
-                    setEvents();
-                    setTopMoreClickEvent(html, navigation, binding, data, id);
-                    setZipClickEvent(html, navigation, data, id);
-                }, function (err: Dynamic) {
+            return setDatasetFiles(data, id, data.fileLimit, 0)
+                .map(function (files) {
+                    data.root.files = files;
+                    return data;
+                })
+                .thenError(function (err: Dynamic) {
                     switch (err.status) {
                         case 403: // Forbidden
                             switch (err.responseJSON.status) {
@@ -120,10 +80,49 @@ class DatasetShowPage {
                             html.html("Network error");
                     }
                 });
-            } else {
-                binding.setProperty("data", data);
-                // 画面のレンダリングが完了してからEventを割り当てる
-                setEvents();
+        })
+        .then(function (data) {
+            binding.setProperty("data", data);
+
+            html.find("#dataset-edit").on("click", function (_) {
+                navigation.fulfill(Navigation.Navigate(Page.DatasetEdit(id)));
+            });
+
+            html.find("#dataset-delete").createEventStream("click").flatMap(function (_) {
+                return JsTools.confirm("Are you sure you want to delete this dataset?");
+            }).flatMap(function (_) {
+                return Service.instance.deleteDeataset(id);
+            }).then(function (_) {
+                // TODO 削除対象データセット閲覧履歴（このページ）をHistoryから消す
+                navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, "", new Array<{type: String, item: Dynamic}>())));
+            });
+            
+            html.find("#dataset-copy").createEventStream("click").flatMap(function (_) {
+                return JsTools.confirm("Are you sure you want to copy this dataset?");
+            }).flatMap(function (_) {
+                return Service.instance.copyDataset(id);
+            }).then(function(x) {
+                navigation.fulfill(Navigation.Navigate(Page.DatasetShow(x.datasetId)));
+            });
+           
+            // ファイルが1件以上ある場合、more filesやzipファイルの展開イベントを割り当てる必要がある
+            if (data.root.files.length > 0) {
+                // ファイル一覧の表示開閉切替
+                html.find(".accordion-head-item").on("click", function (_) {
+                    binding.setProperty("data.root.opened", !data.root.opened);
+                    if (data.root.opened) {
+                        setTopMoreClickEvent(html, navigation, binding, data, id);
+                        setZipClickEvent(html, navigation, data, id);
+                        for (i in 0...data.root.files.length) {
+                            var fileitem = data.root.files[i];
+                            if (fileitem.opened && fileitem.zippedFiles.length < fileitem.file.zipCount) {
+                                setZipMoreClickEvent(html, navigation, data, id, i);
+                            }
+                        }
+                    }
+                });
+                setTopMoreClickEvent(html, navigation, binding, data, id);
+                setZipClickEvent(html, navigation, data, id);
             }
         }, function (err: Dynamic) {
             html.html(err.responseJSON.status);
@@ -139,33 +138,27 @@ class DatasetShowPage {
      * @param datasetId データセットID
      * @param limit データセットのファイルの取得Limit
      * @param offset データセットのファイルの取得位置
-     * @param useObservable observableを更新するか否か
      * @return データセットのファイル一覧取得のPromise
      */
-    static function setDatasetFiles(data: Dynamic, datasetId: String, limit: Int, offset: Int, useObservable: Bool): Promise<RangeSlice<DatasetFile>> {
-        if (useObservable) {
-            JsViews.observable(data.root).setProperty("useProgress", true);
-        }
-        return Service.instance.getDatasetFiles(datasetId, { limit: limit, offset: offset }).then(function (res) {
-            if (useObservable) {
-                JsViews.observable(data.root).setProperty("useProgress", false);
-            }
-            for (i in 0...res.results.length) {
-                var file = res.results[i];
-                var item = {
-                    opened: false,
-                    file: file,
-                    zippedFiles: new Array<DatasetZipedFile>(),
-                    index: offset + i,
-                    useProgress: false
-                };
-                if (useObservable) {
-                    JsViews.observable(data.root.files).insert(item);
-                } else {
-                    data.root.files.push(item);
-                }
-            }
+    static function setDatasetFiles(data: Dynamic, datasetId: String, limit: Int, offset: Int): Promise<Array<FileItem>> {
+        return Service.instance.getDatasetFiles(datasetId, { limit: limit, offset: offset }).map(function (res) {
+            var i = 0;
+            return res.results.map(function (file) {
+                var index = offset + i;
+                i++;
+                return datasetFileToFileItem(file, index);
+            });
         });
+    }
+
+    static function datasetFileToFileItem(datasetFile: DatasetFile, index: Int): FileItem {
+        return {
+            opened: false,
+            file: datasetFile,
+            zippedFiles: new Array<DatasetZipedFile>(),
+            index: index,
+            useProgress: false
+        };
     }
 
     /**
@@ -257,8 +250,9 @@ class DatasetShowPage {
     static function setTopMoreClickEvent(html: Html, navigation: PromiseBroker<Navigation<Page>>, binding: Observable, data: Dynamic, datasetId: String): Void {
         html.find(".more-head-item").on("click", function (_) {
             binding.setProperty("data.root.useProgress", true);
-            setDatasetFiles(data, datasetId, data.fileLimit, data.root.files.length, true).then(function (_){
+            setDatasetFiles(data, datasetId, data.fileLimit, data.root.files.length).then(function (files){
                 binding.setProperty("data.root.useProgress", false);
+                JsViews.observable(data.root.files).insert(files);
                 setTopMoreClickEvent(html, navigation, binding, data, datasetId);
                 setZipClickEvent(html, navigation, data, datasetId);
             }, function (err: Dynamic) {
@@ -332,4 +326,5 @@ typedef FileItem = {
     var zippedFiles: Array<DatasetZipedFile>;
     var file: DatasetFile;
     var index: Int;
+    var useProgress: Bool;
 };
