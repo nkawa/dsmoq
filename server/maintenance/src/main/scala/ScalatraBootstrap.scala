@@ -23,12 +23,12 @@ class ScalatraBootstrap extends LifeCycle {
    * @param context ServletContext
    */
   override def init(context: ServletContext) {
-    //    context.mount(new MenuServlet, "/*")
-    //    context.mount(new ApiKeyServlet, "/apikey/*")
+    //context.mount(new MenuServlet, "/*")
+    //context.mount(new ApiKeyServlet, "/apikey/*")
     context.mount(new UserServlet, "/user/*")
-    //    context.mount(new DatasetServlet, "/dataset/*")
-    //    context.mount(new FileServlet, "/file/*")
-    //    context.mount(new GroupServlet, "/group/*")
+    //context.mount(new DatasetServlet, "/dataset/*")
+    //context.mount(new FileServlet, "/file/*")
+    //context.mount(new GroupServlet, "/group/*")
 
     DBs.setup()
   }

@@ -13,6 +13,9 @@ import dsmoq.maintenance.controllers.ResponseUtil.resultAs
 import dsmoq.maintenance.data.user.SearchCondition
 import dsmoq.maintenance.services.UserService
 
+/**
+ * ユーザ処理系画面のサーブレット
+ */
 class UserServlet extends ScalatraServlet with ScalateSupport with LazyLogging {
   /**
    * ログマーカー
@@ -42,6 +45,13 @@ class UserServlet extends ScalatraServlet with ScalateSupport with LazyLogging {
     }
   }
 
+  /**
+   * 検索画面を作成する。
+   *
+   * @param condition 検索条件
+   * @param error エラー文言
+   * @return 検索画面のHTML
+   */
   def search(condition: SearchCondition, error: Option[String] = None): String = {
     val result = UserService.search(condition)
     ssp(
@@ -53,6 +63,12 @@ class UserServlet extends ScalatraServlet with ScalateSupport with LazyLogging {
     )
   }
 
+  /**
+   * 検索画面のURLを作成する。
+   *
+   * @param params クエリパラメータ
+   * @return 検索画面のURL
+   */
   def searchUrl(params: Map[String, String]): String = {
     url("/", params)
   }

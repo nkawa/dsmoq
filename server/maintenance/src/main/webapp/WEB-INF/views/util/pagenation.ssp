@@ -3,32 +3,34 @@
 <%@ val offset: Int %>
 <%@ val limit: Int %>
 <%@ val total: Int %>
-<% import dsmoq.maintenance.views.Pagenation %>
-<% val page = Pagenation.pageOf(offset, limit) %>
-<% val lastPage = Pagenation.pageOf(total - limit, limit) %>
-<% val from = Pagenation.minPageOf(offset, limit, total) %>
-<% val to = Pagenation.maxPageOf(offset, limit, total) %>
+<% val pagenation = dsmoq.maintenance.views.Pagenation(offset, limit, total) %>
 
 <div class="pagenation">
-#if(page == 1)
-  <span>&lt;&lt;</span>
-  <span>&lt;</span>
+#if(pagenation.first.enabled)
+  <a href="${url(params + ("offset" -> pagenation.first.offset.toString))}">&lt;&lt;</a>
 #else
-  <a href="${url(params + ("offset" -> "0"))}">&lt;&lt;</a>
-  <a href="${url(params + ("offset" -> math.max(0, offset - limit).toString))}">&lt;</a>
+  <span>&lt;&lt;</span>
 #end
-#for(p <- from to to)
-  #if(p == page)
-  <span><b>${p}</b></span>
+#if(pagenation.prev.enabled)
+  <a href="${url(params + ("offset" -> pagenation.prev.offset.toString))}">&lt;</a>
+#else
+  <span>&lt;</span>
+#end
+#for(page <- pagenation.pages)
+  #if(page.enabled)
+  <a href="${url(params + ("offset" -> page.offset.toString))}">${page.num}</a>
   #else
-  <a href="${url(params + ("offset" -> (offset + limit * (p - page)).toString))}">${p}</a>
+  <span><b>${page.num}</b></span>
   #end
 #end
-#if(page == lastPage)
-  <span>&gt;</span>
-  <span>&gt;&gt;</span>
+#if(pagenation.next.enabled)
+  <a href="${url(params + ("offset" -> pagenation.next.offset.toString))}">&gt;</a>
 #else
-  <a href="${url(params + ("offset" -> (offset + limit).toString))}">&gt;</a>
-  <a href="${url(params + ("offset" -> (offset + limit * (lastPage - page)).toString))}">&gt;&gt;</a>
+  <span>&gt;</span>
+#end
+#if(pagenation.last.enabled)
+  <a href="${url(params + ("offset" -> pagenation.last.offset.toString))}">&gt;&gt;</a>
+#else
+  <span>&gt;&gt;</span>
 #end
 </div>
