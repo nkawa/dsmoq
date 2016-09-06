@@ -10,10 +10,14 @@ import scalikejdbc.config.DBsWithEnv
 
 class ApiKeyServiceSpec extends FreeSpec with BeforeAndAfter {
   DBsWithEnv("test").setup()
+  SpecCommonLogic.deleteAllCreateData()
 
   before {
-    SpecCommonLogic.deleteAllCreateData()
     SpecCommonLogic.insertDummyData()
+  }
+
+  after {
+    SpecCommonLogic.deleteAllCreateData()
   }
 
   "create for" - {
@@ -38,7 +42,7 @@ class ApiKeyServiceSpec extends FreeSpec with BeforeAndAfter {
       for {
         n <- 0 to 2
       } {
-        s"${n} api key" in {
+        s"${n} key" in {
           ApiKeyService.disable(Some("0cebc943-a0b9-4aa5-927d-65fa374bf0ec"))
           ApiKeyService.list().size should be(0)
           for {
@@ -55,7 +59,7 @@ class ApiKeyServiceSpec extends FreeSpec with BeforeAndAfter {
     }
   }
   "disable to" - {
-    "invalid api key id" in {
+    "invalid key id" in {
       ApiKeyService.list().size should be(1)
       val thrown = the[ServiceException] thrownBy {
         ApiKeyService.disable(Some(UUID.randomUUID.toString)).get
@@ -63,7 +67,7 @@ class ApiKeyServiceSpec extends FreeSpec with BeforeAndAfter {
       thrown.getMessage should be("無効なAPIキーが指定されました。")
       ApiKeyService.list().size should be(1)
     }
-    "disabled api key" in {
+    "disabled key" in {
       ApiKeyService.list().size should be(1)
       val id = ApiKeyService.add(Some("dummy1")).get
       ApiKeyService.list().size should be(2)
@@ -80,6 +84,7 @@ class ApiKeyServiceSpec extends FreeSpec with BeforeAndAfter {
       val id = ApiKeyService.add(Some("dummy1")).get
       ApiKeyService.list().size should be(2)
       UserService.updateDisabled(Seq.empty, Seq("023bfa40-e897-4dad-96db-9fd3cf001e79"))
+      ApiKeyService.list().size should be(0)
       val thrown = the[ServiceException] thrownBy {
         ApiKeyService.disable(Some(id)).get
       }
@@ -88,7 +93,23 @@ class ApiKeyServiceSpec extends FreeSpec with BeforeAndAfter {
       UserService.updateDisabled(Seq("023bfa40-e897-4dad-96db-9fd3cf001e79"), Seq.empty)
       ApiKeyService.list().size should be(2)
     }
-    "valid api key" in {
+    "disabled user's disabled key" in {
+      ApiKeyService.list().size should be(1)
+      val id = ApiKeyService.add(Some("dummy1")).get
+      ApiKeyService.list().size should be(2)
+      ApiKeyService.disable(Some(id)).get
+      ApiKeyService.list().size should be(1)
+      UserService.updateDisabled(Seq.empty, Seq("023bfa40-e897-4dad-96db-9fd3cf001e79"))
+      ApiKeyService.list().size should be(0)
+      val thrown = the[ServiceException] thrownBy {
+        ApiKeyService.disable(Some(id)).get
+      }
+      thrown.getMessage should be("無効なAPIキーが指定されました。")
+      ApiKeyService.list().size should be(0)
+      UserService.updateDisabled(Seq("023bfa40-e897-4dad-96db-9fd3cf001e79"), Seq.empty)
+      ApiKeyService.list().size should be(1)
+    }
+    "valid key" in {
       ApiKeyService.list().size should be(1)
       ApiKeyService.disable(Some("0cebc943-a0b9-4aa5-927d-65fa374bf0ec"))
       ApiKeyService.list().size should be(0)
