@@ -14,4 +14,6 @@ object AppConfig {
 
   val dsmoqUrlRoot = config.getString("maintenance.dsmoq_url_root")
   val searchLimit = config.getInt("maintenance.search_limit")
+
+  val systemUserId = "dccc110c-c34f-40ed-be2c-7e34a9f1b8f0"
 }

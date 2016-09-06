@@ -1,0 +1,62 @@
+<%@ val keys: Seq[dsmoq.maintenance.data.apikey.SearchResultApiKey] %>
+<%@ val error: Option[String] %>
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>データメンテナンス：APIキー発行ツール：発行済みAPIキー一覧表示</title>
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+    <link rel="stylesheet" type="text/css" href="/css/ionicons.min.css">
+    <script type="text/javascript" src="/js/lib/jquery-3.1.0.min.js"></script>
+    <script type="text/javascript" src="/js/apikey/index.js"></script>
+  </head>
+ <body>
+    <p>
+      <a class="menu" href="/">メニュー</a>
+    </p>
+    <h1>発行済みAPIキー一覧表示</h1>
+    <p class="error">
+    #for(err <- error)
+      ${err}
+    #end
+    </p>
+    #if(keys.isEmpty)
+    <p>発行済みAPIキーなし</p>
+    #else
+    <form method="POST" action="/apikey/proc">
+      <div class="table">
+        <table>
+          <thead>
+            <tr>
+              <th>ユーザーID</th>
+              <th>Consumer Key</th>
+              <th>Secret Key</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            #for(key <- keys)
+            <tr>
+              <td>${key.userName}</td>
+              <td>${key.apiKey}</td>
+              <td>${key.secretKey}</td>
+              <td><input type="radio" class="consumerKey" name="id" value="${key.id}"></td>
+            </tr>
+            #end
+          </tbody>
+        </table>
+        <div class="button">
+          <button type="submit" class="disabling" name="disable">
+            <span class="ion-trash-a"></span>
+            無効化
+          </button>
+        </div>
+      </div>
+    </form>
+    #end
+    <hr/>
+    <p>
+      <a href="/apikey/add">APIキー発行</a>
+    </p>
+  </body>
+</html>

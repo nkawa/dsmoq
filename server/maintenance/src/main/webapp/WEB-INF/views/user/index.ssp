@@ -38,9 +38,11 @@
     <p>該当ユーザなし</p>
     #else
     <p>${result.from}件 - ${result.to}件 / ${result.total}件</p>
+    <p class="error">
     #for(err <- error)
-    <p class="error">${err}</p>
+      ${err}
     #end
+    </p>
     <form method="POST" action="/user/proc">
       <% render("/views/util/formHidden.ssp", Map("params" -> condition.toMap)) %>
       <div class="table">
@@ -89,7 +91,7 @@
         )
         %>
         <div class="button">
-          <button class="update" name="update" type="submit">
+          <button type="submit" class="update" name="update">
             <span class="ion-edit"></span>
             更新
           </button>

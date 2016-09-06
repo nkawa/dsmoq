@@ -117,11 +117,12 @@ object UserService extends LazyLogging {
    *
    * @param originals 無効であったユーザ
    * @param updates 無効にするユーザ
-   * @return 処理結果
+   * @return 処理結果、存在しないIDが含まれていた場合 Failure(ServiceException)
    */
   def updateDisabled(originals: Seq[String], updates: Seq[String]): Try[Unit] = {
     DB.localTx { implicit s =>
       for {
+        _ <- Util.checkUuids(originals ++ updates)
         _ <- checkUserIds(originals ++ updates)
         _ <- execUpdateDisabled(originals, updates)
       } yield {
@@ -137,7 +138,7 @@ object UserService extends LazyLogging {
    * @return 処理結果、存在しないIDが含まれていた場合 Failure(ServiceException)
    */
   def checkUserIds(ids: Seq[String])(implicit s: DBSession): Try[Unit] = {
-    val invalids = Try {
+    Try {
       val u = persistence.User.u
       val checks = ids.map { id =>
         val contains = withSQL {
@@ -147,16 +148,15 @@ object UserService extends LazyLogging {
             .eq(u.id, sqls.uuid(id))
         }.map { rs =>
           rs.string(u.resultName.id)
-        }.single.apply().isEmpty
+        }.single.apply().isDefined
         (id, contains)
       }
-      checks.filter(_._2).map(_._1)
-    }
-    invalids.flatMap { ids =>
-      if (ids.isEmpty) {
+      checks.collect { case (id, false) => id }
+    }.flatMap { invalids =>
+      if (invalids.isEmpty) {
         Success(())
       } else {
-        Failure(new ServiceException("存在しないIDが指定されました。"))
+        Failure(new ServiceException("存在しないユーザーが指定されました。"))
       }
     }
   }
