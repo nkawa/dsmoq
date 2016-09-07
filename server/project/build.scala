@@ -169,37 +169,6 @@ object DsmoqBuild extends Build {
     )
     .dependsOn(common)
 
-  lazy val apiKeyWeb = (project in file("apiKeyWeb"))
-    .settings(Defaults.coreDefaultSettings)
-    .settings(ScalatraPlugin.scalatraSettings)
-    .settings(dsmoqSettings)
-    .settings(
-      name := "apiKeyWeb",
-      libraryDependencies ++= Seq(
-        "org.scalatra" %% "scalatra-scalate" % ScalatraVersion,
-        "org.scalatra" %% "scalatra-specs2" % ScalatraVersion % "test",
-        "ch.qos.logback" % "logback-classic" % "1.1.5" % "runtime",
-        "org.eclipse.jetty" % "jetty-webapp" % "9.2.15.v20160210" % "container;compile",
-        "javax.servlet" % "javax.servlet-api" % "3.1.0" % "provided",
-        "commons-codec" % "commons-codec" % "1.10",
-        "com.typesafe" % "config" % "1.3.0",
-        "com.typesafe.scala-logging" % "scala-logging_2.11" % "3.1.0" % "compile"
-      ),
-      scalateTemplateConfig in Compile <<= (sourceDirectory in Compile) { base =>
-        Seq(
-          TemplateConfig(
-            base / "webapp" / "WEB-INF" / "templates",
-            Seq.empty, /* default imports should be added here */
-            Seq(
-              Binding("context", "_root_.org.scalatra.scalate.ScalatraRenderContext", importMembers = true, isImplicit = true)
-            ), /* add extra bindings here */
-            Some("templates")
-          )
-        )
-      }
-    )
-    .dependsOn(common)
-
   lazy val maintenance = (project in file("maintenance"))
     .settings(Defaults.coreDefaultSettings)
     .settings(ScalatraPlugin.scalatraSettings)

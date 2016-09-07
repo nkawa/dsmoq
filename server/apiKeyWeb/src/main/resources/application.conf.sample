@@ -1,7 +1,0 @@
-# ApiKeyWeb settings
-apikey {
-  port = 8091
-
-  user = "coi"
-  password = "coicoi"
-}
