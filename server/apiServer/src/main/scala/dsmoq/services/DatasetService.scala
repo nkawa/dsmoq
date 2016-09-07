@@ -4287,6 +4287,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .isNull(ak.deletedAt)
         .and
         .isNull(ak.deletedBy)
+        .limit(1)
     }.map { rs =>
       DatasetService.AppUser(
         id = rs.string(u.resultName.id),
