@@ -62,6 +62,7 @@ class ResponseFormatSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter
     servletContextHandler.addServlet(holder, "/api/*")
     addServlet(new FileController(resource), "/files/*")
     addServlet(new ImageController(resource), "/images/*")
+    SpecCommonLogic.deleteAllCreateData()
   }
 
   override def afterAll() {

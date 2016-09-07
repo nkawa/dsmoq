@@ -62,6 +62,7 @@ import dsmoq.services.GroupService
 import dsmoq.services.StatisticsService
 import dsmoq.services.SystemService
 import dsmoq.services.TaskService
+import dsmoq.services.User
 
 class ApiController(
   val resource: ResourceBundle
@@ -164,7 +165,7 @@ class ApiController(
 
   post("/signout") {
     clearSession()
-    AjaxResponse("OK", AuthTrait.GUEST_USER)
+    AjaxResponse("OK", User.guest)
   }
 
   // --------------------------------------------------------------------------
@@ -654,8 +655,8 @@ class ApiController(
       json <- Success(d.getOrElse(SearchAppsParams()))
       _ <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _ <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
-      _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
       _ <- checkUtil.invokeSeq(json.excludeIds)(checkUtil.validUuidForForm("d.excludeIds", _))
+      _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
       user <- getUser(allowGuest = false)
       result <- datasetService.getApps(
         datasetId = Some(datasetId),

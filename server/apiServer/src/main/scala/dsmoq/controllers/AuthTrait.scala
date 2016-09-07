@@ -95,7 +95,7 @@ trait AuthTrait { this: ScalatraServlet with LazyLogging =>
     }
     ret.getOrElse {
       logger.info(LOG_MARKER, "Auth: Get user from Session: User not found. Use guest user.")
-      GUEST_USER
+      User.guest
     }
   }
 
@@ -192,22 +192,6 @@ object AuthTrait {
    * JSESSIONID
    */
   private val SESSION_ID = "JSESSIONID"
-
-  /**
-   * ゲストユーザ情報
-   */
-  val GUEST_USER = User(
-    id = AppConf.guestUserId,
-    name = "",
-    fullname = "",
-    organization = "",
-    title = "",
-    image = "http://xxxx",
-    mailAddress = "",
-    description = "",
-    isGuest = true,
-    isDisabled = false
-  )
 
   /**
    * HTTPヘッダからAuthorizationヘッダ内のAPIキー、シグネチャを取得する。

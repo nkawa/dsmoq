@@ -824,6 +824,50 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   }
 
   /**
+   * 指定したデータセットの存在をチェックします。
+   * @param datasetId データセットID
+   * @param session DBセッション
+   * @return 取得したデータセット情報
+   * @throws NotFoundException データセットが存在しなかった場合
+   */
+  private def checkDatasetExisitence(datasetId: String)(implicit session: DBSession): persistence.Dataset = {
+    getDataset(datasetId).getOrElse {
+      // データセットが存在しない場合例外
+      throw new NotFoundException
+    }
+  }
+
+  /**
+   * ファイルの存在を確認した後、指定されたデータセットを取得します。
+   *
+   * @param datasetId データセットID
+   * @param fileId ファイルID
+   * @param user ユーザ情報
+   * @return データセット
+   * @throws NotFoundException データセットまたはファイルが存在しない場合
+   */
+  private def checkDatasetWithFile(datasetId: String, fileId: String)(implicit s: DBSession): persistence.Dataset = {
+    val dataset = checkDatasetExisitence(datasetId)
+    if (!existsFile(datasetId, fileId)) {
+      throw new NotFoundException
+    }
+    dataset
+  }
+
+  /**
+   * 指定されたデータセットに対する管理権限があるかをチェックします。
+   *
+   * @param datasetId データセットID
+   * @param user ユーザ情報
+   * @throws AccessDeniedException ユーザに管理権限がない場合
+   */
+  private def checkOwnerAccess(datasetId: String, user: User)(implicit s: DBSession): Unit = {
+    if (!isOwner(user.id, datasetId)) {
+      throw new AccessDeniedException(resource.getString(ResourceNames.ONLY_ALLOW_DATASET_OWNER))
+    }
+  }
+
+  /**
    * データセットの参照権限のチェックを行う。
    *
    * @param datasetId データセットID
@@ -844,20 +888,6 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       throw new AccessDeniedException(resource.getString(ResourceNames.NO_ACCESS_PERMISSION))
     }
     permission
-  }
-
-  /**
-   * 指定したデータセットの存在をチェックします。
-   * @param datasetId データセットID
-   * @param session DBセッション
-   * @return 取得したデータセット情報
-   * @throws NotFoundException データセットが存在しなかった場合
-   */
-  private def checkDatasetExisitence(datasetId: String)(implicit session: DBSession): persistence.Dataset = {
-    getDataset(datasetId).getOrElse {
-      // データセットが存在しない場合例外
-      throw new NotFoundException
-    }
   }
 
   /**
@@ -923,7 +953,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(files, "files")
       CheckUtil.checkNull(user, "user")
       DB.localTx { implicit s =>
-        val dataset = getDatasetWithOwnerAccess(id, user)
+        val dataset = checkDatasetExisitence(id)
+        checkOwnerAccess(id, user)
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
         val f = files.map { f =>
@@ -1025,7 +1056,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(file, "file")
       CheckUtil.checkNull(user, "user")
       DB.localTx { implicit s =>
-        val dataset = getDatasetWithOwnerFileAccess(datasetId, fileId, user)
+        val dataset = checkDatasetWithFile(datasetId, fileId)
+        checkOwnerAccess(datasetId, user)
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -1104,50 +1136,6 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
-  /**
-   * ファイルの存在を確認した後、指定されたデータセットを管理権限で取得します。
-   *
-   * @param datasetId データセットID
-   * @param fileId ファイルID
-   * @param user ユーザ情報
-   * @return データセット
-   * @throws NotFoundException データセットまたはファイルが存在しない場合
-   * @throws AccessDeniedException ユーザに管理権限がない場合
-   */
-  private def getDatasetWithOwnerFileAccess(
-    datasetId: String,
-    fileId: String,
-    user: User
-  )(implicit s: DBSession): persistence.Dataset = {
-    if (!existsFile(datasetId, fileId)) {
-      throw new NotFoundException
-    }
-    getDatasetWithOwnerAccess(datasetId, user)
-  }
-
-  /**
-   * 指定されたデータセットを管理権限で取得します。
-   *
-   * @param datasetId データセットID
-   * @param user ユーザ情報
-   * @return データセット
-   * @throws NotFoundException データセットが存在しない場合
-   * @throws AccessDeniedException ユーザに管理権限がない場合
-   */
-  private def getDatasetWithOwnerAccess(datasetId: String, user: User)(implicit s: DBSession): persistence.Dataset = {
-    getDataset(datasetId) match {
-      case None => {
-        throw new NotFoundException
-      }
-      case Some(_) if !isOwner(user.id, datasetId) => {
-        throw new AccessDeniedException(resource.getString(ResourceNames.ONLY_ALLOW_DATASET_OWNER))
-      }
-      case Some(x) => {
-        x
-      }
-    }
-  }
-
   private def updateFileNameAndSize(
     fileId: String,
     historyId: String,
@@ -1193,7 +1181,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   ): Try[DatasetData.DatasetFile] = {
     Try {
       DB.localTx { implicit s =>
-        getDatasetWithOwnerFileAccess(datasetId, fileId, user)
+        checkDatasetWithFile(datasetId, fileId)
+        checkOwnerAccess(datasetId, user)
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -1240,7 +1229,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   def deleteDatasetFile(datasetId: String, fileId: String, user: User): Try[Unit] = {
     Try {
       DB.localTx { implicit s =>
-        getDatasetWithOwnerFileAccess(datasetId, fileId, user)
+        checkDatasetWithFile(datasetId, fileId)
+        checkOwnerAccess(datasetId, user)
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -1297,7 +1287,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
-        val dataset = getDatasetWithOwnerAccess(id, user)
+        val dataset = checkDatasetExisitence(id)
+        checkOwnerAccess(id, user)
 
         val taskId = (saveLocal, saveS3, dataset.localState, dataset.s3State) match {
           case (true, _, SaveStatus.NOT_SAVED, SaveStatus.SAVED)
@@ -1410,7 +1401,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       val trimmedAttributes = attributes.map(x => x.name -> StringUtil.trimAllSpaces(x.value))
 
       DB.localTx { implicit s =>
-        getDatasetWithOwnerAccess(id, user)
+        checkDatasetExisitence(id)
+        checkOwnerAccess(id, user)
         if (persistence.License.find(license).isEmpty) {
           val message = resource.getString(ResourceNames.INVALID_LICENSEID).format(license)
           throw new BadRequestException(message)
@@ -1579,7 +1571,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(images, "images")
       CheckUtil.checkNull(user, "user")
       DB.localTx { implicit s =>
-        getDatasetWithOwnerAccess(datasetId, user)
+        checkDatasetExisitence(datasetId)
+        checkOwnerAccess(datasetId, user)
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
         val primaryImage = getPrimaryImageId(datasetId)
@@ -1652,10 +1645,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(imageId, "imageId")
       CheckUtil.checkNull(user, "user")
       DB.localTx { implicit s =>
+        checkDatasetExisitence(datasetId)
         if (!existsImage(datasetId, imageId)) {
           throw new NotFoundException
         }
-        getDatasetWithOwnerAccess(datasetId, user)
+        checkOwnerAccess(datasetId, user)
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -1718,13 +1712,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   def deleteImage(datasetId: String, imageId: String, user: User): Try[DatasetData.DatasetDeleteImage] = {
     Try {
       DB.localTx { implicit s =>
-        getDatasetWithOwnerAccess(datasetId, user)
+        checkDatasetExisitence(datasetId)
+        if (!existsImage(datasetId, imageId)) {
+          throw new NotFoundException
+        }
+        checkOwnerAccess(datasetId, user)
         val cantDeleteImages = Seq(AppConf.defaultDatasetImageId)
         if (cantDeleteImages.contains(imageId)) {
           throw new BadRequestException(resource.getString(ResourceNames.CANT_DELETE_DEFAULTIMAGE))
-        }
-        if (!existsImage(datasetId, imageId)) {
-          throw new NotFoundException
         }
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -1849,7 +1844,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(acl, "acl")
       CheckUtil.checkNull(user, "user")
       DB.localTx { implicit s =>
-        getDatasetWithOwnerAccess(datasetId, user)
+        checkDatasetExisitence(datasetId)
+        checkOwnerAccess(datasetId, user)
 
         val ownerChanges = acl.filter { x =>
           x.ownerType == OwnerType.User && x.accessLevel == UserAndGroupAccessLevel.OWNER_OR_PROVIDER
@@ -1976,7 +1972,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(accessLevel, "accessLevel")
       CheckUtil.checkNull(user, "user")
       DB.localTx { implicit s =>
-        getDatasetWithOwnerAccess(datasetId, user)
+        checkDatasetExisitence(datasetId)
+        checkOwnerAccess(datasetId, user)
 
         findGuestOwnership(datasetId) match {
           case Some(x) =>
@@ -2034,7 +2031,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   def deleteDataset(datasetId: String, user: User): Try[Unit] = {
     Try {
       DB.localTx { implicit s =>
-        getDatasetWithOwnerAccess(datasetId, user)
+        checkDatasetExisitence(datasetId)
+        checkOwnerAccess(datasetId, user)
         deleteDatasetById(datasetId, user)
       }
     }
@@ -2898,7 +2896,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   def copyDataset(datasetId: String, user: User): Try[CopiedDataset] = {
     Try {
       DB.localTx { implicit s =>
-        getDatasetWithOwnerAccess(datasetId, user)
+        checkDatasetExisitence(datasetId)
+        checkOwnerAccess(datasetId, user)
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -3335,10 +3334,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(imageId, "imageId")
       CheckUtil.checkNull(user, "user")
       DB.localTx { implicit s =>
+        checkDatasetExisitence(datasetId)
         if (!existsImage(datasetId, imageId)) {
           throw new NotFoundException
         }
-        getDatasetWithOwnerAccess(datasetId, user)
+        checkOwnerAccess(datasetId, user)
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -3735,7 +3735,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(file, "file")
       CheckUtil.checkNull(user, "user")
       DB.localTx { implicit s =>
-        getDatasetWithOwnerAccess(datasetId, user)
+        checkDatasetExisitence(datasetId)
+        checkOwnerAccess(datasetId, user)
         val timestamp = DateTime.now()
         val appId = UUID.randomUUID.toString
         val appVersionId = UUID.randomUUID.toString
@@ -3805,20 +3806,21 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     val a = persistence.App.syntax("a")
     val da = persistence.DatasetApp.syntax("da")
     def createSqlBase(select: SelectSQLBuilder[Unit]): ConditionSQLBuilder[Unit] = {
-      Identity {
-        select
-          .from(persistence.App as a)
-          .innerJoin(persistence.DatasetApp as da).on(a.id, da.appId)
-          .where
-      }.map { sql =>
-        deletedType match {
-          case _ => sql.isNull(a.deletedAt)
-        }
-      }.map { sql =>
-        if (excludeIds.isEmpty) sql else sql.and.notIn(a.id, excludeIds.map(sqls.uuid))
-      }.map { sql =>
-        datasetId.map(id => sql.and.eq(da.datasetId, sqls.uuid(id))).getOrElse(sql)
-      }.get
+      import DatasetService.GetAppDeletedTypes
+      select
+        .from(persistence.App as a)
+        .innerJoin(persistence.DatasetApp as da).on(a.id, da.appId)
+        .where(
+          sqls.toAndConditionOpt(
+            deletedType match {
+              case Some(GetAppDeletedTypes.LOGICAL_DELETED_INCLUDE) => None
+              case Some(GetAppDeletedTypes.LOGICAL_DELETED_ONLY) => Some(sqls.isNotNull(a.deletedAt))
+              case _ => Some(sqls.isNull(a.deletedAt))
+            },
+            if (excludeIds.isEmpty) None else Some(sqls.notIn(a.id, excludeIds.map(sqls.uuid))),
+            datasetId.map(id => sqls.eq(da.datasetId, sqls.uuid(id)))
+          )
+        )
     }
     def withPagingSql(sql: ConditionSQLBuilder[Unit]): SQLBuilder[Unit] = {
       Identity {
@@ -3842,7 +3844,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(user, "user")
       DB.readOnly { implicit s =>
         datasetId.foreach { id =>
-          getDatasetWithOwnerAccess(id, user)
+          checkDatasetExisitence(id)
+          checkOwnerAccess(id, user)
         }
         val total = withSQL {
           createSqlBase(select(sqls.count))
@@ -3883,8 +3886,10 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(appId, "appId")
       CheckUtil.checkNull(user, "user")
       DB.readOnly { implicit s =>
-        getDatasetWithOwnerAccess(datasetId, user)
-        getApp(datasetId, appId)
+        checkDatasetExisitence(datasetId)
+        val app = getApp(datasetId, appId)
+        checkOwnerAccess(datasetId, user)
+        app
       }
     }
   }
@@ -3910,8 +3915,9 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(file, "file")
       CheckUtil.checkNull(user, "user")
       DB.localTx { implicit s =>
-        getDatasetWithOwnerAccess(datasetId, user)
+        checkDatasetExisitence(datasetId)
         getApp(datasetId, appId)
+        checkOwnerAccess(datasetId, user)
         val timestamp = DateTime.now()
         val appVersionId = UUID.randomUUID.toString
         val fileName = file.getName
@@ -3967,8 +3973,9 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(appId, "appId")
       CheckUtil.checkNull(user, "user")
       DB.localTx { implicit s =>
-        getDatasetWithOwnerAccess(datasetId, user)
+        checkDatasetExisitence(datasetId)
         getApp(datasetId, appId)
+        checkOwnerAccess(datasetId, user)
         val timestamp = DateTime.now()
         withSQL {
           val a = persistence.App.column
@@ -4033,7 +4040,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(datasetId, "datasetId")
       CheckUtil.checkNull(user, "user")
       DB.readOnly { implicit s =>
-        getDatasetWithOwnerAccess(datasetId, user)
+        checkDatasetExisitence(datasetId)
+        checkOwnerAccess(datasetId, user)
         val a = persistence.App.syntax("a")
         val da = persistence.DatasetApp.syntax("da")
         withSQL {
@@ -4081,8 +4089,9 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(appId, "appId")
       CheckUtil.checkNull(user, "user")
       DB.localTx { implicit s =>
-        getDatasetWithOwnerAccess(datasetId, user)
+        checkDatasetExisitence(datasetId)
         getApp(datasetId, appId)
+        checkOwnerAccess(datasetId, user)
         val timestamp = DateTime.now()
         withSQL {
           val da = persistence.DatasetApp.column
@@ -4109,11 +4118,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @return アプリ名
    */
   def appNameOf(fileName: String): String = {
-    // アプリ名はファイル名からリソースの指定と拡張子を除く
-    fileName match {
-      case DatasetService.APP_FILE_NAME_REG(name, _, _) => name
-      case _ => fileName
-    }
+    fileName
   }
 
   /**
@@ -4134,11 +4139,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       DB.readOnly { implicit s =>
         checkDatasetExisitence(datasetId)
         for {
+          _ <- requireAllowDownload(user, datasetId).toOption
+          _ <- getNewestPrimaryApp(datasetId)
           _ <- getUserKey(user)
-          app <- getNewestPrimaryApp(datasetId)
-          if isOwner(user.id, datasetId)
         } yield {
-          AppManager.getJnlpUrl(datasetId, app.appId, user.id)
+          AppManager.getJnlpUrl(datasetId, user.id)
         }
       }
     }
@@ -4273,24 +4278,37 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @return ユーザのAPIキー情報、設定されていない場合 None
    */
   private def getUserKey(user: User)(implicit s: DBSession): Option[DatasetService.AppUser] = {
-    val u = persistence.User.syntax("u")
     val ak = persistence.ApiKey.syntax("ak")
+    val u = persistence.User.syntax("u")
     withSQL {
-      select(u.result.id, ak.result.apiKey, ak.result.secretKey)
-        .from(persistence.User as u)
-        .innerJoin(persistence.ApiKey as ak).on(u.id, ak.userId)
-        .where
-        .eq(u.id, sqls.uuid(user.id))
-        .and
-        .eq(u.disabled, false)
-        .and
-        .isNull(ak.deletedAt)
-        .and
-        .isNull(ak.deletedBy)
+      select(ak.result.*)
+        .from(persistence.ApiKey as ak)
+        .where(
+          sqls.toAndConditionOpt(
+            Some(sqls.eq(ak.userId, sqls.uuid(user.id))),
+            if (user.isGuest) {
+              None
+            } else {
+              Some(
+                sqls.exists(
+                  select
+                  .from(persistence.User as u)
+                  .where
+                  .eq(u.id, ak.userId)
+                  .and
+                  .eq(u.disabled, false)
+                  .toSQLSyntax
+                )
+              )
+            },
+            Some(sqls.isNull(ak.deletedAt)),
+            Some(sqls.isNull(ak.deletedBy))
+          )
+        )
         .limit(1)
     }.map { rs =>
       DatasetService.AppUser(
-        id = rs.string(u.resultName.id),
+        id = user.id,
         apiKey = rs.string(ak.resultName.apiKey),
         secretKey = rs.string(ak.resultName.secretKey)
       )
@@ -4301,82 +4319,95 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * 指定したアプリのJNLPファイル情報を取得する。
    *
    * @param datasetId データセットID
-   * @param appId アプリID
-   * @param user ユーザ情報
+   * @param userId ユーザID
    * @return
    *   Success(AppJnlp) 取得成功時、アプリのJNLPファイル情報
-   *   Failure(NullPointerException) datasetId, appIdまたはuserがnullの場合
+   *   Failure(NullPointerException) datasetIdまたはuserIdがnullの場合
    *   Failure(NotFoundException)
-   *     データセットまたはアプリが存在しない場合、
+   *     ユーザが存在しないまたは無効な場合、
+   *     データセットが存在しない場合、
    *     データセットに設定されたアプリが存在しない場合、
    *     ユーザにAPIキーが存在しない場合
-   *   Failure(AccessDeniedException) ユーザに管理権限がない場合
+   *   Failure(AccessDeniedException) ユーザにダウンロード権限がない場合
    */
-  def getAppJnlp(datasetId: String, appId: String, user: User): Try[DatasetData.AppJnlp] = {
+  def getAppJnlp(datasetId: String, userId: String): Try[DatasetData.AppJnlp] = {
     Try {
       CheckUtil.checkNull(datasetId, "datasetId")
-      CheckUtil.checkNull(appId, "appId")
-      CheckUtil.checkNull(user, "user")
-      val (app, uk) = DB.readOnly { implicit s =>
-        getDatasetWithOwnerAccess(datasetId, user)
+      CheckUtil.checkNull(userId, "userId")
+      val db = DB.readOnly { implicit s =>
         for {
-          app <- getNewestPrimaryApp(datasetId)
-          uk <- getUserKey(user)
+          user <- found(getUser(userId))
+          dataset <- found(getDataset(datasetId))
+          app <- found(getNewestPrimaryApp(datasetId))
+          uk <- found(getUserKey(user))
+          _ <- requireAllowDownload(user, datasetId)
         } yield {
-          (app, uk)
+          (dataset, app, uk)
         }
-      }.getOrElse {
-        throw new NotFoundException
       }
-      val content = AppManager.getJnlp(
-        datasetId = datasetId,
-        appId = appId,
-        userId = user.id,
-        apiKey = uk.apiKey,
-        secretKey = uk.secretKey
-      )
-      DatasetData.AppJnlp(
-        id = appId,
-        name = app.appName,
-        versionId = app.appVersionId,
-        datasetId = datasetId,
-        lastModified = app.updatedAt,
-        content = content
-      )
-    }
+      for {
+        (dataset, app, uk) <- db
+      } yield {
+        val content = AppManager.getJnlp(
+          datasetId = datasetId,
+          userId = userId,
+          apiKey = uk.apiKey,
+          secretKey = uk.secretKey
+        )
+        DatasetData.AppJnlp(
+          id = app.appId,
+          name = dataset.name,
+          datasetId = datasetId,
+          lastModified = app.updatedAt,
+          content = content
+        )
+      }
+    }.flatMap(x => x)
   }
 
   /**
    * 指定したアプリのJARファイル情報を取得する。
    *
    * @param datasetId データセットID
-   * @param appId アプリID
-   * @param user ユーザ情報
+   * @param userId ユーザID
    * @return
    *   Success(AppFile) 取得成功時、アプリのJARファイル情報
-   *   Failure(NullPointerException) datasetId, appId, appVersionIdまたはuserがnullの場合
+   *   Failure(NullPointerException) datasetIdまたはuserIdがnullの場合
    *   Failure(NotFoundException)
-   *     データセット,アプリまたはアプリバージョンが存在しない場合
-   *   Failure(AccessDeniedException) ユーザに管理権限がない場合
+   *     ユーザが存在しないまたは無効な場合、
+   *     データセットが存在しない場合、
+   *     データセットに設定されたアプリが存在しない場合、
+   *     ユーザにAPIキーが存在しない場合
+   *   Failure(AccessDeniedException) ユーザにダウンロード権限がない場合
    */
-  def getAppFile(datasetId: String, appId: String, user: User): Try[DatasetData.AppFile] = {
+  def getAppFile(datasetId: String, userId: String): Try[DatasetData.AppFile] = {
     Try {
       CheckUtil.checkNull(datasetId, "datasetId")
-      CheckUtil.checkNull(appId, "appId")
-      CheckUtil.checkNull(user, "user")
-      val app = DB.readOnly { implicit s =>
-        getDatasetWithOwnerAccess(datasetId, user)
-        getNewestApp(datasetId, appId)
+      CheckUtil.checkNull(userId, "userId")
+      val db = DB.readOnly { implicit s =>
+        for {
+          user <- found(getUser(userId))
+          dataset <- found(getDataset(datasetId))
+          app <- found(getNewestPrimaryApp(datasetId))
+          _ <- found(getUserKey(user))
+          _ <- requireAllowDownload(user, datasetId)
+        } yield {
+          (dataset, app)
+        }
       }
-      val file = AppManager.download(appId, app.appVersionId)
-      val content = Files.newInputStream(file.toPath)
-      DatasetData.AppFile(
-        appId = appId,
-        appVersionId = app.appVersionId,
-        lastModified = app.updatedAt,
-        content = content
-      )
-    }
+      for {
+        (dataset, app) <- db
+      } yield {
+        val file = AppManager.download(app.appId, app.appVersionId)
+        val content = Files.newInputStream(file.toPath)
+        DatasetData.AppFile(
+          appId = app.appId,
+          appVersionId = app.appVersionId,
+          lastModified = app.updatedAt,
+          content = content
+        )
+      }
+    }.flatMap(x => x)
   }
 
   /**
@@ -4400,6 +4431,33 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .isNull(v.deletedAt)
     }.map { rs =>
       rs.timestamp(v.resultName.updatedAt).toJodaDateTime
+    }.single.apply()
+  }
+
+  /**
+   * 指定したIDのユーザを取得する。
+   *
+   * @param id ユーザID
+   * @return 取得したユーザ、存在しないまたは無効な場合None
+   */
+  private def getUser(id: String)(implicit s: DBSession): Option[User] = {
+    if (id == User.guest.id) {
+      return Some(User.guest)
+    }
+    val u = persistence.User.u
+    val ma = persistence.MailAddress.ma
+    withSQL {
+      select(u.result.*, ma.result.address)
+        .from(persistence.User as u)
+        .innerJoin(persistence.MailAddress as ma).on(u.id, ma.userId)
+        .where
+        .eq(u.id, sqls.uuid(id))
+        .and
+        .eq(u.disabled, false)
+    }.map { rs =>
+      val user = persistence.User(u.resultName)(rs)
+      val address = rs.string(ma.resultName.address)
+      User(user, address)
     }.single.apply()
   }
 }
@@ -4544,7 +4602,4 @@ object DatasetService {
     apiKey: String,
     secretKey: String
   )
-
-  /** ファイル名からアプリ名を取得する際に用いる正規表現 */
-  val APP_FILE_NAME_REG = """(.+?)(__[\w.]+?)?(\.[a-zA-Z]+)*""".r
 }

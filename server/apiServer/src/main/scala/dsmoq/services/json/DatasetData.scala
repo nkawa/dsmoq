@@ -163,7 +163,6 @@ object DatasetData {
    *
    * @param id アプリID
    * @param name アプリ名
-   * @param versionId アプリバージョンID
    * @param datasetId データセットID
    * @param lastModified 最終更新日時
    * @param content JNLPファイルの中身
@@ -171,7 +170,6 @@ object DatasetData {
   case class AppJnlp(
     id: String,
     name: String,
-    versionId: String,
     datasetId: String,
     lastModified: DateTime,
     content: String
