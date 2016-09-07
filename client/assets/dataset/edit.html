@@ -14,6 +14,7 @@
       <li><a href="#dataset-acl" data-toggle="tab">Accesss Control</a></li>
       <li><a href="#dataset-storage" data-toggle="tab">Storage</a></li>
       <li><a href="#dataset-featured-image" data-toggle="tab">Featured Image</a></li>
+      <li><a href="#dataset-app" data-toggle="tab">App</a></li>
     </ul>
 
     <div class="tab-content">
@@ -325,6 +326,18 @@
               </div>
             </div>
         </form>
+      </div>
+
+      <div class="tab-pane" id="dataset-app">
+        {^{if dataset.primaryApp}}
+        <div style="padding: 10px; margin-bottom: 20px;">
+          <label>Name</label>
+          <div>&nbsp;&nbsp;&nbsp;&nbsp;{^{>dataset.primaryApp.name}}</div>
+        </div>
+        {{/if}}
+        <div style="padding: 20px; 10px">
+          <a class="btn btn-primary" id="dataset-app-select">Select</a>
+        </div>
       </div>
     </div>
   </div>

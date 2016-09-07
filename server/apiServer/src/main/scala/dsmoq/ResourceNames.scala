@@ -174,4 +174,9 @@ object ResourceNames {
    * 対象のユーザは無効です
    */
   val DISABLED_USER = "disabled_user"
+
+  /**
+   * 不正なJARファイルが指定されました
+   */
+  val INVALID_JAR_FILE = "invalid_jar_file"
 }

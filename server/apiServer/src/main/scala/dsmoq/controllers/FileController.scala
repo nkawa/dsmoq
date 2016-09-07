@@ -12,6 +12,7 @@ import org.slf4j.MarkerFactory
 
 import com.typesafe.scalalogging.LazyLogging
 
+import dsmoq.controllers.ResponseUtil.generateContentDispositionValue
 import dsmoq.exceptions.AccessDeniedException
 import dsmoq.exceptions.NotAuthorizedException
 import dsmoq.exceptions.NotFoundException
@@ -441,16 +442,6 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
   }
 
   /**
-   * レスポンスヘッダのContent-Dispositionに設定する文字列を返す。
-   *
-   * @param fileName ファイル名
-   * @return Content-Dispositionに設定する文字列
-   */
-  private def genarateContentDispositionValue(fileName: String): String = {
-    "attachment; filename*=UTF-8''" + java.net.URLEncoder.encode(fileName.split(Array[Char]('\\', '/')).last, "UTF-8")
-  }
-
-  /**
    * Content-Lengthのみをレスポンスヘッダに設定する。
    * ステータスコードは、200:OK とする。
    *
@@ -481,7 +472,7 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
 
     val status = 200
     val headers = Map(
-      "Content-Disposition" -> genarateContentDispositionValue(fileName),
+      "Content-Disposition" -> generateContentDispositionValue(fileName),
       "Content-Type" -> "application/octet-stream;charset=binary"
     )
     progress(status, headers)
@@ -499,7 +490,7 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
   private def progressPartialRequest(fileName: String, contentRange: String, contentLength: Long): Unit = {
     val status = 206
     val headers = Map(
-      "Content-Disposition" -> genarateContentDispositionValue(fileName),
+      "Content-Disposition" -> generateContentDispositionValue(fileName),
       "Content-Type" -> "application/octet-stream;charset=binary",
       "Content-Range" -> contentRange,
       "Content-Length" -> contentLength.toString

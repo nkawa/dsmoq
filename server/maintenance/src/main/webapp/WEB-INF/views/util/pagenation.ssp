@@ -1,0 +1,36 @@
+<%@ val params: Map[String, String] %>
+<%@ val url: Function[Map[String, String], String] %>
+<%@ val offset: Int %>
+<%@ val limit: Int %>
+<%@ val total: Int %>
+<% val pagenation = dsmoq.maintenance.views.Pagenation(offset, limit, total) %>
+
+<div class="pagenation">
+#if(pagenation.first.enabled)
+  <a href="${url(params + ("offset" -> pagenation.first.offset.toString))}">&lt;&lt;</a>
+#else
+  <span>&lt;&lt;</span>
+#end
+#if(pagenation.prev.enabled)
+  <a href="${url(params + ("offset" -> pagenation.prev.offset.toString))}">&lt;</a>
+#else
+  <span>&lt;</span>
+#end
+#for(page <- pagenation.pages)
+  #if(page.enabled)
+  <a href="${url(params + ("offset" -> page.offset.toString))}">${page.num}</a>
+  #else
+  <span><b>${page.num}</b></span>
+  #end
+#end
+#if(pagenation.next.enabled)
+  <a href="${url(params + ("offset" -> pagenation.next.offset.toString))}">&gt;</a>
+#else
+  <span>&gt;</span>
+#end
+#if(pagenation.last.enabled)
+  <a href="${url(params + ("offset" -> pagenation.last.offset.toString))}">&gt;&gt;</a>
+#else
+  <span>&gt;&gt;</span>
+#end
+</div>

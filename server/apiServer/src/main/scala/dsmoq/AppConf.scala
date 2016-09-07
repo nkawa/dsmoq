@@ -17,7 +17,11 @@ object AppConf {
   val fileDir = root.getString("apiserver.file_dir")
   val tempDir = root.getString("apiserver.temp_dir")
   val messageDir = root.getString("apiserver.message_dir")
-
+  val appDir = if (root.hasPath("apiserver.app_dir")) {
+    root.getString("apiserver.app_dir")
+  } else {
+    fileDir + "/../jws"
+  }
   val systemUserId = "dccc110c-c34f-40ed-be2c-7e34a9f1b8f0"
   val guestUserId = "6afb4198-859d-4053-8a15-5c791f3a8089"
   val guestGroupId = "f274a75c-e20e-4b4a-8db9-566fd41aa1bd"
@@ -35,8 +39,14 @@ object AppConf {
     "59ae7029-fafc-4f7e-8578-e7a00db2d147"
   )
 
+  val urlRoot = root.getString("apiserver.url_root")
   val imageDownloadRoot = root.getString("apiserver.image_url_root")
   val fileDownloadRoot = root.getString("apiserver.file_url_root")
+  val appDownloadRoot = if (root.hasPath("apiserver.app_url_root")) {
+    root.getString("apiserver.app_url_root")
+  } else {
+    fileDownloadRoot + "../apps/"
+  }
 
   val clientId = root.getString("google.client_id")
   val clientSecret = root.getString("google.client_secret")

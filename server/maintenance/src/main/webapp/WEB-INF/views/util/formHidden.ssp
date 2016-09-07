@@ -1,0 +1,4 @@
+<%@ val params: Map[String, String] %>
+#for((key, value) <- params)
+<input type="hidden" name="${key}" value="${value}" />
+#end

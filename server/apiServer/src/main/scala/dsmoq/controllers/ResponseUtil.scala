@@ -116,4 +116,14 @@ object ResponseUtil extends LazyLogging {
       }
     }
   }
+
+  /**
+   * レスポンスヘッダのContent-Dispositionに設定する文字列を返す。
+   *
+   * @param fileName ファイル名
+   * @return Content-Dispositionに設定する文字列
+   */
+  def generateContentDispositionValue(fileName: String): String = {
+    "attachment; filename*=UTF-8''" + java.net.URLEncoder.encode(fileName.split(Array[Char]('\\', '/')).last, "UTF-8")
+  }
 }

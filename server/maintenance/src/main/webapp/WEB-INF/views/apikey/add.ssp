@@ -1,0 +1,35 @@
+<%@ val error: Option[String] %>
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>データメンテナンス：APIキー発行ツール：APIキー発行</title>
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+    <script type="text/javascript" src="/js/lib/jquery-3.1.0.min.js"></script>
+    <script type="text/javascript" src="/js/apikey/add.js"></script>
+  </head>
+  <body>
+    <p>
+      <a class="menu" href="/">メニュー</a>
+    </p>
+    <h1>APIキー発行</h1>
+    <p class="error">
+    #for(err <- error)
+      ${err}
+    #end
+    </p>
+    <form method="POST" action="/apikey/add/proc">
+      <p>
+        <label>
+          ユーザーID
+          <input type="text" class="user_id" name="name" />
+        </label>
+        <button type="submit" class="publish" name="publish">発行</button>
+      </p>
+    </form>
+    <hr>
+    <p>
+      <a href="/apikey/">Back</a>
+    </p>
+  </body>
+</html>

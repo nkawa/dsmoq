@@ -1,0 +1,104 @@
+<%@ val condition: dsmoq.maintenance.data.user.SearchCondition %>
+<%@ val result: dsmoq.maintenance.data.SearchResult[dsmoq.maintenance.data.user.SearchResultUser] %>
+<%@ val url: Function[Map[String, String], String] %>
+<%@ val error: Option[String] %>
+<% import dsmoq.maintenance.data.user.SearchCondition.UserType %>
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>データメンテナンス：ユーザー一覧表示</title>
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+    <link rel="stylesheet" type="text/css" href="/css/ionicons.min.css">
+    <script type="text/javascript" src="/js/lib/jquery-3.1.0.min.js"></script>
+    <script type="text/javascript" src="/js/user/index.js"></script>
+  </head>
+  <body>
+    <p>
+      <a class="menu" href="/">メニュー</a>
+    </p>
+    <h1>ユーザー一覧表示</h1>
+    <form method="GET" action="/user/">
+      <input type="hidden" name="offset" value="${condition.offset}" />
+      <input type="hidden" name="limit" value="${condition.limit}" />
+      <p>
+        表示対象：
+        <label><input type="radio" name="userType" value="all" ${if (condition.userType == UserType.All) "checked"} />全件</label>
+        <label><input type="radio" name="userType" value="enabled" ${if (condition.userType == UserType.Enabled) "checked"} />有効ユーザー</label>
+        <label><input type="radio" name="userType" value="disabled" ${if (condition.userType == UserType.Disabled) "checked"} />無効ユーザー</label>
+      </p>
+      <p>
+        <label>検索条件 <input name="query" type="text" value="${condition.query}" /></label>
+      </p>
+      <p>
+        <button class="search">検索</button>
+      </p>
+    </form>
+    #if(result.data.isEmpty)
+    <p>該当ユーザなし</p>
+    #else
+    <p>${result.from}件 - ${result.to}件 / ${result.total}件</p>
+    <p class="error">
+    #for(err <- error)
+      ${err}
+    #end
+    </p>
+    <form method="POST" action="/user/proc">
+      <% render("/views/util/formHidden.ssp", Map("params" -> condition.toMap)) %>
+      <div class="table">
+        <table>
+          <thead>
+            <tr>
+              <th>ユーザーID</th>
+              <th>ユーザー名</th>
+              <th>メールアドレス</th>
+              <th>所属</th>
+              <th>タイトル</th>
+              <th>作成日時</th>
+              <th>最終更新日時</th>
+              <th>無効化</th>
+            </tr>
+          </thead>
+          <tbody>
+            #for (item <- result.data)
+            <tr>
+              <td>${item.name}</td>
+              <td>${item.fullname}</td>
+              <td>${item.mailAddress}</td>
+              <td>${item.organization}</td>
+              <td>${item.title}</td>
+              <td>${item.createdAt.toString("yyyy/MM/dd HH:mm:ss")}</td>
+              <td>${item.updatedAt.toString("yyyy/MM/dd HH:mm:ss")}</td>
+              <td>
+                #if(item.disabled)
+                <input type="hidden" name="disabled.originals[]" value="${item.id}" />
+                #end
+                <input type="checkbox" name="disabled.updates[]" value="${item.id}" ${if (item.disabled) "checked"}/>
+              </td>
+            </tr>
+            #end
+          </tbody>
+        </table>
+        <% render(
+          "/views/util/pagenation.ssp",
+          Map(
+            "params" -> condition.toMap,
+            "url" -> url,
+            "offset" -> condition.offset,
+            "limit" -> condition.limit,
+            "total" -> result.total
+          )
+        )
+        %>
+        <div class="button">
+          <button type="submit" class="update" name="update">
+            <span class="ion-edit"></span>
+            更新
+          </button>
+        </div>
+      </div>
+    </form>
+    <p>検索条件では、ユーザーID、ユーザー名、所属の部分一致検索が行えます。</p>
+    #end
+  </body>
+</html>

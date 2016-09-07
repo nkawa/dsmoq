@@ -2,13 +2,21 @@ package dsmoq.statistics
 
 import java.util.UUID
 
-import org.joda.time._
-import dsmoq.persistence._
-import scalikejdbc.DB
-import scalikejdbc._
-import scalikejdbc.config.DBs
+import org.joda.time.DateTime
 
-object Main extends App {
+import dsmoq.persistence.Dataset
+import dsmoq.persistence.File
+import dsmoq.persistence.FileHistory
+import dsmoq.persistence.Statistics
+import scalikejdbc.DB
+import scalikejdbc.DBSession
+import scalikejdbc.config.DBs
+import scalikejdbc.scalikejdbcSQLInterpolationImplicitDef
+import scalikejdbc.scalikejdbcSQLSyntaxToStringImplicitDef
+import scalikejdbc.select
+import scalikejdbc.withSQL
+
+object Main extends scala.App {
   val systemUserId = "dccc110c-c34f-40ed-be2c-7e34a9f1b8f0"
 
   val n = DateTime.now

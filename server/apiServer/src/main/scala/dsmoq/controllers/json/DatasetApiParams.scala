@@ -41,3 +41,14 @@ case class SearchRangeParams(
   limit: Option[Int] = None,
   offset: Option[Int] = None
 )
+
+case class SearchAppsParams(
+  excludeIds: Seq[String] = Seq.empty,
+  deletedType: Option[Int] = None,
+  limit: Option[Int] = None,
+  offset: Option[Int] = None
+)
+
+case class ChangePrimaryAppParams(
+  appId: Option[String] = None
+)

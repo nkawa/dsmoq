@@ -1,5 +1,6 @@
 package dsmoq.pages.datas;
 
+import dsmoq.models.DatasetApp;
 import dsmoq.models.DatasetFile;
 import dsmoq.models.DatasetGuestAccessLevel;
 import dsmoq.models.DatasetMetadata;
@@ -32,6 +33,8 @@ typedef DatasetEditDataset = {
     var localState: Int;
     /** @see dsmoq.models.Dataset.s3State */
     var s3State: Int;
+    /** @see dsmoq.models.DatasetApp */
+    var primaryApp: Null<DatasetApp>;
     var errors: {
         meta: {
             name: String,
@@ -54,4 +57,14 @@ typedef DatasetEdit = {
     var licenses: Array<License>;
     var dataset: DatasetEditDataset;
     var owners: Async<Paged<DatasetOwnership>>;
+};
+/**
+ * DatasetEditPage内の select modal データバインディング用のデータ構造です。
+ */
+typedef DatasetEditSelect<T> = {
+   var offset: Int;
+   var hasPrev: Bool;
+   var hasNext: Bool;
+   var items: Array<{selected: Bool, item: T}>;
+   var selectedIds: Array<String>;
 };

@@ -1,0 +1,42 @@
+a.menu {
+    font-size: 12px;
+}
+ul.menu li {
+    line-height: 2em;
+}
+table, td, th {
+    border: 2px #808080 solid;
+    border-collapse: collapse;
+}
+table {
+    margin-bottom: 0.5em;
+    margin-bottom: 0.5em;
+}
+th, td {
+    padding: 5px;
+}
+tr.disable {
+    background-color: #666666;
+}
+div.table {
+    display: inline-block;
+}
+div.pagenation {
+    text-align: center;
+}
+.success {
+    color: green;
+}
+.error {
+    color: red;
+}
+div.button {
+    margin-top: 10px;
+    text-align: right;
+}
+div.button > button {
+    margin-left: 10px;
+}
+div.buttons > button {
+    margin-right: 10px;
+}

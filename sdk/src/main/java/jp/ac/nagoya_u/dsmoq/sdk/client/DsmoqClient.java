@@ -194,13 +194,13 @@ public class DsmoqClient {
     }
 
     /** APIキー */
-    private String _apiKey;
+    private final String _apiKey;
 
     /** 基準となるURL */
-    private String _baseUrl;
+    private final String _baseUrl;
 
     /** シークレットキー */
-    private String _secretKey;
+    private final String _secretKey;
 
     /**
      * クライアントオブジェクトを生成する。
@@ -212,7 +212,7 @@ public class DsmoqClient {
     private DsmoqClient(String baseUrl, String apiKey, String secretKey) {
         this._apiKey = apiKey;
         this._secretKey = secretKey;
-        this._baseUrl = baseUrl;
+        this._baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
     }
 
     /**
@@ -309,7 +309,7 @@ public class DsmoqClient {
      * POST /api/groups/${group_id}/members を呼ぶ。
      * 
      * @param groupId グループID
-     * @param param メンバー追加情報
+     * @param params メンバー追加情報
      * @throws NullPointerException groupId、params、paramsの要素のいずれかがnullの場合
      * @throws HttpStatusException エラーレスポンスが返ってきた場合
      * @throws TimeoutException 接続がタイムアウトした場合

@@ -51,6 +51,9 @@ object DsmoqBuild extends Build {
     version := Version,
     scalaVersion := ScalaVersion,
     resolvers += Classpaths.typesafeReleases,
+    libraryDependencies ++= Seq(
+      "org.scalatest" %% "scalatest" % "2.2.1" % "test"
+    ),
     ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
   ) ++ scalariformSettings ++ scalastyleSettings
 
@@ -60,8 +63,8 @@ object DsmoqBuild extends Build {
     .settings(
       name := "common",
       libraryDependencies ++= Seq(
-        "org.scalatra" %% "scalatra" % ScalatraVersion,
         "org.postgresql" % "postgresql" % "9.3-1101-jdbc41",
+        "org.scalatra" %% "scalatra" % ScalatraVersion,
         "org.scalikejdbc" %% "scalikejdbc" % "2.2.3",
         "org.scalikejdbc" %% "scalikejdbc-config" % "2.2.3",
         "org.scalikejdbc" %% "scalikejdbc-interpolation" % "2.2.3",
@@ -78,27 +81,27 @@ object DsmoqBuild extends Build {
       //port in container.Configuration := 8080,
       libraryDependencies ++= Seq(
         "ch.qos.logback" % "logback-classic" % "1.0.6" % "runtime",
+        "ch.qos.logback" % "logback-classic" % "1.1.3" % "compile",
         "com.amazonaws" % "aws-java-sdk" % "1.9.4",
-        "com.google.api-client" % "google-api-client" % "1.18.0-rc" excludeAll( ExclusionRule(organization = "org.apache.httpcomponents") ),
-        "com.google.apis" % "google-api-services-oauth2" % "v2-rev66-1.18.0-rc" excludeAll( ExclusionRule(organization = "org.apache.httpcomponents") ),
-        "com.google.http-client" % "google-http-client-jackson" % "1.18.0-rc" excludeAll( ExclusionRule(organization = "org.apache.httpcomponents") ),
-        "commons-io" % "commons-io" % "2.4",
-        "org.eclipse.jetty" % "jetty-webapp" % "9.2.1.v20140609" % "compile;container",
-        "org.eclipse.jetty.orbit" % "javax.servlet" % "3.0.0.v201112011016" % "container;provided;test" artifacts (Artifact("javax.servlet", "jar", "jar")),
         "com.github.scala-incubator.io" %% "scala-io-core" % "0.4.3",
         "com.github.scala-incubator.io" %% "scala-io-file" % "0.4.3",
         "com.github.tototoshi" %% "scala-csv" % "1.1.2",
+        "com.google.api-client" % "google-api-client" % "1.18.0-rc" excludeAll(ExclusionRule(organization = "org.apache.httpcomponents")),
+        "com.google.apis" % "google-api-services-oauth2" % "v2-rev66-1.18.0-rc" excludeAll(ExclusionRule(organization = "org.apache.httpcomponents")),
+        "com.google.http-client" % "google-http-client-jackson" % "1.18.0-rc" excludeAll(ExclusionRule(organization = "org.apache.httpcomponents")),
+        "com.typesafe.scala-logging" % "scala-logging_2.11" % "3.1.0" % "compile",
+        "commons-io" % "commons-io" % "2.4",
+        "org.eclipse.jetty" % "jetty-webapp" % "9.2.1.v20140609" % "compile;container",
+        "org.eclipse.jetty.orbit" % "javax.servlet" % "3.0.0.v201112011016" % "container;provided;test" artifacts (Artifact("javax.servlet", "jar", "jar")),
         "org.json4s" %% "json4s-jackson" % "3.2.10",
-        "org.scalatest" %% "scalatest" % "2.2.1" % "test",
+        "org.scala-lang.modules" %% "scala-xml" % "1.0.5",
         "org.scalatra" %% "scalatra" % ScalatraVersion,
         "org.scalatra" %% "scalatra-auth" % ScalatraVersion,
         "org.scalatra" %% "scalatra-json" % ScalatraVersion,
         "org.scalatra" %% "scalatra-scalatest" % ScalatraVersion % "test",
         "org.scalatra" %% "scalatra-specs2" % ScalatraVersion % "test",
-        "com.typesafe.scala-logging" % "scala-logging_2.11" % "3.1.0" % "compile",
-        "org.slf4j" % "slf4j-api" % "1.7.12" % "compile",
-        "ch.qos.logback" % "logback-classic" % "1.1.3" % "compile",
-        "org.scalikejdbc" %% "scalikejdbc-test" % "2.2.3" % "test"
+        "org.scalikejdbc" %% "scalikejdbc-test" % "2.2.3" % "test",
+        "org.slf4j" % "slf4j-api" % "1.7.12" % "compile"
       ),
       scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature"),
       fork in Test := true
@@ -111,7 +114,6 @@ object DsmoqBuild extends Build {
     .settings(
       name := "initGroupMember",
       libraryDependencies ++= Seq(
-        "org.scalatest" % "scalatest_2.11" % "2.2.1" % "test",
         "com.github.tototoshi" %% "scala-csv" % "1.1.0"
       )
     )
@@ -126,7 +128,6 @@ object DsmoqBuild extends Build {
         "com.amazonaws" % "aws-java-sdk" % "1.9.4",
         "org.json4s" %% "json4s-jackson" % "3.2.10",
         "org.slf4j" % "slf4j-nop" % "1.7.7",
-        "org.scalatest" % "scalatest_2.11" % "2.2.1" % "test",
         "com.typesafe.akka" % "akka-http-core-experimental_2.11" % "0.11",
         "com.typesafe.akka" % "akka-testkit_2.11" % "2.3.7"
       ),
@@ -169,6 +170,37 @@ object DsmoqBuild extends Build {
     .dependsOn(common)
 
   lazy val apiKeyWeb = (project in file("apiKeyWeb"))
+    .settings(Defaults.coreDefaultSettings)
+    .settings(ScalatraPlugin.scalatraSettings)
+    .settings(dsmoqSettings)
+    .settings(
+      name := "apiKeyWeb",
+      libraryDependencies ++= Seq(
+        "org.scalatra" %% "scalatra-scalate" % ScalatraVersion,
+        "org.scalatra" %% "scalatra-specs2" % ScalatraVersion % "test",
+        "ch.qos.logback" % "logback-classic" % "1.1.5" % "runtime",
+        "org.eclipse.jetty" % "jetty-webapp" % "9.2.15.v20160210" % "container;compile",
+        "javax.servlet" % "javax.servlet-api" % "3.1.0" % "provided",
+        "commons-codec" % "commons-codec" % "1.10",
+        "com.typesafe" % "config" % "1.3.0",
+        "com.typesafe.scala-logging" % "scala-logging_2.11" % "3.1.0" % "compile"
+      ),
+      scalateTemplateConfig in Compile <<= (sourceDirectory in Compile) { base =>
+        Seq(
+          TemplateConfig(
+            base / "webapp" / "WEB-INF" / "templates",
+            Seq.empty, /* default imports should be added here */
+            Seq(
+              Binding("context", "_root_.org.scalatra.scalate.ScalatraRenderContext", importMembers = true, isImplicit = true)
+            ), /* add extra bindings here */
+            Some("templates")
+          )
+        )
+      }
+    )
+    .dependsOn(common)
+
+  lazy val maintenance = (project in file("maintenance"))
     .settings(Defaults.coreDefaultSettings)
     .settings(ScalatraPlugin.scalatraSettings)
     .settings(dsmoqSettings)

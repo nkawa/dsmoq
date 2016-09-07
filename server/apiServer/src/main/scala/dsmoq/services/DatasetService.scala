@@ -39,7 +39,9 @@ import dsmoq.ResourceNames
 import dsmoq.exceptions.AccessDeniedException
 import dsmoq.exceptions.BadRequestException
 import dsmoq.exceptions.NotFoundException
+import dsmoq.logic.AppManager
 import dsmoq.logic.FileManager
+import dsmoq.logic.Identity
 import dsmoq.logic.ImageSaveLogic
 import dsmoq.logic.StringUtil
 import dsmoq.logic.ZipUtil
@@ -68,12 +70,13 @@ import dsmoq.services.json.Image
 import dsmoq.services.json.RangeSlice
 import dsmoq.services.json.RangeSliceSummary
 import scalikejdbc.ConditionSQLBuilder
-import scalikejdbc.ConditionSQLBuilder
 import scalikejdbc.DB
 import scalikejdbc.DBSession
-import scalikejdbc.SelectSQLBuilder
+import scalikejdbc.SQLBuilder
+import scalikejdbc.SQLSyntax
 import scalikejdbc.SelectSQLBuilder
 import scalikejdbc.SubQuery
+import scalikejdbc.convertJavaSqlTimestampToConverter
 import scalikejdbc.delete
 import scalikejdbc.interpolation.Implicits.scalikejdbcSQLInterpolationImplicitDef
 import scalikejdbc.interpolation.Implicits.scalikejdbcSQLSyntaxToStringImplicitDef
@@ -920,11 +923,10 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(files, "files")
       CheckUtil.checkNull(user, "user")
       DB.localTx { implicit s =>
-        datasetAccessabilityCheck(id, user)
-        val dataset = checkDatasetExisitence(id)
+        val dataset = getDatasetWithOwnerAccess(id, user)
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
-        val f = files.map(f => {
+        val f = files.map { f =>
           val isZip = f.getName.endsWith("zip")
           val fileId = UUID.randomUUID.toString
           val historyId = UUID.randomUUID.toString
@@ -975,7 +977,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           )
 
           (file, history)
-        })
+        }
 
         if (dataset.s3State == SaveStatus.SAVED || dataset.s3State == SaveStatus.SYNCHRONIZING) {
           createTask(id, MoveToStatus.S3, myself.id, timestamp, dataset.localState == SaveStatus.SAVED)
@@ -1023,13 +1025,12 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(file, "file")
       CheckUtil.checkNull(user, "user")
       DB.localTx { implicit s =>
-        fileAccessabilityCheck(datasetId, fileId, user)
+        val dataset = getDatasetWithOwnerFileAccess(datasetId, fileId, user)
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
         val historyId = UUID.randomUUID.toString
 
-        val dataset = checkDatasetExisitence(datasetId)
         updateFileNameAndSize(
           fileId = fileId,
           historyId = historyId,
@@ -1103,18 +1104,37 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
-  private def fileAccessabilityCheck(
+  /**
+   * ファイルの存在を確認した後、指定されたデータセットを管理権限で取得します。
+   *
+   * @param datasetId データセットID
+   * @param fileId ファイルID
+   * @param user ユーザ情報
+   * @return データセット
+   * @throws NotFoundException データセットまたはファイルが存在しない場合
+   * @throws AccessDeniedException ユーザに管理権限がない場合
+   */
+  private def getDatasetWithOwnerFileAccess(
     datasetId: String,
     fileId: String,
     user: User
-  )(implicit s: DBSession): Unit = {
+  )(implicit s: DBSession): persistence.Dataset = {
     if (!existsFile(datasetId, fileId)) {
       throw new NotFoundException
     }
-    datasetAccessabilityCheck(datasetId, user)
+    getDatasetWithOwnerAccess(datasetId, user)
   }
 
-  private def datasetAccessabilityCheck(datasetId: String, user: User)(implicit s: DBSession): Unit = {
+  /**
+   * 指定されたデータセットを管理権限で取得します。
+   *
+   * @param datasetId データセットID
+   * @param user ユーザ情報
+   * @return データセット
+   * @throws NotFoundException データセットが存在しない場合
+   * @throws AccessDeniedException ユーザに管理権限がない場合
+   */
+  private def getDatasetWithOwnerAccess(datasetId: String, user: User)(implicit s: DBSession): persistence.Dataset = {
     getDataset(datasetId) match {
       case None => {
         throw new NotFoundException
@@ -1122,8 +1142,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       case Some(_) if !isOwner(user.id, datasetId) => {
         throw new AccessDeniedException(resource.getString(ResourceNames.ONLY_ALLOW_DATASET_OWNER))
       }
-      case _ => {
-        // do nothing
+      case Some(x) => {
+        x
       }
     }
   }
@@ -1173,7 +1193,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   ): Try[DatasetData.DatasetFile] = {
     Try {
       DB.localTx { implicit s =>
-        fileAccessabilityCheck(datasetId, fileId, user)
+        getDatasetWithOwnerFileAccess(datasetId, fileId, user)
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -1220,7 +1240,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   def deleteDatasetFile(datasetId: String, fileId: String, user: User): Try[Unit] = {
     Try {
       DB.localTx { implicit s =>
-        fileAccessabilityCheck(datasetId, fileId, user)
+        getDatasetWithOwnerFileAccess(datasetId, fileId, user)
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -1274,11 +1294,10 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(saveS3, "saveS3")
       CheckUtil.checkNull(user, "user")
       DB.localTx { implicit s =>
-        datasetAccessabilityCheck(id, user)
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
-        val dataset = checkDatasetExisitence(id)
+        val dataset = getDatasetWithOwnerAccess(id, user)
 
         val taskId = (saveLocal, saveS3, dataset.localState, dataset.s3State) match {
           case (true, _, SaveStatus.NOT_SAVED, SaveStatus.SAVED)
@@ -1391,7 +1410,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       val trimmedAttributes = attributes.map(x => x.name -> StringUtil.trimAllSpaces(x.value))
 
       DB.localTx { implicit s =>
-        datasetAccessabilityCheck(id, user)
+        getDatasetWithOwnerAccess(id, user)
         if (persistence.License.find(license).isEmpty) {
           val message = resource.getString(ResourceNames.INVALID_LICENSEID).format(license)
           throw new BadRequestException(message)
@@ -1560,10 +1579,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(images, "images")
       CheckUtil.checkNull(user, "user")
       DB.localTx { implicit s =>
-        checkDatasetExisitence(datasetId)
-        if (!isOwner(user.id, datasetId)) {
-          throw new AccessDeniedException(resource.getString(ResourceNames.ONLY_ALLOW_DATASET_OWNER))
-        }
+        getDatasetWithOwnerAccess(datasetId, user)
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
         val primaryImage = getPrimaryImageId(datasetId)
@@ -1639,7 +1655,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         if (!existsImage(datasetId, imageId)) {
           throw new NotFoundException
         }
-        datasetAccessabilityCheck(datasetId, user)
+        getDatasetWithOwnerAccess(datasetId, user)
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -1702,7 +1718,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   def deleteImage(datasetId: String, imageId: String, user: User): Try[DatasetData.DatasetDeleteImage] = {
     Try {
       DB.localTx { implicit s =>
-        datasetAccessabilityCheck(datasetId, user)
+        getDatasetWithOwnerAccess(datasetId, user)
         val cantDeleteImages = Seq(AppConf.defaultDatasetImageId)
         if (cantDeleteImages.contains(imageId)) {
           throw new BadRequestException(resource.getString(ResourceNames.CANT_DELETE_DEFAULTIMAGE))
@@ -1833,7 +1849,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(acl, "acl")
       CheckUtil.checkNull(user, "user")
       DB.localTx { implicit s =>
-        datasetAccessabilityCheck(datasetId, user)
+        getDatasetWithOwnerAccess(datasetId, user)
 
         val ownerChanges = acl.filter { x =>
           x.ownerType == OwnerType.User && x.accessLevel == UserAndGroupAccessLevel.OWNER_OR_PROVIDER
@@ -1960,7 +1976,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(accessLevel, "accessLevel")
       CheckUtil.checkNull(user, "user")
       DB.localTx { implicit s =>
-        datasetAccessabilityCheck(datasetId, user)
+        getDatasetWithOwnerAccess(datasetId, user)
 
         findGuestOwnership(datasetId) match {
           case Some(x) =>
@@ -2018,7 +2034,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   def deleteDataset(datasetId: String, user: User): Try[Unit] = {
     Try {
       DB.localTx { implicit s =>
-        datasetAccessabilityCheck(datasetId, user)
+        getDatasetWithOwnerAccess(datasetId, user)
         deleteDatasetById(datasetId, user)
       }
     }
@@ -2882,7 +2898,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   def copyDataset(datasetId: String, user: User): Try[CopiedDataset] = {
     Try {
       DB.localTx { implicit s =>
-        datasetAccessabilityCheck(datasetId, user)
+        getDatasetWithOwnerAccess(datasetId, user)
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -3322,7 +3338,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         if (!existsImage(datasetId, imageId)) {
           throw new NotFoundException
         }
-        datasetAccessabilityCheck(datasetId, user)
+        getDatasetWithOwnerAccess(datasetId, user)
 
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -3699,6 +3715,692 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .eq(zf.historyId, sqls.uuid(historyId))
     }.map(_.int(1)).single.apply().getOrElse(0)
   }
+
+  /**
+   * 指定したデータセットにアプリを追加する。
+   *
+   * @param datasetId データセットID
+   * @param file アプリのJARファイル
+   * @param user ユーザ情報
+   * @return
+   *   Success(App) 追加成功時、アプリ情報
+   *   Failure(NullPointerException) datasetId、file、またはuserがnullの場合
+   *   Failure(NotFoundException) データセットが存在しない場合
+   *   Failure(AccessDeniedException) ユーザに権限がない場合
+   *   Failure(IOException) ファイル保存時に入出力エラーが発生した場合
+   */
+  def addApp(datasetId: String, file: FileItem, user: User): Try[DatasetData.App] = {
+    Try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(file, "file")
+      CheckUtil.checkNull(user, "user")
+      DB.localTx { implicit s =>
+        getDatasetWithOwnerAccess(datasetId, user)
+        val timestamp = DateTime.now()
+        val appId = UUID.randomUUID.toString
+        val appVersionId = UUID.randomUUID.toString
+        val fileName = file.getName
+        persistence.App.create(
+          id = appId,
+          name = appNameOf(fileName),
+          createdBy = user.id,
+          createdAt = timestamp,
+          updatedBy = user.id,
+          updatedAt = timestamp
+        )
+        persistence.AppVersion.create(
+          id = appVersionId,
+          appId = appId,
+          fileName = fileName,
+          version = 1,
+          createdBy = user.id,
+          createdAt = timestamp,
+          updatedBy = user.id,
+          updatedAt = timestamp
+        )
+        persistence.DatasetApp.create(
+          id = UUID.randomUUID.toString,
+          datasetId = datasetId,
+          appId = appId,
+          isPrimary = false,
+          createdBy = user.id,
+          createdAt = timestamp,
+          updatedBy = user.id,
+          updatedAt = timestamp
+        )
+        AppManager.upload(appId, appVersionId, file)
+        getApp(datasetId, appId)
+      }
+    }
+  }
+
+  /**
+   * アプリを検索し、該当するアプリ情報の一覧を取得する。
+   *
+   * @param datasetId 検索対象データセットID
+   * @param deletedType 検索対象とする削除状態
+   *   (@see dsmoq.services.DatasetService.GetAppDeletedTypes)
+   * @param excludeIds 検索から除外するアプリのID
+   * @param limit 取得データ件数
+   * @param offset 取得データオフセット
+   * @param user ユーザ情報
+   * @return
+   *   Success(RangeSlice(App))
+   *     検索成功時、該当するアプリ情報の一覧
+   *   Failure(NullPointerException)
+   *     datasetId、deletedType、excludeIds、limit, offsetまたはuserがnullの場合
+   *   Failure(NotFoundException)
+   *     データセット指定時、データセットが存在しない場合
+   *   Failure(AccessDeniedException)
+   *     データセット指定時、ユーザに管理権限がない場合
+   */
+  def getApps(
+    datasetId: Option[String] = None,
+    deletedType: Option[Int] = None,
+    excludeIds: Seq[String] = Seq.empty,
+    limit: Option[Int] = None,
+    offset: Option[Int] = None,
+    user: User
+  ): Try[RangeSlice[DatasetData.App]] = {
+    val a = persistence.App.syntax("a")
+    val da = persistence.DatasetApp.syntax("da")
+    def createSqlBase(select: SelectSQLBuilder[Unit]): ConditionSQLBuilder[Unit] = {
+      Identity {
+        select
+          .from(persistence.App as a)
+          .innerJoin(persistence.DatasetApp as da).on(a.id, da.appId)
+          .where
+      }.map { sql =>
+        deletedType match {
+          case _ => sql.isNull(a.deletedAt)
+        }
+      }.map { sql =>
+        if (excludeIds.isEmpty) sql else sql.and.notIn(a.id, excludeIds.map(sqls.uuid))
+      }.map { sql =>
+        datasetId.map(id => sql.and.eq(da.datasetId, sqls.uuid(id))).getOrElse(sql)
+      }.get
+    }
+    def withPagingSql(sql: ConditionSQLBuilder[Unit]): SQLBuilder[Unit] = {
+      Identity {
+        datasetId.map { id =>
+          sql.orderBy(da.isPrimary.desc, a.updatedAt.desc)
+        }.getOrElse {
+          sql.orderBy(a.updatedAt.desc)
+        }
+      }.map { sql =>
+        offset.map(o => sql.offset(o)).getOrElse(sql)
+      }.map { sql =>
+        limit.map(lim => sql.limit(lim)).getOrElse(sql)
+      }.get
+    }
+    Try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(deletedType, "deletedType")
+      CheckUtil.checkNull(excludeIds, "excludeIds")
+      CheckUtil.checkNull(limit, "limit")
+      CheckUtil.checkNull(offset, "offset")
+      CheckUtil.checkNull(user, "user")
+      DB.readOnly { implicit s =>
+        datasetId.foreach { id =>
+          getDatasetWithOwnerAccess(id, user)
+        }
+        val total = withSQL {
+          createSqlBase(select(sqls.count))
+        }.map(_.int(1)).single.apply().getOrElse(0)
+        val eles = withSQL {
+          withPagingSql(createSqlBase(select(a.result.*, da.result.*)))
+        }.map { rs =>
+          val app = persistence.App(a.resultName)(rs)
+          val datasetApp = persistence.DatasetApp(da.resultName)(rs)
+          DatasetData.App(
+            id = app.id,
+            name = app.name,
+            datasetId = datasetApp.datasetId,
+            isPrimary = datasetApp.isPrimary,
+            lastModified = app.updatedAt
+          )
+        }.list.apply()
+        RangeSlice(RangeSliceSummary(total, limit.getOrElse(eles.size), offset.getOrElse(0)), eles)
+      }
+    }
+  }
+
+  /**
+   * 指定されたアプリ情報を取得する。
+   *
+   * @param datasetId データセットID
+   * @param appId アプリID
+   * @param user ユーザ情報
+   * @return
+   *   Success(App) 取得成功時、アプリ情報
+   *   Failure(NullPointerException) datasetId、appIdまたはuserがnullの場合
+   *   Failure(NotFoundException) データセットまたはアプリが存在しない場合
+   *   Failure(AccessDeniedException) ユーザに管理権限がない場合
+   */
+  def getApp(datasetId: String, appId: String, user: User): Try[DatasetData.App] = {
+    Try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(appId, "appId")
+      CheckUtil.checkNull(user, "user")
+      DB.readOnly { implicit s =>
+        getDatasetWithOwnerAccess(datasetId, user)
+        getApp(datasetId, appId)
+      }
+    }
+  }
+
+  /**
+   * 指定されたアプリを更新する。
+   *
+   * @param datasetId データセットID
+   * @param appId アプリID
+   * @param file アプリのJARファイル
+   * @param user ユーザ情報
+   * @return
+   *   Success(App) 更新成功時、アプリ情報
+   *   Failure(NullPointerException) datasetId、appId, fileまたはuserがnullの場合
+   *   Failure(NotFoundException) データセットまたはアプリが存在しない場合
+   *   Failure(AccessDeniedException) ユーザに管理権限がない場合
+   *   Failure(IOException) ファイル保存時に入出力エラーが発生した場合
+   */
+  def updateApp(datasetId: String, appId: String, file: FileItem, user: User): Try[DatasetData.App] = {
+    Try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(appId, "appId")
+      CheckUtil.checkNull(file, "file")
+      CheckUtil.checkNull(user, "user")
+      DB.localTx { implicit s =>
+        getDatasetWithOwnerAccess(datasetId, user)
+        getApp(datasetId, appId)
+        val timestamp = DateTime.now()
+        val appVersionId = UUID.randomUUID.toString
+        val fileName = file.getName
+        val nextVersion = withSQL {
+          val v = persistence.AppVersion.syntax("v")
+          select(sqls.max(v.version))
+            .from(persistence.AppVersion as v)
+            .where
+            .eq(v.appId, sqls.uuid(appId))
+        }.map(_.int(1) + 1).single.apply().getOrElse(0)
+        persistence.AppVersion.create(
+          id = appVersionId,
+          appId = appId,
+          fileName = fileName,
+          version = nextVersion,
+          createdBy = user.id,
+          createdAt = timestamp,
+          updatedBy = user.id,
+          updatedAt = timestamp
+        )
+        withSQL {
+          val a = persistence.App.column
+          update(persistence.App)
+            .set(
+              a.name -> appNameOf(fileName),
+              a.updatedBy -> sqls.uuid(user.id),
+              a.updatedAt -> timestamp
+            )
+            .where
+            .eq(a.id, sqls.uuid(appId))
+        }.update.apply()
+        AppManager.upload(appId, appVersionId, file)
+        getApp(datasetId, appId)
+      }
+    }
+  }
+
+  /**
+   * 指定されたアプリを論理削除する。
+   *
+   * @param datasetId データセットID
+   * @param appId アプリID
+   * @param user ユーザ情報
+   * @return
+   *   Success(Unit) 削除成功時
+   *   Failure(NullPointerException) datasetId、appIdまたはuserがnullの場合
+   *   Failure(NotFoundException) データセットまたはアプリが存在しない場合
+   *   Failure(AccessDeniedException) ユーザに管理権限がない場合
+   */
+  def deleteApp(datasetId: String, appId: String, user: User): Try[Unit] = {
+    Try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(appId, "appId")
+      CheckUtil.checkNull(user, "user")
+      DB.localTx { implicit s =>
+        getDatasetWithOwnerAccess(datasetId, user)
+        getApp(datasetId, appId)
+        val timestamp = DateTime.now()
+        withSQL {
+          val a = persistence.App.column
+          update(persistence.App)
+            .set(
+              a.deletedBy -> sqls.uuid(user.id),
+              a.deletedAt -> timestamp,
+              a.updatedBy -> sqls.uuid(user.id),
+              a.updatedAt -> timestamp
+            )
+            .where
+            .eq(a.id, sqls.uuid(appId))
+            .and
+            .isNull(a.deletedAt)
+        }.update.apply()
+        withSQL {
+          val v = persistence.AppVersion.column
+          update(persistence.AppVersion)
+            .set(
+              v.deletedBy -> sqls.uuid(user.id),
+              v.deletedAt -> timestamp,
+              v.updatedBy -> sqls.uuid(user.id),
+              v.updatedAt -> timestamp
+            )
+            .where
+            .eq(v.appId, sqls.uuid(appId))
+            .and
+            .isNull(v.deletedAt)
+        }.update.apply()
+        withSQL {
+          val da = persistence.DatasetApp.column
+          update(persistence.DatasetApp)
+            .set(
+              da.isPrimary -> false,
+              da.deletedBy -> sqls.uuid(user.id),
+              da.deletedAt -> timestamp,
+              da.updatedBy -> sqls.uuid(user.id),
+              da.updatedAt -> timestamp
+            )
+            .where
+            .eq(da.appId, sqls.uuid(appId))
+            .and
+            .isNull(da.deletedAt)
+        }.update.apply()
+      }
+    }
+  }
+
+  /**
+   * データセットに設定されているアプリ情報を取得する。
+   *
+   * @param datasetId データセットID
+   * @param user ユーザ情報
+   * @return
+   *   Success(Option(App)) 取得成功時、アプリ情報 (設定されていない場合 None)
+   *   Failure(NullPointerException) datasetIdまたはuserがnullの場合
+   *   Failure(NotFoundException) データセットが存在しない場合
+   *   Failure(AccessDeniedException) ユーザに管理権限がない場合
+   */
+  def getPrimaryApp(datasetId: String, user: User): Try[Option[DatasetData.App]] = {
+    Try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(user, "user")
+      DB.readOnly { implicit s =>
+        getDatasetWithOwnerAccess(datasetId, user)
+        val a = persistence.App.syntax("a")
+        val da = persistence.DatasetApp.syntax("da")
+        withSQL {
+          select(a.result.*, da.result.*)
+            .from(persistence.App as a)
+            .innerJoin(persistence.DatasetApp as da).on(a.id, da.appId)
+            .where
+            .eq(da.datasetId, sqls.uuid(datasetId))
+            .and
+            .eq(da.isPrimary, true)
+            .and
+            .isNull(a.deletedAt)
+            .and
+            .isNull(da.deletedAt)
+        }.map { rs =>
+          val app = persistence.App(a.resultName)(rs)
+          val datasetApp = persistence.DatasetApp(da.resultName)(rs)
+          DatasetData.App(
+            id = app.id,
+            name = app.name,
+            datasetId = datasetId,
+            isPrimary = datasetApp.isPrimary,
+            lastModified = app.updatedAt
+          )
+        }.single.apply()
+      }
+    }
+  }
+
+  /**
+   * データセットにアプリを設定する。
+   *
+   * @param datasetId データセットID
+   * @param appId アプリID
+   * @param user ユーザ情報
+   * @return
+   *   Success(App) 設定成功時、アプリ情報
+   *   Failure(NullPointerException) datasetId, appIdまたはuserがnullの場合
+   *   Failure(NotFoundException) データセットまたはアプリが存在しない場合
+   *   Failure(AccessDeniedException) ユーザに管理権限がない場合
+   */
+  def changePrimaryApp(datasetId: String, appId: String, user: User): Try[DatasetData.App] = {
+    Try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(appId, "appId")
+      CheckUtil.checkNull(user, "user")
+      DB.localTx { implicit s =>
+        getDatasetWithOwnerAccess(datasetId, user)
+        getApp(datasetId, appId)
+        val timestamp = DateTime.now()
+        withSQL {
+          val da = persistence.DatasetApp.column
+          update(persistence.DatasetApp)
+            .set(
+              da.isPrimary -> sqls.eq(da.appId, sqls.uuid(appId)),
+              da.updatedBy -> sqls.uuid(user.id),
+              da.updatedAt -> timestamp
+            )
+            .where
+            .eq(da.datasetId, sqls.uuid(datasetId))
+            .and
+            .isNull(da.deletedAt)
+        }.update.apply()
+        getApp(datasetId, appId)
+      }
+    }
+  }
+
+  /**
+   * ファイル名からアプリ名を取得する。
+   *
+   * @param fileName ファイル名
+   * @return アプリ名
+   */
+  def appNameOf(fileName: String): String = {
+    // アプリ名はファイル名からリソースの指定と拡張子を除く
+    fileName match {
+      case DatasetService.APP_FILE_NAME_REG(name, _, _) => name
+      case _ => fileName
+    }
+  }
+
+  /**
+   * データセットに設定されているアプリのURLを取得する。
+   *
+   * @param datasetId データセットID
+   * @param user ユーザ情報
+   * @return
+   *   Success(None) 設定されていない、ユーザにAPIキーがない、ユーザに権限がない場合
+   *   Success(Some(String)) アプリのJNLPファイルへのURL
+   *   Failure(NullPointerException) datasetId,またはuserがnullの場合
+   *   Failure(NotFoundException) データセットが存在しない場合
+   */
+  def getPrimaryAppUrl(datasetId: String, user: User): Try[Option[String]] = {
+    Try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(user, "user")
+      DB.readOnly { implicit s =>
+        checkDatasetExisitence(datasetId)
+        for {
+          _ <- getUserKey(user)
+          app <- getNewestPrimaryApp(datasetId)
+          if isOwner(user.id, datasetId)
+        } yield {
+          AppManager.getJnlpUrl(datasetId, app.appId, user.id)
+        }
+      }
+    }
+  }
+
+  /**
+   * アプリ情報を取得する。
+   *
+   * @param datasetId データセットID
+   * @param appId アプリID
+   * @param s DBセッション
+   * @return アプリ情報
+   * @throws NotFoundException アプリまたは関連付けが存在しない場合
+   */
+  private def getApp(datasetId: String, appId: String)(implicit s: DBSession): DatasetData.App = {
+    val a = persistence.App.syntax("a")
+    val da = persistence.DatasetApp.syntax("da")
+    withSQL {
+      select(a.result.*, da.result.*)
+        .from(persistence.App as a)
+        .innerJoin(persistence.DatasetApp as da).on(a.id, da.appId)
+        .where
+        .eq(a.id, sqls.uuid(appId))
+        .and
+        .eq(da.datasetId, sqls.uuid(datasetId))
+        .and
+        .isNull(a.deletedAt)
+        .and
+        .isNull(da.deletedAt)
+    }.map { rs =>
+      val app = persistence.App(a.resultName)(rs)
+      val datasetApp = persistence.DatasetApp(da.resultName)(rs)
+      DatasetData.App(
+        id = appId,
+        name = app.name,
+        datasetId = datasetApp.datasetId,
+        isPrimary = datasetApp.isPrimary,
+        lastModified = app.updatedAt
+      )
+    }.single.apply().getOrElse {
+      throw new NotFoundException
+    }
+  }
+
+  /**
+   * アプリの最新版情報を取得する。
+   *
+   * @param datasetId データセットID
+   * @param appId アプリID
+   * @param s DBセッション
+   * @return アプリの最新版情報
+   * @throws NotFoundException アプリまたは関連付けが存在しない場合
+   */
+  private def getNewestApp(datasetId: String, appId: String)(implicit s: DBSession): DatasetService.DatasetApp = {
+    val a = persistence.App.syntax("a")
+    val v = persistence.AppVersion.syntax("v")
+    val da = persistence.DatasetApp.syntax("da")
+    withSQL {
+      select(a.result.*, v.result.*)
+        .from(persistence.App as a)
+        .innerJoin(persistence.AppVersion as v).on(a.id, v.appId)
+        .innerJoin(persistence.DatasetApp as da).on(a.id, da.appId)
+        .where
+        .eq(a.id, sqls.uuid(appId))
+        .and
+        .eq(da.datasetId, sqls.uuid(datasetId))
+        .and
+        .isNull(a.deletedAt)
+        .and
+        .isNull(v.deletedAt)
+        .and
+        .isNull(da.deletedAt)
+        .orderBy(v.version.desc)
+        .limit(1)
+    }.map { rs =>
+      DatasetService.DatasetApp(
+        datasetId = datasetId,
+        appId = rs.string(a.resultName.id),
+        appName = rs.string(a.resultName.name),
+        appVersionId = rs.string(v.resultName.id),
+        updatedAt = rs.timestamp(v.resultName.updatedAt).toJodaDateTime
+      )
+    }.single.apply().getOrElse {
+      throw new NotFoundException
+    }
+  }
+
+  /**
+   * データセットに設定されているアプリの最新版情報を取得する。
+   *
+   * @param datasetId データセットID
+   * @param s DBセッション
+   * @return データセットに設定されているアプリの最新版情報、設定されていない場合 None
+   */
+  private def getNewestPrimaryApp(datasetId: String)(implicit s: DBSession): Option[DatasetService.DatasetApp] = {
+    val a = persistence.App.syntax("a")
+    val v = persistence.AppVersion.syntax("v")
+    val da = persistence.DatasetApp.syntax("da")
+    withSQL {
+      select(a.result.*, v.result.*, da.result.isPrimary)
+        .from(persistence.App as a)
+        .innerJoin(persistence.AppVersion as v).on(a.id, v.appId)
+        .innerJoin(persistence.DatasetApp as da).on(a.id, da.appId)
+        .where
+        .eq(da.datasetId, sqls.uuid(datasetId))
+        .and
+        .eq(da.isPrimary, true)
+        .and
+        .isNull(a.deletedAt)
+        .and
+        .isNull(v.deletedAt)
+        .and
+        .isNull(da.deletedAt)
+        .orderBy(v.version.desc)
+        .limit(1)
+    }.map { rs =>
+      DatasetService.DatasetApp(
+        datasetId = datasetId,
+        appId = rs.string(a.resultName.id),
+        appName = rs.string(a.resultName.name),
+        appVersionId = rs.string(v.resultName.id),
+        updatedAt = rs.timestamp(v.resultName.updatedAt).toJodaDateTime
+      )
+    }.single.apply()
+  }
+
+  /**
+   * ユーザのAPIキー情報を取得する。
+   *
+   * @param user ユーザ
+   * @param s DBセッション
+   * @return ユーザのAPIキー情報、設定されていない場合 None
+   */
+  private def getUserKey(user: User)(implicit s: DBSession): Option[DatasetService.AppUser] = {
+    val u = persistence.User.syntax("u")
+    val ak = persistence.ApiKey.syntax("ak")
+    withSQL {
+      select(u.result.id, ak.result.apiKey, ak.result.secretKey)
+        .from(persistence.User as u)
+        .innerJoin(persistence.ApiKey as ak).on(u.id, ak.userId)
+        .where
+        .eq(u.id, sqls.uuid(user.id))
+        .and
+        .eq(u.disabled, false)
+        .and
+        .isNull(ak.deletedAt)
+        .and
+        .isNull(ak.deletedBy)
+    }.map { rs =>
+      DatasetService.AppUser(
+        id = rs.string(u.resultName.id),
+        apiKey = rs.string(ak.resultName.apiKey),
+        secretKey = rs.string(ak.resultName.secretKey)
+      )
+    }.single.apply()
+  }
+
+  /**
+   * 指定したアプリのJNLPファイル情報を取得する。
+   *
+   * @param datasetId データセットID
+   * @param appId アプリID
+   * @param user ユーザ情報
+   * @return
+   *   Success(AppJnlp) 取得成功時、アプリのJNLPファイル情報
+   *   Failure(NullPointerException) datasetId, appIdまたはuserがnullの場合
+   *   Failure(NotFoundException)
+   *     データセットまたはアプリが存在しない場合、
+   *     データセットに設定されたアプリが存在しない場合、
+   *     ユーザにAPIキーが存在しない場合
+   *   Failure(AccessDeniedException) ユーザに管理権限がない場合
+   */
+  def getAppJnlp(datasetId: String, appId: String, user: User): Try[DatasetData.AppJnlp] = {
+    Try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(appId, "appId")
+      CheckUtil.checkNull(user, "user")
+      val (app, uk) = DB.readOnly { implicit s =>
+        getDatasetWithOwnerAccess(datasetId, user)
+        for {
+          app <- getNewestPrimaryApp(datasetId)
+          uk <- getUserKey(user)
+        } yield {
+          (app, uk)
+        }
+      }.getOrElse {
+        throw new NotFoundException
+      }
+      val content = AppManager.getJnlp(
+        datasetId = datasetId,
+        appId = appId,
+        userId = user.id,
+        apiKey = uk.apiKey,
+        secretKey = uk.secretKey
+      )
+      DatasetData.AppJnlp(
+        id = appId,
+        name = app.appName,
+        versionId = app.appVersionId,
+        datasetId = datasetId,
+        lastModified = app.updatedAt,
+        content = content
+      )
+    }
+  }
+
+  /**
+   * 指定したアプリのJARファイル情報を取得する。
+   *
+   * @param datasetId データセットID
+   * @param appId アプリID
+   * @param user ユーザ情報
+   * @return
+   *   Success(AppFile) 取得成功時、アプリのJARファイル情報
+   *   Failure(NullPointerException) datasetId, appId, appVersionIdまたはuserがnullの場合
+   *   Failure(NotFoundException)
+   *     データセット,アプリまたはアプリバージョンが存在しない場合
+   *   Failure(AccessDeniedException) ユーザに管理権限がない場合
+   */
+  def getAppFile(datasetId: String, appId: String, user: User): Try[DatasetData.AppFile] = {
+    Try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(appId, "appId")
+      CheckUtil.checkNull(user, "user")
+      val app = DB.readOnly { implicit s =>
+        getDatasetWithOwnerAccess(datasetId, user)
+        getNewestApp(datasetId, appId)
+      }
+      val file = AppManager.download(appId, app.appVersionId)
+      val content = Files.newInputStream(file.toPath)
+      DatasetData.AppFile(
+        appId = appId,
+        appVersionId = app.appVersionId,
+        lastModified = app.updatedAt,
+        content = content
+      )
+    }
+  }
+
+  /**
+   * 指定したアプリバージョンの更新日時を取得する。
+   *
+   * @param appId アプリID
+   * @param appVersionId アプリバージョンID
+   * @param s DBセッション
+   * @return 更新日時、取得できなかった場合 None
+   */
+  private def getAppVersionUpdatedAt(appId: String, appVersionId: String)(implicit s: DBSession): Option[DateTime] = {
+    val v = persistence.AppVersion.syntax("v")
+    withSQL {
+      select(v.result.updatedAt)
+        .from(persistence.AppVersion as v)
+        .where
+        .eq(v.id, sqls.uuid(appVersionId))
+        .and
+        .eq(v.appId, sqls.uuid(appId))
+        .and
+        .isNull(v.deletedAt)
+    }.map { rs =>
+      rs.timestamp(v.resultName.updatedAt).toJodaDateTime
+    }.single.apply()
+  }
 }
 
 object DatasetService {
@@ -3799,4 +4501,49 @@ object DatasetService {
     fileSize: Long
   ) extends DownloadFile
 
+  /** アプリ検索に用いる削除状態 */
+  object GetAppDeletedTypes {
+    /** 論理削除を含まない */
+    val LOGICAL_DELETED_EXCLUDE = 0
+    /** 論理削除を含む */
+    val LOGICAL_DELETED_INCLUDE = 1
+    /** 論理削除のみ */
+    val LOGICAL_DELETED_ONLY = 2
+  }
+
+  /** アプリ検索に用いるデフォルトの削除状態 */
+  val DEFAULT_GET_APP_DELETED_TYPE = GetAppDeletedTypes.LOGICAL_DELETED_EXCLUDE
+
+  /**
+   * バージョン情報を含むアプリ情報
+   *
+   * @param datasetId データセットID
+   * @param appId アプリID
+   * @param appName アプリ名
+   * @param appVersionId アプリバージョンID
+   * @param updatedAt アプリバージョンの更新日時
+   */
+  case class DatasetApp(
+    datasetId: String,
+    appId: String,
+    appName: String,
+    appVersionId: String,
+    updatedAt: DateTime
+  )
+
+  /**
+   * ユーザのAPIキー情報
+   *
+   * @param id ユーザID
+   * @param apiKey APIキー
+   * @param secretKey シークレットキー
+   */
+  case class AppUser(
+    id: String,
+    apiKey: String,
+    secretKey: String
+  )
+
+  /** ファイル名からアプリ名を取得する際に用いる正規表現 */
+  val APP_FILE_NAME_REG = """(.+?)(__[\w.]+?)?(\.[a-zA-Z]+)*""".r
 }

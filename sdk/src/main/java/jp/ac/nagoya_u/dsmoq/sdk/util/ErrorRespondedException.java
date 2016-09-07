@@ -33,6 +33,7 @@ public class ErrorRespondedException extends Exception {
      * 指定されたHttpResponseを用いて、この例外を構築します。
      * 
      * @param response 元となるHttpResponse
+     * @throws IOException responseからの情報取得時に入出力エラーが発生した場合
      */
     public ErrorRespondedException(HttpResponse response) throws IOException {
         this(response.getStatusLine().getStatusCode(), response.getStatusLine().getReasonPhrase(),
