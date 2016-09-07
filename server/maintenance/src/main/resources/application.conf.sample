@@ -1,6 +1,6 @@
 # Maintenance Page settings
 maintenance {
-  port = 8092
+  port = 8091
 
   user = "coi"
   password = "coicoi"
