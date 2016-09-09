@@ -776,35 +776,37 @@ class DatasetEditPage {
                 // 直接Loadingを指定すると、内部のinput要素までloading-textで置き換わるため、模倣している。
                 // メッセージは内部のdivに担当させ、disableのみを#type-nameボタンに設定する
                 BootstrapButton.setLoading(html.find('#${type}-${name} > div'));
-                exec().then(
-                    function (x) {
-                        Notification.show("success", "save successful");
-                        var p = searchCandidate();
-                        if (after != null) {
-                            p.then(function(_) {
+                exec()
+                    .flatMap(function(x) {
+                        return searchCandidate().map(function(_) { return x; });
+                    })
+                    .then(
+                        function (x) {
+                            if (after != null) {
                                 after(x);
-                            });
+                            }
+                            Notification.show("success", "save successful");
+                        },
+                        function (e) {
+                            // 失敗時には選択設定を戻す
+                            JsViews.observable(data.selectedIds).refresh(selectedIds);
+                            // Service内でNotificationを出力するようにしたため、この箇所でのNotification出力は不要。
+                            // このfunctionはfinally時に呼び出されるfunctionを指定するための引数の数合わせです。
+                        },
+                        function () {
+                            html.find('#${type}-${name}-form input').val(""); // TODO IE11で要検証
+                            BootstrapButton.reset(html.find('#${type}-${name} > div'));
+                            html.find('#upload-${name}').removeAttr("disabled");
+                            if (isPrevEnabled) {
+                                html.find('#${name}-list-prev').removeAttr("disabled");
+                            }
+                            if (isNextEnabled) {
+                                html.find('#${name}-list-next').removeAttr("disabled");
+                            }
+                            html.find('#select-${name}-dialog-cancel').removeAttr("disabled");
                         }
-                    },
-                    function (e) {
-                        // 失敗時には選択設定を戻す
-                        JsViews.observable(data.selectedIds).refresh(selectedIds);
-                        // Service内でNotificationを出力するようにしたため、この箇所でのNotification出力は不要。
-                        // このfunctionはfinally時に呼び出されるfunctionを指定するための引数の数合わせです。
-                    },
-                    function () {
-                        html.find('#${type}-${name}-form input').val(""); // TODO IE11で要検証
-                        BootstrapButton.reset(html.find('#${type}-${name} > div'));
-                        html.find('#upload-${name}').removeAttr("disabled");
-                        if (isPrevEnabled) {
-                            html.find('#${name}-list-prev').removeAttr("disabled");
-                        }
-                        if (isNextEnabled) {
-                            html.find('#${name}-list-next').removeAttr("disabled");
-                        }
-                        html.find('#select-${name}-dialog-cancel').removeAttr("disabled");
-                    }
-                );
+                    )
+                ;
             }
             JsViews.observable(data.items).observeAll(function (e, args) {
                 if (args.path == "selected") {
