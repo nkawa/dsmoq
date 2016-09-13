@@ -32,7 +32,7 @@ import dsmoq.controllers.json.CreateGroupParams
 import dsmoq.controllers.json.DatasetStorageParams
 import dsmoq.controllers.json.GetGroupMembersParams
 import dsmoq.controllers.json.SearchAppsParams
-import dsmoq.controllers.json.SearchDatasetsParams
+import dsmoq.controllers.json.SearchDatasetParams
 import dsmoq.controllers.json.SearchGroupsParams
 import dsmoq.controllers.json.SearchRangeParams
 import dsmoq.controllers.json.SetGroupMemberRoleParams
@@ -63,6 +63,8 @@ import dsmoq.services.StatisticsService
 import dsmoq.services.SystemService
 import dsmoq.services.TaskService
 import dsmoq.services.User
+import dsmoq.services.json.DatasetData
+import dsmoq.services.json.RangeSlice
 
 class ApiController(
   val resource: ResourceBundle
@@ -276,14 +278,49 @@ class ApiController(
 
   get("/datasets") {
     val ret = for {
-      d <- getJsonValue[SearchDatasetsParams]
-      json <- Success(d.getOrElse(SearchDatasetsParams()))
-      _ <- checkUtil.contains("d.orderby", json.orderby, Seq("attribute"))
+      d <- getJsonValue[SearchDatasetParams]
+      result <- getDatasets(d)
+    } yield {
+      result
+    }
+    toActionResult(ret)
+  }
+
+  def getDatasets(d: Option[SearchDatasetParams]): Try[RangeSlice[DatasetData.DatasetsSummary]] = {
+    d.getOrElse(SearchDatasetParams()) match {
+      case x: SearchDatasetParams.Condition => getDatasetsWithCondition(x)
+      case x: SearchDatasetParams.Params => getDatasetsWithParams(x)
+    }
+  }
+
+  def getDatasetsWithCondition(
+    json: SearchDatasetParams.Condition
+  ): Try[RangeSlice[DatasetData.DatasetsSummary]] = {
+    for {
       _ <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _ <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
       user <- getUser(allowGuest = true)
       result <- datasetService.search(
         query = json.query,
+        limit = json.limit,
+        offset = json.offset,
+        user = user
+      )
+    } yield {
+      result
+    }
+  }
+
+  def getDatasetsWithParams(
+    json: SearchDatasetParams.Params
+  ): Try[RangeSlice[DatasetData.DatasetsSummary]] = {
+    for {
+      _ <- checkUtil.contains("d.orderby", json.orderby, Seq("attribute"))
+      _ <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
+      _ <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
+      user <- getUser(allowGuest = true)
+      result <- datasetService.search(
+        query = Option(json.query).filter(_.isEmpty),
         owners = json.owners,
         groups = json.groups,
         attributes = json.attributes,
@@ -295,7 +332,6 @@ class ApiController(
     } yield {
       result
     }
-    toActionResult(ret)
   }
 
   get("/datasets/:datasetId") {

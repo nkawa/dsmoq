@@ -69,6 +69,7 @@ import dsmoq.services.json.DatasetData.DatasetZipedFile
 import dsmoq.services.json.Image
 import dsmoq.services.json.RangeSlice
 import dsmoq.services.json.RangeSliceSummary
+import dsmoq.services.json.SearchDatasetCondition
 import scalikejdbc.ConditionSQLBuilder
 import scalikejdbc.DB
 import scalikejdbc.DBSession
@@ -97,6 +98,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   val LOG_MARKER = MarkerFactory.getMarker("DATASET_LOG")
 
   private val datasetImageDownloadRoot = AppConf.imageDownloadRoot + "datasets/"
+
+  val DEFALUT_LIMIT = 20
 
   /**
    * データセットを新規作成します。
@@ -348,29 +351,52 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   }
 
   /**
-   * データセットを検索し、該当するデータセットの一覧を取得します。
+   * データセットを検索し、該当するデータセットの一覧を取得する。
    *
-   * @param query
-   * @param owners
-   * @param groups
-   * @param attributes
-   * @param limit
-   * @param offset
-   * @param user
-   * @return
+   * @param query 検索条件
+   * @param limit 検索上限
+   * @param offset 検索オフセット
+   * @param user ユーザ情報
+   * @return 検索結果
    */
   def search(
-    query: Option[String] = None,
-    owners: Seq[String] = Seq.empty,
-    groups: Seq[String] = Seq.empty,
-    attributes: Seq[DataSetAttribute] = Seq.empty,
-    limit: Option[Int] = None,
-    offset: Option[Int] = None,
-    orderby: Option[String] = None,
+    query: SearchDatasetCondition,
+    limit: Option[Int],
+    offset: Option[Int],
     user: User
   ): Try[RangeSlice[DatasetData.DatasetsSummary]] = {
     Try {
-      val limit_ = limit.getOrElse(20)
+      // TODO
+      val limit_ = limit.getOrElse(DEFALUT_LIMIT)
+      val offset_ = offset.getOrElse(0)
+      RangeSlice(RangeSliceSummary(0, limit_, offset_), Seq.empty)
+    }
+  }
+
+  /**
+   * データセットを検索し、該当するデータセットの一覧を取得する。
+   *
+   * @param query 検索文字列
+   * @param owners 所有者
+   * @param groups 検索するグループ
+   * @param attributes 検索する属性
+   * @param limit 検索上限
+   * @param offset 検索オフセット
+   * @param user ユーザ情報
+   * @return 検索結果
+   */
+  def search(
+    query: Option[String],
+    owners: Seq[String],
+    groups: Seq[String],
+    attributes: Seq[DataSetAttribute],
+    limit: Option[Int],
+    offset: Option[Int],
+    orderby: Option[String],
+    user: User
+  ): Try[RangeSlice[DatasetData.DatasetsSummary]] = {
+    Try {
+      val limit_ = limit.getOrElse(DEFALUT_LIMIT)
       val offset_ = offset.getOrElse(0)
 
       DB.readOnly { implicit s =>
@@ -3198,7 +3224,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             )
             .orderBy(sqls"own desc")
             .offset(offset.getOrElse(0))
-            .limit(limit.getOrElse(20))
+            .limit(limit.getOrElse(DEFALUT_LIMIT))
         }.map { rs =>
           (
             rs.string("id"),
@@ -3229,7 +3255,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           summary = RangeSliceSummary(
             total = count,
             offset = offset.getOrElse(0),
-            count = limit.getOrElse(20)
+            count = limit.getOrElse(DEFALUT_LIMIT)
           ),
           results = list
         )
@@ -3285,7 +3311,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             .and
             .isNull(di.deletedAt)
             .offset(offset.getOrElse(0))
-            .limit(limit.getOrElse(20))
+            .limit(limit.getOrElse(DEFALUT_LIMIT))
         }.map { rs =>
           (
             rs.string(i.resultName.id),
@@ -3303,7 +3329,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         RangeSlice(
           RangeSliceSummary(
             total = totalCount.getOrElse(0),
-            count = limit.getOrElse(20),
+            count = limit.getOrElse(DEFALUT_LIMIT),
             offset = offset.getOrElse(0)
           ),
           result
