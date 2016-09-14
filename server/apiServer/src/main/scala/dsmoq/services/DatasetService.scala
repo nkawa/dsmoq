@@ -499,25 +499,29 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         )
       }
       case SearchDatasetCondition.Attribute(key, value) => {
-        val a = persistence.Annotation.a
-        val da = persistence.DatasetAnnotation.da
-        Some(
-          sqls.exists(
-            select
-            .from(persistence.DatasetAnnotation as da)
-            .innerJoin(persistence.Annotation as a)
-            .on(sqls.eq(a.id, da.annotationId).and.isNull(a.deletedAt))
-            .where(
-              sqls.toAndConditionOpt(
-                Some(sqls.eq(da.datasetId, d.id)),
-                if (key.isEmpty) None else Some(sqls.eq(a.name, key)),
-                if (value.isEmpty) None else Some(sqls.eq(da.data, value)),
-                Some(sqls.isNull(da.deletedAt))
+        if (key.isEmpty && value.isEmpty) {
+          None
+        } else {
+          val a = persistence.Annotation.a
+          val da = persistence.DatasetAnnotation.da
+          Some(
+            sqls.exists(
+              select
+              .from(persistence.DatasetAnnotation as da)
+              .innerJoin(persistence.Annotation as a)
+              .on(sqls.eq(a.id, da.annotationId).and.isNull(a.deletedAt))
+              .where(
+                sqls.toAndConditionOpt(
+                  Some(sqls.eq(da.datasetId, d.id)),
+                  if (key.isEmpty) None else Some(sqls.eq(a.name, key)),
+                  if (value.isEmpty) None else Some(sqls.eq(da.data, value)),
+                  Some(sqls.isNull(da.deletedAt))
+                )
               )
+              .toSQLSyntax
             )
-            .toSQLSyntax
           )
-        )
+        }
       }
       case SearchDatasetCondition.TotalSize(op, value, unit) => {
         op match {

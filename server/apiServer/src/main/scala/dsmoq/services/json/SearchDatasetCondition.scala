@@ -29,7 +29,7 @@ object SearchDatasetCondition {
   case class TotalSize(
     operator: Operators.Compare = Operators.Compare.GT,
     value: Double = 0,
-    unit: SizeUnit = SizeUnit.KB
+    unit: SizeUnit = SizeUnit.Byte
   ) extends SearchDatasetCondition
 
   case class NumOfFiles(
@@ -47,8 +47,8 @@ object SearchDatasetCondition {
     }
     sealed trait Compare
     object Compare {
-      case object LT extends Compare
       case object GT extends Compare
+      case object LT extends Compare
     }
   }
 
@@ -56,6 +56,9 @@ object SearchDatasetCondition {
     def magnification: Double
   }
   object SizeUnit {
+    case object Byte extends SizeUnit {
+      val magnification = 1D
+    }
     case object KB extends SizeUnit {
       val magnification = 1024D
     }
@@ -118,10 +121,11 @@ object SearchDatasetCondition {
       }
       case TotalSize(op, value, u) => {
         val operator = op match {
-          case Operators.Compare.LT => JString("lt")
           case Operators.Compare.GT => JString("gt")
+          case Operators.Compare.LT => JString("lt")
         }
         val unit = u match {
+          case SizeUnit.Byte => JString("byte")
           case SizeUnit.KB => JString("kb")
           case SizeUnit.MB => JString("mb")
           case SizeUnit.GB => JString("gb")
@@ -137,8 +141,8 @@ object SearchDatasetCondition {
       }
       case NumOfFiles(op, value) => {
         val operator = op match {
-          case Operators.Compare.LT => JString("lt")
           case Operators.Compare.GT => JString("gt")
+          case Operators.Compare.LT => JString("lt")
         }
         JObject(
           List(
@@ -198,9 +202,10 @@ object SearchDatasetCondition {
             val value = doubleValueOf(v).getOrElse(0D)
             val operator = if (op == JString("lt")) Operators.Compare.LT else Operators.Compare.GT
             val unit = fields.get("unit").collect {
+              case JString("kb") => SizeUnit.KB
               case JString("mb") => SizeUnit.MB
               case JString("gb") => SizeUnit.GB
-            }.getOrElse(SizeUnit.KB)
+            }.getOrElse(SizeUnit.Byte)
             Some(TotalSize(operator, value, unit))
           }
           case (JString("num-of-files"), _, JInt(value)) => {
