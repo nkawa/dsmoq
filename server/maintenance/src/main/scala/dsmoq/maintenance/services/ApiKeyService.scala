@@ -44,6 +44,7 @@ object ApiKeyService extends LazyLogging {
    * @return APIキーの一覧
    */
   def list(): Seq[SearchResultApiKey] = {
+    logger.info(LOG_MARKER, Util.createLogMessage("ApiKeyService", "list"))
     val u = persistence.User.u
     val ak = persistence.ApiKey.ak
     DB.readOnly { implicit s =>
@@ -79,6 +80,7 @@ object ApiKeyService extends LazyLogging {
    * @return 処理結果、ID不正時Failure(ServiceException)
    */
   def disable(id: Option[String]): Try[Unit] = {
+    logger.info(LOG_MARKER, Util.createLogMessage("ApiKeyService", "disable", Map("id" -> id)))
     id.filter(!_.isEmpty).map { id =>
       DB.localTx { implicit s =>
         for {
@@ -90,7 +92,7 @@ object ApiKeyService extends LazyLogging {
         }
       }
     }.getOrElse {
-      Failure(new ServiceException("IDが指定されていません。"))
+      Failure(new ServiceException("キーが未選択です。"))
     }
   }
 
@@ -158,6 +160,7 @@ object ApiKeyService extends LazyLogging {
    * @return 発行したAPIキーID、ユーザ名不正時Failure(ServiceException)
    */
   def add(userName: Option[String]): Try[String] = {
+    logger.info(LOG_MARKER, Util.createLogMessage("ApiKeyService", "add", Map("userName" -> userName)))
     userName.filter(!_.isEmpty).map { userName =>
       DB.localTx { implicit s =>
         for {

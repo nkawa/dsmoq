@@ -1,5 +1,7 @@
 package dsmoq.maintenance.controllers
 
+import org.scalatra.CsrfTokenSupport
+import org.scalatra.Forbidden
 import org.scalatra.Ok
 import org.scalatra.ScalatraServlet
 import org.scalatra.SeeOther
@@ -15,7 +17,7 @@ import dsmoq.maintenance.services.ApiKeyService
 /**
  * APIキー処理系画面のサーブレット
  */
-class ApiKeyServlet extends ScalatraServlet with ScalateSupport with LazyLogging {
+class ApiKeyServlet extends ScalatraServlet with ScalateSupport with LazyLogging with CsrfTokenSupport {
   /**
    * ログマーカー
    */
@@ -23,6 +25,18 @@ class ApiKeyServlet extends ScalatraServlet with ScalateSupport with LazyLogging
 
   before() {
     contentType = "text/html"
+  }
+
+  /**
+   * CSRFが検出された場合のActionを定義する。
+   */
+  override def handleForgery() {
+    contentType = "text/html"
+    val message = "無効なトークンが指定されました。"
+    logger.error(LOG_MARKER, message)
+    halt(
+      Forbidden(ssp("util/error", "error" -> message))
+    )
   }
 
   get("/") {
@@ -37,27 +51,31 @@ class ApiKeyServlet extends ScalatraServlet with ScalateSupport with LazyLogging
       SeeOther(url("/"))
     }
     resultAs(result) { error =>
-      list(Some(error))
+      ssp("util/error", "error" -> error)
     }
   }
 
   /**
    * 一覧画面を作成する。
    *
-   * @param error エラー文言
    * @return 一覧画面のHTML
    */
-  def list(error: Option[String] = None): String = {
+  def list(): String = {
     val keys = ApiKeyService.list()
     ssp(
       "apikey/index",
-      "error" -> error,
+      "csrfKey" -> csrfKey,
+      "csrfToken" -> csrfToken,
       "keys" -> keys
     )
   }
 
   get("/add") {
-    ssp("apikey/add", "error" -> None)
+    ssp(
+      "apikey/add",
+      "csrfKey" -> csrfKey,
+      "csrfToken" -> csrfToken
+    )
   }
 
   post("/add/proc") {
@@ -68,7 +86,7 @@ class ApiKeyServlet extends ScalatraServlet with ScalateSupport with LazyLogging
       SeeOther(url("/"))
     }
     resultAs(result) { error =>
-      ssp("apikey/add", "error" -> Some(error))
+      ssp("util/error", "error" -> error)
     }
   }
 }

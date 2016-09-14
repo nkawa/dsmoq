@@ -4,10 +4,12 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
+import org.joda.time.DateTime
 import org.slf4j.MarkerFactory
 
 import com.typesafe.scalalogging.LazyLogging
 
+import dsmoq.maintenance.AppConfig
 import dsmoq.maintenance.data.SearchResult
 import dsmoq.maintenance.data.user.SearchCondition
 import dsmoq.maintenance.data.user.SearchCondition.UserType
@@ -43,6 +45,7 @@ object UserService extends LazyLogging {
    * @return 検索結果
    */
   def search(condition: SearchCondition): SearchResult[SearchResultUser] = {
+    logger.info(LOG_MARKER, Util.createLogMessage("UserService", "search", Map("condition" -> condition)))
     val u = persistence.User.u
     val ma = persistence.MailAddress.ma
     def createSqlBase(select: SelectSQLBuilder[Unit]): ConditionSQLBuilder[Unit] = {
@@ -68,6 +71,8 @@ object UserService extends LazyLogging {
           )
         )
     }
+    val limit = AppConfig.searchLimit
+    val offset = (condition.page - 1) * limit
     DB.readOnly { implicit s =>
       val total = withSQL {
         createSqlBase(select(sqls.count))
@@ -75,8 +80,8 @@ object UserService extends LazyLogging {
       val eles = withSQL {
         createSqlBase(select(u.result.*, ma.result.address))
           .orderBy(u.createdAt)
-          .offset(condition.offset)
-          .limit(condition.limit)
+          .offset(offset)
+          .limit(limit)
       }.map { rs =>
         val user = persistence.User(u.resultName)(rs)
         val address = rs.string(ma.resultName.address)
@@ -94,8 +99,8 @@ object UserService extends LazyLogging {
         )
       }.list.apply()
       SearchResult(
-        from = condition.offset + 1,
-        to = condition.offset + eles.length,
+        from = offset + 1,
+        to = offset + eles.length,
         total = total,
         data = eles
       )
@@ -120,6 +125,7 @@ object UserService extends LazyLogging {
    * @return 処理結果、存在しないIDが含まれていた場合 Failure(ServiceException)
    */
   def updateDisabled(originals: Seq[String], updates: Seq[String]): Try[Unit] = {
+    logger.info(LOG_MARKER, Util.createLogMessage("UserService", "updateDisabled", Map("originals" -> originals, "updates" -> updates)))
     DB.localTx { implicit s =>
       for {
         _ <- Util.checkUuids(originals ++ updates)
@@ -171,6 +177,8 @@ object UserService extends LazyLogging {
    */
   def execUpdateDisabled(originals: Seq[String], updates: Seq[String])(implicit s: DBSession): Try[Unit] = {
     Try {
+      val timestamp = DateTime.now()
+      val systemUserId = AppConfig.systemUserId
       val os = originals.toSet
       val us = updates.toSet
       val enabledTargets = os -- us
@@ -178,13 +186,21 @@ object UserService extends LazyLogging {
       val u = persistence.User.column
       withSQL {
         update(persistence.User)
-          .set(u.disabled -> false)
+          .set(
+            u.disabled -> false,
+            u.updatedAt -> timestamp,
+            u.updatedBy -> sqls.uuid(systemUserId)
+          )
           .where
           .in(u.id, enabledTargets.toSeq.map(sqls.uuid))
       }.update.apply()
       withSQL {
         update(persistence.User)
-          .set(u.disabled -> true)
+          .set(
+            u.disabled -> true,
+            u.updatedAt -> timestamp,
+            u.updatedBy -> sqls.uuid(systemUserId)
+          )
           .where
           .in(u.id, disabledTargets.toSeq.map(sqls.uuid))
       }.update.apply()

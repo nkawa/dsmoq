@@ -1,5 +1,7 @@
 package dsmoq.maintenance.services
 
+import java.util.UUID
+
 import org.joda.time.DateTime
 
 import dsmoq.maintenance.AppConfig
@@ -253,6 +255,82 @@ object SpecCommonLogic {
         updatedBy = AppConfig.systemUserId,
         updatedAt = ts
       )
+    }
+  }
+
+  case class UserDetail(name: String, ts: DateTime, fullname: Option[String] = None, organization: Option[String] = None, disabled: Boolean = false)
+
+  def insertUser(detail: UserDetail): persistence.User = {
+    // user1 create
+    DB.localTx { implicit s =>
+      val userId = UUID.randomUUID.toString
+      val user = persistence.User.create(
+        id = userId,
+        name = detail.name,
+        fullname = detail.fullname.getOrElse(s"テストダミーユーザー ${detail.name}"),
+        organization = detail.organization.getOrElse(s"organization ${detail.name}"),
+        title = s"title ${detail.name}",
+        description = s"description ${detail.name}",
+        imageId = defaultUserIconId,
+        createdBy = AppConfig.systemUserId,
+        createdAt = detail.ts,
+        updatedBy = AppConfig.systemUserId,
+        updatedAt = detail.ts,
+        disabled = detail.disabled
+      )
+      persistence.ApiKey.create(
+        id = UUID.randomUUID.toString,
+        userId = userId,
+        apiKey = s"${detail.name} apikey",
+        secretKey = s"${detail.name} secretkey",
+        permission = 3,
+        createdBy = AppConfig.systemUserId,
+        createdAt = detail.ts,
+        updatedBy = AppConfig.systemUserId,
+        updatedAt = detail.ts
+      )
+      persistence.Password.create(
+        id = UUID.randomUUID.toString,
+        userId = userId,
+        hash = "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
+        createdBy = AppConfig.systemUserId,
+        createdAt = detail.ts,
+        updatedBy = AppConfig.systemUserId,
+        updatedAt = detail.ts
+      )
+      persistence.MailAddress.create(
+        id = UUID.randomUUID.toString(),
+        userId = userId,
+        address = s"${detail.name}@example.jp",
+        status = 1,
+        createdBy = AppConfig.systemUserId,
+        createdAt = detail.ts,
+        updatedBy = AppConfig.systemUserId,
+        updatedAt = detail.ts
+      )
+      val groupId = UUID.randomUUID.toString
+      persistence.Group.create(
+        id = groupId,
+        name = detail.name,
+        description = "",
+        groupType = 1,
+        createdBy = AppConfig.systemUserId,
+        createdAt = detail.ts,
+        updatedBy = AppConfig.systemUserId,
+        updatedAt = detail.ts
+      )
+      persistence.Member.create(
+        id = UUID.randomUUID.toString,
+        groupId = groupId,
+        userId = userId,
+        role = 2,
+        status = 1,
+        createdBy = AppConfig.systemUserId,
+        createdAt = detail.ts,
+        updatedBy = AppConfig.systemUserId,
+        updatedAt = detail.ts
+      )
+      user
     }
   }
 

@@ -1,5 +1,7 @@
 package dsmoq.maintenance.controllers
 
+import org.scalatra.CsrfTokenSupport
+import org.scalatra.Forbidden
 import org.scalatra.Ok
 import org.scalatra.ScalatraServlet
 import org.scalatra.SeeOther
@@ -16,7 +18,7 @@ import dsmoq.maintenance.services.UserService
 /**
  * ユーザ処理系画面のサーブレット
  */
-class UserServlet extends ScalatraServlet with ScalateSupport with LazyLogging {
+class UserServlet extends ScalatraServlet with ScalateSupport with LazyLogging with CsrfTokenSupport {
   /**
    * ログマーカー
    */
@@ -24,6 +26,18 @@ class UserServlet extends ScalatraServlet with ScalateSupport with LazyLogging {
 
   before() {
     contentType = "text/html"
+  }
+
+  /**
+   * CSRFが検出された場合のActionを定義する。
+   */
+  override def handleForgery() {
+    contentType = "text/html"
+    val message = "無効なトークンが指定されました。"
+    logger.error(LOG_MARKER, message)
+    halt(
+      Forbidden(ssp("util/error", "error" -> message))
+    )
   }
 
   get("/") {
@@ -41,7 +55,7 @@ class UserServlet extends ScalatraServlet with ScalateSupport with LazyLogging {
       SeeOther(searchUrl(condition.toMap))
     }
     resultAs(result) { error =>
-      search(condition, Some(error))
+      ssp("util/error", "error" -> error)
     }
   }
 
@@ -52,14 +66,16 @@ class UserServlet extends ScalatraServlet with ScalateSupport with LazyLogging {
    * @param error エラー文言
    * @return 検索画面のHTML
    */
-  def search(condition: SearchCondition, error: Option[String] = None): String = {
+  def search(condition: SearchCondition): String = {
     val result = UserService.search(condition)
     ssp(
       "user/index",
       "condition" -> condition,
       "result" -> result,
-      "error" -> error,
-      "url" -> searchUrl _
+      "url" -> searchUrl _,
+      "csrfKey" -> csrfKey,
+      "csrfToken" -> csrfToken,
+      "limit" -> AppConfig.searchLimit
     )
   }
 

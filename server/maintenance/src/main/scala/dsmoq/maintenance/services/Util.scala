@@ -48,4 +48,17 @@ object Util {
       case _: IllegalArgumentException => false
     }
   }
+
+  /**
+   * メソッド呼び出し時のログメッセージを作成する。
+   *
+   * @param serviceName サービス名
+   * @param methodName メソッド名
+   * @param params 引数名と値のMap
+   * @return 構築したログメッセージ文字列
+   */
+  def createLogMessage[T](serviceName: String, methodName: String, params: Map[String, T] = Map.empty[String, T]): String = {
+    val paramString = params.map { case (key, value) => s"${key}=${value}" }.mkString(",")
+    s"MethodCall:${serviceName},${methodName},[${paramString}]"
+  }
 }

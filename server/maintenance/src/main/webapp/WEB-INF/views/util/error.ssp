@@ -1,0 +1,20 @@
+<%@ val error: String %>
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>データメンテナンス：エラー</title>
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+    <link rel="stylesheet" type="text/css" href="/css/ionicons.min.css">
+    <script type="text/javascript" src="/js/lib/jquery-3.1.0.min.js"></script>
+    <script type="text/javascript" src="/js/apikey/index.js"></script>
+  </head>
+ <body>
+    <p>
+      <a class="menu" href="/">メニュー</a>
+    </p>
+    <p class="error">
+      ${error}
+    </p>
+  </body>
+</html>

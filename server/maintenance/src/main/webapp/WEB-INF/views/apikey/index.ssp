@@ -1,5 +1,6 @@
+<%@ val csrfKey: String %>
+<%@ val csrfToken: String %>
 <%@ val keys: Seq[dsmoq.maintenance.data.apikey.SearchResultApiKey] %>
-<%@ val error: Option[String] %>
 <!DOCTYPE html>
 <html>
   <head>
@@ -16,14 +17,11 @@
     </p>
     <h1>発行済みAPIキー一覧表示</h1>
     <p class="error">
-    #for(err <- error)
-      ${err}
-    #end
-    </p>
     #if(keys.isEmpty)
     <p>発行済みAPIキーなし</p>
     #else
     <form method="POST" action="/apikey/proc">
+      <input type="hidden" name="${csrfKey}" value="${csrfToken}">
       <div class="table">
         <table>
           <thead>

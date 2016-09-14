@@ -2,11 +2,15 @@ package dsmoq.maintenance.services
 
 import java.util.UUID
 
+import org.joda.time.DateTime
+
 import org.scalatest.BeforeAndAfter
 import org.scalatest.FreeSpec
 import org.scalatest.Matchers._
 
 import scalikejdbc.config.DBsWithEnv
+
+import dsmoq.maintenance.data.apikey.SearchResultApiKey
 
 class ApiKeyServiceSpec extends FreeSpec with BeforeAndAfter {
   DBsWithEnv("test").setup()
@@ -18,6 +22,19 @@ class ApiKeyServiceSpec extends FreeSpec with BeforeAndAfter {
 
   after {
     SpecCommonLogic.deleteAllCreateData()
+  }
+
+  "order by" - {
+    "create datetime" in {
+      SpecCommonLogic.deleteAllCreateData()
+      for (i <- 1 to 5) {
+        val dt = new DateTime(2016, 9, 13, 0, 0, i)
+        SpecCommonLogic.insertUser(SpecCommonLogic.UserDetail(name = s"test${i}", ts = dt))
+      }
+      val raw = ApiKeyService.list()
+      val sorted = raw.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt))
+      raw should be(sorted)
+    }
   }
 
   "create for" - {
@@ -59,6 +76,14 @@ class ApiKeyServiceSpec extends FreeSpec with BeforeAndAfter {
     }
   }
   "disable to" - {
+    "none key" in {
+      ApiKeyService.list().size should be(1)
+      val thrown = the[ServiceException] thrownBy {
+        ApiKeyService.disable(None).get
+      }
+      thrown.getMessage should be("キーが未選択です。")
+      ApiKeyService.list().size should be(1)
+    }
     "invalid key id" in {
       ApiKeyService.list().size should be(1)
       val thrown = the[ServiceException] thrownBy {
