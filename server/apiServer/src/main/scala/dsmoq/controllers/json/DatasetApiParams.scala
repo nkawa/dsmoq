@@ -9,6 +9,7 @@ import org.json4s.JsonDSL._
 
 import dsmoq.services.DataSetAttribute
 import dsmoq.services.json.SearchDatasetCondition
+import dsmoq.services.json.SearchDatasetConditionSerializer
 
 sealed trait SearchDatasetParams
 
@@ -20,7 +21,7 @@ object SearchDatasetParams {
   ) extends SearchDatasetParams
 
   case class Params(
-    query: String,
+    query: Option[String] = None,
     owners: List[String] = List.empty,
     groups: List[String] = List.empty,
     attributes: List[DataSetAttribute] = List.empty,
@@ -36,11 +37,12 @@ object SearchDatasetParams {
   }
 }
 
-object SearchDatasetParamsSerializer extends CustomSerializer[SearchDatasetParams](implicit formats => (
-  {
+object SearchDatasetParamsSerializer extends CustomSerializer[SearchDatasetParams](fmts => {
+  implicit val formats = fmts + SearchDatasetConditionSerializer
+  val deserializer: PartialFunction[JValue, SearchDatasetParams] = {
     case SearchDatasetParams(p) => p
-  },
-  {
+  }
+  val serializer: PartialFunction[Any, JValue] = {
     case x: SearchDatasetParams.Condition => {
       ("query" -> Extraction.decompose(x.query)) ~
         ("limit" -> x.limit) ~
@@ -56,7 +58,8 @@ object SearchDatasetParamsSerializer extends CustomSerializer[SearchDatasetParam
         ("orderby" -> x.orderby)
     }
   }
-))
+  (deserializer, serializer)
+})
 
 case class UpdateDatasetFileMetadataParams(
   name: Option[String] = None,

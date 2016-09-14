@@ -366,11 +366,230 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     user: User
   ): Try[RangeSlice[DatasetData.DatasetsSummary]] = {
     Try {
-      // TODO
+      val d = persistence.Dataset.d
       val limit_ = limit.getOrElse(DEFALUT_LIMIT)
       val offset_ = offset.getOrElse(0)
-      RangeSlice(RangeSliceSummary(0, limit_, offset_), Seq.empty)
+      DB.readOnly { implicit s =>
+        val joinedGroups = getJoinedGroups(user) :+ AppConf.guestGroupId
+        val condition = createSearchSQL(query, joinedGroups)
+        val count = withSQL {
+          select(sqls.count).from(persistence.Dataset as d).where(condition)
+        }.map(_.int(1)).single.apply().getOrElse(0)
+        val records = if (count == 0) {
+          Seq.empty
+        } else {
+          val ds = withSQL {
+            select(d.result.*)
+              .from(persistence.Dataset as d)
+              .where(condition)
+              .offset(offset_)
+              .limit(limit_)
+          }.map(persistence.Dataset(d.resultName)).list.apply()
+          toDataset(ds, joinedGroups)
+        }
+        RangeSlice(RangeSliceSummary(count, limit_, offset_), records)
+      }
     }
+  }
+
+  def createSearchSQL(query: SearchDatasetCondition, joinedGroups: Seq[String]): Option[SQLSyntax] = {
+    val d = persistence.Dataset.d
+    val o = persistence.Ownership.o
+    val querySql = conditionToSQL(query)
+    val accessible = sqls.exists(
+      select
+      .from(persistence.Ownership as o)
+      .where
+      .eq(d.id, o.datasetId)
+      .and
+      .inUuid(o.groupId, joinedGroups)
+      .and
+      .gt(o.accessLevel, GroupAccessLevel.Deny)
+      .and
+      .isNull(o.deletedAt)
+      .toSQLSyntax
+    )
+    sqls.toAndConditionOpt(
+      querySql,
+      Some(accessible),
+      Some(sqls.isNull(d.deletedAt))
+    )
+  }
+
+  def conditionToSQL(condition: SearchDatasetCondition): Option[SQLSyntax] = {
+    val d = persistence.Dataset.d
+    condition match {
+      case SearchDatasetCondition.Container(SearchDatasetCondition.Operators.Container.AND, xs) => {
+        sqls.toAndConditionOpt(xs.map(conditionToSQL): _*)
+      }
+      case SearchDatasetCondition.Container(SearchDatasetCondition.Operators.Container.OR, xs) => {
+        sqls.toOrConditionOpt(xs.map(conditionToSQL): _*)
+      }
+      case SearchDatasetCondition.Query(str, contains) => {
+        val f = persistence.File.f
+        val fh = persistence.FileHistory.fh
+        val zf = persistence.ZipedFiles.zf
+        val inFileName = select
+          .from(persistence.File as f)
+          .where
+          .eq(f.datasetId, d.id)
+          .and
+          .upperLikeQuery(f.name, str)
+          .and
+          .isNull(f.deletedAt)
+          .toSQLSyntax
+        val inZipFileName = select
+          .from(persistence.ZipedFiles as zf)
+          .innerJoin(persistence.FileHistory as fh)
+          .on(sqls.eq(fh.id, zf.historyId).and.isNull(fh.deletedAt))
+          .innerJoin(persistence.File as f)
+          .on(sqls.eq(f.id, fh.fileId).and.isNull(f.deletedAt))
+          .where
+          .eq(f.datasetId, d.id)
+          .and
+          .upperLikeQuery(zf.name, str)
+          .and
+          .isNull(zf.deletedAt)
+          .toSQLSyntax
+        sqls.toOrConditionOpt(
+          Some(sqls.upperLikeQuery(d.name, str)),
+          Some(sqls.upperLikeQuery(d.description, str)),
+          Some(sqls.exists(inFileName)),
+          Some(sqls.exists(inZipFileName))
+        )
+      }
+      case SearchDatasetCondition.Owner(id, equals) => {
+        val o = persistence.Ownership.o
+        val owner = select
+          .from(persistence.Ownership as o)
+          .where
+          .eq(o.datasetId, d.id)
+          .and
+          .eqUuid(o.groupId, id)
+          .and
+          .eq(o.accessLevel, UserAndGroupAccessLevel.OWNER_OR_PROVIDER)
+          .and
+          .isNull(o.deletedAt)
+          .toSQLSyntax
+        if (equals) {
+          Some(sqls.exists(owner))
+        } else {
+          Some(sqls.notExists(owner))
+        }
+      }
+      case SearchDatasetCondition.Tag(tag) => {
+        val a = persistence.Annotation.a
+        val da = persistence.DatasetAnnotation.da
+        Some(
+          sqls.exists(
+            select
+            .from(persistence.DatasetAnnotation as da)
+            .innerJoin(persistence.Annotation as a)
+            .on(sqls.eq(a.id, da.annotationId).and.isNull(a.deletedAt))
+            .where
+            .eq(da.datasetId, d.id)
+            .and
+            .eq(a.name, tag)
+            .and
+            .eq(da.data, "$tag")
+            .and
+            .isNull(da.deletedAt)
+            .toSQLSyntax
+          )
+        )
+      }
+      case SearchDatasetCondition.Attribute(key, value) => {
+        val a = persistence.Annotation.a
+        val da = persistence.DatasetAnnotation.da
+        Some(
+          sqls.exists(
+            select
+            .from(persistence.DatasetAnnotation as da)
+            .innerJoin(persistence.Annotation as a)
+            .on(sqls.eq(a.id, da.annotationId).and.isNull(a.deletedAt))
+            .where(
+              sqls.toAndConditionOpt(
+                Some(sqls.eq(da.datasetId, d.id)),
+                if (key.isEmpty) None else Some(sqls.eq(a.name, key)),
+                if (value.isEmpty) None else Some(sqls.eq(da.data, value)),
+                Some(sqls.isNull(da.deletedAt))
+              )
+            )
+            .toSQLSyntax
+          )
+        )
+      }
+      case SearchDatasetCondition.TotalSize(op, value, unit) => {
+        op match {
+          case SearchDatasetCondition.Operators.Compare.GT => {
+            Some(sqls.gt(d.filesSize, (value * unit.magnification).toLong))
+          }
+          case SearchDatasetCondition.Operators.Compare.LT => {
+            Some(sqls.lt(d.filesSize, (value * unit.magnification).toLong))
+          }
+        }
+      }
+      case SearchDatasetCondition.NumOfFiles(op, value) => {
+        op match {
+          case SearchDatasetCondition.Operators.Compare.GT => {
+            Some(sqls.gt(d.filesCount, value))
+          }
+          case SearchDatasetCondition.Operators.Compare.LT => {
+            Some(sqls.lt(d.filesCount, value))
+          }
+        }
+      }
+      case SearchDatasetCondition.Public(p) => {
+        val o = persistence.Ownership.o
+        val guestAccess = select
+          .from[Unit](persistence.Ownership as o)
+          .where
+          .eq(d.id, o.datasetId)
+          .and
+          .eqUuid(o.groupId, AppConf.guestGroupId)
+          .and
+          .gt(o.accessLevel, GroupAccessLevel.Deny)
+          .and
+          .isNull(o.deletedAt)
+          .toSQLSyntax
+        Some(if (p) sqls.exists(guestAccess) else sqls.notExists(guestAccess))
+      }
+    }
+  }
+
+  def toDataset(ds: Seq[persistence.Dataset], joinedGroups: Seq[String])(implicit s: DBSession): Seq[DatasetData.DatasetsSummary] = {
+    val ids = ds.map(_.id)
+    val isGuest = joinedGroups.filter(_ != AppConf.guestGroupId).isEmpty
+    val ownerMap = if (isGuest) Map.empty[String, Seq[DatasetData.DatasetOwnership]] else getOwnerMap(ids)
+    val accessLevelMap = getAccessLevelMap(ids, joinedGroups)
+    val guestAccessLevelMap = getGuestAccessLevelMap(ids)
+    val imageIdMap = getImageIdMap(ids)
+    val featuredImageIdMap = getFeaturedImageIdMap(ids)
+    val attributeMap = getAttributeMap(ids)
+    ds.map { d =>
+      val imageUrl = imageIdMap.get(d.id).map { x =>
+        datasetImageDownloadRoot + d.id + "/" + x
+      }.getOrElse("")
+      val featuredImageUrl = featuredImageIdMap.get(d.id).map { x =>
+        datasetImageDownloadRoot + d.id + "/" + x
+      }.getOrElse("")
+      DatasetData.DatasetsSummary(
+        id = d.id,
+        name = d.name,
+        description = d.description,
+        image = imageUrl,
+        featuredImage = featuredImageUrl,
+        attributes = attributeMap.getOrElse(d.id, Seq.empty),
+        ownerships = ownerMap.getOrElse(d.id, Seq.empty),
+        files = d.filesCount,
+        dataSize = d.filesSize,
+        defaultAccessLevel = guestAccessLevelMap.getOrElse(d.id, DefaultAccessLevel.Deny),
+        permission = accessLevelMap.getOrElse(d.id, DefaultAccessLevel.Deny),
+        localState = d.localState,
+        s3State = d.s3State
+      )
+    }
+    Seq.empty
   }
 
   /**
@@ -717,6 +936,26 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       .isNull(ds.deletedAt)
   }
 
+  private def getAccessLevelMap(datasetIds: Seq[String], joinedGroups: Seq[String])(implicit s: DBSession): Map[String, Int] = {
+    if (datasetIds.isEmpty) {
+      return Map.empty
+    }
+    val o = persistence.Ownership.syntax("o")
+    withSQL {
+      select(o.result.datasetId, sqls.max(o.result.accessLevel))
+        .from(persistence.Ownership as o)
+        .where
+        .inUuid(o.datasetId, datasetIds)
+        .and
+        .inUuid(o.groupId, joinedGroups)
+        .and
+        .isNull(o.deletedAt)
+        .groupBy(o.datasetId)
+    }.map { rs =>
+      (rs.string(o.resultName.datasetId), rs.int(2))
+    }.list.apply().toMap
+  }
+
   private def getGuestAccessLevelMap(datasetIds: Seq[String])(implicit s: DBSession): Map[String, Int] = {
     if (datasetIds.nonEmpty) {
       val o = persistence.Ownership.syntax("o")
@@ -847,6 +1086,34 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     } else {
       Map.empty
     }
+  }
+
+  private def getAttributeMap(
+    datasetIds: Seq[String]
+  )(implicit s: DBSession): Map[String, Seq[DatasetData.DatasetAttribute]] = {
+    if (datasetIds.isEmpty) {
+      return Map.empty
+    }
+    val da = persistence.DatasetAnnotation.da
+    val a = persistence.Annotation.a
+    withSQL {
+      select(da.result.*, a.result.*)
+        .from(persistence.DatasetAnnotation as da)
+        .innerJoin(persistence.Annotation as a)
+        .on(sqls.eq(a.id, da.annotationId).and.isNull(a.deletedAt))
+        .where
+        .inUuid(da.datasetId, datasetIds)
+        .and
+        .isNull(da.deletedAt)
+    }.map { rs =>
+      val datasetAnnotaion = persistence.DatasetAnnotation(da.resultName)(rs)
+      val annotation = persistence.Annotation(a.resultName)(rs)
+      val attribute = DatasetData.DatasetAttribute(
+        name = annotation.name,
+        value = datasetAnnotaion.data
+      )
+      (datasetAnnotaion.datasetId, attribute)
+    }.list.apply().groupBy(_._1).mapValues(_.map(_._2))
   }
 
   /**
