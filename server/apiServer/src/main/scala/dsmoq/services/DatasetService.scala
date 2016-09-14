@@ -561,7 +561,10 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
-  def toDataset(ds: Seq[persistence.Dataset], joinedGroups: Seq[String])(implicit s: DBSession): Seq[DatasetData.DatasetsSummary] = {
+  def toDataset(
+    ds: Seq[persistence.Dataset],
+    joinedGroups: Seq[String]
+  )(implicit s: DBSession): Seq[DatasetData.DatasetsSummary] = {
     val ids = ds.map(_.id)
     val isGuest = joinedGroups.filter(_ != AppConf.guestGroupId).isEmpty
     val ownerMap = if (isGuest) Map.empty[String, Seq[DatasetData.DatasetOwnership]] else getOwnerMap(ids)
@@ -940,7 +943,10 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       .isNull(ds.deletedAt)
   }
 
-  private def getAccessLevelMap(datasetIds: Seq[String], joinedGroups: Seq[String])(implicit s: DBSession): Map[String, Int] = {
+  private def getAccessLevelMap(
+    datasetIds: Seq[String],
+    joinedGroups: Seq[String]
+  )(implicit s: DBSession): Map[String, Int] = {
     if (datasetIds.isEmpty) {
       return Map.empty
     }
