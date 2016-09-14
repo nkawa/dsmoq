@@ -20,7 +20,7 @@ object SearchDatasetCondition {
 
   case class Query(query: String = "", contains: Boolean = true) extends SearchDatasetCondition
 
-  case class Owner(id: String, equals: Boolean = true) extends SearchDatasetCondition
+  case class Owner(name: String, equals: Boolean = true) extends SearchDatasetCondition
 
   case class Tag(tag: String) extends SearchDatasetCondition
 

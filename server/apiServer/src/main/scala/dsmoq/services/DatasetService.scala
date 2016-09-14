@@ -458,18 +458,38 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           Some(sqls.exists(inZipFileName))
         )
       }
-      case SearchDatasetCondition.Owner(id, equals) => {
+      case SearchDatasetCondition.Owner(name, equals) => {
         val o = persistence.Ownership.o
+        val g = persistence.Group.g
+        val m = persistence.Member.m
+        val u = persistence.User.u
+        val userName = select
+          .from(persistence.Member as m)
+          .innerJoin(persistence.User as u).on(u.id, m.userId)
+          .where
+          .eq(m.groupId, g.id)
+          .and
+          .eq(u.name, name)
+          .and
+          .isNull(m.deletedAt)
+          .and
+          .eq(u.disabled, false)
+          .toSQLSyntax
         val owner = select
           .from(persistence.Ownership as o)
-          .where
-          .eq(o.datasetId, d.id)
-          .and
-          .eqUuid(o.groupId, id)
-          .and
-          .eq(o.accessLevel, UserAndGroupAccessLevel.OWNER_OR_PROVIDER)
-          .and
-          .isNull(o.deletedAt)
+          .innerJoin(persistence.Group as g)
+          .on(sqls.eq(g.id, o.groupId).and.isNull(g.deletedAt))
+          .where(
+            sqls.toAndConditionOpt(
+              Some(sqls.eq(o.datasetId, d.id)),
+              sqls.toOrConditionOpt(
+                Some(sqls.eq(g.groupType, GroupType.Public).and.eq(g.name, name)),
+                Some(sqls.eq(g.groupType, GroupType.Personal).and.exists(userName))
+              ),
+              Some(sqls.eq(o.accessLevel, UserAndGroupAccessLevel.OWNER_OR_PROVIDER)),
+              Some(sqls.isNull(o.deletedAt))
+            )
+          )
           .toSQLSyntax
         if (equals) {
           Some(sqls.exists(owner))
