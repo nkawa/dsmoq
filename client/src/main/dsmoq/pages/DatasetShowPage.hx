@@ -95,7 +95,7 @@ class DatasetShowPage {
                 return Service.instance.deleteDeataset(id);
             }).then(function (_) {
                 // TODO 削除対象データセット閲覧履歴（このページ）をHistoryから消す
-                navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, "", new Array<{type: String, item: Dynamic}>())));
+                navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, "")));
             });
             
             html.find("#dataset-copy").createEventStream("click").flatMap(function (_) {

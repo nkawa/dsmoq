@@ -27,13 +27,13 @@ object SearchDatasetCondition {
   case class Attribute(key: String = "", value: String = "") extends SearchDatasetCondition
 
   case class TotalSize(
-    operator: Operators.Compare = Operators.Compare.GT,
+    operator: Operators.Compare = Operators.Compare.GE,
     value: Double = 0,
     unit: SizeUnit = SizeUnit.Byte
   ) extends SearchDatasetCondition
 
   case class NumOfFiles(
-    operator: Operators.Compare = Operators.Compare.GT,
+    operator: Operators.Compare = Operators.Compare.GE,
     value: Int = 0
   ) extends SearchDatasetCondition
 
@@ -47,8 +47,8 @@ object SearchDatasetCondition {
     }
     sealed trait Compare
     object Compare {
-      case object GT extends Compare
-      case object LT extends Compare
+      case object GE extends Compare
+      case object LE extends Compare
     }
   }
 
@@ -121,8 +121,8 @@ object SearchDatasetCondition {
       }
       case TotalSize(op, value, u) => {
         val operator = op match {
-          case Operators.Compare.GT => JString("gt")
-          case Operators.Compare.LT => JString("lt")
+          case Operators.Compare.GE => JString("ge")
+          case Operators.Compare.LE => JString("le")
         }
         val unit = u match {
           case SizeUnit.Byte => JString("byte")
@@ -141,8 +141,8 @@ object SearchDatasetCondition {
       }
       case NumOfFiles(op, value) => {
         val operator = op match {
-          case Operators.Compare.GT => JString("gt")
-          case Operators.Compare.LT => JString("lt")
+          case Operators.Compare.GE => JString("ge")
+          case Operators.Compare.LE => JString("le")
         }
         JObject(
           List(
@@ -200,7 +200,7 @@ object SearchDatasetCondition {
           }
           case (JString("total-size"), _, _) => {
             val value = doubleValueOf(v).getOrElse(0D)
-            val operator = if (op == JString("lt")) Operators.Compare.LT else Operators.Compare.GT
+            val operator = if (op == JString("le")) Operators.Compare.LE else Operators.Compare.GE
             val unit = fields.get("unit").collect {
               case JString("kb") => SizeUnit.KB
               case JString("mb") => SizeUnit.MB
@@ -209,11 +209,11 @@ object SearchDatasetCondition {
             Some(TotalSize(operator, value, unit))
           }
           case (JString("num-of-files"), _, JInt(value)) => {
-            val operator = if (op == JString("lt")) Operators.Compare.LT else Operators.Compare.GT
+            val operator = if (op == JString("le")) Operators.Compare.LE else Operators.Compare.GE
             Some(NumOfFiles(operator, value.toInt))
           }
-          case (JString("public"), _, JString(value)) => {
-            Some(Public(op != JString("private")))
+          case (JString("public"), _, _) => {
+            Some(Public(v != JString("private")))
           }
           case _ => None
         }

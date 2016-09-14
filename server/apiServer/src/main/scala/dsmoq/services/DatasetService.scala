@@ -382,6 +382,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             select(d.result.*)
               .from(persistence.Dataset as d)
               .where(condition)
+              .orderBy(d.updatedAt.desc)
               .offset(offset_)
               .limit(limit_)
           }.map(persistence.Dataset(d.resultName)).list.apply()
@@ -424,6 +425,9 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       }
       case SearchDatasetCondition.Container(SearchDatasetCondition.Operators.Container.OR, xs) => {
         sqls.toOrConditionOpt(xs.map(conditionToSQL): _*)
+      }
+      case SearchDatasetCondition.Query("", _) => {
+        None
       }
       case SearchDatasetCondition.Query(str, contains) => {
         val f = persistence.File.f
@@ -518,48 +522,48 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           )
         )
       }
+      case SearchDatasetCondition.Attribute("", "") => {
+        None
+      }
       case SearchDatasetCondition.Attribute(key, value) => {
-        if (key.isEmpty && value.isEmpty) {
-          None
-        } else {
-          val a = persistence.Annotation.a
-          val da = persistence.DatasetAnnotation.da
-          Some(
-            sqls.exists(
-              select
-              .from(persistence.DatasetAnnotation as da)
-              .innerJoin(persistence.Annotation as a)
-              .on(sqls.eq(a.id, da.annotationId).and.isNull(a.deletedAt))
-              .where(
-                sqls.toAndConditionOpt(
-                  Some(sqls.eq(da.datasetId, d.id)),
-                  if (key.isEmpty) None else Some(sqls.eq(a.name, key)),
-                  if (value.isEmpty) None else Some(sqls.eq(da.data, value)),
-                  Some(sqls.isNull(da.deletedAt))
-                )
+        val a = persistence.Annotation.a
+        val da = persistence.DatasetAnnotation.da
+        Some(
+          sqls.exists(
+            select
+            .from(persistence.DatasetAnnotation as da)
+            .innerJoin(persistence.Annotation as a)
+            .on(sqls.eq(a.id, da.annotationId).and.isNull(a.deletedAt))
+            .where(
+              sqls.toAndConditionOpt(
+                Some(sqls.eq(da.datasetId, d.id)),
+                if (key.isEmpty) None else Some(sqls.eq(a.name, key)),
+                if (value.isEmpty) None else Some(sqls.eq(da.data, value)),
+                Some(sqls.isNull(da.deletedAt))
               )
-              .toSQLSyntax
             )
+            .toSQLSyntax
           )
-        }
+        )
       }
       case SearchDatasetCondition.TotalSize(op, value, unit) => {
+        val size = (value * unit.magnification).toLong
         op match {
-          case SearchDatasetCondition.Operators.Compare.GT => {
-            Some(sqls.gt(d.filesSize, (value * unit.magnification).toLong))
+          case SearchDatasetCondition.Operators.Compare.GE => {
+            Some(sqls.ge(d.filesSize, size))
           }
-          case SearchDatasetCondition.Operators.Compare.LT => {
-            Some(sqls.lt(d.filesSize, (value * unit.magnification).toLong))
+          case SearchDatasetCondition.Operators.Compare.LE => {
+            Some(sqls.le(d.filesSize, size))
           }
         }
       }
       case SearchDatasetCondition.NumOfFiles(op, value) => {
         op match {
-          case SearchDatasetCondition.Operators.Compare.GT => {
-            Some(sqls.gt(d.filesCount, value))
+          case SearchDatasetCondition.Operators.Compare.GE => {
+            Some(sqls.ge(d.filesCount, value))
           }
-          case SearchDatasetCondition.Operators.Compare.LT => {
-            Some(sqls.lt(d.filesCount, value))
+          case SearchDatasetCondition.Operators.Compare.LE => {
+            Some(sqls.le(d.filesCount, value))
           }
         }
       }
@@ -616,7 +620,6 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         s3State = d.s3State
       )
     }
-    Seq.empty
   }
 
   /**
@@ -972,7 +975,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
     val o = persistence.Ownership.syntax("o")
     withSQL {
-      select(o.result.datasetId, sqls.max(o.result.accessLevel))
+      select(o.result.datasetId, sqls.max(o.accessLevel))
         .from(persistence.Ownership as o)
         .where
         .inUuid(o.datasetId, datasetIds)

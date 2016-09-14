@@ -19,6 +19,12 @@ import js.bootstrap.BootstrapPopover;
 import js.html.KeyboardEvent;
 import js.Lib;
 
+typedef DatasetListConditionInput = {
+    var type: String;
+    var basic: String;
+    var advanced: Array<Dynamic>;
+};
+
 class DatasetListPage {
 
     /**
@@ -26,168 +32,211 @@ class DatasetListPage {
      */
     static inline var DATASET_LIMIT_PER_PAGE: Int = 20;
 
-    public static function render(root: Html, onClose: Promise<Unit>, pageNum: Int, query: String, filters: Dynamic): Promise<Navigation<Page>> {
-        var navigation = new PromiseBroker();
-        var condition = {
-            query: query,
-            filters: filters,//new Array<{type: String, item: Dynamic}>(),
-            index: pageNum - 1
-        }
-        var binding = JsViews.observable({
-            condition: condition,
-            result: Async.Pending,
-            tag: new Array<TagDetail>()
-        });
+    static var DEFALUT_CONDITION_INPUT: DatasetListConditionInput = {
+        type: "basic",
+        basic: "",
+        advanced: [{ id: 1, target: "query", operator: "contain", value: "" }]
+    };
 
+    public static function render(root: Html, onClose: Promise<Unit>, pageNum: Int, query: String): Promise<Navigation<Page>> {
+        var navigation = new PromiseBroker();
+        var data = {
+            condition: conditionInputFromString(query),
+            result: Async.Pending,
+            index: pageNum - 1,
+            tag: new Array<TagDetail>()
+        };
+        var condition = conditionFromConditionInput(data.condition);
+        var binding = JsViews.observable(data);
         View.getTemplate("dataset/list").link(root, binding.data());
 
-        function load() {
-            var owners = condition.filters
-                            .filter(function (x) return x.type == "owner" && x.item.dataType == 1)
-                            .map(function (x) return x.item.name);
-            var groups = condition.filters
-                            .filter(function (x) return x.type == "owner" && x.item.dataType == 2)
-                            .map(function (x) return x.item.name);
-            var attrs = condition.filters
-                            .filter(function (x) return x.type == "attribute")
-                            .map(function (x) return x.item);
-
-            binding.setProperty("result", Async.Pending);
-
-            Service.instance.getTags().then(function(x) {
-                binding.setProperty("tag", x);
-                Service.instance.findDatasets({
-                    query: (condition.query != "") ? condition.query : null,
-                    owners: owners,
-                    groups: groups,
-                    attributes: attrs,
-                    offset: DATASET_LIMIT_PER_PAGE * condition.index,
-                    limit: DATASET_LIMIT_PER_PAGE
-                }).then(function (x) {
-                    binding.setProperty("result", Async.Completed({
-                        total: x.summary.total,
-                        items: x.results,
-                        pages: Math.ceil(x.summary.total / DATASET_LIMIT_PER_PAGE)
-                    }));
-                });
-            });
-        }
-
-        // observe binding
-        JsViews.observe(condition, "filters", function (_, _) {
-            navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, StringTools.urlEncode(condition.query), condition.filters)));
-        });
-        JsViews.observe(condition, "index", function (_, args) {
+        JsViews.observe(data.condition, "index", function (_, args) {
             var page = args.value + 1;
-            navigation.fulfill(Navigation.Navigate(Page.DatasetList(page, StringTools.urlEncode(condition.query), condition.filters)));
+            var q = StringTools.urlEncode(Json.stringify(condition));
+            navigation.fulfill(Navigation.Navigate(Page.DatasetList(page, q)));
         });
 
-        // init search form
-        JQuery._("#search-button").on("click", function (_) {
-            navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, StringTools.urlEncode(condition.query), condition.filters)));
+        root.find(".basic-search-tab").on("show.bs.tab", function (_) {
+            binding.setProperty("condition.type", "basic");
+            if (data.condition.advanced[0].target == "query") {
+                binding.setProperty("condition.basic", data.condition.advanced[0].value);
+            }
         });
-
-        JQuery._("#search-form").on("submit", function (_) {
-            navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, StringTools.urlEncode(condition.query), condition.filters)));
-            return false;
-        });
-
-        BootstrapPopover.initialize("#add-filter-button", {
-            content: JQuery._("#filter-add-form").children(),
-            placement: "bottom",
-            html: true
-        });
-
-        JQuery._("body").on("keydown", function (e) {
-            var event: KeyboardEvent = cast e;
-            if (event.keyCode == 27) { //esc
-                BootstrapPopover.hide("#add-filter-button");
+        root.find(".advanced-search-tab").on("show.bs.tab", function (_) {
+            binding.setProperty("condition.type", "advanced");
+            if (data.condition.advanced[0].target == "query") {
+                JsViews.observable(data.condition.advanced[0]).setProperty("value", data.condition.basic);
             }
         });
 
-        JQuery._("#add-filter-button").on("shown.bs.popover", function (_) {
-            // init owner tab
-            JQuery._("#filter-owner-input").val("");
-            AutoComplete.initialize("#filter-owner-input", {
-                url: function (query: String) {
-                    var d = Json.stringify({query: StringTools.urlEncode(query)});
-                    return '/api/suggests/users_and_groups?d=${d}';
-                },
-                path: "name",
-                filter: function (data: Dynamic) {
-                    return if (data.status == "OK" && Std.is(data.data, Array)) {
-                        Result.Success(data.data);
-                    } else {
-                        Result.Failure(new Error("Network Error"));
-                    }
-                },
-                template: {
-                    suggestion: function (x) {
-                        return '<div>${x.name}</div>';
-                    }
+        root.find(".search-button").on("click", function(_) {
+            var c = conditionFromConditionInput(data.condition);
+            var q = StringTools.urlEncode(Json.stringify(c));
+            navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, q)));
+        });
+
+        // TODO: save query
+        // TODO: search from saved query
+        // TODO: delete saved query
+
+        var queryRows = root.find(".query-rows");
+        queryRows.on("click", "button.add-row", function(e) {
+            var el = Html.fromEventTarget(e.target);
+            var row = el.closest(".query-row");
+            var id = row.data("id");
+            var index = 0;
+            var maxId = 0;
+            for (i in 0...data.condition.advanced.length) {
+                var x = data.condition.advanced[i];
+                if (x.id == id) {
+                    index = i;
                 }
-            });
-            JQuery._("#filter-owner-apply").on("click", function (_) {
-                var item = AutoComplete.getCompletedItem("#filter-owner-input");
-                var name = JQuery._("#filter-owner-input").val();
-                var filter = if(item == null) { name: name, fullname: name, dataType: 1 } else item;
-                JsViews.observable(binding.data().condition.filters).insert({
-                    type: 'owner',
-                    item: filter
-                });
-                AutoComplete.clear("#filter-owner-input");
-                BootstrapPopover.hide("#add-filter-button");
-            });
-
-            // init attribute tab
-            JQuery._("#filter-attribute-name-input").val("");
-            JQuery._("#filter-attribute-value-input").val("");
-            AutoComplete.initialize("#filter-attribute-name-input", {
-                url: function (query: String) {
-                    var d = Json.stringify({query: StringTools.urlEncode(query)});
-                    return '/api/suggests/attributes?d=${d}';
-                },
-                filter: function (data: Dynamic) {
-                    return if (data.status == "OK" && Std.is(data.data, Array)) {
-                        Result.Success(data.data);
-                    } else {
-                        Result.Failure(new Error("Network Error"));
-                    }
-                },
-                template: {
-                    suggestion: function (x) {
-                        return '<div>${x}</div>';
-                    }
+                if (maxId < x.id) {
+                    maxId = x.id;
                 }
-            });
-            JQuery._("#filter-attribute-apply").on("click", function (_) {
-                var item = AutoComplete.getCompletedItem("#filter-attribute-name-input");
-                var name = if(item == null) JQuery._("#filter-attribute-name-input").val() else item;
-                JsViews.observable(binding.data().condition.filters).insert({
-                    type: "attribute",
-                    item: { name: StringTools.urlEncode(name), value: StringTools.urlEncode(JQuery._("#filter-attribute-value-input").val()) }
-                });
-                AutoComplete.clear("#filter-attribute-name-input");
-                JQuery._("#filter-attribute-value-input").val("");
-                BootstrapPopover.hide("#add-filter-button");
-            });
+            }
+            var item = { id: maxId + 1, target: "query", operator: "contain", value: "" };
+            JsViews.observable(data.condition.advanced).insert(index + 1, item);
+        });
+        queryRows.on("click", "button.delete-row", function(e) {
+            var el = Html.fromEventTarget(e.target);
+            var row = el.closest(".query-row");
+            var id = row.data("id");
+            var xs: Dynamic = data.condition.advanced;
+            var index = xs.findIndex(function(x) { return x.id == id; });
+            JsViews.observable(data.condition.advanced).remove(index);
+        });
+        // TODO: suggests
+
+        JsViews.observable(data.condition.advanced).observeAll(function(e, args) {
+            if (args.path != "target") {
+                return;
+            }
+            var obj: Dynamic = switch (e.target.target) {
+                case "query": { operator: "contain", value: "" };
+                case "owner": { operator: "equal", value: "" };
+                case "tag": { value: if (data.tag.length == 0) "" else data.tag[0].tag };
+                case "attribute": { key: "", value: "" };
+                case "total-size": { operator: "ge", value: 0, unit: "byte" };
+                case "public": { value: "public" };
+                case "num-of-files": { operator: "ge", value: 0 };
+                default: { value: "" };
+            }
+            JsViews.observable(e.target).setProperty(obj);
         });
 
-        JQuery._("#conditions").on("click", ".list-group-item .close", function (e) {
-            var i = JQuery._("#conditions .list-group-item").index(JQuery._(e.target).parents(".list-group-item"));
-            JsViews.observable(condition.filters).remove(i);
+        Service.instance.getTags().then(function(x) {
+            binding.setProperty("tag", x);
         });
 
-        // onClose
-        onClose.then(function (_) {
-            BootstrapPopover.destroy("#add-filter-button");
-            AutoComplete.destroy("#filter-owner-input");
-            AutoComplete.destroy("#filter-attribute-name-input");
+        Service.instance.searchDatasets({
+            query: condition,
+            offset: DATASET_LIMIT_PER_PAGE * data.index,
+            limit: DATASET_LIMIT_PER_PAGE
+        }).then(function (x) {
+            binding.setProperty("result", Async.Completed({
+                total: x.summary.total,
+                items: x.results,
+                pages: Math.ceil(x.summary.total / DATASET_LIMIT_PER_PAGE)
+            }));
         });
-
-        // load init-data
-        load();
 
         return navigation.promise;
+    }
+
+    public static function conditionInputFromString(str: String): DatasetListConditionInput {
+        if (str == null || str == "") {
+            return DEFALUT_CONDITION_INPUT;
+        }
+        try {
+            var json = Json.parse(str);
+            return conditionInputFromCondition(json);
+        } catch (e: Dynamic) {
+            trace(e);
+            return DEFALUT_CONDITION_INPUT;
+        }
+    }
+
+    public static function conditionInputFromCondition(condition: Dynamic): DatasetListConditionInput {
+        var cs = flattenCondition(condition);
+        var advanced = if (cs.length == 0) {
+            [{ target: "query", operator: "contain", value: "" }];
+        } else {
+            cs;
+        };
+        for (i in 0...advanced.length) {
+            advanced[i].id = i + 1;
+        }
+        var head = advanced[0];
+        var basic = if (head.target == "query") head.value else "";
+        var type = if (advanced.length == 1 && head.target == "query" && head.operator == "contain") "basic" else "advanced";
+        return { type: type, basic: basic, advanced: advanced };
+    }
+
+    public static function flattenCondition(condition: Dynamic): Array<Dynamic> {
+        var ret = [];
+        switch (condition.operator) {
+            case "and":
+                var vs: Array<Dynamic> = condition.value;
+                for (v in vs) {
+                    ret = ret.concat(flattenCondition(v));
+                }
+            case "or":
+                var vs: Array<Dynamic> = condition.value;
+                for (v in vs) {
+                    ret = ret.concat(flattenCondition(v));
+                    ret.push({ target: "or" });
+                }
+                ret.pop();
+            default:
+                ret.push(condition);
+        }
+        return ret;
+    }
+
+    public static function conditionFromConditionInput(input: DatasetListConditionInput): Dynamic {
+        if (input.type == "basic") {
+            return { target: "query", operator: "contain", value: input.basic };
+        }
+        var ors = [];
+        var ands = [];
+        for (ele in input.advanced) {
+            if (ele.target == "or") {
+                if (ands.length != 0) {
+                    ors.push({ operator: "and", value: ands });
+                    ands = [];
+                }
+            } else {
+                var ce = conditionElementFromInputElement(ele);
+                if (ce != null) {
+                    ands.push(ce);
+                }
+            }
+        }
+        if (ands.length != 0) {
+            ors.push({ operator: "and", value: ands });
+        }
+        return { operator: "or", value: ors };
+    }
+
+    public static function conditionElementFromInputElement(input: Dynamic): Dynamic {
+        return switch (input.target) {
+            case "query":        { target: input.target, value: input.value, operator: input.operator };
+            case "owner":        { target: input.target, value: input.value, operator: input.operator };
+            case "tag":          { target: input.target, value: input.value };
+            case "attribute":    { target: input.target, value: input.value, key: input.key };
+            case "total-size":   { target: input.target, value: toFloat(input.value, 0), operator: input.operator, unit: input.unit };
+            case "public":       { target: input.target, value: input.value };
+            case "num-of-files": { target: input.target, value: Std.int(toFloat(input.value, 0)), operator: input.operator };
+            default: null;
+        };
+    }
+
+    public static function toFloat(s: String, defaultValue: Null<Float> = null): Float {
+        var x = Std.parseFloat(s);
+        if (Math.isNaN(x) && defaultValue != null) {
+            return defaultValue;
+        }
+        return x;
     }
 }

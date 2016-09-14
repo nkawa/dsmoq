@@ -56,8 +56,13 @@ class Service extends Stream<ServiceEvent> {
                 .map(function (_) return Unit._);
     }
 
-    public function updateProfile(name: String, fullname: String,
-            organization: String, title: String, description: String): Promise<Profile> {
+    public function updateProfile(
+        name: String,
+        fullname: String,
+        organization: String,
+        title: String,
+        description: String
+    ): Promise<Profile> {
         return send(Put, "/api/profile", {
             name: name,
             fullname: fullname,
@@ -88,6 +93,12 @@ class Service extends Stream<ServiceEvent> {
     // ---
     public function createDataset(form: JqHtml, saveLocal: Bool, saveS3: Bool): Promise<{id: String}> {
         return sendForm(Post, "/api/datasets", form, { saveLocal: saveLocal, saveS3: saveS3 });
+    }
+
+    public function searchDatasets(
+        ?params: {?query: Dynamic, ?offset: Int, ?limit: Int }
+    ): Promise<RangeSlice<DatasetSummary>> {
+        return send(Get, "/api/datasets", params);
     }
 
     public function findDatasets(?params: {?query: String,
@@ -132,7 +143,12 @@ class Service extends Stream<ServiceEvent> {
         return sendForm(Post, '/api/datasets/$datasetId/files/$fileId', form);
     }
 
-    public function updateDatatetFileMetadata(datasetId: String, fileId: String, name: String, description: String): Promise<DatasetFile> {
+    public function updateDatatetFileMetadata(
+        datasetId: String,
+        fileId: String,
+        name: String,
+        description: String
+    ): Promise<DatasetFile> {
         return send(Put, '/api/datasets/$datasetId/files/$fileId/metadata', { name: name, description: description });
     }
 
