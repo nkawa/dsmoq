@@ -21,7 +21,7 @@
     </p>
     <h1>ユーザー一覧表示</h1>
     <form method="GET" action="/user/">
-      <input type="hidden" name="offset" value="${condition.page}" />
+      <input type="hidden" name="page" value="${condition.page}" />
       <p>
         表示対象：
         <label><input type="radio" name="userType" value="all" ${if (condition.userType == UserType.All) "checked"} />全件</label>

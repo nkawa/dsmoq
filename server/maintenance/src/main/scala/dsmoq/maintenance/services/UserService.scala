@@ -125,7 +125,11 @@ object UserService extends LazyLogging {
    * @return 処理結果、存在しないIDが含まれていた場合 Failure(ServiceException)
    */
   def updateDisabled(originals: Seq[String], updates: Seq[String]): Try[Unit] = {
-    logger.info(LOG_MARKER, Util.createLogMessage("UserService", "updateDisabled", Map("originals" -> originals, "updates" -> updates)))
+    logger.info(LOG_MARKER, Util.createLogMessage(
+      "UserService",
+      "updateDisabled",
+      Map("originals" -> originals, "updates" -> updates)
+    ))
     DB.localTx { implicit s =>
       for {
         _ <- Util.checkUuids(originals ++ updates)
