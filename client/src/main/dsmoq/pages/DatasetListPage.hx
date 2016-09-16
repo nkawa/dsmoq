@@ -109,7 +109,53 @@ class DatasetListPage {
             var index = xs.findIndex(function(x) { return x.id == id; });
             JsViews.observable(data.condition.advanced).remove(index);
         });
-        // TODO: suggests
+        queryRows.on("focus", ".owner-value", function(e) {
+            AutoComplete.initialize(e.target, {
+                url: function(q) {
+                    var d = Json.stringify({query: StringTools.urlEncode(q)});
+                    return '/api/suggests/users_and_groups?d=${d}';
+                },
+                path: "name",
+                filter: function(data) {
+                    return if (data.status == "OK" && Std.is(data.data, Array)) {
+                        Result.Success(data.data);
+                    } else {
+                        Result.Failure(new Error("Network Error"));
+                    }
+                },
+                template: {
+                    suggestion: function(x) {
+                        return '<div>${x.name}</div>';
+                    }
+                 }
+            });
+        });
+        queryRows.on("focusout", ".owner-value", function(e) {
+            AutoComplete.destroy(e.target);
+        });
+        queryRows.on("focus", ".attribute-key", function(e) {
+            AutoComplete.initialize(e.target, {
+                url: function (q) {
+                    var d = Json.stringify({query: StringTools.urlEncode(q)});
+                    return '/api/suggests/attributes?d=${d}';
+                },
+                filter: function(data) {
+                    return if (data.status == "OK" && Std.is(data.data, Array)) {
+                        Result.Success(data.data);
+                    } else {
+                        Result.Failure(new Error("Network Error"));
+                    }
+                },
+                template: {
+                    suggestion: function(x) {
+                        return '<div>${x}</div>';
+                    }
+                 }
+            });
+        });
+        queryRows.on("focusout", ".attribute-key", function(e) {
+            AutoComplete.destroy(e.target);
+        });
 
         JsViews.observable(data.condition.advanced).observeAll(function(e, args) {
             if (args.path != "target") {
