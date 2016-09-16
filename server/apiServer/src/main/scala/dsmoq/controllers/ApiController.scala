@@ -838,7 +838,7 @@ class ApiController(
       name <- checkUtil.requireForForm("d.name", json.name)
       _ <- checkUtil.nonEmptyTrimmedSpacesForForm("d.name", name)
       user <- getUser(allowGuest = false)
-      result <- queryService.createDatasetQuery(name, json.condition, user)
+      result <- queryService.createDatasetQuery(name, json.query, user)
     } yield {
       result
     }

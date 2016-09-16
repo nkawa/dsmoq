@@ -3,6 +3,7 @@ package dsmoq.pages;
 import haxe.Json;
 import conduitbox.Navigation;
 import dsmoq.Async;
+import dsmoq.models.DatasetQuery;
 import dsmoq.models.Service;
 import dsmoq.models.TagDetail;
 import dsmoq.views.AutoComplete;
@@ -44,7 +45,9 @@ class DatasetListPage {
             condition: conditionInputFromString(query),
             result: Async.Pending,
             index: pageNum - 1,
-            tag: new Array<TagDetail>()
+            tag: new Array<TagDetail>(),
+            customQueries: new Array<{ data: DatasetQuery, url: String }>(),
+            saveQueryName: "",
         };
         var condition = conditionFromConditionInput(data.condition);
         var binding = JsViews.observable(data);
@@ -61,6 +64,7 @@ class DatasetListPage {
             if (data.condition.advanced[0].target == "query") {
                 binding.setProperty("condition.basic", data.condition.advanced[0].value);
             }
+            root.find(".basic-query").focus();
         });
         root.find(".advanced-search-tab").on("show.bs.tab", function (_) {
             binding.setProperty("condition.type", "advanced");
@@ -68,16 +72,15 @@ class DatasetListPage {
                 JsViews.observable(data.condition.advanced[0]).setProperty("value", data.condition.basic);
             }
         });
+        if (data.condition.type == "basic") {
+            root.find(".basic-query").focus();
+        }
 
         root.find(".search-button").on("click", function(_) {
             var c = conditionFromConditionInput(data.condition);
             var q = StringTools.urlEncode(Json.stringify(c));
             navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, q)));
         });
-
-        // TODO: save query
-        // TODO: search from saved query
-        // TODO: delete saved query
 
         var queryRows = root.find(".query-rows");
         queryRows.on("click", "button.add-row", function(e) {
@@ -128,6 +131,55 @@ class DatasetListPage {
         Service.instance.getTags().then(function(x) {
             binding.setProperty("tag", x);
         });
+
+        function loadQueries() {
+            return Service.instance.getDatasetQueries().then(function(xs) {
+                var qs = xs.map(function(x) {
+                    var q = StringTools.urlEncode(Json.stringify(x.query));
+                    return { data: x, url: '/datasets?query=${q}' };
+                });
+                JsViews.observable(data.customQueries).refresh(qs);
+            });
+        }
+        var saveQueryModal: Dynamic = root.find("#save-query-modal");
+        root.find(".query-save-button").on("click", function(_) {
+            saveQueryModal.modal("show");
+            binding.setProperty("saveQueryName", "");
+        });
+        root.find(".save-query").on("click", function(_) {
+            var c = conditionFromConditionInput(data.condition);
+            Service.instance.addDatasetQuery(data.saveQueryName, c).then(
+                function(_) {
+                    loadQueries().then(function(_) {
+                        Notification.show("success", "save successful");
+                        saveQueryModal.modal("hide");
+                    });
+                }
+            );
+        });
+        root.on("click", ".delete-query", function(e) {
+            // TODO: show confirm dialog
+            var el = Html.fromEventTarget(e.target);
+            var row = el.closest(".saved-query");
+            var id = row.data("id");
+            Service.instance.deleteDatasetQuery(id).then(
+                function(_) {
+                    loadQueries().then(function(_) {
+                        Notification.show("success", "save successful");
+                    });
+                }
+            );
+        });
+        root.on("click", ".saved-query-link", function(e) {
+            var el = Html.fromEventTarget(e.target);
+            var row = el.closest(".saved-query");
+            var id = row.data("id");
+            var c = data.customQueries.filter(function(x) { return x.data.id == id; })[0].data.query;
+            var q = StringTools.urlEncode(Json.stringify(c));
+            navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, q)));
+            return false;
+        });
+        loadQueries();
 
         Service.instance.searchDatasets({
             query: condition,

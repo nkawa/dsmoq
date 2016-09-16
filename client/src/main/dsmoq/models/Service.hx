@@ -249,6 +249,19 @@ class Service extends Stream<ServiceEvent> {
     }
 
     // ---
+    public function getDatasetQueries(): Promise<Array<DatasetQuery>> {
+        return send(Get, '/api/dataset_queries');
+    }
+
+    public function addDatasetQuery(name: String, query: Dynamic): Promise<DatasetQuery> {
+        return send(Post, '/api/dataset_queries', { name: name, query: query });
+    }
+
+    public function deleteDatasetQuery(id: String): Promise<Unit> {
+        return send(Delete, '/api/dataset_queries/${id}');
+    }
+
+    // ---
     public function createGroup(name: String): Promise<Group> {
         // TODO descriptionをAPIパラメータから削除
         return send(Post, "/api/groups", { name: name, description: "" });

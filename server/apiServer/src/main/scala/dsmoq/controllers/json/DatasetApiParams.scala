@@ -9,7 +9,6 @@ import org.json4s.JsonDSL._
 
 import dsmoq.services.DataSetAttribute
 import dsmoq.services.json.SearchDatasetCondition
-import dsmoq.services.json.SearchDatasetConditionSerializer
 
 sealed trait SearchDatasetParams
 
@@ -103,5 +102,5 @@ case class ChangePrimaryAppParams(
 
 case class CreateDatasetQueryParams(
   name: Option[String] = None,
-  condition: SearchDatasetCondition
+  query: SearchDatasetCondition
 )
