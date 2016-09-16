@@ -5,7 +5,7 @@ import org.scalatra.ScalatraServlet
 import scalikejdbc.config.DBs
 
 import dsmoq.maintenance.controllers.ApiKeyServlet
-//import dsmoq.maintenance.controllers.DatasetServlet
+import dsmoq.maintenance.controllers.DatasetServlet
 import dsmoq.maintenance.controllers.FileServlet
 //import dsmoq.maintenance.controllers.GroupServlet
 //import dsmoq.maintenance.controllers.MenuServlet
@@ -26,7 +26,7 @@ class ScalatraBootstrap extends LifeCycle {
     //context.mount(new MenuServlet, "/*")
     context.mount(new ApiKeyServlet, "/apikey/*")
     context.mount(new UserServlet, "/user/*")
-    //context.mount(new DatasetServlet, "/dataset/*")
+    context.mount(new DatasetServlet, "/dataset/*")
     context.mount(new FileServlet, "/file/*")
     //context.mount(new GroupServlet, "/group/*")
 

@@ -1,0 +1,114 @@
+<%@ val condition: dsmoq.maintenance.data.dataset.SearchCondition %>
+<%@ val result: dsmoq.maintenance.data.SearchResult[dsmoq.maintenance.data.dataset.SearchResultDataset] %>
+<%@ val url: Function[Map[String, String], String] %>
+<%@ val csrfKey: String %>
+<%@ val csrfToken: String %>
+<%@ val limit: Int %>
+<% import dsmoq.maintenance.data.dataset.SearchCondition.DatasetType %>
+<% import dsmoq.maintenance.views.Util %>
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>データメンテナンス：データセット一覧表示</title>
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+    <link rel="stylesheet" type="text/css" href="/css/ionicons.min.css">
+    <script type="text/javascript" src="/js/lib/jquery-3.1.0.min.js"></script>
+    <script type="text/javascript" src="/js/dataset/index.js"></script>
+  </head>
+  <body>
+    <p>
+      <a class="menu" href="/">メニュー</a>
+    </p>
+    <h1>データセット一覧表示</h1>
+    <form method="GET" action="/dataset/">
+      <input type="hidden" name="page" value="${condition.page}" />
+      <p>
+        表示対象：
+        <label><input type="radio" name="datasetType" value="all" ${if (condition.datasetType == DatasetType.All) "checked"} />全件</label>
+        <label><input type="radio" name="datasetType" value="not_deleted" ${if (condition.datasetType == DatasetType.NotDeleted) "checked"} />閲覧可能</label>
+        <label><input type="radio" name="datasetType" value="deleted" ${if (condition.datasetType == DatasetType.Deleted) "checked"} />論理削除済み</label>
+      </p>
+      <p>
+        <label>オーナーID <input name="ownerId" type="text" value="${condition.ownerId}" /></label>
+        <label>データセット名 <input name="datasetName" type="text" value="${condition.datasetName}" /></label>
+      </p>
+      <p>
+        <button class="search">検索</button>
+      </p>
+    </form>
+    #if(result.data.isEmpty)
+    <p>該当データセットなし</p>
+    #else
+    <p>${result.from}件 - ${result.to}件 / ${result.total}件</p>
+    <form method="POST" action="/dataset/proc">
+      <input type="hidden" name="${csrfKey}" value="${csrfToken}">
+      <% render("/views/util/formHidden.ssp", Map("params" -> condition.toMap)) %>
+      <div class="table">
+        <table>
+          <thead>
+            <tr>
+              <th>データセット名</th>
+              <th>オーナー</th>
+              <th>説明</th>
+              <th>ファイル数</th>
+              <th>作成日時</th>
+              <th>最終更新日時</th>
+              <th>論理削除日時</th>
+              <th>dsmoq</th>
+              <th>アクセス権</th>
+              <th>ファイル</th>
+              <th>選択</th>
+            </tr>
+          </thead>
+          <tbody>
+            #for (item <- result.data)
+            <tr>
+              <td>${item.name}</td>
+              <td>${item.owners}</td>
+              <td>${Util.trimByLength(item.description, 20)}</td>
+              <td>${item.numOfFiles}</td>
+              <td>${item.createdAt.toString("yyyy/MM/dd HH:mm:ss")}</td>
+              <td>${item.updatedAt.toString("yyyy/MM/dd HH:mm:ss")}</td>
+              <td>${item.deletedAt.map(_.toString("yyyy/MM/dd HH:mm:ss")).getOrElse("-")}</td>
+              <td><a href="${Util.getDsmoqDatasetDetailUrl(item.id)}" target="_blank">開く</a></td>
+              <td><a href="${Util.getDatasetAclUrl(item.id, condition)}">一覧を開く</a></td>
+              <td><a href="${Util.getFileManagementUrl(item.id)}">一覧を開く</a></td>
+              <td>
+                <input type="checkbox" name="checked" value="${item.id}" />
+              </td>
+            </tr>
+            #end
+          </tbody>
+        </table>
+        <% render(
+          "/views/util/pagenation.ssp",
+          Map(
+            "params" -> condition.toMap,
+            "url" -> url,
+            "pageNum" -> condition.page,
+            "limit" -> limit,
+            "total" -> result.total
+          )
+        )
+        %>
+        <div class="button">
+          <button type="submit" class="logical_delete" name="update" value="logical_delete">
+            <span class="ion-trash-a"></span>
+            論理削除
+          </button>
+          <button type="submit" class="rollback_logical_delete" name="update" value="rollback_logical_delete">
+            <span class="ion-reply"></span>
+            論理削除解除
+          </button>
+          <button type="submit" class="physical_delete" name="update" value="physical_delete">
+            <span class="ion-close"></span>
+            物理削除
+          </button>
+        </div>
+      </div>
+    </form>
+    <p>物理削除は、すでに論理削除されているデータセットのみ削除可能です。(論理削除されていないデータセットは、スキップされます。)</p>
+    #end
+  </body>
+</html>
