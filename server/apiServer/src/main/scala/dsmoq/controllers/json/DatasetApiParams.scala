@@ -37,8 +37,7 @@ object SearchDatasetParams {
   }
 }
 
-object SearchDatasetParamsSerializer extends CustomSerializer[SearchDatasetParams](fmts => {
-  implicit val formats = fmts + SearchDatasetConditionSerializer
+object SearchDatasetParamsSerializer extends CustomSerializer[SearchDatasetParams](implicit formats => {
   val deserializer: PartialFunction[JValue, SearchDatasetParams] = {
     case SearchDatasetParams(p) => p
   }
@@ -100,4 +99,9 @@ case class SearchAppsParams(
 
 case class ChangePrimaryAppParams(
   appId: Option[String] = None
+)
+
+case class CreateDatasetQueryParams(
+  name: Option[String] = None,
+  condition: SearchDatasetCondition
 )

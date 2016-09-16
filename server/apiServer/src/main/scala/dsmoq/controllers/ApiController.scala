@@ -28,6 +28,7 @@ import dsmoq.controllers.AjaxResponse.toActionResult
 import dsmoq.controllers.json.ChangeGroupPrimaryImageParams
 import dsmoq.controllers.json.ChangePrimaryAppParams
 import dsmoq.controllers.json.ChangePrimaryImageParams
+import dsmoq.controllers.json.CreateDatasetQueryParams
 import dsmoq.controllers.json.CreateGroupParams
 import dsmoq.controllers.json.DatasetStorageParams
 import dsmoq.controllers.json.GetGroupMembersParams
@@ -60,18 +61,22 @@ import dsmoq.services.DataSetAccessControlItem
 import dsmoq.services.DatasetService
 import dsmoq.services.GroupMember
 import dsmoq.services.GroupService
+import dsmoq.services.QueryService
 import dsmoq.services.StatisticsService
 import dsmoq.services.SystemService
 import dsmoq.services.TaskService
 import dsmoq.services.User
 import dsmoq.services.json.DatasetData
 import dsmoq.services.json.RangeSlice
+import dsmoq.services.json.SearchDatasetCondition
+import dsmoq.services.json.SearchDatasetConditionSerializer
 
 class ApiController(
   val resource: ResourceBundle
 ) extends ScalatraServlet with JacksonJsonSupport with FileUploadSupport with LazyLogging with AuthTrait {
 
-  protected implicit val jsonFormats: Formats = DefaultFormats + DateTimeSerializer + SearchDatasetParamsSerializer
+  protected implicit val jsonFormats: Formats = DefaultFormats + DateTimeSerializer +
+    SearchDatasetConditionSerializer + SearchDatasetParamsSerializer
 
   /**
    * ログマーカー
@@ -97,6 +102,11 @@ class ApiController(
    * GroupServiceのインスタンス
    */
   val groupService = new GroupService(resource)
+
+  /**
+   * QueryServiceのインスタンス
+   */
+  val queryService = new QueryService(resource)
 
   before() {
     contentType = formats("json")
@@ -138,7 +148,7 @@ class ApiController(
   // --------------------------------------------------------------------------
   post("/signin") {
     val ret = for {
-      d <- getJsonValue[SigninParams]
+      d <- getJsonValueFromParams[SigninParams]
       json <- jsonOptToTry(d)
       id <- checkUtil.requireForForm("d.id", json.id)
       _ <- checkUtil.nonEmptyTrimmedSpacesForForm("d.id", id)
@@ -186,7 +196,7 @@ class ApiController(
 
   put("/profile") {
     val ret = for {
-      d <- getJsonValue[UpdateProfileParams]
+      d <- getJsonValueFromParams[UpdateProfileParams]
       json <- jsonOptToTry(d)
       name <- checkUtil.requireForForm("d.name", json.name)
       _ <- checkUtil.nonEmptyTrimmedSpacesForForm("d.name", name)
@@ -224,7 +234,7 @@ class ApiController(
 
   post("/profile/email_change_requests") {
     val ret = for {
-      d <- getJsonValue[UpdateMailAddressParams]
+      d <- getJsonValueFromParams[UpdateMailAddressParams]
       json <- jsonOptToTry(d)
       email <- checkUtil.requireForForm("d.email", json.email)
       _ <- checkUtil.nonEmptyTrimmedSpacesForForm("d.email", email)
@@ -239,7 +249,7 @@ class ApiController(
 
   put("/profile/password") {
     val ret = for {
-      d <- getJsonValue[UpdatePasswordParams]
+      d <- getJsonValueFromParams[UpdatePasswordParams]
       json <- jsonOptToTry(d)
       currentPassword <- checkUtil.requireForForm("d.currentPassword", json.currentPassword)
       _ <- checkUtil.nonEmptyTrimmedSpacesForForm("d.currentPassword", currentPassword)
@@ -279,7 +289,7 @@ class ApiController(
 
   get("/datasets") {
     val ret = for {
-      d <- getJsonValue[SearchDatasetParams]
+      d <- getJsonValueFromParams[SearchDatasetParams]
       result <- getDatasets(d)
     } yield {
       result
@@ -383,7 +393,7 @@ class ApiController(
     val datasetId = params("datasetId")
     val fileId = params("fileId")
     val ret = for {
-      d <- getJsonValue[UpdateDatasetFileMetadataParams]
+      d <- getJsonValueFromParams[UpdateDatasetFileMetadataParams]
       json <- jsonOptToTry(d)
       name <- checkUtil.requireForForm("d.name", json.name)
       _ <- checkUtil.nonEmptyTrimmedSpacesForForm("d.name", name)
@@ -415,7 +425,7 @@ class ApiController(
   put("/datasets/:datasetId/metadata") {
     val datasetId = params("datasetId")
     val ret = for {
-      d <- getJsonValue[UpdateDatasetMetaParams]
+      d <- getJsonValueFromParams[UpdateDatasetMetaParams]
       json <- jsonOptToTry(d)
       name <- checkUtil.requireForForm("d.name", json.name)
       _ <- checkUtil.nonEmptyTrimmedSpacesForForm("d.name", name)
@@ -446,7 +456,7 @@ class ApiController(
   get("/datasets/:datasetId/images") {
     val datasetId = params("datasetId")
     val ret = for {
-      d <- getJsonValue[SearchRangeParams]
+      d <- getJsonValueFromParams[SearchRangeParams]
       json <- Success(d.getOrElse(SearchRangeParams()))
       _ <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _ <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
@@ -477,7 +487,7 @@ class ApiController(
   put("/datasets/:datasetId/images/primary") {
     val datasetId = params("datasetId")
     val ret = for {
-      d <- getJsonValue[ChangePrimaryImageParams]
+      d <- getJsonValueFromParams[ChangePrimaryImageParams]
       json <- jsonOptToTry(d)
       imageId <- checkUtil.requireForForm("d.imageId", json.imageId)
       _ <- checkUtil.nonEmptyTrimmedSpacesForForm("d.imageId", imageId)
@@ -508,7 +518,7 @@ class ApiController(
   get("/datasets/:datasetId/acl") {
     val datasetId = params("datasetId")
     val ret = for {
-      d <- getJsonValue[SearchRangeParams]
+      d <- getJsonValueFromParams[SearchRangeParams]
       json <- Success(d.getOrElse(SearchRangeParams()))
       _ <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _ <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
@@ -524,7 +534,7 @@ class ApiController(
   post("/datasets/:datasetId/acl") {
     val datasetId = params("datasetId")
     val ret = for {
-      d <- getJsonValue[List[DataSetAccessControlItem]]
+      d <- getJsonValueFromParams[List[DataSetAccessControlItem]]
       json <- jsonOptToTry(d)
       _ <- checkUtil.hasElement("d", json)
       _ <- checkUtil.invokeSeq(json) { x =>
@@ -547,7 +557,7 @@ class ApiController(
   put("/datasets/:datasetId/guest_access") {
     val datasetId = params("datasetId")
     val ret = for {
-      d <- getJsonValue[UpdateDatasetGuestAccessParams]
+      d <- getJsonValueFromParams[UpdateDatasetGuestAccessParams]
       json <- jsonOptToTry(d)
       accessLevel <- checkUtil.requireForForm("d.accessLevel", json.accessLevel)
       _ <- checkUtil.contains("d.accessLevel", accessLevel, Seq(0, 1, 2))
@@ -573,7 +583,7 @@ class ApiController(
   put("/datasets/:datasetId/storage") {
     val datasetId = params("datasetId")
     val ret = for {
-      d <- getJsonValue[DatasetStorageParams]
+      d <- getJsonValueFromParams[DatasetStorageParams]
       json <- jsonOptToTry(d)
       saveLocal <- checkUtil.requireForForm("d.saveLocal", json.saveLocal)
       saveS3 <- checkUtil.requireForForm("d.saveS3", json.saveS3)
@@ -637,7 +647,7 @@ class ApiController(
   put("/datasets/:datasetId/images/featured") {
     val datasetId = params("datasetId")
     val ret = for {
-      d <- getJsonValue[ChangePrimaryImageParams]
+      d <- getJsonValueFromParams[ChangePrimaryImageParams]
       json <- jsonOptToTry(d)
       imageId <- checkUtil.requireForForm("d.imageId", json.imageId)
       _ <- checkUtil.nonEmptyTrimmedSpacesForForm("d.imageId", imageId)
@@ -654,7 +664,7 @@ class ApiController(
   get("/datasets/:datasetId/files") {
     val datasetId = params("datasetId")
     val ret = for {
-      d <- getJsonValue[SearchRangeParams]
+      d <- getJsonValueFromParams[SearchRangeParams]
       json <- Success(d.getOrElse(SearchRangeParams(Some(dsmoq.AppConf.fileLimit), Some(0))))
       _ <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _ <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
@@ -671,7 +681,7 @@ class ApiController(
     val datasetId = params("datasetId")
     val fileId = params("fileId")
     val ret = for {
-      d <- getJsonValue[SearchRangeParams]
+      d <- getJsonValueFromParams[SearchRangeParams]
       json <- Success(d.getOrElse(SearchRangeParams(Some(dsmoq.AppConf.fileLimit), Some(0))))
       _ <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _ <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
@@ -688,7 +698,7 @@ class ApiController(
   get("/datasets/:datasetId/apps") {
     val datasetId = params("datasetId")
     val ret = for {
-      d <- getJsonValue[SearchAppsParams]
+      d <- getJsonValueFromParams[SearchAppsParams]
       json <- Success(d.getOrElse(SearchAppsParams()))
       _ <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _ <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
@@ -782,7 +792,7 @@ class ApiController(
   put("/datasets/:datasetId/apps/primary") {
     val datasetId = params("datasetId")
     val ret = for {
-      d <- getJsonValue[ChangePrimaryAppParams]
+      d <- getJsonValueFromParams[ChangePrimaryAppParams]
       json <- jsonOptToTry(d)
       appId <- checkUtil.requireForForm("d.appId", json.appId)
       _ <- checkUtil.nonEmptyTrimmedSpacesForForm("d.appId", appId)
@@ -809,11 +819,62 @@ class ApiController(
   }
 
   // --------------------------------------------------------------------------
+  // dataset query api
+  // --------------------------------------------------------------------------
+  get("/dataset_queries") {
+    val ret = for {
+      user <- getUser(allowGuest = true)
+      result <- queryService.getDatasetQueries(user)
+    } yield {
+      result
+    }
+    toActionResult(ret)
+  }
+
+  post("/dataset_queries") {
+    val ret = for {
+      d <- getJsonValueFromParams[CreateDatasetQueryParams]
+      json <- jsonOptToTry(d)
+      name <- checkUtil.requireForForm("d.name", json.name)
+      _ <- checkUtil.nonEmptyTrimmedSpacesForForm("d.name", name)
+      user <- getUser(allowGuest = false)
+      result <- queryService.createDatasetQuery(name, json.condition, user)
+    } yield {
+      result
+    }
+    toActionResult(ret)
+  }
+
+  get("/dataset_queries/:queryId") {
+    val queryId = params("queryId")
+    val ret = for {
+      _ <- checkUtil.validUuidForUrl("queryId", queryId)
+      user <- getUser(allowGuest = false)
+      result <- queryService.getDatasetQuery(queryId, user)
+    } yield {
+      result
+    }
+    toActionResult(ret)
+  }
+
+  delete("/dataset_queries/:queryId") {
+    val queryId = params("queryId")
+    val ret = for {
+      _ <- checkUtil.validUuidForUrl("queryId", queryId)
+      user <- getUser(allowGuest = false)
+      result <- queryService.deleteDatasetQuery(queryId, user)
+    } yield {
+      result
+    }
+    toActionResult(ret)
+  }
+
+  // --------------------------------------------------------------------------
   // group api
   // --------------------------------------------------------------------------
   get("/groups") {
     val ret = for {
-      d <- getJsonValue[SearchGroupsParams]
+      d <- getJsonValueFromParams[SearchGroupsParams]
       json <- Success(d.getOrElse(SearchGroupsParams()))
       _ <- checkUtil.validUuidForForm("d.user", json.user)
       _ <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
@@ -841,7 +902,7 @@ class ApiController(
   get("/groups/:groupId/members") {
     val groupId = params("groupId")
     val ret = for {
-      d <- getJsonValue[GetGroupMembersParams]
+      d <- getJsonValueFromParams[GetGroupMembersParams]
       json <- Success(d.getOrElse(GetGroupMembersParams()))
       _ <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _ <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
@@ -856,7 +917,7 @@ class ApiController(
 
   post("/groups") {
     val ret = for {
-      d <- getJsonValue[CreateGroupParams]
+      d <- getJsonValueFromParams[CreateGroupParams]
       json <- jsonOptToTry(d)
       name <- checkUtil.requireForForm("d.name", json.name)
       _ <- checkUtil.nonEmptyTrimmedSpacesForForm("d.name", name)
@@ -872,7 +933,7 @@ class ApiController(
   put("/groups/:groupId") {
     val groupId = params("groupId")
     val ret = for {
-      d <- getJsonValue[UpdateGroupParams]
+      d <- getJsonValueFromParams[UpdateGroupParams]
       json <- jsonOptToTry(d)
       name <- checkUtil.requireForForm("d.name", json.name)
       _ <- checkUtil.nonEmptyTrimmedSpacesForForm("d.name", name)
@@ -889,7 +950,7 @@ class ApiController(
   get("/groups/:groupId/images") {
     val groupId = params("groupId")
     val ret = for {
-      d <- getJsonValue[SearchRangeParams]
+      d <- getJsonValueFromParams[SearchRangeParams]
       json <- Success(d.getOrElse(SearchRangeParams()))
       _ <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _ <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
@@ -920,7 +981,7 @@ class ApiController(
   put("/groups/:groupId/images/primary") {
     val groupId = params("groupId")
     val ret = for {
-      d <- getJsonValue[ChangeGroupPrimaryImageParams]
+      d <- getJsonValueFromParams[ChangeGroupPrimaryImageParams]
       json <- jsonOptToTry(d)
       imageId <- checkUtil.requireForForm("d.imageId", json.imageId)
       _ <- checkUtil.nonEmptyTrimmedSpacesForForm("d.imageId", imageId)
@@ -951,7 +1012,7 @@ class ApiController(
   post("/groups/:groupId/members") {
     val groupId = params("groupId")
     val ret = for {
-      d <- getJsonValue[List[GroupMember]]
+      d <- getJsonValueFromParams[List[GroupMember]]
       json <- jsonOptToTry(d)
       _ <- checkUtil.hasElement("d", json)
       _ <- checkUtil.invokeSeq(json) { x =>
@@ -974,7 +1035,7 @@ class ApiController(
     val groupId = params("groupId")
     val userId = params("userId")
     val ret = for {
-      d <- getJsonValue[SetGroupMemberRoleParams]
+      d <- getJsonValueFromParams[SetGroupMemberRoleParams]
       json <- jsonOptToTry(d)
       role <- checkUtil.requireForForm("d.role", json.role)
       _ <- checkUtil.contains("d.role", role, Seq(0, 1, 2))
@@ -1045,7 +1106,7 @@ class ApiController(
 
   get("/suggests/users") {
     val ret = for {
-      d <- getJsonValue[SuggestApiParams]
+      d <- getJsonValueFromParams[SuggestApiParams]
       json <- Success(d.getOrElse(SuggestApiParams()))
       _ <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _ <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
@@ -1058,7 +1119,7 @@ class ApiController(
 
   get("/suggests/groups") {
     val ret = for {
-      d <- getJsonValue[SuggestApiParams]
+      d <- getJsonValueFromParams[SuggestApiParams]
       json <- Success(d.getOrElse(SuggestApiParams()))
       _ <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _ <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
@@ -1071,7 +1132,7 @@ class ApiController(
 
   get("/suggests/users_and_groups") {
     val ret = for {
-      d <- getJsonValue[UserAndGroupSuggestApiParams]
+      d <- getJsonValueFromParams[UserAndGroupSuggestApiParams]
       json <- Success(d.getOrElse(UserAndGroupSuggestApiParams()))
       _ <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _ <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
@@ -1085,7 +1146,7 @@ class ApiController(
 
   get("/suggests/attributes") {
     val ret = for {
-      d <- getJsonValue[SuggestApiParams]
+      d <- getJsonValueFromParams[SuggestApiParams]
       json <- Success(d.getOrElse(SuggestApiParams()))
       _ <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
       _ <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
@@ -1109,7 +1170,7 @@ class ApiController(
 
   get("/statistics") {
     val ret = for {
-      d <- getJsonValue[StatisticsParams]
+      d <- getJsonValueFromParams[StatisticsParams]
       json <- Success(d.getOrElse(StatisticsParams()))
       result <- StatisticsService.getStatistics(json.from, json.to)
     } yield {
@@ -1136,23 +1197,19 @@ class ApiController(
     }
   }
 
-  private def getJsonValue[T](implicit m: Manifest[T]): Try[Option[T]] = {
+  private def getJsonValueFromParams[T](implicit m: Manifest[T]): Try[Option[T]] = {
     params.get("d") match {
       case None => Success(None)
-      case Some(x) => {
-        try {
-          JsonMethods.parse(x).extractOpt[T] match {
-            case None => {
-              Failure(new InputCheckException("d", resource.getString(ResourceNames.INVALID_JSON_FORMAT), false))
-            }
-            case Some(obj) => Success(Some(obj))
-          }
-        } catch {
-          case e: Exception => {
-            Failure(new InputCheckException("d", resource.getString(ResourceNames.INVALID_JSON_FORMAT), false))
-          }
-        }
-      }
+      case Some(x) => getJsonValue(x, "d").map(Some.apply)
+    }
+  }
+
+  def getJsonValue[T](str: String, position: String)(implicit m: Manifest[T]): Try[T] = {
+    Try {
+      JsonMethods.parse(str).extract[T]
+    }.recoverWith {
+      case e: Exception =>
+        Failure(new InputCheckException(position, resource.getString(ResourceNames.INVALID_JSON_FORMAT), false))
     }
   }
 }
