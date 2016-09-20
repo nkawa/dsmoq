@@ -44,7 +44,9 @@ class DatasetListPage {
         var data = {
             condition: conditionInputFromString(searchQuery),
             result: Async.Pending,
-            index: pageNum - 1,
+            page: {
+                index: pageNum - 1,
+            },
             tag: new Array<TagDetail>(),
             customQueries: new Array<{ data: DatasetQuery, url: String }>(),
             saveQueryName: "",
@@ -58,7 +60,7 @@ class DatasetListPage {
         var binding = JsViews.observable(data);
         View.getTemplate("dataset/list").link(root, binding.data());
 
-        JsViews.observe(data.condition, "index", function (_, args) {
+        JsViews.observe(data.page, "index", function (_, args) {
             var page = args.value + 1;
             navigation.fulfill(Navigation.Navigate(Page.DatasetList(page, searchConditionStr)));
         });
@@ -84,7 +86,7 @@ class DatasetListPage {
             binding.setProperty("result", Async.Pending);
             Service.instance.searchDatasets({
                 query: searchCondition,
-                offset: DATASET_LIMIT_PER_PAGE * data.index,
+                offset: DATASET_LIMIT_PER_PAGE * data.page.index,
                 limit: DATASET_LIMIT_PER_PAGE
             }).then(function (x) {
                 binding.setProperty("result", Async.Completed({
