@@ -151,22 +151,36 @@ object FileService extends LazyLogging {
     Try {
       val timestamp = DateTime.now()
       val systemUserId = AppConfig.systemUserId
-      val f = persistence.File.column
-      withSQL {
-        update(persistence.File)
-          .set(
-            f.deletedAt -> timestamp,
-            f.deletedBy -> sqls.uuid(systemUserId),
-            f.updatedAt -> timestamp,
-            f.updatedBy -> sqls.uuid(systemUserId)
-          )
+      val f = persistence.File.f
+      val datasetIds = withSQL {
+        select(f.result.datasetId)
+          .from(persistence.File as f)
           .where
           .in(f.id, ids.map(sqls.uuid))
           .and
           .isNull(f.deletedAt)
           .and
           .isNull(f.deletedBy)
+      }.map(_.string(f.resultName.datasetId)).list.apply()
+      val fc = persistence.File.column
+      withSQL {
+        update(persistence.File)
+          .set(
+            fc.deletedAt -> timestamp,
+            fc.deletedBy -> sqls.uuid(systemUserId),
+            fc.updatedAt -> timestamp,
+            fc.updatedBy -> sqls.uuid(systemUserId)
+          )
+          .where
+          .in(fc.id, ids.map(sqls.uuid))
+          .and
+          .isNull(fc.deletedAt)
+          .and
+          .isNull(fc.deletedBy)
       }.update.apply()
+      datasetIds.toSet.foreach { id: String =>
+        updateDatasetFileStatus(id, timestamp)
+      }
     }
   }
 
@@ -200,30 +214,50 @@ object FileService extends LazyLogging {
     Try {
       val timestamp = DateTime.now()
       val systemUserId = AppConfig.systemUserId
-      val f = persistence.File.column
-      withSQL {
-        update(persistence.File)
-          .set(
-            f.deletedAt -> None,
-            f.deletedBy -> None,
-            f.updatedAt -> timestamp,
-            f.updatedBy -> sqls.uuid(systemUserId)
-          )
+      val f = persistence.File.f
+      val datasetIds = withSQL {
+        select(f.result.datasetId)
+          .from(persistence.File as f)
           .where
           .in(f.id, ids.map(sqls.uuid))
           .and
           .isNotNull(f.deletedAt)
           .and
           .isNotNull(f.deletedBy)
+      }.map(_.string(f.resultName.datasetId)).list.apply()
+      val fc = persistence.File.column
+      withSQL {
+        update(persistence.File)
+          .set(
+            fc.deletedAt -> None,
+            fc.deletedBy -> None,
+            fc.updatedAt -> timestamp,
+            fc.updatedBy -> sqls.uuid(systemUserId)
+          )
+          .where
+          .in(fc.id, ids.map(sqls.uuid))
+          .and
+          .isNotNull(fc.deletedAt)
+          .and
+          .isNotNull(fc.deletedBy)
       }.update.apply()
+      datasetIds.toSet.foreach { id: String =>
+        updateDatasetFileStatus(id, timestamp)
+      }
     }
   }
 
-  private def updateDatasetFileStatus(
+  /**
+   * データセットのファイル情報(ファイル件数、合計サイズ)を更新する。
+   *
+   * @param datasetId データセットID
+   * @param timestamp タイムスタンプ
+   */
+  def updateDatasetFileStatus(
     datasetId: String,
-    userId: String,
     timestamp: DateTime
-  )(implicit s: DBSession): Int = {
+  )(implicit s: DBSession): Unit = {
+    val systemUserId = AppConfig.systemUserId
     val f = persistence.File.f
     val allFiles = withSQL {
       select(f.result.*)
@@ -232,14 +266,19 @@ object FileService extends LazyLogging {
         .eq(f.datasetId, sqls.uuid(datasetId))
         .and
         .isNull(f.deletedAt)
+        .and
+        .isNull(f.deletedBy)
     }.map(persistence.File(f.resultName)).list.apply()
     val totalFileSize = allFiles.foldLeft(0L)((a: Long, b: persistence.File) => a + b.fileSize)
-
     withSQL {
       val d = persistence.Dataset.column
       update(persistence.Dataset)
-        .set(d.filesCount -> allFiles.size, d.filesSize -> totalFileSize,
-          d.updatedBy -> sqls.uuid(userId), d.updatedAt -> timestamp)
+        .set(
+          d.filesCount -> allFiles.size,
+          d.filesSize -> totalFileSize,
+          d.updatedBy -> sqls.uuid(systemUserId),
+          d.updatedAt -> timestamp
+        )
         .where
         .eq(d.id, sqls.uuid(datasetId))
     }.update.apply()
