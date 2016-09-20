@@ -3,7 +3,6 @@
 <%@ val url: Function[Map[String, String], String] %>
 <%@ val csrfKey: String %>
 <%@ val csrfToken: String %>
-<%@ val limit: Int %>
 <% import dsmoq.maintenance.data.dataset.SearchCondition.DatasetType %>
 <% import dsmoq.maintenance.views.Util %>
 <!DOCTYPE html>
@@ -22,7 +21,6 @@
     </p>
     <h1>データセット一覧表示</h1>
     <form method="GET" action="/dataset/">
-      <input type="hidden" name="page" value="${condition.page}" />
       <p>
         表示対象：
         <label><input type="radio" name="datasetType" value="all" ${if (condition.datasetType == DatasetType.All) "checked"} />全件</label>
@@ -41,7 +39,7 @@
     <p>該当データセットなし</p>
     #else
     <p>${result.from}件 - ${result.to}件 / ${result.total}件</p>
-    <form method="POST" action="/dataset/proc">
+    <form method="POST" action="/dataset/apply">
       <input type="hidden" name="${csrfKey}" value="${csrfToken}">
       <% render("/views/util/formHidden.ssp", Map("params" -> condition.toMap)) %>
       <div class="table">
@@ -65,7 +63,7 @@
             #for (item <- result.data)
             <tr>
               <td>${item.name}</td>
-              <td>${item.owners}</td>
+              <td>${item.owners.mkString(",")}</td>
               <td>${Util.trimByLength(item.description, 20)}</td>
               <td>${item.numOfFiles}</td>
               <td>${item.createdAt.toString("yyyy/MM/dd HH:mm:ss")}</td>
@@ -87,7 +85,7 @@
             "params" -> condition.toMap,
             "url" -> url,
             "pageNum" -> condition.page,
-            "limit" -> limit,
+            "lastPage" -> result.lastPage,
             "total" -> result.total
           )
         )

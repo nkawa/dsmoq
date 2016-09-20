@@ -20,7 +20,7 @@
     #if(keys.isEmpty)
     <p>発行済みAPIキーなし</p>
     #else
-    <form method="POST" action="/apikey/proc">
+    <form method="POST" action="/apikey/apply">
       <input type="hidden" name="${csrfKey}" value="${csrfToken}">
       <div class="table">
         <table>

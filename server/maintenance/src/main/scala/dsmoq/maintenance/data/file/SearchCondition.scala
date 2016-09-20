@@ -21,6 +21,10 @@ case class SearchCondition(
     )
     datasetId.map(id => results + ("datasetId" -> id)).getOrElse(results)
   }
+
+  override def toString: String = {
+    toMap.collect { case (key, value) => s"${key}=${value}" }.mkString(",")
+  }
 }
 
 /**

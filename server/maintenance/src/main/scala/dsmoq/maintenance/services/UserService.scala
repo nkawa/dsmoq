@@ -14,6 +14,7 @@ import dsmoq.maintenance.data.SearchResult
 import dsmoq.maintenance.data.user.SearchCondition
 import dsmoq.maintenance.data.user.SearchCondition.UserType
 import dsmoq.maintenance.data.user.SearchResultUser
+import dsmoq.maintenance.data.user.UpdateParameter
 import dsmoq.persistence
 import dsmoq.persistence.PostgresqlHelper.PgConditionSQLBuilder
 import dsmoq.persistence.PostgresqlHelper.PgSQLSyntaxType
@@ -39,13 +40,18 @@ object UserService extends LazyLogging {
   val LOG_MARKER = MarkerFactory.getMarker("MAINTENANCE_USER_LOG")
 
   /**
+   * サービス名
+   */
+  val SERVICE_NAME = "UserService"
+
+  /**
    * ユーザを検索する。
    *
    * @param condition 検索条件
    * @return 検索結果
    */
   def search(condition: SearchCondition): SearchResult[SearchResultUser] = {
-    logger.info(LOG_MARKER, Util.createLogMessage("UserService", "search", Map("condition" -> condition)))
+    logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "search", condition))
     val u = persistence.User.u
     val ma = persistence.MailAddress.ma
     def createSqlBase(select: SelectSQLBuilder[Unit]): ConditionSQLBuilder[Unit] = {
@@ -77,7 +83,7 @@ object UserService extends LazyLogging {
       val total = withSQL {
         createSqlBase(select(sqls.count))
       }.map(_.int(1)).single.apply().getOrElse(0)
-      val eles = withSQL {
+      val records = withSQL {
         createSqlBase(select(u.result.*, ma.result.address))
           .orderBy(u.createdAt)
           .offset(offset)
@@ -100,9 +106,10 @@ object UserService extends LazyLogging {
       }.list.apply()
       SearchResult(
         from = offset + 1,
-        to = offset + eles.length,
+        to = offset + records.length,
+        lastPage = (total / limit) + math.min(total % limit, 1),
         total = total,
-        data = eles
+        data = records
       )
     }
   }
@@ -120,21 +127,15 @@ object UserService extends LazyLogging {
   /**
    * ユーザの無効化状態を更新する。
    *
-   * @param originals 無効であったユーザ
-   * @param updates 無効にするユーザ
+   * @param param 入力パラメータ
    * @return 処理結果、存在しないIDが含まれていた場合 Failure(ServiceException)
    */
-  def updateDisabled(originals: Seq[String], updates: Seq[String]): Try[Unit] = {
-    logger.info(LOG_MARKER, Util.createLogMessage(
-      "UserService",
-      "updateDisabled",
-      Map("originals" -> originals, "updates" -> updates)
-    ))
+  def updateDisabled(param: UpdateParameter): Try[Unit] = {
+    logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "updateDisabled", param))
     DB.localTx { implicit s =>
       for {
-        _ <- Util.checkUuids(originals ++ updates)
-        _ <- checkUserIds(originals ++ updates)
-        _ <- execUpdateDisabled(originals, updates)
+        _ <- checkChange(param.originals, param.updates)
+        _ <- execUpdateDisabled(param.originals, param.updates)
       } yield {
         ()
       }
@@ -142,32 +143,21 @@ object UserService extends LazyLogging {
   }
 
   /**
-   * 指定されたユーザIDがDBに存在することを確認する。
+   * ユーザーの無効化状態の変更があるかを確認する。
    *
-   * @param ids ユーザID
-   * @return 処理結果、存在しないIDが含まれていた場合 Failure(ServiceException)
+   * @param originals 無効であったユーザ
+   * @param updates 無効にするユーザ
+   * @return 処理結果、無効化状態に変更がない場合 Failure(ServiceException)
    */
-  def checkUserIds(ids: Seq[String])(implicit s: DBSession): Try[Unit] = {
-    Try {
-      val u = persistence.User.u
-      val checks = ids.map { id =>
-        val contains = withSQL {
-          select(u.result.id)
-            .from(persistence.User as u)
-            .where
-            .eq(u.id, sqls.uuid(id))
-        }.map { rs =>
-          rs.string(u.resultName.id)
-        }.single.apply().isDefined
-        (id, contains)
-      }
-      checks.collect { case (id, false) => id }
-    }.flatMap { invalids =>
-      if (invalids.isEmpty) {
-        Success(())
-      } else {
-        Failure(new ServiceException("存在しないユーザーが指定されました。"))
-      }
+  def checkChange(originals: Seq[String], updates: Seq[String]): Try[Unit] = {
+    val os = originals.toSet
+    val us = updates.toSet
+    val enabledTargets = os -- us
+    val disabledTargets = us -- os
+    if (enabledTargets.isEmpty && disabledTargets.isEmpty) {
+      Failure(new ServiceException("ユーザーの無効化状態の変更がありません。"))
+    } else {
+      Success(())
     }
   }
 

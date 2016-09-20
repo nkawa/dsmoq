@@ -12,6 +12,8 @@ import com.typesafe.scalalogging.LazyLogging
 
 import dsmoq.maintenance.AppConfig
 import dsmoq.maintenance.controllers.ResponseUtil.resultAs
+import dsmoq.maintenance.data.apikey.AddParameter
+import dsmoq.maintenance.data.apikey.DisableParameter
 import dsmoq.maintenance.services.ApiKeyService
 
 /**
@@ -43,10 +45,9 @@ class ApiKeyServlet extends ScalatraServlet with ScalateSupport with LazyLogging
     Ok(list())
   }
 
-  post("/proc") {
-    val id = params.get("id")
+  post("/apply") {
     val result = for {
-      _ <- ApiKeyService.disable(id)
+      _ <- ApiKeyService.disable(DisableParameter.fromMap(params))
     } yield {
       SeeOther(url("/"))
     }
@@ -78,10 +79,9 @@ class ApiKeyServlet extends ScalatraServlet with ScalateSupport with LazyLogging
     )
   }
 
-  post("/add/proc") {
-    val userName = params.get("name")
+  post("/add/apply") {
     val result = for {
-      _ <- ApiKeyService.add(userName)
+      _ <- ApiKeyService.add(AddParameter.fromMap(params))
     } yield {
       SeeOther(url("/"))
     }

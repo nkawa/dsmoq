@@ -13,6 +13,7 @@ import com.typesafe.scalalogging.LazyLogging
 import dsmoq.maintenance.AppConfig
 import dsmoq.maintenance.controllers.ResponseUtil.resultAs
 import dsmoq.maintenance.data.user.SearchCondition
+import dsmoq.maintenance.data.user.UpdateParameter
 import dsmoq.maintenance.services.UserService
 
 /**
@@ -45,12 +46,10 @@ class UserServlet extends ScalatraServlet with ScalateSupport with LazyLogging w
     Ok(search(condition))
   }
 
-  post("/proc") {
-    val originals = multiParams("disabled.originals")
-    val updates = multiParams("disabled.updates")
+  post("/apply") {
     val condition = SearchCondition.fromMap(params)
     val result = for {
-      _ <- UserService.updateDisabled(originals, updates)
+      _ <- UserService.updateDisabled(UpdateParameter.fromMap(multiParams))
     } yield {
       SeeOther(searchUrl(condition.toMap))
     }
@@ -74,8 +73,7 @@ class UserServlet extends ScalatraServlet with ScalateSupport with LazyLogging w
       "result" -> result,
       "url" -> searchUrl _,
       "csrfKey" -> csrfKey,
-      "csrfToken" -> csrfToken,
-      "limit" -> AppConfig.searchLimit
+      "csrfToken" -> csrfToken
     )
   }
 

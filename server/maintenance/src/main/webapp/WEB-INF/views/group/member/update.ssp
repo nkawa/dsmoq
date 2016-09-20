@@ -1,0 +1,62 @@
+<%@ val condition: dsmoq.maintenance.data.group.SearchCondition %>
+<%@ val data: dsmoq.maintenance.data.group.MemberUpdateData %>
+<%@ val csrfKey: String %>
+<%@ val csrfToken: String %>
+<% import dsmoq.maintenance.views.Util %>
+<% import dsmoq.maintenance.data.group.MemberRole %>
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>データメンテナンス：グループメンバー更新</title>
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+    <link rel="stylesheet" type="text/css" href="/css/ionicons.min.css">
+    <script type="text/javascript" src="/js/lib/jquery-3.1.0.min.js"></script>
+    <script type="text/javascript" src="/js/group/member/update.js"></script>
+  </head>
+  <body>
+    <p>
+      <a class="menu" href="/">メニュー</a>
+    </p>
+    <h1>グループメンバー更新</h1>
+    <h2>${data.groupName}</h2>
+    <form method="POST" action="/group/member/update/apply">
+      <input type="hidden" name="groupId" value="${data.groupId}" />
+      <input type="hidden" name="userId" value="${data.member.id}" />
+      <input type="hidden" name="${csrfKey}" value="${csrfToken}">
+      <div class="table">
+        <table>
+          <tbody>
+            <tr>
+              <th>ユーザーID</th>
+              <td>${data.member.name}</td>
+            </tr>
+            <tr>
+              <th>アクセス権</th>
+              <td>
+                <select name="role" class="operation">
+                  <option value="member" ${if (data.member.role == MemberRole.Member) "selected"}>Member</option>
+                  <option value="manager" ${if (data.member.role == MemberRole.Manager) "selected"}>Manager</option>
+                </select>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="buttons">
+          <button class="update" name="update" type="submit" value="update">
+            <span class="ion-edit"></span>
+            更新
+          </button>
+          <button class="delete" name="update" type="submit" value="delete">
+            <span class="ion-trash-a"></span>
+            削除
+          </button>
+        </div>
+      </div>
+    </form>
+    <hr>
+    <p>
+      <a href="${Util.getGroupMemberUrl(data.groupId, condition)}">Back</a>
+    </p>
+  </body>
+</html>

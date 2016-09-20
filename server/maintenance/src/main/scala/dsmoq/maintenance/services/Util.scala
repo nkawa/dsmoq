@@ -54,15 +54,14 @@ object Util {
    *
    * @param serviceName サービス名
    * @param methodName メソッド名
-   * @param params 引数名と値のMap
+   * @param params 引数のリスト
    * @return 構築したログメッセージ文字列
    */
-  def createLogMessage[T](
+  def formatLogMessage[T](
     serviceName: String,
     methodName: String,
-    params: Map[String, T] = Map.empty[String, T]
+    params: T*
   ): String = {
-    val paramString = params.map { case (key, value) => s"${key}=${value}" }.mkString(",")
-    s"MethodCall:${serviceName},${methodName},[${paramString}]"
+    s"MethodCall:${serviceName},${methodName},[${params.map(_.toString).mkString(",")}]"
   }
 }

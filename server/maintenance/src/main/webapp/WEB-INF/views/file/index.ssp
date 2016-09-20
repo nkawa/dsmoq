@@ -3,7 +3,6 @@
 <%@ val url: Function[Map[String, String], String] %>
 <%@ val csrfKey: String %>
 <%@ val csrfToken: String %>
-<%@ val limit: Int %>
 <% import dsmoq.maintenance.data.file.SearchCondition.FileType %>
 <% import dsmoq.maintenance.views.Util %>
 <!DOCTYPE html>
@@ -22,7 +21,6 @@
     </p>
     <h1>ファイル一覧表示</h1>
     <form method="GET" action="/file/">
-      <input type="hidden" name="page" value="${condition.page}" />
       #match(condition.datasetId)
       #case(None)
       #case(Some(id))
@@ -42,7 +40,7 @@
     <p>該当ファイルなし</p>
     #else
     <p>${result.from}件 - ${result.to}件 / ${result.total}件</p>
-    <form method="POST" action="/file/proc">
+    <form method="POST" action="/file/apply">
       <input type="hidden" name="${csrfKey}" value="${csrfToken}">
       <% render("/views/util/formHidden.ssp", Map("params" -> condition.toMap)) %>
       <div class="table">
@@ -82,7 +80,7 @@
             "params" -> condition.toMap,
             "url" -> url,
             "pageNum" -> condition.page,
-            "limit" -> limit,
+            "lastPage" -> result.lastPage,
             "total" -> result.total
           )
         )

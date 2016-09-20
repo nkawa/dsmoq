@@ -7,8 +7,7 @@ import scalikejdbc.config.DBs
 import dsmoq.maintenance.controllers.ApiKeyServlet
 import dsmoq.maintenance.controllers.DatasetServlet
 import dsmoq.maintenance.controllers.FileServlet
-//import dsmoq.maintenance.controllers.GroupServlet
-//import dsmoq.maintenance.controllers.MenuServlet
+import dsmoq.maintenance.controllers.GroupServlet
 import dsmoq.maintenance.controllers.UserServlet
 
 /**
@@ -23,12 +22,11 @@ class ScalatraBootstrap extends LifeCycle {
    * @param context ServletContext
    */
   override def init(context: ServletContext) {
-    //context.mount(new MenuServlet, "/*")
     context.mount(new ApiKeyServlet, "/apikey/*")
     context.mount(new UserServlet, "/user/*")
     context.mount(new DatasetServlet, "/dataset/*")
     context.mount(new FileServlet, "/file/*")
-    //context.mount(new GroupServlet, "/group/*")
+    context.mount(new GroupServlet, "/group/*")
 
     DBs.setup()
   }

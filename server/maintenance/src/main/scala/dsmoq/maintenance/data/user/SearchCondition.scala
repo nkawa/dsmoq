@@ -21,6 +21,10 @@ case class SearchCondition(
       "page" -> page.toString
     )
   }
+
+  override def toString: String = {
+    toMap.collect { case (key, value) => s"${key}=${value}" }.mkString(",")
+  }
 }
 
 /**

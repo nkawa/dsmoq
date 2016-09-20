@@ -11,6 +11,7 @@ import com.typesafe.scalalogging.LazyLogging
 
 import dsmoq.maintenance.AppConfig
 import dsmoq.maintenance.data.SearchResult
+import dsmoq.maintenance.data.file.UpdateParameter
 import dsmoq.maintenance.data.file.SearchCondition
 import dsmoq.maintenance.data.file.SearchCondition.FileType
 import dsmoq.maintenance.data.file.SearchResultFile
@@ -39,13 +40,18 @@ object FileService extends LazyLogging {
   val LOG_MARKER = MarkerFactory.getMarker("MAINTENANCE_FILE_LOG")
 
   /**
+   * サービス名
+   */
+  val SERVICE_NAME = "FileService"
+
+  /**
    * ファイルを検索する。
    *
    * @param condition 検索条件
    * @return 検索結果
    */
   def search(condition: SearchCondition): SearchResult[SearchResultFile] = {
-    logger.info(LOG_MARKER, Util.createLogMessage("FileService", "search", Map("condition" -> condition)))
+    logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "search", condition))
     val f = persistence.File.f
     val d = persistence.Dataset.d
     val u = persistence.User.u
@@ -71,7 +77,7 @@ object FileService extends LazyLogging {
       val total = withSQL {
         createSqlBase(select(sqls.count))
       }.map(_.int(1)).single.apply().getOrElse(0)
-      val eles = withSQL {
+      val records = withSQL {
         createSqlBase(select(f.result.*, d.result.*, u.result.*))
           .orderBy(f.createdAt)
           .offset(offset)
@@ -93,9 +99,10 @@ object FileService extends LazyLogging {
       }.list.apply()
       SearchResult(
         from = offset + 1,
-        to = offset + eles.length,
+        to = offset + records.length,
+        lastPage = (total / limit) + math.min(total % limit, 1),
         total = total,
-        data = eles
+        data = records
       )
     }
   }
@@ -115,51 +122,18 @@ object FileService extends LazyLogging {
   }
 
   /**
-   * 指定されたファイルIDがDBに存在することを確認する。
-   *
-   * @param ids ファイルID
-   * @return 処理結果、存在しないIDが含まれていた場合 Failure(ServiceException)
-   */
-  def checkFileIds(ids: Seq[String])(implicit s: DBSession): Try[Unit] = {
-    Try {
-      val f = persistence.File.f
-      val checks = ids.map { id =>
-        val contains = withSQL {
-          select(f.result.id)
-            .from(persistence.File as f)
-            .where
-            .eq(f.id, sqls.uuid(id))
-        }.map { rs =>
-          rs.string(f.resultName.id)
-        }.single.apply().isDefined
-        (id, contains)
-      }
-      checks.collect { case (id, false) => id }
-    }.flatMap { invalids =>
-      if (invalids.isEmpty) {
-        Success(())
-      } else {
-        Failure(new ServiceException("存在しないファイルが指定されました。"))
-      }
-    }
-  }
-
-  /**
    * 論理削除を適用する。
    *
-   * @param ids 論理削除対象のファイルID
+   * @param param 入力パラメータ
    * @return 処理結果
    *        Failure(ServiceException) 要素が空の場合
-   *        Failure(ServiceException) UUIDではないIDが含まれていた場合
-   *        Failure(ServiceException) 存在しないIDが含まれていた場合
    */
-  def applyLogicalDelete(ids: Seq[String]): Try[Unit] = {
+  def applyLogicalDelete(param: UpdateParameter): Try[Unit] = {
+    logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "applyLogicalDelete", param))
     DB.localTx { implicit s =>
       for {
-        _ <- checkNonEmpty(ids)
-        _ <- Util.checkUuids(ids)
-        _ <- checkFileIds(ids)
-        _ <- execApplyLogicalDelete(ids)
+        _ <- checkNonEmpty(param.targets)
+        _ <- execApplyLogicalDelete(param.targets)
       } yield {
         ()
       }
@@ -199,19 +173,16 @@ object FileService extends LazyLogging {
   /**
    * 論理削除解除を適用する。
    *
-   * @param ids 論理削除解除対象のファイルID
+   * @param param 入力パラメータ
    * @return 処理結果
    *        Failure(ServiceException) 要素が空の場合
-   *        Failure(ServiceException) UUIDではないIDが含まれていた場合
-   *        Failure(ServiceException) 存在しないIDが含まれていた場合
    */
-  def applyRollbackLogicalDelete(ids: Seq[String]): Try[Unit] = {
+  def applyRollbackLogicalDelete(param: UpdateParameter): Try[Unit] = {
+    logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "applyRollbackLogicalDelete", param))
     DB.localTx { implicit s =>
       for {
-        _ <- checkNonEmpty(ids)
-        _ <- Util.checkUuids(ids)
-        _ <- checkFileIds(ids)
-        _ <- execApplyRollbackLogicalDelete(ids)
+        _ <- checkNonEmpty(param.targets)
+        _ <- execApplyRollbackLogicalDelete(param.targets)
       } yield {
         ()
       }
@@ -248,16 +219,41 @@ object FileService extends LazyLogging {
     }
   }
 
+  private def updateDatasetFileStatus(
+    datasetId: String,
+    userId: String,
+    timestamp: DateTime
+  )(implicit s: DBSession): Int = {
+    val f = persistence.File.f
+    val allFiles = withSQL {
+      select(f.result.*)
+        .from(persistence.File as f)
+        .where
+        .eq(f.datasetId, sqls.uuid(datasetId))
+        .and
+        .isNull(f.deletedAt)
+    }.map(persistence.File(f.resultName)).list.apply()
+    val totalFileSize = allFiles.foldLeft(0L)((a: Long, b: persistence.File) => a + b.fileSize)
+
+    withSQL {
+      val d = persistence.Dataset.column
+      update(persistence.Dataset)
+        .set(d.filesCount -> allFiles.size, d.filesSize -> totalFileSize,
+          d.updatedBy -> sqls.uuid(userId), d.updatedAt -> timestamp)
+        .where
+        .eq(d.id, sqls.uuid(datasetId))
+    }.update.apply()
+  }
+
   /**
    * 物理削除を適用する。
    *
-   * @param ids 物理削除対象のファイルID
+   * @param param 入力パラメータ
    * @return 処理結果
    *        Failure(ServiceException) 要素が空の場合
-   *        Failure(ServiceException) UUIDではないIDが含まれていた場合
-   *        Failure(ServiceException) 存在しないIDが含まれていた場合
    */
-  def applyPhysicalDelete(ids: Seq[String]): Try[Unit] = {
+  def applyPhysicalDelete(param: UpdateParameter): Try[Unit] = {
+    logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "applyPhysicalDelete", param))
     // TODO 実装
     Failure(new ServiceException("未実装です"))
   }

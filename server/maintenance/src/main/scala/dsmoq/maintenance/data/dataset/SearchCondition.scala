@@ -23,9 +23,12 @@ case class SearchCondition(
       "page" -> page.toString
     )
   }
+
   def toParam: String = {
     toMap.collect { case (key, value) => s"${key}=${value}" }.mkString("&")
   }
+
+  override def toString: String = toParam.replaceAll("&", ",")
 }
 
 /**

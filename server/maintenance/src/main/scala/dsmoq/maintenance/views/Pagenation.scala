@@ -36,12 +36,11 @@ object Pagenation {
    * ページング部を作成する。
    *
    * @param page 現在のページ番号
-   * @param limit 検索上限
+   * @param lastPage 最終ページ番号
    * @param total 検索結果の総件数
    * @return ページング部
    */
-  def apply(page: Int, limit: Int, total: Int): Pagenation = {
-    val lastPage = (total / limit) + math.min(total % limit, 1)
+  def apply(page: Int, lastPage: Int, total: Int): Pagenation = {
     val currentPage = math.max(math.min(page, lastPage), 1)
     val from = math.max(currentPage + math.min(-2, -4 + lastPage - currentPage), 1)
     val to = math.min(currentPage + math.max(5 - currentPage, 2), lastPage)

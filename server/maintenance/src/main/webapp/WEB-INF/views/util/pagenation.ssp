@@ -1,9 +1,9 @@
 <%@ val params: Map[String, String] %>
 <%@ val url: Function[Map[String, String], String] %>
 <%@ val pageNum: Int %>
-<%@ val limit: Int %>
+<%@ val lastPage: Int %>
 <%@ val total: Int %>
-<% val pagenation = dsmoq.maintenance.views.Pagenation(pageNum, limit, total) %>
+<% val pagenation = dsmoq.maintenance.views.Pagenation(pageNum, lastPage, total) %>
 
 <div class="pagenation">
 #if(pagenation.first.enabled)

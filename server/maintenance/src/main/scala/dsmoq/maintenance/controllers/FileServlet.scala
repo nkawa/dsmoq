@@ -14,6 +14,7 @@ import com.typesafe.scalalogging.LazyLogging
 
 import dsmoq.maintenance.AppConfig
 import dsmoq.maintenance.controllers.ResponseUtil.resultAs
+import dsmoq.maintenance.data.file.UpdateParameter
 import dsmoq.maintenance.data.file.SearchCondition
 import dsmoq.maintenance.services.FileService
 
@@ -47,14 +48,14 @@ class FileServlet extends ScalatraServlet with ScalateSupport with LazyLogging w
     Ok(search(condition))
   }
 
-  post("/proc") {
-    val targets = multiParams("checked")
+  post("/apply") {
     val condition = SearchCondition.fromMap(params)
+    val param = UpdateParameter.fromMap(multiParams)
     val result = for {
       _ <- params.get("update") match {
-        case Some("logical_delete") => FileService.applyLogicalDelete(targets)
-        case Some("rollback_logical_delete") => FileService.applyRollbackLogicalDelete(targets)
-        case Some("physical_delete") => FileService.applyPhysicalDelete(targets)
+        case Some("logical_delete") => FileService.applyLogicalDelete(param)
+        case Some("rollback_logical_delete") => FileService.applyRollbackLogicalDelete(param)
+        case Some("physical_delete") => FileService.applyPhysicalDelete(param)
         case _ => Success(())
       }
     } yield {
@@ -80,8 +81,7 @@ class FileServlet extends ScalatraServlet with ScalateSupport with LazyLogging w
       "result" -> result,
       "url" -> searchUrl _,
       "csrfKey" -> csrfKey,
-      "csrfToken" -> csrfToken,
-      "limit" -> AppConfig.searchLimit
+      "csrfToken" -> csrfToken
     )
   }
 

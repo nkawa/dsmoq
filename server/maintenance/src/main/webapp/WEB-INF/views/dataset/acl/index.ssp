@@ -1,5 +1,5 @@
 <%@ val condition: dsmoq.maintenance.data.dataset.SearchCondition %>
-<%@ val result: dsmoq.maintenance.data.dataset.AclListData %>
+<%@ val data: dsmoq.maintenance.data.dataset.AclListData %>
 <% import dsmoq.maintenance.views.Util %>
 <!DOCTYPE html>
 <html>
@@ -7,17 +7,14 @@
     <meta charset="UTF-8">
     <title>データメンテナンス：データセットアクセス権一覧</title>
     <link rel="stylesheet" type="text/css" href="/css/style.css">
-    <link rel="stylesheet" type="text/css" href="/css/ionicons.min.css">
-    <script type="text/javascript" src="/js/lib/jquery-3.1.0.min.js"></script>
-    <script type="text/javascript" src="/js/dataset/index.js"></script>
   </head>
   <body>
     <p>
       <a class="menu" href="/">メニュー</a>
     </p>
     <h1>データセットアクセス権一覧</h1>
-    <h2>${result.datasetName}</h2>
-    #if(result.ownerships.isEmpty)
+    <h2>${data.datasetName}</h2>
+    #if(data.ownerships.isEmpty)
     <p>アクセス権なし</p>
     #else
     <div class="table">
@@ -31,12 +28,12 @@
           </tr>
         </thead>
         <tbody>
-          #for (item <- result.ownerships)
+          #for (item <- data.ownerships)
           <tr>
             <td>${item.ownerType.toString}</td>
             <td>${item.name}</td>
             <td>${item.accessLevel.toString}</td>
-            <td><a href="${Util.getDatasetAclUpdateUrl(result.datasetId, item, condition)}">更新</a></td>
+            <td><a href="${Util.getDatasetAclUpdateUrl(data.datasetId, item, condition)}">更新</a></td>
           </tr>
           #end
         </tbody>
@@ -45,8 +42,8 @@
     #end
     <hr>
     <p>
-      <a href="${Util.getDatasetAclAddUserUrl(result.datasetId, condition)}">アクセス権追加(ユーザー)</a>
-      <a href="${Util.getDatasetAclAddGroupUrl(result.datasetId, condition)}">アクセス権追加(グループ)</a>
+      <a href="${Util.getDatasetAclAddUserUrl(data.datasetId, condition)}">アクセス権追加(ユーザー)</a>
+      <a href="${Util.getDatasetAclAddGroupUrl(data.datasetId, condition)}">アクセス権追加(グループ)</a>
     </p>
     <p>
       <a href="${Util.getDatasetManagementUrl(condition)}">Back</a>

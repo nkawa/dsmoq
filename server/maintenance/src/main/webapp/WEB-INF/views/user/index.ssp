@@ -3,7 +3,6 @@
 <%@ val url: Function[Map[String, String], String] %>
 <%@ val csrfKey: String %>
 <%@ val csrfToken: String %>
-<%@ val limit: Int %>
 <% import dsmoq.maintenance.data.user.SearchCondition.UserType %>
 <!DOCTYPE html>
 <html>
@@ -21,7 +20,6 @@
     </p>
     <h1>ユーザー一覧表示</h1>
     <form method="GET" action="/user/">
-      <input type="hidden" name="page" value="${condition.page}" />
       <p>
         表示対象：
         <label><input type="radio" name="userType" value="all" ${if (condition.userType == UserType.All) "checked"} />全件</label>
@@ -39,7 +37,7 @@
     <p>該当ユーザなし</p>
     #else
     <p>${result.from}件 - ${result.to}件 / ${result.total}件</p>
-    <form method="POST" action="/user/proc">
+    <form method="POST" action="/user/apply">
       <input type="hidden" name="${csrfKey}" value="${csrfToken}">
       <% render("/views/util/formHidden.ssp", Map("params" -> condition.toMap)) %>
       <div class="table">
@@ -82,7 +80,7 @@
             "params" -> condition.toMap,
             "url" -> url,
             "pageNum" -> condition.page,
-            "limit" -> limit,
+            "lastPage" -> result.lastPage,
             "total" -> result.total
           )
         )
