@@ -48,6 +48,10 @@ class DatasetListPage {
             tag: new Array<TagDetail>(),
             customQueries: new Array<{ data: DatasetQuery, url: String }>(),
             saveQueryName: "",
+            deleteQuery: {
+				id: null,
+				name: null,
+			},
         };
         var condition = conditionFromConditionInput(data.condition);
         var binding = JsViews.observable(data);
@@ -76,9 +80,23 @@ class DatasetListPage {
             root.find(".basic-query").focus();
         }
 
+		function searchDatasets() {
+			Service.instance.searchDatasets({
+				query: condition,
+				offset: DATASET_LIMIT_PER_PAGE * data.index,
+				limit: DATASET_LIMIT_PER_PAGE
+			}).then(function (x) {
+				binding.setProperty("result", Async.Completed({
+					total: x.summary.total,
+					items: x.results,
+					pages: Math.ceil(x.summary.total / DATASET_LIMIT_PER_PAGE)
+				}));
+			});
+		}
         root.find(".search-button").on("click", function(_) {
             var c = conditionFromConditionInput(data.condition);
             var q = StringTools.urlEncode(Json.stringify(c));
+			// TODO: 同一query/pageの場合に動作しない
             navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, q)));
         });
 
@@ -203,15 +221,31 @@ class DatasetListPage {
                 }
             );
         });
-        root.on("click", ".delete-query", function(e) {
-            // TODO: show confirm dialog
+        var deleteQueryModal: Dynamic = root.find("#delete-query-modal");
+        root.on("click", ".delete-query-button", function(e) {
             var el = Html.fromEventTarget(e.target);
             var row = el.closest(".saved-query");
             var id = row.data("id");
+			var q = data.customQueries.filter(function(x) { return x.data.id == id; })[0];
+			if (q == null) {
+				return;
+			}
+			binding.setProperty("deleteQuery.id", id);
+			binding.setProperty("deleteQuery.name", q.data.name);
+            deleteQueryModal.modal("show");
+        });
+        root.find(".delete-query").on("click", function(_) {
+			var id = data.deleteQuery.id;
+			if (id == null) {
+				return;
+			}
             Service.instance.deleteDatasetQuery(id).then(
                 function(_) {
                     loadQueries().then(function(_) {
                         Notification.show("success", "save successful");
+                        deleteQueryModal.modal("hide");
+            			binding.setProperty("deleteQuery.id", null);
+            			binding.setProperty("deleteQuery.name", null);
                     });
                 }
             );
@@ -227,17 +261,7 @@ class DatasetListPage {
         });
         loadQueries();
 
-        Service.instance.searchDatasets({
-            query: condition,
-            offset: DATASET_LIMIT_PER_PAGE * data.index,
-            limit: DATASET_LIMIT_PER_PAGE
-        }).then(function (x) {
-            binding.setProperty("result", Async.Completed({
-                total: x.summary.total,
-                items: x.results,
-                pages: Math.ceil(x.summary.total / DATASET_LIMIT_PER_PAGE)
-            }));
-        });
+        searchDatasets();
 
         return navigation.promise;
     }

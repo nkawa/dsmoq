@@ -129,7 +129,7 @@
       {^{for customQueries}}
       <span class="saved-query" data-id="{{>data.id}}">
         <a class="saved-query-link" href="{{>url}}">{{>data.name}}</a>
-        <span class="delete-query glyphicon glyphicon-trash"></span>
+        <span class="delete-query-button glyphicon glyphicon-trash"></span>
       </span>
       {{/for}}
     </div>
@@ -189,5 +189,20 @@
   <div class="modal-footer">
     <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
     <button type="button" class="btn btn-primary save-query" data-link="disabled{:saveQueryName == ''}">Save</button>
+  </div>
+</div>
+
+<div id="delete-query-modal" class="modal fade" tabindex="-1" data-width="600" data-backdrop="static" data-keyboard="false" style="display: none;">
+  <div class="modal-header">
+    <h4 class="modal-title">Delete Query</h4>
+  </div>
+  <div class="modal-body">
+    <div class="container">
+      <span class="delete-message">Would you delete Query: {^{>deleteQuery.name}} ?</span>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+    <button type="button" class="btn btn-primary delete-query">Delete</button>
   </div>
 </div>
