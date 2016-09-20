@@ -39,28 +39,28 @@ class DatasetListPage {
         advanced: [{ id: 1, target: "query", operator: "contain", value: "" }]
     };
 
-    public static function render(root: Html, onClose: Promise<Unit>, pageNum: Int, query: String): Promise<Navigation<Page>> {
+    public static function render(root: Html, onClose: Promise<Unit>, pageNum: Int, searchQuery: String): Promise<Navigation<Page>> {
         var navigation = new PromiseBroker();
         var data = {
-            condition: conditionInputFromString(query),
+            condition: conditionInputFromString(searchQuery),
             result: Async.Pending,
             index: pageNum - 1,
             tag: new Array<TagDetail>(),
             customQueries: new Array<{ data: DatasetQuery, url: String }>(),
             saveQueryName: "",
             deleteQuery: {
-				id: null,
-				name: null,
-			},
+                id: null,
+                name: null,
+            },
         };
-        var condition = conditionFromConditionInput(data.condition);
+        var searchCondition = conditionFromConditionInput(data.condition);
+        var searchConditionStr = StringTools.urlEncode(Json.stringify(searchCondition));
         var binding = JsViews.observable(data);
         View.getTemplate("dataset/list").link(root, binding.data());
 
         JsViews.observe(data.condition, "index", function (_, args) {
             var page = args.value + 1;
-            var q = StringTools.urlEncode(Json.stringify(condition));
-            navigation.fulfill(Navigation.Navigate(Page.DatasetList(page, q)));
+            navigation.fulfill(Navigation.Navigate(Page.DatasetList(page, searchConditionStr)));
         });
 
         root.find(".basic-search-tab").on("show.bs.tab", function (_) {
@@ -80,24 +80,29 @@ class DatasetListPage {
             root.find(".basic-query").focus();
         }
 
-		function searchDatasets() {
-			Service.instance.searchDatasets({
-				query: condition,
-				offset: DATASET_LIMIT_PER_PAGE * data.index,
-				limit: DATASET_LIMIT_PER_PAGE
-			}).then(function (x) {
-				binding.setProperty("result", Async.Completed({
-					total: x.summary.total,
-					items: x.results,
-					pages: Math.ceil(x.summary.total / DATASET_LIMIT_PER_PAGE)
-				}));
-			});
-		}
+        function searchDatasets() {
+            binding.setProperty("result", Async.Pending);
+            Service.instance.searchDatasets({
+                query: searchCondition,
+                offset: DATASET_LIMIT_PER_PAGE * data.index,
+                limit: DATASET_LIMIT_PER_PAGE
+            }).then(function (x) {
+                binding.setProperty("result", Async.Completed({
+                    total: x.summary.total,
+                    items: x.results,
+                    pages: Math.ceil(x.summary.total / DATASET_LIMIT_PER_PAGE)
+                }));
+            });
+        }
         root.find(".search-button").on("click", function(_) {
             var c = conditionFromConditionInput(data.condition);
             var q = StringTools.urlEncode(Json.stringify(c));
-			// TODO: 同一query/pageの場合に動作しない
-            navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, q)));
+            if (q == searchConditionStr && pageNum == 1) {
+                // 同一URLになる場合、URL変更イベントが発火しないので、内部で再検索処理を行う
+                searchDatasets();
+            } else {
+                navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, q)));
+            }
         });
 
         var queryRows = root.find(".query-rows");
@@ -226,26 +231,26 @@ class DatasetListPage {
             var el = Html.fromEventTarget(e.target);
             var row = el.closest(".saved-query");
             var id = row.data("id");
-			var q = data.customQueries.filter(function(x) { return x.data.id == id; })[0];
-			if (q == null) {
-				return;
-			}
-			binding.setProperty("deleteQuery.id", id);
-			binding.setProperty("deleteQuery.name", q.data.name);
+            var q = data.customQueries.filter(function(x) { return x.data.id == id; })[0];
+            if (q == null) {
+                return;
+            }
+            binding.setProperty("deleteQuery.id", id);
+            binding.setProperty("deleteQuery.name", q.data.name);
             deleteQueryModal.modal("show");
         });
         root.find(".delete-query").on("click", function(_) {
-			var id = data.deleteQuery.id;
-			if (id == null) {
-				return;
-			}
+            var id = data.deleteQuery.id;
+            if (id == null) {
+                return;
+            }
             Service.instance.deleteDatasetQuery(id).then(
                 function(_) {
                     loadQueries().then(function(_) {
                         Notification.show("success", "save successful");
                         deleteQueryModal.modal("hide");
-            			binding.setProperty("deleteQuery.id", null);
-            			binding.setProperty("deleteQuery.name", null);
+                        binding.setProperty("deleteQuery.id", null);
+                        binding.setProperty("deleteQuery.name", null);
                     });
                 }
             );

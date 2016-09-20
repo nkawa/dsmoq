@@ -50,15 +50,24 @@ class GroupListPage {
         });
 
         // init search form
+        function search() {
+            var q = StringTools.urlEncode(condition.query);
+            if (q == query && pageNum == 1) {
+                // 同一URLになる場合、URL変更イベントが発火しないので、内部で再検索処理を行う
+                load();
+            } else {
+                navigation.fulfill(Navigation.Navigate(Page.GroupList(1, q)));            
+            }
+        }
         JQuery._("#search-button").on("click", function (_) {
-			navigation.fulfill(Navigation.Navigate(Page.GroupList(1, StringTools.urlEncode(condition.query))));			
+            search();
         });
 
-		JQuery._("#search-form").on("submit", function (_) {
-			navigation.fulfill(Navigation.Navigate(Page.GroupList(1, StringTools.urlEncode(condition.query))));
-			return false;
-		});
-		
+        JQuery._("#search-form").on("submit", function (_) {
+            search();
+            return false;
+        });
+        
         load();
 
         return navigation.promise;
