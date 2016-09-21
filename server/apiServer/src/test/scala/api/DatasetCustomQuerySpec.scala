@@ -15,7 +15,6 @@ import _root_.api.api.logic.SpecCommonLogic
 import dsmoq.controllers.AjaxResponse
 import dsmoq.controllers.ApiController
 import dsmoq.persistence.DefaultAccessLevel
-import dsmoq.services.json.DatasetData.Dataset
 import dsmoq.services.json.DatasetQuery
 import dsmoq.services.json.SearchDatasetCondition
 import dsmoq.services.json.SearchDatasetConditionSerializer
@@ -176,21 +175,6 @@ class DatasetCustomQuerySpec extends FreeSpec with ScalatraSuite with BeforeAndA
     post("/api/signin", params = Map("d" -> compact(render(("id" -> id) ~ ("password" -> password))))) {
       checkStatus()
     }
-  }
-
-  def createDataset(allowGuest: Boolean = false): String = {
-    val params = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
-    val dataset = post("/api/datasets", params) {
-      checkStatus()
-      parse(body).extract[AjaxResponse[Dataset]].data
-    }
-    if (allowGuest) {
-      val params = Map("d" -> compact(render(("accessLevel" -> JInt(DefaultAccessLevel.FullPublic)))))
-      put(s"/api/datasets/${dataset.id}/guest_access", params) {
-        checkStatus()
-      }
-    }
-    dataset.id
   }
 
   def checkStatus(expectedCode: Int = 200, expectedAjaxStatus: Option[String] = Some("OK")) {

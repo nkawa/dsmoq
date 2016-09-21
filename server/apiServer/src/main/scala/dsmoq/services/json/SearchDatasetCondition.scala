@@ -1,6 +1,7 @@
 package dsmoq.services.json
 
 import org.json4s.CustomSerializer
+import org.json4s.Formats
 import org.json4s.JArray
 import org.json4s.JDecimal
 import org.json4s.JDouble
@@ -163,7 +164,7 @@ object SearchDatasetCondition {
     }
   }
 
-  def unapply(x: JValue): Option[SearchDatasetCondition] = {
+  def unapply(x: JValue)(implicit format: Formats): Option[SearchDatasetCondition] = {
     x match {
       case JObject(fs) => {
         val fields = fs.toMap
@@ -199,7 +200,7 @@ object SearchDatasetCondition {
             Some(Attribute(key, value))
           }
           case (JString("total-size"), _, _) => {
-            val value = doubleValueOf(v).getOrElse(0D)
+            val value = v.extractOpt[Double].getOrElse(0D)
             val operator = if (op == JString("le")) Operators.Compare.LE else Operators.Compare.GE
             val unit = fields.get("unit").collect {
               case JString("kb") => SizeUnit.KB
@@ -208,9 +209,10 @@ object SearchDatasetCondition {
             }.getOrElse(SizeUnit.Byte)
             Some(TotalSize(operator, value, unit))
           }
-          case (JString("num-of-files"), _, JInt(value)) => {
+          case (JString("num-of-files"), _, _) => {
+            val value = v.extractOpt[Int].getOrElse(0)
             val operator = if (op == JString("le")) Operators.Compare.LE else Operators.Compare.GE
-            Some(NumOfFiles(operator, value.toInt))
+            Some(NumOfFiles(operator, value))
           }
           case (JString("public"), _, _) => {
             Some(Public(v != JString("private")))
@@ -226,18 +228,9 @@ object SearchDatasetCondition {
     val ret = xs.flatten
     if (ret.size == xs.size) Some(ret) else None
   }
-
-  def doubleValueOf(x: JValue): Option[Double] = {
-    x match {
-      case JInt(x) => Some(x.doubleValue)
-      case JDouble(x) => Some(x)
-      case JDecimal(x) => Some(x.doubleValue)
-      case _ => None
-    }
-  }
 }
 
-object SearchDatasetConditionSerializer extends CustomSerializer[SearchDatasetCondition](formats => (
+object SearchDatasetConditionSerializer extends CustomSerializer[SearchDatasetCondition](implicit formats => (
   {
     case SearchDatasetCondition(p) => p
   },

@@ -460,7 +460,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           Some(sqls.upperLikeQuery(d.description, str)),
           Some(sqls.exists(inFileName)),
           Some(sqls.exists(inZipFileName))
-        )
+        ).map(q => if (contains) q else sqls"not (${q})")
       }
       case SearchDatasetCondition.Owner(name, equals) => {
         val o = persistence.Ownership.o
