@@ -1206,7 +1206,7 @@ class ApiController(
 
   def getJsonValue[T](str: String, position: String)(implicit m: Manifest[T]): Try[T] = {
     Try {
-      JsonMethods.parse(str).extract[T]
+      JsonMethods.parse(str).extractOpt[T].get
     }.recoverWith {
       case e: Exception =>
         Failure(new InputCheckException(position, resource.getString(ResourceNames.INVALID_JSON_FORMAT), false))
