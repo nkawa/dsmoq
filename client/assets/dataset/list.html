@@ -5,18 +5,18 @@
 
 <div class="tabbable">
   <ul class="nav nav-tabs">
-    <li data-link="class{merge:condition.type == 'basic' toggle='active'}"><a class="basic-search-tab" href="#basic-search-tab-content" data-toggle="tab">Basic</a></li>
-    <li data-link="class{merge:condition.type == 'advanced' toggle='active'}"><a class="advanced-search-tab" href="#advanced-search-tab-content" data-toggle="tab">Advanced</a></li>
+    <li data-link="class{merge:condition^type == 'basic' toggle='active'}"><a class="basic-search-tab" href="#basic-search-tab-content" data-toggle="tab">Basic</a></li>
+    <li data-link="class{merge:condition^type == 'advanced' toggle='active'}"><a class="advanced-search-tab" href="#advanced-search-tab-content" data-toggle="tab">Advanced</a></li>
   </ul>
 </div>
 <div class="tab-content">
-  <div class="tab-pane" id="basic-search-tab-content" data-link="class{merge:condition.type == 'basic' toggle='active'}">
+  <div class="tab-pane" id="basic-search-tab-content" data-link="class{merge:condition^type == 'basic' toggle='active'}">
     <div class="well well-sm dsmoq-filter basic-conditions">
       <div class="row">
         <div class="col-xs-10 col-md-10">
           <div class="input-group" style="width: 400px;">
             <div class="search-form">
-              <input type="text" class="form-control basic-query" placeholder="keyword" data-link="condition.basic">
+              <input type="text" class="form-control basic-query" placeholder="keyword" data-link="condition^basic">
             </div>
             <span class="input-group-btn">
               <button class="btn btn-primary search-button" type="button"><span class="glyphicon glyphicon-search"></span></button>
@@ -29,10 +29,10 @@
       </div>
     </div>
   </div>
-  <div class="tab-pane" id="advanced-search-tab-content" data-link="class{merge:condition.type == 'advanced' toggle='active'}">
+  <div class="tab-pane" id="advanced-search-tab-content" data-link="class{merge:condition^type == 'advanced' toggle='active'}">
     <div class="well well-sm dsmoq-filter advanced-conditions">
       <div class="query-rows">
-        {^{for condition.advanced}}
+        {^{for condition^advanced}}
         <div class="row query-row" data-id="{{>id}}">
           <div class="col-md-12 form-inline">
             <div class="form-group">
@@ -62,7 +62,7 @@
               {{/if}}
               {^{if target == "tag"}}
               <select class="form-control tag-select" data-link="value">
-                {^{for ~root.tag}}
+                {^{for ~root^tag}}
                 <option value="{{>tag}}">{{>tag}}</option>
                 {{/for}}
               </select>
@@ -100,7 +100,7 @@
               <button class="add-row">
                 <span class="glyphicon glyphicon-plus"></span>
               </button>
-              {^{if ~root.condition.advanced.length > 1}}
+              {^{if ~root^condition^advanced^length > 1}}
               <button class="delete-row">
                 <span class="glyphicon glyphicon-minus"></span>
               </button>
@@ -122,13 +122,13 @@
   </div>
 </div>
 
-{^{if customQueries.length > 0}}
+{^{if customQueries^length > 0}}
 <div class="well well-sm dsmoq-filter">
   <div class="row saved-query-row">
     <div class="col-md-12">
       {^{for customQueries}}
-      <span class="saved-query" data-id="{{>data.id}}">
-        <a class="saved-query-link" href="{{>url}}">{{>data.name}}</a>
+      <span class="saved-query" data-id="{{>data^id}}">
+        <a class="saved-query-link" href="{{>url}}">{{>data^name}}</a>
         <span class="delete-query-button glyphicon glyphicon-trash"></span>
       </span>
       {{/for}}
@@ -150,7 +150,7 @@
             <h4 class="media-heading"><a href="/datasets/{{>id}}" data-navigation>{{>name}}</a></h4>
             <p class="dataset-description-list">{{if ~trimTags(description)}}{{:~trimTags(description)}}{{else}}<span class="text-muted">(No description)</span>{{/if}}</p>
             <div>
-              {{for ownerships ~length=ownerships.length}}
+              {{for ownerships ~length=ownerships^length}}
                 <span class="label label-success">
                   <span class="glyphicon glyphicon-user"></span>
                   {{if ownerType == 1}} {{>fullname}} {{else}} {{>name}} {{/if}}
@@ -169,7 +169,7 @@
         </li>
       {{/for}}
     </ul>
-    {^{pagination ~page.index pages id="dataset-pagination" pagedelta=5 /}}
+    {^{pagination ~page^index pages id="dataset-pagination" pagedelta=5 /}}
   {{else}}
      <p>There are no datasets.</p>
   {{/if}}
@@ -198,7 +198,7 @@
   </div>
   <div class="modal-body">
     <div class="container">
-      <span class="delete-message">Would you delete Query: {^{>deleteQuery.name}} ?</span>
+      <span class="delete-message">Would you delete Query: {^{>deleteQuery^name}} ?</span>
     </div>
   </div>
   <div class="modal-footer">

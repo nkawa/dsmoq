@@ -56,13 +56,12 @@ class DatasetListPage {
             },
         };
         var searchCondition = conditionFromConditionInput(data.condition);
-        var searchConditionStr = StringTools.urlEncode(Json.stringify(searchCondition));
         var binding = JsViews.observable(data);
         View.getTemplate("dataset/list").link(root, binding.data());
 
         JsViews.observe(data.page, "index", function (_, args) {
             var page = args.value + 1;
-            navigation.fulfill(Navigation.Navigate(Page.DatasetList(page, searchConditionStr)));
+            navigation.fulfill(Navigation.Navigate(Page.DatasetList(page, StringTools.urlEncode(searchQuery))));
         });
 
         root.find(".basic-search-tab").on("show.bs.tab", function (_) {
@@ -98,12 +97,16 @@ class DatasetListPage {
         }
         root.find(".search-button").on("click", function(_) {
             var c = conditionFromConditionInput(data.condition);
-            var q = StringTools.urlEncode(Json.stringify(c));
-            if (q == searchConditionStr && pageNum == 1) {
+            var q = Json.stringify(c);
+            if (q == searchQuery && pageNum == 1) {
                 // 同一URLになる場合、URL変更イベントが発火しないので、内部で再検索処理を行う
+                var input = conditionInputFromCondition(c);
+                binding.setProperty("condition.type", input.type);
+                binding.setProperty("condition.basic", input.basic);
+                JsViews.observable(data.condition.advanced).refresh(input.advanced);
                 searchDatasets();
             } else {
-                navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, q)));
+                navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, StringTools.urlEncode(q))));
             }
         });
 
@@ -156,7 +159,9 @@ class DatasetListPage {
             });
         });
         queryRows.on("focusout", ".owner-value", function(e) {
-            AutoComplete.destroy(e.target);
+            var target = Html.fromEventTarget(e.target);
+            target.trigger("blur.autocomplete");
+            AutoComplete.destroy(target);
         });
         queryRows.on("focus", ".attribute-key", function(e) {
             AutoComplete.initialize(e.target, {
@@ -179,7 +184,9 @@ class DatasetListPage {
             });
         });
         queryRows.on("focusout", ".attribute-key", function(e) {
-            AutoComplete.destroy(e.target);
+            var target = Html.fromEventTarget(e.target);
+            target.trigger("blur.autocomplete");
+            AutoComplete.destroy(target);
         });
 
         JsViews.observable(data.condition.advanced).observeAll(function(e, args) {
@@ -298,7 +305,7 @@ class DatasetListPage {
         }
         var head = advanced[0];
         var basic = if (head.target == "query") head.value else "";
-        var type = if (advanced.length == 1 && head.target == "query" && head.operator == "contain") "basic" else "advanced";
+        var type = if (condition.target == "query" && condition.operator == "contain") "basic" else "advanced";
         return { type: type, basic: basic, advanced: advanced };
     }
 
