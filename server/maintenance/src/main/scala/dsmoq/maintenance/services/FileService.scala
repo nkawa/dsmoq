@@ -18,6 +18,7 @@ import dsmoq.maintenance.data.file.SearchResultFile
 import dsmoq.persistence
 import dsmoq.persistence.PostgresqlHelper.PgConditionSQLBuilder
 import dsmoq.persistence.PostgresqlHelper.PgSQLSyntaxType
+import org.scalatra.util.MultiMap
 import scalikejdbc.ConditionSQLBuilder
 import scalikejdbc.DB
 import scalikejdbc.DBSession
@@ -98,11 +99,10 @@ object FileService extends LazyLogging {
         )
       }.list.apply()
       SearchResult(
-        from = offset + 1,
-        to = offset + records.length,
-        lastPage = (total / limit) + math.min(total % limit, 1),
-        total = total,
-        data = records
+        offset,
+        limit,
+        total,
+        records
       )
     }
   }
@@ -156,7 +156,7 @@ object FileService extends LazyLogging {
         select(f.result.datasetId)
           .from(persistence.File as f)
           .where
-          .in(f.id, ids.map(sqls.uuid))
+          .inUuid(f.id, ids)
           .and
           .isNull(f.deletedAt)
           .and
@@ -172,7 +172,7 @@ object FileService extends LazyLogging {
             fc.updatedBy -> sqls.uuid(systemUserId)
           )
           .where
-          .in(fc.id, ids.map(sqls.uuid))
+          .inUuid(fc.id, ids)
           .and
           .isNull(fc.deletedAt)
           .and
@@ -191,12 +191,12 @@ object FileService extends LazyLogging {
    * @return 処理結果
    *        Failure(ServiceException) 要素が空の場合
    */
-  def applyRollbackLogicalDelete(param: UpdateParameter): Try[Unit] = {
-    logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "applyRollbackLogicalDelete", param))
+  def applyCancelLogicalDelete(param: UpdateParameter): Try[Unit] = {
+    logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "applyCancelLogicalDelete", param))
     DB.localTx { implicit s =>
       for {
         _ <- checkNonEmpty(param.targets)
-        _ <- execApplyRollbackLogicalDelete(param.targets)
+        _ <- execApplyCancelLogicalDelete(param.targets)
       } yield {
         ()
       }
@@ -210,7 +210,7 @@ object FileService extends LazyLogging {
    * @param s DBセッション
    * @return 処理結果
    */
-  def execApplyRollbackLogicalDelete(ids: Seq[String])(implicit s: DBSession): Try[Unit] = {
+  def execApplyCancelLogicalDelete(ids: Seq[String])(implicit s: DBSession): Try[Unit] = {
     Try {
       val timestamp = DateTime.now()
       val systemUserId = AppConfig.systemUserId
@@ -219,7 +219,7 @@ object FileService extends LazyLogging {
         select(f.result.datasetId)
           .from(persistence.File as f)
           .where
-          .in(f.id, ids.map(sqls.uuid))
+          .inUuid(f.id, ids)
           .and
           .isNotNull(f.deletedAt)
           .and
@@ -235,7 +235,7 @@ object FileService extends LazyLogging {
             fc.updatedBy -> sqls.uuid(systemUserId)
           )
           .where
-          .in(fc.id, ids.map(sqls.uuid))
+          .inUuid(fc.id, ids)
           .and
           .isNotNull(fc.deletedAt)
           .and
@@ -295,5 +295,23 @@ object FileService extends LazyLogging {
     logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "applyPhysicalDelete", param))
     // TODO 実装
     Failure(new ServiceException("未実装です"))
+  }
+
+  /**
+   * POST /file/applyの更新操作を行う。
+   *
+   * @param params 入力パラメータ
+   * @param multiParams 入力パラメータ(複数取得可能)
+   * @return 処理結果
+   *        Failure(ServiceException) 存在しない操作の場合
+   */
+  def applyChange(params: Map[String, String], multiParams: MultiMap): Try[Unit] = {
+    val param = UpdateParameter.fromMap(multiParams)
+    params.get("update") match {
+      case Some("logical_delete") => applyLogicalDelete(param)
+      case Some("cancel_logical_delete") => applyCancelLogicalDelete(param)
+      case Some("physical_delete") => applyPhysicalDelete(param)
+      case _ => Failure(new ServiceException("無効な操作です。"))
+    }
   }
 }

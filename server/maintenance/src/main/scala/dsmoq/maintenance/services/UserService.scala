@@ -105,11 +105,10 @@ object UserService extends LazyLogging {
         )
       }.list.apply()
       SearchResult(
-        from = offset + 1,
-        to = offset + records.length,
-        lastPage = (total / limit) + math.min(total % limit, 1),
-        total = total,
-        data = records
+        offset,
+        limit,
+        total,
+        records
       )
     }
   }

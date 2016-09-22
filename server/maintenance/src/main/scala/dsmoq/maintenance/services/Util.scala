@@ -35,6 +35,22 @@ object Util {
   }
 
   /**
+   * オプショナルな値から値を取得する。
+   *
+   * @tparam T オプショナルな値の型
+   * @param target オプショナルな値
+   * @param name 対象の名前(見つからなかった時のメッセージに含まれます)
+   * @param 文字列
+   *        Failure(ServiceException) オプショナルな値が未指定の場合
+   */
+  def require[T](target: Option[T], name: String): Try[T] = {
+    target match {
+      case Some(t) => Success(t)
+      case None => Failure(new ServiceException(s"${name}の指定がありません。"))
+    }
+  }
+
+  /**
    * 指定された文字列がUUID形式かを返す。
    *
    * @param str 検査する文字列
@@ -57,10 +73,10 @@ object Util {
    * @param params 引数のリスト
    * @return 構築したログメッセージ文字列
    */
-  def formatLogMessage[T](
+  def formatLogMessage(
     serviceName: String,
     methodName: String,
-    params: T*
+    params: Any*
   ): String = {
     s"MethodCall:${serviceName},${methodName},[${params.map(_.toString).mkString(",")}]"
   }

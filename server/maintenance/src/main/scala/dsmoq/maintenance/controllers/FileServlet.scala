@@ -14,7 +14,6 @@ import com.typesafe.scalalogging.LazyLogging
 
 import dsmoq.maintenance.AppConfig
 import dsmoq.maintenance.controllers.ResponseUtil.resultAs
-import dsmoq.maintenance.data.file.UpdateParameter
 import dsmoq.maintenance.data.file.SearchCondition
 import dsmoq.maintenance.services.FileService
 
@@ -37,9 +36,10 @@ class FileServlet extends ScalatraServlet with ScalateSupport with LazyLogging w
   override def handleForgery() {
     contentType = "text/html"
     val message = "無効なトークンが指定されました。"
+    val backUrl = Option(request.getHeader("Referer")).getOrElse("/")
     logger.error(LOG_MARKER, message)
     halt(
-      Forbidden(ssp("util/error", "error" -> message))
+      Forbidden(errorPage(message))
     )
   }
 
@@ -49,20 +49,13 @@ class FileServlet extends ScalatraServlet with ScalateSupport with LazyLogging w
   }
 
   post("/apply") {
-    val condition = SearchCondition.fromMap(params)
-    val param = UpdateParameter.fromMap(multiParams)
     val result = for {
-      _ <- params.get("update") match {
-        case Some("logical_delete") => FileService.applyLogicalDelete(param)
-        case Some("rollback_logical_delete") => FileService.applyRollbackLogicalDelete(param)
-        case Some("physical_delete") => FileService.applyPhysicalDelete(param)
-        case _ => Success(())
-      }
+      _ <- FileService.applyChange(params, multiParams)
     } yield {
-      SeeOther(searchUrl(condition.toMap))
+      SeeOther(searchUrl(params))
     }
     resultAs(result) { error =>
-      ssp("util/error", "error" -> error)
+      errorPage(error)
     }
   }
 
@@ -86,12 +79,28 @@ class FileServlet extends ScalatraServlet with ScalateSupport with LazyLogging w
   }
 
   /**
+   * エラーページを作成する。
+   *
+   * @param error エラーメッセージ
+   * @return エラーページのHTML
+   */
+  def errorPage(error: String): String = {
+    val backUrl = Option(request.getHeader("Referer")).getOrElse("/")
+    ssp(
+      "util/error",
+      "error" -> error,
+      "backUrl" -> backUrl
+    )
+  }
+
+  /**
    * 検索画面のURLを作成する。
    *
    * @param params クエリパラメータ
    * @return 検索画面のURL
    */
   def searchUrl(params: Map[String, String]): String = {
-    url("/", params)
+    val condition = SearchCondition.fromMap(params)
+    url("/", condition.toMap)
   }
 }

@@ -4,7 +4,7 @@ $(function() {
             return false;
         }
     });
-    $("button.rollback_logical_delete").click(function() {
+    $("button.cancel_logical_delete").click(function() {
         if (!confirm("論理削除解除を実行してもよろしいでしょうか？")) {
             return false;
         }

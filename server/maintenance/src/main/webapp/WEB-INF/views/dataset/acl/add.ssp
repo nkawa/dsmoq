@@ -22,33 +22,33 @@
     #match(ownerType)
     #case(OwnerType.User)
     <form method="POST" action="/dataset/acl/add/user/apply">
-    #case(OwnerType.Group)
-    <form method="POST" action="/dataset/acl/add/group/apply">
-    #end
       <input type="hidden" name="${csrfKey}" value="${csrfToken}">
       <input type="hidden" name="datasetId" value="${data.datasetId}" />
       <p>
-        #match(ownerType)
-        #case(OwnerType.User)
         <label>ユーザーID <input name="userName" type="text" value="" /></label>
-        #case(OwnerType.Group)
-        <label>グループ名 <input name="groupName" type="text" value="" /></label>
-        #end
         <select name="accessLevel" class="operation">
-        #match(ownerType)
-        #case(OwnerType.User)
           <option value="limitedRead">Limited Read</option>
           <option value="fullRead">Full Read</option>
           <option value="owner">Owner</option>
-        #case(OwnerType.Group)
-          <option value="limitedRead">Limited Read</option>
-          <option value="fullRead">Full Read</option>
-          <option value="provider">Provider</option>
-        #end
         </select>
         <button class="add" name="update" type="submit" value="add">追加</button>
       </p>
     </form>
+    #case(OwnerType.Group)
+    <form method="POST" action="/dataset/acl/add/group/apply">
+      <input type="hidden" name="${csrfKey}" value="${csrfToken}">
+      <input type="hidden" name="datasetId" value="${data.datasetId}" />
+      <p>
+        <label>グループ名 <input name="groupName" type="text" value="" /></label>
+        <select name="accessLevel" class="operation">
+          <option value="limitedRead">Limited Read</option>
+          <option value="fullRead">Full Read</option>
+          <option value="provider">Provider</option>
+        </select>
+        <button class="add" name="update" type="submit" value="add">追加</button>
+      </p>
+    </form>
+    #end
     <hr>
     <p>
       <a href="${Util.getDatasetAclUrl(data.datasetId, condition)}">Back</a>

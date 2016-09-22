@@ -35,11 +35,13 @@ import dsmoq.persistence.GroupType
 import dsmoq.persistence.UserAccessLevel
 import dsmoq.persistence.PostgresqlHelper.PgConditionSQLBuilder
 import dsmoq.persistence.PostgresqlHelper.PgSQLSyntaxType
+import org.scalatra.util.MultiMap
 import scalikejdbc.ConditionSQLBuilder
 import scalikejdbc.DB
 import scalikejdbc.DBSession
 import scalikejdbc.SelectSQLBuilder
 import scalikejdbc.SQLSyntax
+import scalikejdbc.convertJavaSqlTimestampToConverter
 import scalikejdbc.interpolation.Implicits.scalikejdbcSQLInterpolationImplicitDef
 import scalikejdbc.interpolation.Implicits.scalikejdbcSQLSyntaxToStringImplicitDef
 import scalikejdbc.select
@@ -142,11 +144,10 @@ object DatasetService extends LazyLogging {
         )
       }.list.apply()
       SearchResult(
-        from = offset + 1,
-        to = offset + records.length,
-        lastPage = (total / limit) + math.min(total % limit, 1),
-        total = total,
-        data = records
+        offset,
+        limit,
+        total,
+        records
       )
     }
   }
@@ -163,7 +164,7 @@ object DatasetService extends LazyLogging {
     logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "getAclAddData", param))
     DB.readOnly { implicit s =>
       for {
-        id <- checkSome(param.datasetId, "データセットID")
+        id <- Util.require(param.datasetId, "データセットID")
         _ <- Util.checkUuid(id)
         dataset <- searchDatasetById(id)
       } yield {
@@ -187,7 +188,7 @@ object DatasetService extends LazyLogging {
     logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "getAclListData", param))
     DB.readOnly { implicit s =>
       for {
-        id <- checkSome(param.datasetId, "データセットID")
+        id <- Util.require(param.datasetId, "データセットID")
         _ <- Util.checkUuid(id)
         dataset <- searchDatasetById(id)
       } yield {
@@ -214,8 +215,8 @@ object DatasetService extends LazyLogging {
     logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "getAclUpdateDataForUser", param))
     DB.readOnly { implicit s =>
       for {
-        datasetId <- checkSome(param.datasetId, "データセットID")
-        userId <- checkSome(param.userId, "ユーザーID")
+        datasetId <- Util.require(param.datasetId, "データセットID")
+        userId <- Util.require(param.userId, "ユーザーID")
         dataset <- searchDatasetById(datasetId)
         user <- searchUserById(userId)
         ownership <- searchOwnershipForUser(datasetId, userId)
@@ -271,12 +272,7 @@ object DatasetService extends LazyLogging {
       select(o.result.accessLevel, u.result.*)
         .from(persistence.Ownership as o)
         .innerJoin(persistence.Group as g).on(g.id, o.groupId)
-        .innerJoin(persistence.Member as m)
-        .on(
-          sqls.eq(m.groupId, g.id)
-            .and
-            .eq(g.groupType, persistence.GroupType.Personal)
-        )
+        .innerJoin(persistence.Member as m).on(m.groupId, g.id)
         .innerJoin(persistence.User as u).on(u.id, m.userId)
         .where(
           sqls.toAndConditionOpt(
@@ -320,8 +316,8 @@ object DatasetService extends LazyLogging {
     logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "getAclUpdateDataForGroup", param))
     DB.readOnly { implicit s =>
       for {
-        datasetId <- checkSome(param.datasetId, "データセットID")
-        groupId <- checkSome(param.groupId, "グループID")
+        datasetId <- Util.require(param.datasetId, "データセットID")
+        groupId <- Util.require(param.groupId, "グループID")
         dataset <- searchDatasetById(datasetId)
         group <- searchGroupById(groupId)
         ownership <- searchOwnershipForGroup(datasetId, groupId)
@@ -404,21 +400,6 @@ object DatasetService extends LazyLogging {
   }
 
   /**
-   * オプショナルな文字列から値を取得できるか確認する。
-   *
-   * @param target オプショナルな文字列
-   * @param name 対象の名前(見つからなかった時のメッセージに含まれます)
-   * @param 文字列
-   *        Failure(ServiceException) オプショナルな文字列が未指定の場合
-   */
-  def checkSome(target: Option[String], name: String): Try[String] = {
-    target match {
-      case Some(t) => Success(t)
-      case None => Failure(new ServiceException(s"${name}の指定がありません。"))
-    }
-  }
-
-  /**
    * データセットを取得する。
    *
    * @param datasetId データセットID
@@ -462,57 +443,65 @@ object DatasetService extends LazyLogging {
     val g = persistence.Group.g
     val m = persistence.Member.m
     val u = persistence.User.u
-    withSQL {
-      select(o.result.accessLevel, g.result.*, u.result.*)
+    val publics = withSQL {
+      select(o.result.*, g.result.*)
         .from(persistence.Ownership as o)
         .innerJoin(persistence.Group as g).on(g.id, o.groupId)
-        .leftJoin(persistence.Member as m)
-        .on(
-          sqls.eq(m.groupId, g.id)
-            .and
-            .eq(g.groupType, persistence.GroupType.Personal)
-        )
-        .leftJoin(persistence.User as u).on(u.id, m.userId)
         .where(
           sqls.toAndConditionOpt(
             Some(sqls.eq(o.datasetId, sqls.uuid(datasetId))),
-            Some(sqls.ne(o.accessLevel, persistence.UserAccessLevel.Deny)),
+            Some(sqls.ne(o.accessLevel, persistence.GroupAccessLevel.Deny)),
+            Some(sqls.eq(g.groupType, persistence.GroupType.Public)),
             Some(sqls.isNull(g.deletedBy)),
-            Some(sqls.isNull(g.deletedAt)),
-            sqls.toOrConditionOpt(
-              Some(sqls.isNull(u.disabled)),
-              Some(sqls.eq(u.disabled, false))
-            )
+            Some(sqls.isNull(g.deletedAt))
           )
         )
     }.map { rs =>
       val accessLevel = rs.int(o.resultName.accessLevel)
-      val groupType = rs.int(g.resultName.groupType)
-      groupType match {
-        case persistence.GroupType.Public => {
-          val groupId = rs.string(g.resultName.id)
-          val groupName = rs.string(g.resultName.name)
-          val ownerType = OwnerType(persistence.OwnerType.Group)
-          SearchResultOwnership(
-            id = groupId,
-            ownerType = ownerType,
-            name = groupName,
-            accessLevel = AccessLevel(ownerType, accessLevel)
-          )
-        }
-        case _ => {
-          val userId = rs.string(u.resultName.id)
-          val userName = rs.string(u.resultName.name)
-          val ownerType = OwnerType(persistence.OwnerType.User)
-          SearchResultOwnership(
-            id = userId,
-            ownerType = ownerType,
-            name = userName,
-            accessLevel = AccessLevel(ownerType, accessLevel)
-          )
-        }
-      }
+      val createdAt = rs.jodaDateTime(o.resultName.createdAt)
+      val groupId = rs.string(g.resultName.id)
+      val groupName = rs.string(g.resultName.name)
+      val ownerType = OwnerType(persistence.OwnerType.Group)
+      val result = SearchResultOwnership(
+        id = groupId,
+        ownerType = ownerType,
+        name = groupName,
+        accessLevel = AccessLevel(ownerType, accessLevel)
+      )
+      (result, createdAt)
     }.list.apply()
+    val personals = withSQL {
+      select(o.result.*, u.result.*)
+        .from(persistence.Ownership as o)
+        .innerJoin(persistence.Group as g).on(g.id, o.groupId)
+        .innerJoin(persistence.Member as m).on(m.groupId, g.id)
+        .innerJoin(persistence.User as u).on(u.id, m.userId)
+        .where(
+          sqls.toAndConditionOpt(
+            Some(sqls.eq(o.datasetId, sqls.uuid(datasetId))),
+            Some(sqls.ne(o.accessLevel, persistence.UserAccessLevel.Deny)),
+            Some(sqls.eq(g.groupType, persistence.GroupType.Personal)),
+            Some(sqls.isNull(g.deletedBy)),
+            Some(sqls.isNull(g.deletedAt)),
+            Some(sqls.eq(u.disabled, false))
+          )
+        )
+    }.map { rs =>
+      val accessLevel = rs.int(o.resultName.accessLevel)
+      val createdAt = rs.jodaDateTime(o.resultName.createdAt)
+      val userId = rs.string(u.resultName.id)
+      val userName = rs.string(u.resultName.name)
+      val ownerType = OwnerType(persistence.OwnerType.User)
+      val result = SearchResultOwnership(
+        id = userId,
+        ownerType = ownerType,
+        name = userName,
+        accessLevel = AccessLevel(ownerType, accessLevel)
+      )
+      (result, createdAt)
+    }.list.apply()
+    (publics ++ personals).sortWith { case ((_, date1), (_, date2)) => date1.isBefore(date2) }
+      .collect { case (result, _) => result }
   }
 
   /**
@@ -569,7 +558,7 @@ object DatasetService extends LazyLogging {
             d.updatedBy -> sqls.uuid(systemUserId)
           )
           .where
-          .in(d.id, ids.map(sqls.uuid))
+          .inUuid(d.id, ids)
           .and
           .isNull(d.deletedAt)
           .and
@@ -585,12 +574,12 @@ object DatasetService extends LazyLogging {
    * @return 処理結果
    *        Failure(ServiceException) 要素が空の場合
    */
-  def applyRollbackLogicalDelete(param: UpdateParameter): Try[Unit] = {
-    logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "applyRollbackLogicalDelete", param))
+  def applyCancelLogicalDelete(param: UpdateParameter): Try[Unit] = {
+    logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "applyCancelLogicalDelete", param))
     DB.localTx { implicit s =>
       for {
         _ <- checkNonEmpty(param.targets)
-        _ <- execApplyRollbackLogicalDelete(param.targets)
+        _ <- execApplyCancelLogicalDelete(param.targets)
       } yield {
         ()
       }
@@ -604,7 +593,7 @@ object DatasetService extends LazyLogging {
    * @param s DBセッション
    * @return 処理結果
    */
-  def execApplyRollbackLogicalDelete(ids: Seq[String])(implicit s: DBSession): Try[Unit] = {
+  def execApplyCancelLogicalDelete(ids: Seq[String])(implicit s: DBSession): Try[Unit] = {
     Try {
       val timestamp = DateTime.now()
       val systemUserId = AppConfig.systemUserId
@@ -618,7 +607,7 @@ object DatasetService extends LazyLogging {
             d.updatedBy -> sqls.uuid(systemUserId)
           )
           .where
-          .in(d.id, ids.map(sqls.uuid))
+          .inUuid(d.id, ids)
           .and
           .isNotNull(d.deletedAt)
           .and
@@ -653,11 +642,14 @@ object DatasetService extends LazyLogging {
     logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "applyUpdateAclUser", param))
     DB.localTx { implicit s =>
       for {
-        datasetId <- checkSome(param.datasetId, "データセットID")
-        userId <- checkSome(param.userId, "ユーザーID")
+        datasetId <- Util.require(param.datasetId, "データセットID")
+        userId <- Util.require(param.userId, "ユーザーID")
         dataset <- searchDatasetById(datasetId)
-        user <- searchUserById(userId)
-        _ <- updateOwnershipForUser(datasetId, userId, param.accessLevel)
+        _ <- searchUserById(userId)
+        group <- searchUserGroupById(userId)
+        ownership <- searchOwnership(datasetId, group.id)
+        notDenyOwnership <- requireNotDenyOwnership(ownership)
+        _ <- updateOwnership(notDenyOwnership.id, param.accessLevel)
       } yield {
         ()
       }
@@ -677,11 +669,14 @@ object DatasetService extends LazyLogging {
     logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "applyDeleteAclUser", param))
     DB.localTx { implicit s =>
       for {
-        datasetId <- checkSome(param.datasetId, "データセットID")
-        userId <- checkSome(param.userId, "ユーザーID")
+        datasetId <- Util.require(param.datasetId, "データセットID")
+        userId <- Util.require(param.userId, "ユーザーID")
         dataset <- searchDatasetById(datasetId)
-        user <- searchUserById(userId)
-        _ <- updateOwnershipForUser(datasetId, userId, AccessLevel.Deny)
+        _ <- searchUserById(userId)
+        group <- searchUserGroupById(userId)
+        ownership <- searchOwnership(datasetId, group.id)
+        notDenyOwnership <- requireNotDenyOwnership(ownership)
+        _ <- updateOwnership(notDenyOwnership.id, AccessLevel.Deny)
       } yield {
         ()
       }
@@ -691,15 +686,13 @@ object DatasetService extends LazyLogging {
   /**
    * ユーザーのOwnershipを更新する。
    *
-   * @param datasetId データセットID
-   * @param userId ユーザーID
+   * @param ownershipId OwnershipId
    * @param accessLevel アクセスレベル
    * @param s DBセッション
    * @return 処理結果
    */
-  def updateOwnershipForUser(
-    datasetId: String,
-    userId: String,
+  def updateOwnership(
+    ownershipId: String,
     accessLevel: AccessLevel
   )(implicit s: DBSession): Try[Unit] = {
     Try {
@@ -718,22 +711,7 @@ object DatasetService extends LazyLogging {
             oc.updatedBy -> sqls.uuid(systemUserId)
           )
           .where
-          .in(
-            oc.id,
-            select(o.result.id)
-              .from(persistence.Ownership as o)
-              .innerJoin(persistence.Group as g).on(g.id, o.groupId)
-              .innerJoin(persistence.Member as m).on(m.groupId, g.id)
-              .innerJoin(persistence.User as u).on(u.id, m.userId)
-              .where
-              .eq(o.datasetId, sqls.uuid(datasetId))
-              .and
-              .eq(g.groupType, persistence.GroupType.Personal)
-              .and
-              .eq(u.id, sqls.uuid(userId))
-              .and
-              .eq(u.disabled, false)
-          )
+          .eq(oc.id, sqls.uuid(ownershipId))
       }.update.apply()
     }
   }
@@ -751,11 +729,13 @@ object DatasetService extends LazyLogging {
     logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "applyUpdateAclGroup", param))
     DB.localTx { implicit s =>
       for {
-        datasetId <- checkSome(param.datasetId, "データセットID")
-        groupId <- checkSome(param.groupId, "グループID")
+        datasetId <- Util.require(param.datasetId, "データセットID")
+        groupId <- Util.require(param.groupId, "グループID")
         dataset <- searchDatasetById(datasetId)
-        group <- searchGroupById(groupId)
-        _ <- updateOwnershipForGroup(datasetId, groupId, param.accessLevel)
+        _ <- searchGroupById(groupId)
+        ownership <- searchOwnership(datasetId, groupId)
+        notDenyOwnership <- requireNotDenyOwnership(ownership)
+        _ <- updateOwnership(notDenyOwnership.id, param.accessLevel)
       } yield {
         ()
       }
@@ -775,62 +755,16 @@ object DatasetService extends LazyLogging {
     logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "applyDeleteAclGroup", param))
     DB.localTx { implicit s =>
       for {
-        datasetId <- checkSome(param.datasetId, "データセットID")
-        groupId <- checkSome(param.groupId, "グループID")
+        datasetId <- Util.require(param.datasetId, "データセットID")
+        groupId <- Util.require(param.groupId, "グループID")
         dataset <- searchDatasetById(datasetId)
-        group <- searchGroupById(groupId)
-        _ <- updateOwnershipForGroup(datasetId, groupId, AccessLevel.Deny)
+        _ <- searchGroupById(groupId)
+        ownership <- searchOwnership(datasetId, groupId)
+        notDenyOwnership <- requireNotDenyOwnership(ownership)
+        _ <- updateOwnership(notDenyOwnership.id, AccessLevel.Deny)
       } yield {
         ()
       }
-    }
-  }
-
-  /**
-   * グループのOwnershipを更新する。
-   *
-   * @param datasetId データセットID
-   * @param groupId グループID
-   * @param accessLevel アクセスレベル
-   * @param s DBセッション
-   * @return 処理結果
-   */
-  def updateOwnershipForGroup(
-    datasetId: String,
-    groupId: String,
-    accessLevel: AccessLevel
-  )(implicit s: DBSession): Try[Unit] = {
-    Try {
-      val timestamp = DateTime.now()
-      val systemUserId = AppConfig.systemUserId
-      val oc = persistence.Ownership.column
-      val o = persistence.Ownership.o
-      val g = persistence.Group.g
-      withSQL {
-        update(persistence.Ownership)
-          .set(
-            oc.accessLevel -> accessLevel.toDBValue,
-            oc.updatedAt -> timestamp,
-            oc.updatedBy -> sqls.uuid(systemUserId)
-          )
-          .where
-          .in(
-            oc.id,
-            select(o.result.id)
-              .from(persistence.Ownership as o)
-              .innerJoin(persistence.Group as g).on(g.id, o.groupId)
-              .where
-              .eq(o.datasetId, sqls.uuid(datasetId))
-              .and
-              .eq(g.id, sqls.uuid(groupId))
-              .and
-              .eq(g.groupType, persistence.GroupType.Public)
-              .and
-              .isNull(g.deletedAt)
-              .and
-              .isNull(g.deletedBy)
-          )
-      }.update.apply()
     }
   }
 
@@ -849,16 +783,13 @@ object DatasetService extends LazyLogging {
     logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "applyAddAclUser", param))
     DB.localTx { implicit s =>
       for {
-        datasetId <- checkSome(param.datasetId, "データセットID")
-        userName <- checkSome(param.userName, "ユーザー名")
+        datasetId <- Util.require(param.datasetId, "データセットID")
+        userName <- Util.require(param.userName, "ユーザー名")
         dataset <- searchDatasetById(datasetId)
-        (group, user) <- searchUserGroupByName(userName)
-        exists <- checkOwnershipNotExists(datasetId, group.id, "ユーザー")
-        _ <- if (exists.isDefined) {
-          updateOwnershipForUser(datasetId, user.id, param.accessLevel)
-        } else {
-          addOwnership(datasetId, group.id, param.accessLevel)
-        }
+        group <- searchUserGroupByName(userName)
+        ownership <- searchOwnership(datasetId, group.id)
+        _ <- checkOwnershipNotExistsOrDeny(ownership, "ユーザー")
+        _ <- upsertOwnership(datasetId, group.id, ownership, param.accessLevel)
       } yield {
         ()
       }
@@ -866,7 +797,63 @@ object DatasetService extends LazyLogging {
   }
 
   /**
-   * ユーザー名からユーザーのPersonalグループとユーザーを取得する。
+   * OwnershipをUpsertする。
+   *
+   * @param datasetId データセットID
+   * @param groupId グループID
+   * @param ownership オプショナルなアクセス権
+   * @param accessLevel アクセスレベル
+   * @param s DBセッション
+   * @return 処理結果
+   */
+  def upsertOwnership(
+    datasetId: String,
+    groupId: String,
+    ownership: Option[persistence.Ownership],
+    accessLevel: AccessLevel
+  )(implicit s: DBSession): Try[Unit] = {
+    ownership match {
+      case Some(o) => updateOwnership(o.id, accessLevel)
+      case None => addOwnership(datasetId, groupId, accessLevel)
+    }
+  }
+
+  /**
+   * ユーザーIDからユーザーのPersonalグループを取得する。
+   *
+   * @param userId ユーザーID
+   * @param s DBセッション
+   * @return 取得結果
+   *        Failure(ServiceException) 存在しないユーザーの場合
+   *        Failure(ServiceException) 指定したユーザーが無効化されている場合
+   */
+  def searchUserGroupById(userId: String)(implicit s: DBSession): Try[persistence.Group] = {
+    val g = persistence.Group.g
+    val m = persistence.Member.m
+    val u = persistence.User.u
+    val result = withSQL {
+      select(g.result.*, u.result.disabled)
+        .from(persistence.Group as g)
+        .innerJoin(persistence.Member as m).on(m.groupId, g.id)
+        .innerJoin(persistence.User as u).on(u.id, m.userId)
+        .where
+        .eq(g.groupType, persistence.GroupType.Personal)
+        .and
+        .eq(u.id, sqls.uuid(userId))
+    }.map { rs =>
+      val group = persistence.Group(g.resultName)(rs)
+      val disabled = rs.boolean(u.resultName.disabled)
+      (group, disabled)
+    }.single.apply()
+    result match {
+      case Some((group, true)) => Failure(new ServiceException("無効なユーザーが指定されました。"))
+      case Some((group, false)) => Success(group)
+      case None => Failure(new ServiceException("存在しないユーザーが指定されました。"))
+    }
+  }
+
+  /**
+   * ユーザー名からユーザーのPersonalグループを取得する。
    *
    * @param userName ユーザー名
    * @param s DBセッション
@@ -874,12 +861,12 @@ object DatasetService extends LazyLogging {
    *        Failure(ServiceException) 存在しないユーザーの場合
    *        Failure(ServiceException) 指定したユーザーが無効化されている場合
    */
-  def searchUserGroupByName(userName: String)(implicit s: DBSession): Try[(persistence.Group, persistence.User)] = {
+  def searchUserGroupByName(userName: String)(implicit s: DBSession): Try[persistence.Group] = {
     val g = persistence.Group.g
     val m = persistence.Member.m
     val u = persistence.User.u
     val result = withSQL {
-      select(g.result.*, u.result.*)
+      select(g.result.*, u.result.disabled)
         .from(persistence.Group as g)
         .innerJoin(persistence.Member as m).on(m.groupId, g.id)
         .innerJoin(persistence.User as u).on(u.id, m.userId)
@@ -889,43 +876,70 @@ object DatasetService extends LazyLogging {
         .eq(u.name, userName)
     }.map { rs =>
       val group = persistence.Group(g.resultName)(rs)
-      val user = persistence.User(u.resultName)(rs)
-      (group, user)
+      val disabled = rs.boolean(u.resultName.disabled)
+      (group, disabled)
     }.single.apply()
     result match {
-      case Some((group, user)) if user.disabled => Failure(new ServiceException("無効なユーザーが指定されました。"))
-      case Some((group, user)) => Success((group, user))
+      case Some((group, true)) => Failure(new ServiceException("無効なユーザーが指定されました。"))
+      case Some((group, false)) => Success(group)
       case None => Failure(new ServiceException("存在しないユーザーが指定されました。"))
     }
   }
 
   /**
-   * データセットとグループの間に既にアクセス権があるかを確認する。
+   * データセットとグループの間のアクセス権を取得する。
    *
    * @param datasetId データセットID
    * @param groupId グループID
-   * @param target アクセス権の対象(ユーザー/グループ)
-   * @return 確認結果(アクセス権がない場合、アクセス権がありAccessLevelがDenyの場合)
-   *        Failure(ServiceException) 既にアクセス権があり、AccessLevelがDenyではない場合
+   * @return 確認結果
    */
-  def checkOwnershipNotExists(
+  def searchOwnership(
     datasetId: String,
-    groupId: String,
-    target: String
-  )(implicit s: DBSession): Try[Option[AccessLevel]] = {
-    val o = persistence.Ownership.o
-    val ownership = withSQL {
-      select(o.result.accessLevel)
-        .from(persistence.Ownership as o)
-        .where
-        .eq(o.datasetId, sqls.uuid(datasetId))
-        .and
-        .eq(o.groupId, sqls.uuid(groupId))
-    }.map(_.int(o.resultName.accessLevel)).single.apply()
+    groupId: String
+  )(implicit s: DBSession): Try[Option[persistence.Ownership]] = {
+    Try {
+      val o = persistence.Ownership.o
+      withSQL {
+        select
+          .from(persistence.Ownership as o)
+          .where
+          .eq(o.datasetId, sqls.uuid(datasetId))
+          .and
+          .eq(o.groupId, sqls.uuid(groupId))
+      }.map(persistence.Ownership(o.resultName)).single.apply()
+    }
+  }
+
+  /**
+   * AccessLevelがDeny以外のアクセス権を取得する。
+   *
+   * @param ownership オプショナルなアクセス権
+   * @return 取得結果
+   *        Failure(ServiceException) AccessLevelがDenyか、アクセス権がない場合
+   */
+  def requireNotDenyOwnership(ownership: Option[persistence.Ownership]): Try[persistence.Ownership] = {
     ownership match {
-      case Some(persistence.UserAccessLevel.Deny) => Success(Some(AccessLevel.Deny))
-      case Some(_) => Failure(new ServiceException(s"既に登録のある${target}が指定されました。"))
-      case None => Success(None)
+      case Some(o) if o.accessLevel != persistence.UserAccessLevel.Deny => Success(o)
+      case _ => Failure(new ServiceException(s"まだアクセス権の登録がありません。"))
+    }
+  }
+
+  /**
+   * アクセス権が存在しないか、またはAccessLevelがDenyであるかを確認する。
+   *
+   * @param ownership オプショナルなアクセス権
+   * @param target アクセス権の対象(ユーザー/グループ)
+   * @return 確認結果(アクセス権がない場合、AccessLevelがDenyの場合)
+   *        Failure(ServiceException) AccessLevelがDenyではない場合
+   */
+  def checkOwnershipNotExistsOrDeny(
+    ownership: Option[persistence.Ownership],
+    target: String
+  ): Try[Unit] = {
+    ownership match {
+      case Some(o) if o.accessLevel != persistence.UserAccessLevel.Deny =>
+        Failure(new ServiceException(s"既に登録のある${target}が指定されました。"))
+      case _ => Success(())
     }
   }
 
@@ -974,16 +988,13 @@ object DatasetService extends LazyLogging {
     logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "applyAddAclGroup", param))
     DB.localTx { implicit s =>
       for {
-        datasetId <- checkSome(param.datasetId, "データセットID")
-        groupName <- checkSome(param.groupName, "グループ名")
+        datasetId <- Util.require(param.datasetId, "データセットID")
+        groupName <- Util.require(param.groupName, "グループ名")
         dataset <- searchDatasetById(datasetId)
         group <- searchGroupByName(groupName)
-        exists <- checkOwnershipNotExists(datasetId, group.id, "グループ")
-        _ <- if (exists.isDefined) {
-          updateOwnershipForGroup(datasetId, group.id, param.accessLevel)
-        } else {
-          addOwnership(datasetId, group.id, param.accessLevel)
-        }
+        ownership <- searchOwnership(datasetId, group.id)
+        _ <- checkOwnershipNotExistsOrDeny(ownership, "グループ")
+        _ <- upsertOwnership(datasetId, group.id, ownership, param.accessLevel)
       } yield {
         ()
       }
@@ -1012,6 +1023,86 @@ object DatasetService extends LazyLogging {
         Failure(new ServiceException("削除されたグループが指定されました。"))
       case Some(group) => Success(group)
       case None => Failure(new ServiceException("存在しないグループが指定されました。"))
+    }
+  }
+
+  /**
+   * POST /dataset/applyの更新操作を行う。
+   *
+   * @param params 入力パラメータ
+   * @param multiParams 入力パラメータ(複数取得可能)
+   * @return 処理結果
+   *        Failure(ServiceException) 存在しない操作の場合
+   */
+  def applyChange(params: Map[String, String], multiParams: MultiMap): Try[Unit] = {
+    val param = UpdateParameter.fromMap(multiParams)
+    params.get("update") match {
+      case Some("logical_delete") => applyLogicalDelete(param)
+      case Some("cancel_logical_delete") => applyCancelLogicalDelete(param)
+      case Some("physical_delete") => applyPhysicalDelete(param)
+      case _ => Failure(new ServiceException("無効な操作です。"))
+    }
+  }
+
+  /**
+   * POST /dataset/acl/update/user/applyの更新操作を行う。
+   *
+   * @param params 入力パラメータ
+   * @return 処理結果
+   *        Failure(ServiceException) 存在しない操作の場合
+   */
+  def applyChangeForAclUpdateUser(params: Map[String, String]): Try[Unit] = {
+    val param = UpdateAclUserParameter.fromMap(params)
+    params.get("update") match {
+      case Some("update") => applyUpdateAclUser(param)
+      case Some("delete") => applyDeleteAclUser(param)
+      case _ => Failure(new ServiceException("無効な操作です。"))
+    }
+  }
+
+  /**
+   * POST /dataset/acl/update/group/applyの更新操作を行う。
+   *
+   * @param params 入力パラメータ
+   * @return 処理結果
+   *        Failure(ServiceException) 存在しない操作の場合
+   */
+  def applyChangeForAclUpdateGroup(params: Map[String, String]): Try[Unit] = {
+    val param = UpdateAclGroupParameter.fromMap(params)
+    params.get("update") match {
+      case Some("update") => applyUpdateAclGroup(param)
+      case Some("delete") => applyDeleteAclGroup(param)
+      case _ => Failure(new ServiceException("無効な操作です。"))
+    }
+  }
+
+  /**
+   * POST /dataset/acl/add/user/applyの更新操作を行う。
+   *
+   * @param params 入力パラメータ
+   * @return 処理結果
+   *        Failure(ServiceException) 存在しない操作の場合
+   */
+  def applyChangeForAclAddUser(params: Map[String, String]): Try[Unit] = {
+    val param = AddAclUserParameter.fromMap(params)
+    params.get("update") match {
+      case Some("add") => applyAddAclUser(param)
+      case _ => Failure(new ServiceException("無効な操作です。"))
+    }
+  }
+
+  /**
+   * POST /dataset/acl/add/group/applyの更新操作を行う。
+   *
+   * @param params 入力パラメータ
+   * @return 処理結果
+   *        Failure(ServiceException) 存在しない操作の場合
+   */
+  def applyChangeForAclAddGroup(params: Map[String, String]): Try[Unit] = {
+    val param = AddAclGroupParameter.fromMap(params)
+    params.get("update") match {
+      case Some("add") => applyAddAclGroup(param)
+      case _ => Failure(new ServiceException("無効な操作です。"))
     }
   }
 }

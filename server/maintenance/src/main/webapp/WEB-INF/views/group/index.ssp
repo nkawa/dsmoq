@@ -91,7 +91,7 @@
             <span class="ion-trash-a"></span>
             論理削除
           </button>
-          <button type="submit" class="rollback_logical_delete" name="update" value="rollback_logical_delete">
+          <button type="submit" class="cancel_logical_delete" name="update" value="cancel_logical_delete">
             <span class="ion-reply"></span>
             論理削除解除
           </button>

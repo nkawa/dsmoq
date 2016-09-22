@@ -1,7 +1,5 @@
 package dsmoq.maintenance.data
 
-import org.joda.time.DateTime
-
 /**
  * 検索結果を表すケースクラス
  *
@@ -19,3 +17,28 @@ case class SearchResult[T](
   total: Int,
   data: Seq[T]
 )
+
+/**
+ * 検索結果を表すケースクラスのコンパニオンオブジェクト
+ */
+object SearchResult {
+
+  /**
+   * 検索結果を表すケースクラスを取得する。
+   *
+   * @tparam T 検索結果の型
+   * @param offset 検索結果データの取得位置
+   * @param limit 検索結果データの最大取得件数
+   * @param total 検索結果の総件数
+   * @param data 検索結果データ
+   */
+  def apply[T](offset: Int, limit: Int, total: Int, data: Seq[T]): SearchResult[T] = {
+    SearchResult(
+      from = offset + 1,
+      to = offset + data.length,
+      lastPage = (total / limit) + math.min(total % limit, 1),
+      total = total,
+      data = data
+    )
+  }
+}

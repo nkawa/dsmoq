@@ -37,7 +37,7 @@ class ApiKeyServlet extends ScalatraServlet with ScalateSupport with LazyLogging
     val message = "無効なトークンが指定されました。"
     logger.error(LOG_MARKER, message)
     halt(
-      Forbidden(ssp("util/error", "error" -> message))
+      Forbidden(errorPage(message))
     )
   }
 
@@ -52,7 +52,7 @@ class ApiKeyServlet extends ScalatraServlet with ScalateSupport with LazyLogging
       SeeOther(url("/"))
     }
     resultAs(result) { error =>
-      ssp("util/error", "error" -> error)
+      errorPage(error)
     }
   }
 
@@ -86,7 +86,22 @@ class ApiKeyServlet extends ScalatraServlet with ScalateSupport with LazyLogging
       SeeOther(url("/"))
     }
     resultAs(result) { error =>
-      ssp("util/error", "error" -> error)
+      errorPage(error)
     }
+  }
+
+  /**
+   * エラーページを作成する。
+   *
+   * @param error エラーメッセージ
+   * @return エラーページのHTML
+   */
+  def errorPage(error: String): String = {
+    val backUrl = Option(request.getHeader("Referer")).getOrElse("/")
+    ssp(
+      "util/error",
+      "error" -> error,
+      "backUrl" -> backUrl
+    )
   }
 }

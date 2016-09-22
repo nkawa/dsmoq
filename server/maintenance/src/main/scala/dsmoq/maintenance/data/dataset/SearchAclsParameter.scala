@@ -6,6 +6,13 @@ package dsmoq.maintenance.data.dataset
 case class SearchAclsParameter(
   datasetId: Option[String]
 ) {
+
+  def toMap: Map[String, String] = {
+    Seq(
+      datasetId.map("datasetId" -> _)
+    ).flatten.toMap
+  }
+
   override def toString: String = {
     s"datasetId=${datasetId}"
   }

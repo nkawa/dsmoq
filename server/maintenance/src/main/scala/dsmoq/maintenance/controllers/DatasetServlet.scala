@@ -19,11 +19,6 @@ import dsmoq.maintenance.data.dataset.SearchAclGroupParameter
 import dsmoq.maintenance.data.dataset.SearchAclsParameter
 import dsmoq.maintenance.data.dataset.SearchAclUserParameter
 import dsmoq.maintenance.data.dataset.SearchCondition
-import dsmoq.maintenance.data.dataset.UpdateParameter
-import dsmoq.maintenance.data.dataset.AddAclGroupParameter
-import dsmoq.maintenance.data.dataset.AddAclUserParameter
-import dsmoq.maintenance.data.dataset.UpdateAclGroupParameter
-import dsmoq.maintenance.data.dataset.UpdateAclUserParameter
 import dsmoq.maintenance.services.DatasetService
 
 /**
@@ -47,7 +42,7 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
     val message = "無効なトークンが指定されました。"
     logger.error(LOG_MARKER, message)
     halt(
-      Forbidden(ssp("util/error", "error" -> message))
+      Forbidden(errorPage(message))
     )
   }
 
@@ -70,7 +65,7 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
       )
     }
     resultAs(result) { error =>
-      ssp("util/error", "error" -> error)
+      errorPage(error)
     }
   }
 
@@ -90,7 +85,7 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
       )
     }
     resultAs(result) { error =>
-      ssp("util/error", "error" -> error)
+      errorPage(error)
     }
   }
 
@@ -110,7 +105,7 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
       )
     }
     resultAs(result) { error =>
-      ssp("util/error", "error" -> error)
+      errorPage(error)
     }
   }
 
@@ -131,7 +126,7 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
       )
     }
     resultAs(result) { error =>
-      ssp("util/error", "error" -> error)
+      errorPage(error)
     }
   }
 
@@ -152,91 +147,62 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
       )
     }
     resultAs(result) { error =>
-      ssp("util/error", "error" -> error)
+      errorPage(error)
     }
   }
 
   post("/apply") {
-    val condition = SearchCondition.fromMap(params)
-    val param = UpdateParameter.fromMap(multiParams)
     val result = for {
-      _ <- params.get("update") match {
-        case Some("logical_delete") => DatasetService.applyLogicalDelete(param)
-        case Some("rollback_logical_delete") => DatasetService.applyRollbackLogicalDelete(param)
-        case Some("physical_delete") => DatasetService.applyPhysicalDelete(param)
-        case _ => Success(())
-      }
+      _ <- DatasetService.applyChange(params, multiParams)
     } yield {
-      SeeOther(searchUrl(condition.toMap))
+      SeeOther(searchUrl(params))
     }
     resultAs(result) { error =>
-      ssp("util/error", "error" -> error)
+      errorPage(error)
     }
   }
 
   post("/acl/update/user/apply") {
-    val condition = SearchCondition.fromMap(params)
-    val param = UpdateAclUserParameter.fromMap(params)
     val result = for {
-      _ <- params.get("update") match {
-        case Some("update") => DatasetService.applyUpdateAclUser(param)
-        case Some("delete") => DatasetService.applyDeleteAclUser(param)
-        case _ => Success(())
-      }
+      _ <- DatasetService.applyChangeForAclUpdateUser(params)
     } yield {
-      SeeOther(aclListUrl(param.datasetId, condition.toMap))
+      SeeOther(aclListUrl(params))
     }
     resultAs(result) { error =>
-      ssp("util/error", "error" -> error)
+      errorPage(error)
     }
   }
 
   post("/acl/update/group/apply") {
-    val condition = SearchCondition.fromMap(params)
-    val param = UpdateAclGroupParameter.fromMap(params)
     val result = for {
-      _ <- params.get("update") match {
-        case Some("update") => DatasetService.applyUpdateAclGroup(param)
-        case Some("delete") => DatasetService.applyDeleteAclGroup(param)
-        case _ => Success(())
-      }
+      _ <- DatasetService.applyChangeForAclUpdateGroup(params)
     } yield {
-      SeeOther(aclListUrl(param.datasetId, condition.toMap))
+      SeeOther(aclListUrl(params))
     }
     resultAs(result) { error =>
-      ssp("util/error", "error" -> error)
+      errorPage(error)
     }
   }
 
   post("/acl/add/user/apply") {
-    val condition = SearchCondition.fromMap(params)
-    val param = AddAclUserParameter.fromMap(params)
     val result = for {
-      _ <- params.get("update") match {
-        case Some("add") => DatasetService.applyAddAclUser(param)
-        case _ => Success(())
-      }
+      _ <- DatasetService.applyChangeForAclAddUser(params)
     } yield {
-      SeeOther(aclListUrl(param.datasetId, condition.toMap))
+      SeeOther(aclListUrl(params))
     }
     resultAs(result) { error =>
-      ssp("util/error", "error" -> error)
+      errorPage(error)
     }
   }
 
   post("/acl/add/group/apply") {
-    val condition = SearchCondition.fromMap(params)
-    val param = AddAclGroupParameter.fromMap(params)
     val result = for {
-      _ <- params.get("update") match {
-        case Some("add") => DatasetService.applyAddAclGroup(param)
-        case _ => Success(())
-      }
+      _ <- DatasetService.applyChangeForAclAddGroup(params)
     } yield {
-      SeeOther(aclListUrl(param.datasetId, condition.toMap))
+      SeeOther(aclListUrl(params))
     }
     resultAs(result) { error =>
-      ssp("util/error", "error" -> error)
+      errorPage(error)
     }
   }
 
@@ -260,27 +226,40 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
   }
 
   /**
+   * エラーページを作成する。
+   *
+   * @param error エラーメッセージ
+   * @return エラーページのHTML
+   */
+  def errorPage(error: String): String = {
+    val backUrl = Option(request.getHeader("Referer")).getOrElse("/")
+    ssp(
+      "util/error",
+      "error" -> error,
+      "backUrl" -> backUrl
+    )
+  }
+
+  /**
    * 検索画面のURLを作成する。
    *
    * @param params クエリパラメータ
    * @return 検索画面のURL
    */
   def searchUrl(params: Map[String, String]): String = {
-    url("/", params)
+    val condition = SearchCondition.fromMap(params)
+    url("/", condition.toMap)
   }
 
   /**
    * アクセス権一覧画面のURLを作成する。
    *
-   * @param datasetId データセットID
    * @param params クエリパラメータ
    * @return アクセス権一覧画面のURL
    */
-  def aclListUrl(datasetId: Option[String], params: Map[String, String]): String = {
-    val fullParams = datasetId match {
-      case Some(datasetId) => params + ("datasetId" -> datasetId)
-      case None => params
-    }
-    url("/acl", fullParams)
+  def aclListUrl(params: Map[String, String]): String = {
+    val condition = SearchCondition.fromMap(params)
+    val param = SearchAclsParameter.fromMap(params)
+    url("/acl", param.toMap ++ condition.toMap)
   }
 }

@@ -37,7 +37,7 @@ class UserServlet extends ScalatraServlet with ScalateSupport with LazyLogging w
     val message = "無効なトークンが指定されました。"
     logger.error(LOG_MARKER, message)
     halt(
-      Forbidden(ssp("util/error", "error" -> message))
+      Forbidden(errorPage(message))
     )
   }
 
@@ -54,7 +54,7 @@ class UserServlet extends ScalatraServlet with ScalateSupport with LazyLogging w
       SeeOther(searchUrl(condition.toMap))
     }
     resultAs(result) { error =>
-      ssp("util/error", "error" -> error)
+      errorPage(error)
     }
   }
 
@@ -74,6 +74,21 @@ class UserServlet extends ScalatraServlet with ScalateSupport with LazyLogging w
       "url" -> searchUrl _,
       "csrfKey" -> csrfKey,
       "csrfToken" -> csrfToken
+    )
+  }
+
+  /**
+   * エラーページを作成する。
+   *
+   * @param error エラーメッセージ
+   * @return エラーページのHTML
+   */
+  def errorPage(error: String): String = {
+    val backUrl = Option(request.getHeader("Referer")).getOrElse("/")
+    ssp(
+      "util/error",
+      "error" -> error,
+      "backUrl" -> backUrl
     )
   }
 

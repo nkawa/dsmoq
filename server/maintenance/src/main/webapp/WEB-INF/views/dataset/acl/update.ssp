@@ -25,10 +25,6 @@
     #case(OwnerType.User)
     <form method="POST" action="/dataset/acl/update/user/apply">
       <input type="hidden" name="userId" value="${data.ownership.id}" />
-    #case(OwnerType.Group)
-    <form method="POST" action="/dataset/acl/update/group/apply">
-      <input type="hidden" name="groupId" value="${data.ownership.id}" />
-    #end
       <input type="hidden" name="${csrfKey}" value="${csrfToken}">
       <input type="hidden" name="datasetId" value="${data.datasetId}" />
       <div class="table">
@@ -39,28 +35,16 @@
               <td>${data.ownership.ownerType.toString}</td>
             </tr>
             <tr>
-            #match(data.ownership.ownerType)
-            #case(OwnerType.User)
               <th>ユーザーID</th>
-            #case(OwnerType.Group)
-              <th>グループ名</th>
-            #end
               <td>${data.ownership.name}</td>
             </tr>
             <tr>
               <th>アクセス権</th>
               <td>
                 <select name="accessLevel" class="operation">
-                #match(data.ownership.ownerType)
-                #case(OwnerType.User)
                   <option value="limitedRead" ${if (data.ownership.accessLevel == AccessLevel.LimitedRead) "selected"}>Limited Read</option>
                   <option value="fullRead" ${if (data.ownership.accessLevel == AccessLevel.FullRead) "selected"}>Full Read</option>
                   <option value="owner" ${if (data.ownership.accessLevel == AccessLevel.Owner) "selected"}>Owner</option>
-                #case(OwnerType.Group)
-                  <option value="limitedRead" ${if (data.ownership.accessLevel == AccessLevel.LimitedRead) "selected"}>Limited Read</option>
-                  <option value="fullRead" ${if (data.ownership.accessLevel == AccessLevel.FullRead) "selected"}>Full Read</option>
-                  <option value="provider" ${if (data.ownership.accessLevel == AccessLevel.Provider) "selected"}>Provider</option>
-                #end
                 </select>
               </td>
             </tr>
@@ -71,13 +55,54 @@
             <span class="ion-edit"></span>
             更新
           </button>
-          <button class="remove" name="update" type="submit" value="delete">
+          <button class="delete" name="update" type="submit" value="delete">
             <span class="ion-trash-a"></span>
             削除
           </button>
         </div>
       </div>
     </form>
+    #case(OwnerType.Group)
+    <form method="POST" action="/dataset/acl/update/group/apply">
+      <input type="hidden" name="groupId" value="${data.ownership.id}" />
+      <input type="hidden" name="${csrfKey}" value="${csrfToken}">
+      <input type="hidden" name="datasetId" value="${data.datasetId}" />
+      <div class="table">
+        <table>
+          <tbody>
+            <tr>
+              <th>区分</th>
+              <td>${data.ownership.ownerType.toString}</td>
+            </tr>
+            <tr>
+              <th>グループ名</th>
+              <td>${data.ownership.name}</td>
+            </tr>
+            <tr>
+              <th>アクセス権</th>
+              <td>
+                <select name="accessLevel" class="operation">
+                  <option value="limitedRead" ${if (data.ownership.accessLevel == AccessLevel.LimitedRead) "selected"}>Limited Read</option>
+                  <option value="fullRead" ${if (data.ownership.accessLevel == AccessLevel.FullRead) "selected"}>Full Read</option>
+                  <option value="provider" ${if (data.ownership.accessLevel == AccessLevel.Provider) "selected"}>Provider</option>
+                </select>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="buttons">
+          <button class="update" name="update" type="submit" value="update">
+            <span class="ion-edit"></span>
+            更新
+          </button>
+          <button class="delete" name="update" type="submit" value="delete">
+            <span class="ion-trash-a"></span>
+            削除
+          </button>
+        </div>
+      </div>
+    </form>
+    #end
     <hr>
     <p>
       <a href="${Util.getDatasetAclUrl(data.datasetId, condition)}">Back</a>

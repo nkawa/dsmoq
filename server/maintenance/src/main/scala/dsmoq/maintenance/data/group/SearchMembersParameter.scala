@@ -6,6 +6,13 @@ package dsmoq.maintenance.data.group
 case class SearchMembersParameter(
   groupId: Option[String]
 ) {
+
+  def toMap: Map[String, String] = {
+    Seq(
+      groupId.map("groupId" -> _)
+    ).flatten.toMap
+  }
+
   override def toString: String = {
     s"groupId=${groupId}"
   }
