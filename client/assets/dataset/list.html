@@ -169,7 +169,8 @@
         </li>
       {{/for}}
     </ul>
-    {^{pagination ~page^index pages id="dataset-pagination" pagedelta=5 /}}
+    {{!-- ~page.index は ~page^index ではいけない。(ライブラリ内で.で書き換え先propertyを識別しているため) --}}
+    {^{pagination ~page.index pages id="dataset-pagination" pagedelta=5 /}}
   {{else}}
      <p>There are no datasets.</p>
   {{/if}}
