@@ -11,33 +11,82 @@ import org.json4s.JObject
 import org.json4s.JString
 import org.json4s.JValue
 
+/** SearchCondition形式のデータセット検索条件を表すトレイト */
 sealed trait SearchDatasetCondition
 
+/** SearchCondition形式のデータセット検索条件のコンパニオンオブジェクト */
 object SearchDatasetCondition {
+  /**
+   * and/orを表すデータセット検索条件
+   *
+   * @param operator and/or
+   * @param value 要素
+   */
   case class Container(
     operator: Operators.Container,
     value: Seq[SearchDatasetCondition]
   ) extends SearchDatasetCondition
 
+  /**
+   * query検索を表すデータセット検索条件
+   *
+   * @param query 検索文字列
+   * @param contains 検索文字列を含む検索の場合true、検索文字列を含まない検索の場合false
+   */
   case class Query(query: String = "", contains: Boolean = true) extends SearchDatasetCondition
 
+  /**
+   * owner検索を表すデータセット検索条件
+   *
+   * @param name 検索するowner名
+   * @param equals 指定ownerが所有権を持つ検索の場合true、所有権を持たない検索の場合false
+   */
   case class Owner(name: String, equals: Boolean = true) extends SearchDatasetCondition
 
+  /**
+   * タグ検索を表すデータセット検索条件
+   *
+   * @param tag 検索するタグ
+   */
   case class Tag(tag: String) extends SearchDatasetCondition
 
+  /**
+   * 属性検索を表すデータセット検索条件
+   *
+   * @param key 属性名
+   * @param value 属性値
+   */
   case class Attribute(key: String = "", value: String = "") extends SearchDatasetCondition
 
+  /**
+   * ファイルサイズ検索を表すデータセット検索条件
+   *
+   * @param operator 比較子
+   * @param value 値
+   * @param unit 単位
+   */
   case class TotalSize(
     operator: Operators.Compare = Operators.Compare.GE,
     value: Double = 0,
     unit: SizeUnit = SizeUnit.Byte
   ) extends SearchDatasetCondition
 
+  /**
+   * ファイル数検索を表すデータセット検索条件
+   *
+   * @param operator 比較子
+   * @param value 値
+   */
   case class NumOfFiles(
     operator: Operators.Compare = Operators.Compare.GE,
     value: Int = 0
   ) extends SearchDatasetCondition
 
+  /**
+   * 公開/非公開検索を表すデータセット検索条件
+   *
+   * @param public 公開されているデータセットを検索する場合true、非公開の場合false
+   */
   case class Public(public: Boolean = true) extends SearchDatasetCondition
 
   object Operators {
@@ -46,14 +95,19 @@ object SearchDatasetCondition {
       case object AND extends Container
       case object OR extends Container
     }
+    /** 比較子を表すトレイト */
     sealed trait Compare
     object Compare {
+      /** 以上を表す比較子 */
       case object GE extends Compare
+      /** 以下を表す比較子 */
       case object LE extends Compare
     }
   }
 
+  /** ファイルサイズ単位を表すトレイト */
   sealed trait SizeUnit {
+    /** 値に対する倍率 */
     def magnification: Double
   }
   object SizeUnit {
@@ -71,6 +125,12 @@ object SearchDatasetCondition {
     }
   }
 
+  /**
+   * 検索条件をJSON値に変換する。
+   *
+   * @param x 検索条件
+   * @return JSON値
+   */
   def toJson(x: SearchDatasetCondition): JValue = {
     x match {
       case Container(op, xs) => {
@@ -164,6 +224,12 @@ object SearchDatasetCondition {
     }
   }
 
+  /**
+   * JSON値を検索条件に変換する。
+   *
+   * @param x JSON値
+   * @return 変換結果
+   */
   def unapply(x: JValue)(implicit format: Formats): Option[SearchDatasetCondition] = {
     x match {
       case JObject(fs) => {
@@ -224,12 +290,19 @@ object SearchDatasetCondition {
     }
   }
 
+  /**
+   * Seq[Option[T]] を Option[Seq[A]] に変換する。
+   *
+   * @param xs 変換元
+   * @return 変換結果
+   */
   def sequence[A](xs: Seq[Option[A]]): Option[Seq[A]] = {
     val ret = xs.flatten
     if (ret.size == xs.size) Some(ret) else None
   }
 }
 
+/** SearchDatasetCondition用のJSONカスタムシリアライザ */
 object SearchDatasetConditionSerializer extends CustomSerializer[SearchDatasetCondition](implicit formats => (
   {
     case SearchDatasetCondition(p) => p

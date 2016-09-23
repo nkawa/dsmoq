@@ -40,7 +40,14 @@ import scalikejdbc.withSQL
 class QueryService(resource: ResourceBundle) {
   protected implicit val jsonFormats: Formats = DefaultFormats + SearchDatasetConditionSerializer
 
+  /**
+   * 指定したユーザが持つ、データセット検索のカスタムクエリを取得する。
+   *
+   * @param user ユーザ情報
+   * @return ユーザが持つカスタムクエリ
+   */
   def getDatasetQueries(user: User): Try[Seq[DatasetQuery]] = {
+    CheckUtil.checkNull(user, "user")
     if (user.isGuest) {
       return Success(Seq.empty)
     }
@@ -65,7 +72,19 @@ class QueryService(resource: ResourceBundle) {
       }
     }
   }
+
+  /**
+   * データセット検索のカスタムクエリを作成する。
+   *
+   * @param name カスタムクエリの名前
+   * @param condition データセット検索条件
+   * @param user ユーザ情報
+   * @return 作成されたカスタムクエリ
+   */
   def createDatasetQuery(name: String, condition: SearchDatasetCondition, user: User): Try[DatasetQuery] = {
+    CheckUtil.checkNull(name, "name")
+    CheckUtil.checkNull(condition, "condition")
+    CheckUtil.checkNull(user, "user")
     Try {
       val conditionStr = JsonMethods.compact(JsonMethods.render(SearchDatasetCondition.toJson(condition)))
       DB.localTx { implicit s =>
@@ -87,7 +106,17 @@ class QueryService(resource: ResourceBundle) {
       }
     }
   }
+
+  /**
+   * データセット検索のカスタムクエリを取得する。
+   *
+   * @param id カスタムクエリID
+   * @param user ユーザ情報
+   * @return カスタムクエリ
+   */
   def getDatasetQuery(id: String, user: User): Try[DatasetQuery] = {
+    CheckUtil.checkNull(id, "id")
+    CheckUtil.checkNull(user, "user")
     Try {
       DB.readOnly { implicit s =>
         persistence.CustomQuery.find(id).filter(_.userId == user.id).map { query =>
@@ -105,7 +134,16 @@ class QueryService(resource: ResourceBundle) {
     }
   }
 
+  /**
+   * データセット検索のカスタムクエリを削除する。
+   *
+   * @param id カスタムクエリID
+   * @param user ユーザ情報
+   * @return 処理結果
+   */
   def deleteDatasetQuery(id: String, user: User): Try[Unit] = {
+    CheckUtil.checkNull(id, "id")
+    CheckUtil.checkNull(user, "user")
     Try {
       DB.localTx { implicit s =>
         val q = persistence.CustomQuery.q

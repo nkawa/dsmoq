@@ -99,6 +99,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
 
   private val datasetImageDownloadRoot = AppConf.imageDownloadRoot + "datasets/"
 
+  /** デフォルトの検索上限 */
   val DEFALUT_LIMIT = 20
 
   /**
@@ -366,6 +367,10 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     user: User
   ): Try[RangeSlice[DatasetData.DatasetsSummary]] = {
     Try {
+      CheckUtil.checkNull(query, "query")
+      CheckUtil.checkNull(limit, "limit")
+      CheckUtil.checkNull(offset, "offset")
+      CheckUtil.checkNull(user, "user")
       val d = persistence.Dataset.d
       val limit_ = limit.getOrElse(DEFALUT_LIMIT)
       val offset_ = offset.getOrElse(0)
@@ -393,7 +398,16 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * データセット検索SQLの条件部を作成する。
+   *
+   * @param query 検索条件
+   * @param joinedGroups ユーザが所属しているグループ
+   * @return SQLの条件部
+   */
   def createSearchSQL(query: SearchDatasetCondition, joinedGroups: Seq[String]): Option[SQLSyntax] = {
+    CheckUtil.checkNull(query, "query")
+    CheckUtil.checkNull(joinedGroups, "joinedGroups")
     val d = persistence.Dataset.d
     val o = persistence.Ownership.o
     val querySql = conditionToSQL(query)
@@ -417,7 +431,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     )
   }
 
+  /**
+   * データセット検索条件をSQL条件部に変換する。
+   *
+   * @param query 検索条件
+   * @return SQLの条件部
+   */
   def conditionToSQL(condition: SearchDatasetCondition): Option[SQLSyntax] = {
+    CheckUtil.checkNull(condition, "condition")
     val d = persistence.Dataset.d
     condition match {
       case SearchDatasetCondition.Container(SearchDatasetCondition.Operators.Container.AND, xs) => {
@@ -585,10 +606,19 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * DBの検索結果からデータセット検索結果を作成する。
+   *
+   * @param ds DBの検索結果
+   * @param joinedGroups ユーザが所属しているグループ
+   * @return データセット検索結果
+   */
   def toDataset(
     ds: Seq[persistence.Dataset],
     joinedGroups: Seq[String]
   )(implicit s: DBSession): Seq[DatasetData.DatasetsSummary] = {
+    CheckUtil.checkNull(ds, "ds")
+    CheckUtil.checkNull(joinedGroups, "joinedGroups")
     val ids = ds.map(_.id)
     val isGuest = joinedGroups.filter(_ != AppConf.guestGroupId).isEmpty
     val ownerMap = if (isGuest) Map.empty[String, Seq[DatasetData.DatasetOwnership]] else getOwnerMap(ids)
@@ -966,6 +996,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       .isNull(ds.deletedAt)
   }
 
+  /**
+   * 指定されたデータセットに対して、指定されたグループに所属しているユーザが持つアクセス権を取得する。
+   *
+   * @param datasetIds データセットID
+   * @param joinedGroups 所属しているグループ
+   * @return データセットに対するアクセス権
+   */
   private def getAccessLevelMap(
     datasetIds: Seq[String],
     joinedGroups: Seq[String]
@@ -989,6 +1026,12 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.list.apply().toMap
   }
 
+  /**
+   * 指定されたデータセットのゲストアクセス権を取得する。
+   *
+   * @param datasetIds データセットID
+   * @return データセットに対するアクセス権
+   */
   private def getGuestAccessLevelMap(datasetIds: Seq[String])(implicit s: DBSession): Map[String, Int] = {
     if (datasetIds.nonEmpty) {
       val o = persistence.Ownership.syntax("o")
@@ -1121,6 +1164,12 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * 指定されたデータセットの属性を取得する。
+   *
+   * @param datasetIds データセットID
+   * @return データセットが持つ属性
+   */
   private def getAttributeMap(
     datasetIds: Seq[String]
   )(implicit s: DBSession): Map[String, Seq[DatasetData.DatasetAttribute]] = {

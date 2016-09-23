@@ -297,6 +297,12 @@ class ApiController(
     toActionResult(ret)
   }
 
+  /**
+   * データセットを検索する。
+   *
+   * @param d 検索条件
+   * @return 検索結果
+   */
   def getDatasets(d: Option[SearchDatasetParams]): Try[RangeSlice[DatasetData.DatasetsSummary]] = {
     d.getOrElse(SearchDatasetParams()) match {
       case x: SearchDatasetParams.Condition => getDatasetsWithCondition(x)
@@ -304,6 +310,12 @@ class ApiController(
     }
   }
 
+  /**
+   * SearchCondition形式の検索条件を用いてデータセットを検索する。
+   *
+   * @param json 検索条件
+   * @return 検索結果
+   */
   def getDatasetsWithCondition(
     json: SearchDatasetParams.Condition
   ): Try[RangeSlice[DatasetData.DatasetsSummary]] = {
@@ -322,6 +334,12 @@ class ApiController(
     }
   }
 
+  /**
+   * query/owners/groups/attirbutes形式の検索条件を用いてデータセットを検索する。
+   *
+   * @param json 検索条件
+   * @return 検索結果
+   */
   def getDatasetsWithParams(
     json: SearchDatasetParams.Params
   ): Try[RangeSlice[DatasetData.DatasetsSummary]] = {
@@ -1188,6 +1206,14 @@ class ApiController(
     toActionResult(ret)
   }
 
+  /**
+   * Option値をTry値へ変換する。
+   *
+   * Noneの場合はFailure(InputCheckException)となる。
+   * @tparam T
+   * @param obj 変換するOption値
+   * @return Try値
+   */
   private def jsonOptToTry[T](obj: Option[T]): Try[T] = {
     obj match {
       case None => {
@@ -1197,6 +1223,12 @@ class ApiController(
     }
   }
 
+  /**
+   * params(d)から指定された型の値を取得する。
+   *
+   * @tparam T 取得する型
+   * @return 取得結果
+   */
   private def getJsonValueFromParams[T](implicit m: Manifest[T]): Try[Option[T]] = {
     params.get("d") match {
       case None => Success(None)
@@ -1204,6 +1236,14 @@ class ApiController(
     }
   }
 
+  /**
+   * 指定されたJSON文字列を指定された型の値に変換する。
+   *
+   * @tparam T 変換先の型
+   * @param str JSON文字列
+   * @param position 文字列のパラメータ位置
+   * @return 変換結果
+   */
   def getJsonValue[T](str: String, position: String)(implicit m: Manifest[T]): Try[T] = {
     Try {
       JsonMethods.parse(str).extractOpt[T].get
