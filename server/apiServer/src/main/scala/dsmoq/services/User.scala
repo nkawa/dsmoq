@@ -29,17 +29,4 @@ object User {
     isGuest = false,
     isDisabled = x.disabled
   )
-
-  val guest = User(
-    id = AppConf.guestUserId,
-    name = "",
-    fullname = "",
-    organization = "",
-    title = "",
-    image = "http://xxxx",
-    mailAddress = "",
-    description = "",
-    isGuest = true,
-    isDisabled = false
-  )
 }

@@ -36,7 +36,7 @@ trait SessionTrait extends ScalatraServlet {
   }
 
   def guestUser: User = {
-    User(AppConf.guestUserId, "", "", "", "", "http://xxxx", "", "", true, false)
+    AppConf.guestUser
   }
 
   def clearSession(): Unit = {

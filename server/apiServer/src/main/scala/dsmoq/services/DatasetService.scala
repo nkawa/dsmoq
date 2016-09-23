@@ -4831,8 +4831,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @return 取得したユーザ、存在しないまたは無効な場合None
    */
   private def getUser(id: String)(implicit s: DBSession): Option[User] = {
-    if (id == User.guest.id) {
-      return Some(User.guest)
+    if (id == AppConf.guestUser.id) {
+      return Some(AppConf.guestUser)
     }
     val u = persistence.User.u
     val ma = persistence.MailAddress.ma

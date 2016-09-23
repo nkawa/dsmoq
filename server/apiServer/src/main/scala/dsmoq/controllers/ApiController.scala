@@ -23,6 +23,7 @@ import org.slf4j.MarkerFactory
 
 import com.typesafe.scalalogging.LazyLogging
 
+import dsmoq.AppConf
 import dsmoq.ResourceNames
 import dsmoq.controllers.AjaxResponse.toActionResult
 import dsmoq.controllers.json.ChangeGroupPrimaryImageParams
@@ -178,7 +179,7 @@ class ApiController(
 
   post("/signout") {
     clearSession()
-    AjaxResponse("OK", User.guest)
+    AjaxResponse("OK", AppConf.guestUser)
   }
 
   // --------------------------------------------------------------------------
