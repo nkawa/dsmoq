@@ -103,6 +103,17 @@ object SpecCommonLogic {
         updatedBy = AppConf.systemUserId,
         updatedAt = ts
       )
+      persistence.ApiKey.create(
+        id = "0cebc943-a0b9-4aa5-927d-65fa374bf0ed",
+        userId = "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04",
+        apiKey = "4e84eb4a599165bcc9741bb9a91e8212cb5dac067a4c91de87ee04db3e3c3403",
+        secretKey = "f2394d2b98b7a7105078356ec2a74164eadc9765e63b2b469a7bfb611fad8a10",
+        permission = 3,
+        createdBy = AppConf.systemUserId,
+        createdAt = ts,
+        updatedBy = AppConf.systemUserId,
+        updatedAt = ts
+      )
       persistence.Password.create(
         id = "a2158917-57b4-469c-a6dd-ded5fc826e71",
         userId = "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04",
@@ -268,6 +279,7 @@ object SpecCommonLogic {
       deleteAllData(deleteFrom(persistence.ApiKey))
       deleteAllData(deleteFrom(persistence.App))
       deleteAllData(deleteFrom(persistence.AppVersion))
+      deleteAllData(deleteFrom(persistence.CustomQuery))
       deleteAllData(deleteFrom(persistence.Dataset))
       deleteAllData(deleteFrom(persistence.DatasetAccessLog))
       deleteAllData(deleteFrom(persistence.DatasetAnnotation))
@@ -298,9 +310,9 @@ object SpecCommonLogic {
       }.update.apply()
 
       // ファイル/画像の削除
-      val fileDirs = new java.io.File(AppConf.fileDir).listFiles()
-      if (fileDirs != null) {
-        fileDirs.foreach { x =>
+      val fileDir = new java.io.File(AppConf.fileDir).listFiles()
+      if (fileDir != null) {
+        fileDir.foreach { x =>
           if (x.isDirectory) {
             x.listFiles.foreach { y =>
               deleteFile(y.getPath)
@@ -309,9 +321,20 @@ object SpecCommonLogic {
           }
         }
       }
-      val imageDirs = new java.io.File(AppConf.imageDir + "/upload").listFiles()
-      if (imageDirs != null) {
-        imageDirs.foreach { x =>
+      val imageDir = new java.io.File(AppConf.imageDir + "/upload").listFiles()
+      if (imageDir != null) {
+        imageDir.foreach { x =>
+          if (x.isDirectory) {
+            x.listFiles.foreach { y =>
+              deleteFile(y.getPath)
+            }
+            x.delete()
+          }
+        }
+      }
+      val appDir = new java.io.File(AppConf.appDir + "/upload").listFiles()
+      if (appDir != null) {
+        appDir.foreach { x =>
           if (x.isDirectory) {
             x.listFiles.foreach { y =>
               deleteFile(y.getPath)

@@ -46,6 +46,7 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
     holder.getRegistration.setMultipartConfig(multipartConfig)
     servletContextHandler.addServlet(holder, "/api/*")
     addServlet(new FileController(resource), "/files/*")
+    SpecCommonLogic.deleteAllCreateData()
   }
 
   override def afterAll() {

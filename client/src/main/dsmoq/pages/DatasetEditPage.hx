@@ -48,7 +48,7 @@ using hxgnd.OptionTools;
 class DatasetEditPage {
     inline static var OwnerCandicateSize = 5;
     inline static var ImageCandicateSize = 10;
-    inline static var AppCandicateSize = 9;
+    inline static var AppCandicateSize = 10;
 
     public static function render(root: Html, onClose: Promise<Unit>, id: String): Promise<Navigation<Page>> {
         var navigation = new PromiseBroker();
@@ -671,6 +671,18 @@ class DatasetEditPage {
      * @return モーダルダイアログを表示するPromise
      */
     static function showSelectAppDialog(id: String, rootBinding: Observable): Promise<DatasetApp> {
+        function updatePrimary(data: DatasetEditSelect<DatasetApp>) {
+            var primary = data.items
+                .filter(function(x) { return x.item.isPrimary; })
+                .map(function(x) { return x.item; })
+            ;
+            if (primary.length == 0) {
+                rootBinding.setProperty("dataset.primaryApp", null);
+            } else {
+                rootBinding.setProperty("dataset.primaryApp.id", primary[0].id);
+                rootBinding.setProperty("dataset.primaryApp.name", primary[0].name);
+            }
+        }
         return showSelectDialog(
             id,
             rootBinding,
@@ -686,20 +698,14 @@ class DatasetEditPage {
             function(datasetId, appId, file): Promise<DatasetApp> {
                 return Service.instance.upgradeDatasetApp(datasetId, appId, file);
             },
-            null,
+            function(_, data) {
+                updatePrimary(data);
+            },
             function(datasetId, appId): Promise<Unit> {
                 return Service.instance.removeDatasetApp(datasetId, appId);
             },
             function(_, data) {
-                var primary = data.items
-                    .filter(function(x) { return x.item.isPrimary; })
-                    .map(function(x) { return x.item; })
-                ;
-                if (primary.length == 0) {
-                    rootBinding.setProperty("dataset.primaryApp", null);
-                } else {
-                    rootBinding.setProperty("dataset.primaryApp", { id: primary[0].id, name: primary[0].name });
-                }
+                updatePrimary(data);
             }
         );
     }
@@ -730,7 +736,7 @@ class DatasetEditPage {
             hasNext: false,
             items: new Array<{selected: Bool, item: T}>(),
             selectedIds: new Array<String>()
-        }
+        };
         var binding = JsViews.observable(data);
         var tpl = JsViews.template(Resource.getString(templatePath));
         return ViewTools.showModal(tpl, data, function(html, ctx) {
@@ -744,7 +750,7 @@ class DatasetEditPage {
                         };
                     });
                     var hasPrev = offset > 0;
-                    var hasNext = res.results.length > ImageCandicateSize;
+                    var hasNext = res.results.length > candicateSize;
                     binding.setProperty("offset", offset);
                     binding.setProperty("hasPrev", hasPrev);
                     binding.setProperty("hasNext", hasNext);
@@ -770,35 +776,37 @@ class DatasetEditPage {
                 // 直接Loadingを指定すると、内部のinput要素までloading-textで置き換わるため、模倣している。
                 // メッセージは内部のdivに担当させ、disableのみを#type-nameボタンに設定する
                 BootstrapButton.setLoading(html.find('#${type}-${name} > div'));
-                exec().then(
-                    function (x) {
-                        Notification.show("success", "save successful");
-                        var p = searchCandidate();
-                        if (after != null) {
-                            p.then(function(_) {
+                exec()
+                    .flatMap(function(x) {
+                        return searchCandidate().map(function(_) { return x; });
+                    })
+                    .then(
+                        function (x) {
+                            if (after != null) {
                                 after(x);
-                            });
+                            }
+                            Notification.show("success", "save successful");
+                        },
+                        function (e) {
+                            // 失敗時には選択設定を戻す
+                            JsViews.observable(data.selectedIds).refresh(selectedIds);
+                            // Service内でNotificationを出力するようにしたため、この箇所でのNotification出力は不要。
+                            // このfunctionはfinally時に呼び出されるfunctionを指定するための引数の数合わせです。
+                        },
+                        function () {
+                            html.find('#${type}-${name}-form input').val(""); // TODO IE11で要検証
+                            BootstrapButton.reset(html.find('#${type}-${name} > div'));
+                            html.find('#upload-${name}').removeAttr("disabled");
+                            if (isPrevEnabled) {
+                                html.find('#${name}-list-prev').removeAttr("disabled");
+                            }
+                            if (isNextEnabled) {
+                                html.find('#${name}-list-next').removeAttr("disabled");
+                            }
+                            html.find('#select-${name}-dialog-cancel').removeAttr("disabled");
                         }
-                    },
-                    function (e) {
-                        // 失敗時には選択設定を戻す
-                        JsViews.observable(data.selectedIds).refresh(selectedIds);
-                        // Service内でNotificationを出力するようにしたため、この箇所でのNotification出力は不要。
-                        // このfunctionはfinally時に呼び出されるfunctionを指定するための引数の数合わせです。
-                    },
-                    function () {
-                        html.find('#${type}-${name}-form input').val(""); // TODO IE11で要検証
-                        BootstrapButton.reset(html.find('#${type}-${name} > div'));
-                        html.find('#upload-${name}').removeAttr("disabled");
-                        if (isPrevEnabled) {
-                            html.find('#${name}-list-prev').removeAttr("disabled");
-                        }
-                        if (isNextEnabled) {
-                            html.find('#${name}-list-next').removeAttr("disabled");
-                        }
-                        html.find('#select-${name}-dialog-cancel').removeAttr("disabled");
-                    }
-                );
+                    )
+                ;
             }
             JsViews.observable(data.items).observeAll(function (e, args) {
                 if (args.path == "selected") {

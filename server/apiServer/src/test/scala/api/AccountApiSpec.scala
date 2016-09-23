@@ -46,6 +46,7 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     ).toMultipartConfigElement
     holder.getRegistration.setMultipartConfig(multipartConfig)
     servletContextHandler.addServlet(holder, "/api/*")
+    SpecCommonLogic.deleteAllCreateData()
   }
 
   override def afterAll() {

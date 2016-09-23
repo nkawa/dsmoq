@@ -316,8 +316,7 @@ class Main {
                         case ["datasets"]:
                             DatasetList(
 								parsePositiveInt(location.query["page"]).getOrDefault(1),
-								getQuery(location.query["query"]).getOrDefault(""),
-								getFilters(location.query["filters"]).getOrDefault(new Array<{type: String, item: Dynamic}>())
+								getQuery(location.query["query"]).getOrDefault("")
 							);
                         case ["datasets", id]:
                             DatasetShow(id);
@@ -341,12 +340,10 @@ class Main {
                             { path: "/" };
                         case Dashboard:
                             { path: "/dashboard" };
-
-                        case DatasetList(page, query, filters):
+                        case DatasetList(page, query):
                             var q = new Map();
                             if (page != 1) q["page"] = Std.string(page);
 							if (query.length > 0) q["query"] = query;
-							if (filters.length > 0) q["filters"] = Json.stringify(filters);
                             { path: "/datasets", query: q };
                         case DatasetShow(id):
                             { path: '/datasets/$id' };
@@ -379,7 +376,7 @@ class Main {
                 return switch (page) {
 					case Top: TopPage.render(slot, onClosed);
                     case Dashboard: DashboardPage.render(slot, onClosed);
-                    case DatasetList(pageNum, query, filters): DatasetListPage.render(slot, onClosed, pageNum, query, filters);
+                    case DatasetList(pageNum, query): DatasetListPage.render(slot, onClosed, pageNum, query);
                     case DatasetShow(id): DatasetShowPage.render(slot, onClosed, id);
                     case DatasetEdit(id): DatasetEditPage.render(slot, onClosed, id);
                     case GroupList(pageNum, query): GroupListPage.render(slot, onClosed, pageNum, query);

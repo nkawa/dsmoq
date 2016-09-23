@@ -40,6 +40,7 @@ class GoogleAccountSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
     holder.getRegistration.setMultipartConfig(multipartConfig)
     servletContextHandler.addServlet(holder, "/api/*")
     addServlet(new GoogleOAuthController(resource), "/google_oauth/*")
+    SpecCommonLogic.deleteAllCreateData()
   }
 
   override def afterAll() {

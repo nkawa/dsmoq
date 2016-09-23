@@ -10,7 +10,6 @@ import java.io.File
 import java.net.URLEncoder
 import java.util.Base64
 import java.util.ResourceBundle
-import java.util.UUID
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 import org.eclipse.jetty.servlet.ServletHolder
@@ -35,7 +34,7 @@ trait AuthenticationBehaviors { this: FreeSpec with ScalatraSuite =>
     allowGuest: Boolean = false,
     headers: Map[String, String] = Map.empty
   )(expected: => Any): Unit = {
-    s"authentication check for dataset (sessionUser: ${sessionUser}, allowGuest: ${allowGuest}, headers: ${headers}) - ${UUID.randomUUID.toString}" in {
+    withClue(s"for dataset - sessionUser: ${sessionUser}, allowGuest: ${allowGuest}, headers: ${headers}") {
       val datasetId = session {
         signInDummy1()
         createDataset(allowGuest)
@@ -56,7 +55,7 @@ trait AuthenticationBehaviors { this: FreeSpec with ScalatraSuite =>
     allowGuest: Boolean = false,
     headers: Map[String, String] = Map.empty
   )(expected: => Any): Unit = {
-    s"authentication check for file (sessionUser: ${sessionUser}, allowGuest: ${allowGuest}, headers: ${headers}) - ${UUID.randomUUID.toString}" in {
+    withClue(s"for file - sessionUser: ${sessionUser}, allowGuest: ${allowGuest}, headers: ${headers}") {
       val (datasetId, fileId) = session {
         signInDummy1()
         val datasetId = createDataset(allowGuest)
@@ -152,6 +151,7 @@ class AuthenticationSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter
     holder.getRegistration.setMultipartConfig(multipartConfig)
     servletContextHandler.addServlet(holder, "/api/*")
     addServlet(new FileController(resource), "/files/*")
+    SpecCommonLogic.deleteAllCreateData()
   }
 
   override def afterAll() {
@@ -168,7 +168,7 @@ class AuthenticationSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter
   }
 
   "Authentication test" - {
-    "to api" - {
+    "to api" in {
       for {
         sessionUser <- Seq(true, false)
         allowGuest <- Seq(true, false)
@@ -177,7 +177,7 @@ class AuthenticationSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter
         authenticationCheckForDataset(sessionUser, allowGuest, headers)(datasetExpected(sessionUser, allowGuest, headers))
       }
     }
-    "to file" - {
+    "to file" in {
       for {
         sessionUser <- Seq(true, false)
         allowGuest <- Seq(true, false)

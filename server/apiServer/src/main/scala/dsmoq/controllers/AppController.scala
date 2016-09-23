@@ -6,7 +6,11 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
+import org.json4s.DefaultFormats
+import org.json4s.Formats
+import org.scalatra.NotFound
 import org.scalatra.ScalatraServlet
+import org.scalatra.json.JacksonJsonSupport
 import org.slf4j.MarkerFactory
 
 import com.typesafe.scalalogging.LazyLogging
@@ -19,7 +23,12 @@ import dsmoq.services.AccountService
 import dsmoq.services.DatasetService
 import dsmoq.services.User
 
-class AppController(val resource: ResourceBundle) extends ScalatraServlet with LazyLogging {
+class AppController(
+  val resource: ResourceBundle
+) extends ScalatraServlet with JacksonJsonSupport with LazyLogging {
+
+  protected implicit val jsonFormats: Formats = DefaultFormats
+
   /**
    * ログマーカー
    */
@@ -40,16 +49,21 @@ class AppController(val resource: ResourceBundle) extends ScalatraServlet with L
    */
   val checkUtil = new CheckUtil(resource)
 
-  get("/:userId/:datasetId/:appId.jnlp") {
+  before() {
+    contentType = formats("json")
+  }
+
+  get("/*") {
+    NotFound(AjaxResponse("NotFound")) // 404
+  }
+
+  get("/:userId/:datasetId.jnlp") {
     val userId = params("userId")
     val datasetId = params("datasetId")
-    val appId = params("appId")
     val ret = for {
       _ <- checkUtil.validUuidForUrl("userId", userId)
       _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
-      _ <- checkUtil.validUuidForUrl("appId", appId)
-      user <- getUser(userId)
-      jnlp <- datasetService.getAppJnlp(datasetId, appId, user)
+      jnlp <- datasetService.getAppJnlp(datasetId, userId)
     } yield {
       contentType = "application/x-java-jnlp-file"
       response.setDateHeader("Last-Modified", jnlp.lastModified.getMillis)
@@ -59,35 +73,18 @@ class AppController(val resource: ResourceBundle) extends ScalatraServlet with L
     toActionResult(ret)
   }
 
-  get("/:userId/:datasetId/:appId.jar") {
+  get("/:userId/:datasetId.jar") {
     val userId = params("userId")
     val datasetId = params("datasetId")
-    val appId = params("appId")
     val ret = for {
       _ <- checkUtil.validUuidForUrl("userId", userId)
       _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
-      _ <- checkUtil.validUuidForUrl("appId", appId)
-      user <- getUser(userId)
-      file <- datasetService.getAppFile(datasetId, appId, user)
+      file <- datasetService.getAppFile(datasetId, userId)
     } yield {
       contentType = "application/java-archive"
       response.setDateHeader("Last-Modified", file.lastModified.getMillis)
       file.content
     }
     toActionResult(ret)
-  }
-
-  /**
-   * 指定したIDのユーザを取得します。
-   *
-   * @param id ユーザID
-   * @return
-   *   Success(User) 取得したユーザ
-   *   Failure(NotFoundException) 取得したユーザ
-   */
-  private def getUser(id: String): Try[User] = {
-    accountService.getUser(id).filter(!_.isDisabled)
-      .map(Success.apply)
-      .getOrElse(Failure(new NotFoundException))
   }
 }
