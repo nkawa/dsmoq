@@ -269,8 +269,17 @@ class DatasetListPage {
             var row = el.closest(".saved-query");
             var id = row.data("id");
             var c = data.customQueries.filter(function(x) { return x.data.id == id; })[0].data.query;
-            var q = StringTools.urlEncode(Json.stringify(c));
-            navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, q)));
+            var q = Json.stringify(c);
+            if (q == searchQuery && pageNum == 1) {
+                // 同一URLになる場合、URL変更イベントが発火しないので、内部で再検索処理を行う
+                var input = conditionInputFromCondition(c);
+                binding.setProperty("condition.type", input.type);
+                binding.setProperty("condition.basic", input.basic);
+                JsViews.observable(data.condition.advanced).refresh(input.advanced);
+                searchDatasets();
+            } else {
+                navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, StringTools.urlEncode(q))));
+            }
             return false;
         });
         loadQueries();
