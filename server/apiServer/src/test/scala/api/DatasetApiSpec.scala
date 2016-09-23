@@ -333,7 +333,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[DatasetFile]]
             result.data.id should be(fileId)
-            result.data.url
+            result.data.url.get
           }
 
           get(new java.net.URI(url).getPath) {
@@ -350,7 +350,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               assert(result.data.results.map(_.id).contains(fileId))
               result.data.results.foreach { x =>
                 if (x.id == fileId) {
-                  x.size should be(anotherFile.length)
+                  x.size should be(Some(anotherFile.length))
                 }
               }
             }
@@ -519,7 +519,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
           val url = post("/api/datasets", createParams, files) {
             checkStatus()
-            parse(body).extract[AjaxResponse[Dataset]].data.files(0).url
+            parse(body).extract[AjaxResponse[Dataset]].data.files(0).url.get
           }
 
           // ダウンロードチェック(リダイレクトされるか)
@@ -910,7 +910,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             val dataset = parse(body).extract[AjaxResponse[Dataset]]
             dataset.data.s3State should be(2)
             dataset.data.localState should be(3)
-            dataset.data.files(0).url
+            dataset.data.files(0).url.get
           }
 
           val uri = new java.net.URI(url)
@@ -943,7 +943,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           }
           changeStorageState(data.id, 0, 1)
 
-          val uri = new java.net.URI(data.files(0).url)
+          val uri = new java.net.URI(data.files(0).url.get)
           get(uri.getPath) {
             // リダイレクト
             status should be(302)
@@ -961,7 +961,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             val dataset = parse(body).extract[AjaxResponse[Dataset]]
             dataset.data.s3State should be(2)
             dataset.data.localState should be(1)
-            dataset.data.files(0).url
+            dataset.data.files(0).url.get
           }
 
           val uri = new java.net.URI(url)

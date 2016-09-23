@@ -242,8 +242,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
               id = x._1.id,
               name = x._1.name,
               description = x._1.description,
-              size = x._2.fileSize,
-              url = AppConf.fileDownloadRoot + datasetId + "/" + x._1.id,
+              size = Some(x._2.fileSize),
+              url = Some(AppConf.fileDownloadRoot + datasetId + "/" + x._1.id),
               createdBy = Some(user),
               createdAt = timestamp.toString(),
               updatedBy = Some(user),
@@ -1398,8 +1398,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
               id = x._1.id,
               name = x._1.name,
               description = x._1.description,
-              size = x._2.fileSize,
-              url = AppConf.fileDownloadRoot + id + "/" + x._1.id,
+              size = Some(x._2.fileSize),
+              url = Some(AppConf.fileDownloadRoot + id + "/" + x._1.id),
               createdBy = Some(user),
               createdAt = timestamp.toString(),
               updatedBy = Some(user),
@@ -2975,6 +2975,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
 
   private def getFiles(
     datasetId: String,
+    permission: Int,
     limit: Int,
     offset: Int
   )(implicit s: DBSession): Seq[DatasetData.DatasetFile] = {
@@ -3012,13 +3013,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.list.apply().map {
       case (file, createdUser, updatedUser, createdUserMail, updatedUserMail) => {
         val history = persistence.FileHistory.find(file.historyId).get
-        val zipCount = if (history.isZip) { getZipedFiles(datasetId, history.id).size } else { 0 }
+        val canDownload = permission >= UserAndGroupAccessLevel.ALLOW_DOWNLOAD
+        val zipCount = if (history.isZip) { getZipedFiles(datasetId, history.id, canDownload).size } else { 0 }
         DatasetData.DatasetFile(
           id = file.id,
           name = file.name,
           description = file.description,
-          url = AppConf.fileDownloadRoot + datasetId + "/" + file.id,
-          size = file.fileSize,
+          url = if (canDownload) Some(AppConf.fileDownloadRoot + datasetId + "/" + file.id) else None,
+          size = if (canDownload) Some(file.fileSize) else None,
           createdBy = createdUser.map(u => User(u, createdUserMail.getOrElse(""))),
           createdAt = file.createdAt.toString(),
           updatedBy = updatedUser.map(u => User(u, updatedUserMail.getOrElse(""))),
@@ -3070,8 +3072,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           id = file.id,
           name = file.name,
           description = file.description,
-          url = AppConf.fileDownloadRoot + datasetId + "/" + file.id,
-          size = file.fileSize,
+          url = Some(AppConf.fileDownloadRoot + datasetId + "/" + file.id),
+          size = Some(file.fileSize),
           createdBy = createdUser.map(u => User(u, createdUserMail.getOrElse(""))),
           createdAt = file.createdAt.toString(),
           updatedBy = updatedUser.map(u => User(u, updatedUserMail.getOrElse(""))),
@@ -3104,7 +3106,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.map(_.int(1)).single.apply().getOrElse(0)
   }
 
-  def getZipedFiles(datasetId: String, historyId: String)(implicit s: DBSession): Seq[DatasetZipedFile] = {
+  def getZipedFiles(datasetId: String, historyId: String, canDownload: Boolean = true)(implicit s: DBSession): Seq[DatasetZipedFile] = {
     val zf = persistence.ZipedFiles.zf
     val zipedFiles = withSQL {
       select
@@ -3119,8 +3121,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       DatasetZipedFile(
         id = x.id,
         name = x.name,
-        size = x.fileSize,
-        url = AppConf.fileDownloadRoot + datasetId + "/" + x.id
+        size = if (canDownload) Some(x.fileSize) else None,
+        url = if (canDownload) Some(AppConf.fileDownloadRoot + datasetId + "/" + x.id) else None
       )
     }.toSeq
   }
@@ -3988,7 +3990,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(user, "user")
       DB.readOnly { implicit s =>
         val dataset = checkDatasetExisitence(datasetId)
-        checkReadPermission(datasetId, user)
+        val permission = checkReadPermission(datasetId, user)
         val validatedLimit = limit.map { x =>
           if (x < 0) { 0 } else { x }
         }.getOrElse(AppConf.fileLimit)
@@ -3998,7 +4000,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         if (validatedOffset < 0) {
           RangeSlice(RangeSliceSummary(count, 0, validatedOffset), Seq.empty[DatasetData.DatasetFile])
         } else {
-          val files = getFiles(datasetId, validatedLimit, validatedOffset)
+          val files = getFiles(datasetId, permission, validatedLimit, validatedOffset)
           RangeSlice(RangeSliceSummary(count, files.size, validatedOffset), files)
         }
       }
@@ -4044,7 +4046,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             x
           }
         }
-        checkReadPermission(datasetId, user)
+        val permission = checkReadPermission(datasetId, user)
         val validatedLimit = limit.map { x =>
           if (x < 0) { 0 } else { x }
         }.getOrElse(AppConf.fileLimit)
@@ -4057,7 +4059,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             Seq.empty[DatasetData.DatasetZipedFile]
           )
         } else {
-          val files = getZippedFiles(datasetId, history.id, validatedLimit, validatedOffset)
+          val files = getZippedFiles(datasetId, history.id, permission, validatedLimit, validatedOffset)
           RangeSlice(RangeSliceSummary(count, files.size, validatedOffset), files)
         }
       }
@@ -4067,6 +4069,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   private def getZippedFiles(
     datasetId: String,
     historyId: String,
+    permission: Int,
     limit: Int,
     offset: Int
   )(implicit s: DBSession): Seq[DatasetZipedFile] = {
@@ -4082,12 +4085,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     if (zipedFiles.exists(hasPassword)) {
       return Seq.empty
     }
+    val canDownload = permission >= UserAndGroupAccessLevel.ALLOW_DOWNLOAD
     zipedFiles.map { x =>
       DatasetZipedFile(
         id = x.id,
         name = x.name,
-        size = x.fileSize,
-        url = AppConf.fileDownloadRoot + datasetId + "/" + x.id
+        size = if (canDownload) Some(x.fileSize) else None,
+        url = if (canDownload) Some(AppConf.fileDownloadRoot + datasetId + "/" + x.id) else None
       )
     }.toSeq
   }

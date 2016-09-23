@@ -1213,7 +1213,7 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
   private def getFileUrl(datasetId: String): String = {
     get(s"/api/datasets/${datasetId}/files") {
       val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
-      result.data.results(0).url
+      result.data.results(0).url.get
     }
   }
 
