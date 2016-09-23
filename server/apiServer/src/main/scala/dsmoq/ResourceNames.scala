@@ -179,4 +179,9 @@ object ResourceNames {
    * 不正なJARファイルが指定されました
    */
   val INVALID_JAR_FILE = "invalid_jar_file"
+
+  /**
+   * 不正なグループが指定されました
+   */
+  val INVALID_GROUP = "invalid_group"
 }

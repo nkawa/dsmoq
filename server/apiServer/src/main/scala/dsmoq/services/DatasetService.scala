@@ -2257,9 +2257,10 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
                 ownerType = OwnerType.User
               )
             case OwnerType.Group =>
+              val group = persistence.Group.find(x.id).getOrElse {
+                throw new BadRequestException(resource.getString(ResourceNames.INVALID_GROUP))
+              }
               saveOrCreateOwnerships(user, datasetId, x.id, x.accessLevel)
-
-              val group = persistence.Group.find(x.id).get
               DatasetData.DatasetOwnership(
                 id = x.id,
                 name = group.name,
@@ -2486,16 +2487,25 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   ) extends FileResult
 
   def findFile(fileId: String)(implicit session: DBSession): Option[FileResult] = {
-    persistence.File.find(fileId).map { file =>
-      val history = persistence.FileHistory.find(file.historyId).get
+    val file = for {
+      file <- persistence.File.find(fileId)
+      if file.deletedAt.isEmpty
+      history <- persistence.FileHistory.find(file.historyId)
+      if history.deletedAt.isEmpty
+    } yield {
       FileResultNormal(file, history.filePath)
-    }.orElse {
-      persistence.ZipedFiles.find(fileId).map { zipFile =>
-        val history = persistence.FileHistory.find(zipFile.historyId).get
-        val file = persistence.File.find(history.fileId).get
-        FileResultZip(file, history.filePath, zipFile)
-      }
     }
+    lazy val zipedFile = for {
+      zipFile <- persistence.ZipedFiles.find(fileId)
+      if zipFile.deletedAt.isEmpty
+      history <- persistence.FileHistory.find(zipFile.historyId)
+      if history.deletedAt.isEmpty
+      file <- persistence.File.find(history.fileId)
+      if file.deletedAt.isEmpty
+    } yield {
+      FileResultZip(file, history.filePath, zipFile)
+    }
+    file orElse zipedFile
   }
 
   /**
@@ -3365,57 +3375,58 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   def importAttribute(datasetId: String, file: FileItem, user: User): Try[Unit] = {
     Try {
       val csv = use(new InputStreamReader(file.getInputStream)) { in =>
-        CSVReader.open(in).all()
+        CSVReader.open(in).all().collect {
+          case name :: value :: _ => (name, value)
+        }
       }
-      val nameMap = csv.map(x => (x(0), x(1))).toMap
 
       DB.localTx { implicit s =>
+        checkDatasetExisitence(datasetId)
+        checkOwnerAccess(datasetId, user)
+
         val a = persistence.Annotation.a
         val da = persistence.DatasetAnnotation.da
         val exists = withSQL {
           select
             .from(Annotation as a)
             .where
-            .in(a.name, csv.map(_(0)))
-        }.map(persistence.Annotation(a.resultName)).list.apply()
+            .in(a.name, csv.map(_._1))
+        }.map { rs =>
+          val annotation = persistence.Annotation(a.resultName)(rs)
+          (annotation.name, annotation.id)
+        }.list.apply().toMap
 
-        val notExists = csv.filter(x => !exists.map(_.name).contains(x(0)))
-        val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
 
-        val created = notExists.map { annotation =>
-          persistence.Annotation.create(
-            id = UUID.randomUUID().toString,
-            name = annotation(0),
-            createdBy = myself.id,
-            createdAt = timestamp,
-            updatedBy = myself.id,
-            updatedAt = timestamp
-          )
-        }
+        val names = csv.map(_._1).toSet
+        val annotations = names.map { name =>
+          val id = exists.getOrElse(name, {
+            val id = UUID.randomUUID().toString
+            persistence.Annotation.create(
+              id = id,
+              name = name,
+              createdBy = user.id,
+              createdAt = timestamp,
+              updatedBy = user.id,
+              updatedAt = timestamp
+            )
+            id
+          })
+          (name, id)
+        }.toMap
 
-        val existRels = withSQL {
-          select
-            .from(DatasetAnnotation as da)
-            .join(Annotation as a).on(da.annotationId, a.id)
-            .where
-            .eqUuid(da.datasetId, datasetId)
-            .and
-            .in(a.name, exists.map(_.name))
-        }.map(persistence.DatasetAnnotation(da.resultName)).list.apply()
-
-        (exists.filter(x => !existRels.map(_.annotationId).contains(x.id)) ++ created).foreach { annotation =>
-
-          persistence.DatasetAnnotation.create(
-            id = UUID.randomUUID().toString,
-            datasetId = datasetId,
-            annotationId = annotation.id,
-            data = nameMap(annotation.name),
-            createdBy = myself.id,
-            createdAt = timestamp,
-            updatedBy = myself.id,
-            updatedAt = timestamp
-          )
+        csv.foreach {
+          case (name, value) =>
+            persistence.DatasetAnnotation.create(
+              id = UUID.randomUUID().toString,
+              datasetId = datasetId,
+              annotationId = annotations(name),
+              data = value,
+              createdBy = user.id,
+              createdAt = timestamp,
+              updatedBy = user.id,
+              updatedAt = timestamp
+            )
         }
       }
     }
