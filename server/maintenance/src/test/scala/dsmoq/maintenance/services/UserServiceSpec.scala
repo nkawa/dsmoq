@@ -11,6 +11,7 @@ import scalikejdbc.config.DBsWithEnv
 
 import dsmoq.persistence
 import dsmoq.maintenance.data.user.SearchCondition
+import dsmoq.maintenance.data.user.UpdateParameter
 import dsmoq.maintenance.services.SpecCommonLogic.UserDetail
 
 class UserServiceSpec extends FreeSpec with BeforeAndAfter {
@@ -18,6 +19,7 @@ class UserServiceSpec extends FreeSpec with BeforeAndAfter {
   SpecCommonLogic.deleteAllCreateData()
 
   before {
+    SpecCommonLogic.deleteAllCreateData()
     SpecCommonLogic.insertDummyData()
   }
 
@@ -340,7 +342,7 @@ class UserServiceSpec extends FreeSpec with BeforeAndAfter {
     val user1Id = "023bfa40-e897-4dad-96db-9fd3cf001e79"
     "no update" in {
       val now = DateTime.now
-      UserService.updateDisabled(Seq.empty, Seq.empty)
+      UserService.updateDisabled(toParam(Seq.empty, Seq.empty))
       val condition = SearchCondition.fromMap(Map.empty)
       val users = UserService.search(condition)
       users.data.filter(u => u.updatedAt.isAfter(now)).size should be(0)
@@ -350,10 +352,9 @@ class UserServiceSpec extends FreeSpec with BeforeAndAfter {
     } {
       s"invalid uuid ${originals.size}x${updates.size}" in {
         val now = DateTime.now
-        val thrown = the[ServiceException] thrownBy {
-          UserService.updateDisabled(originals, updates).get
+        val thrown = the[org.postgresql.util.PSQLException] thrownBy {
+          UserService.updateDisabled(toParam(originals, updates)).get
         }
-        thrown.getMessage should be("指定したIDの形式が不正です。")
         val condition = SearchCondition.fromMap(Map.empty)
         val users = UserService.search(condition)
         users.data.filter(u => u.updatedAt.isAfter(now)).size should be(0)
@@ -365,10 +366,7 @@ class UserServiceSpec extends FreeSpec with BeforeAndAfter {
     } {
       s"not exists userid ${originals.size}x${updates.size}" in {
         val now = DateTime.now
-        val thrown = the[ServiceException] thrownBy {
-          UserService.updateDisabled(originals, updates).get
-        }
-        thrown.getMessage should be("存在しないユーザーが指定されました。")
+        UserService.updateDisabled(toParam(originals, updates)).get
         val condition = SearchCondition.fromMap(Map.empty)
         val users = UserService.search(condition)
         users.data.filter(u => u.updatedAt.isAfter(now)).size should be(0)
@@ -377,7 +375,7 @@ class UserServiceSpec extends FreeSpec with BeforeAndAfter {
     "disable(1 user)" in {
       SpecCommonLogic.deleteAllCreateData()
       val user = SpecCommonLogic.insertUser(UserDetail(name = s"test1", ts = DateTime.now, disabled = false))
-      UserService.updateDisabled(Seq.empty, Seq(user.id))
+      UserService.updateDisabled(toParam(Seq.empty, Seq(user.id)))
       val condition = SearchCondition.fromMap(Map.empty)
       val users = UserService.search(condition)
       users.data.filter(_.id == user.id).map(_.disabled).headOption should be(Some(true))
@@ -385,7 +383,7 @@ class UserServiceSpec extends FreeSpec with BeforeAndAfter {
     "enable(1 user)" in {
       SpecCommonLogic.deleteAllCreateData()
       val user = SpecCommonLogic.insertUser(UserDetail(name = s"test1", ts = DateTime.now, disabled = true))
-      UserService.updateDisabled(Seq(user.id), Seq.empty)
+      UserService.updateDisabled(toParam(Seq(user.id), Seq.empty))
       val condition = SearchCondition.fromMap(Map.empty)
       val users = UserService.search(condition)
       users.data.filter(_.id == user.id).map(_.disabled).headOption should be(Some(false))
@@ -394,7 +392,7 @@ class UserServiceSpec extends FreeSpec with BeforeAndAfter {
       SpecCommonLogic.deleteAllCreateData()
       val now = DateTime.now
       val user = SpecCommonLogic.insertUser(UserDetail(name = s"test1", ts = DateTime.now, disabled = false))
-      UserService.updateDisabled(Seq(user.id), Seq(user.id))
+      UserService.updateDisabled(toParam(Seq(user.id), Seq(user.id)))
       val condition = SearchCondition.fromMap(Map.empty)
       val users = UserService.search(condition)
       users.data.filter(u => u.updatedAt.isAfter(now)).size should be(0)
@@ -403,7 +401,7 @@ class UserServiceSpec extends FreeSpec with BeforeAndAfter {
       SpecCommonLogic.deleteAllCreateData()
       val user1 = SpecCommonLogic.insertUser(UserDetail(name = s"test1", ts = DateTime.now, disabled = true))
       val user2 = SpecCommonLogic.insertUser(UserDetail(name = s"test2", ts = DateTime.now, disabled = false))
-      UserService.updateDisabled(Seq(user1.id), Seq(user2.id))
+      UserService.updateDisabled(toParam(Seq(user1.id), Seq(user2.id)))
       val condition = SearchCondition.fromMap(Map.empty)
       val users = UserService.search(condition)
       users.data.filter(_.id == user1.id).map(_.disabled).headOption should be(Some(false))
@@ -413,7 +411,7 @@ class UserServiceSpec extends FreeSpec with BeforeAndAfter {
       SpecCommonLogic.deleteAllCreateData()
       val user1 = SpecCommonLogic.insertUser(UserDetail(name = s"test1", ts = DateTime.now, disabled = true))
       val user2 = SpecCommonLogic.insertUser(UserDetail(name = s"test2", ts = DateTime.now, disabled = true))
-      UserService.updateDisabled(Seq(user1.id, user2.id), Seq.empty)
+      UserService.updateDisabled(toParam(Seq(user1.id, user2.id), Seq.empty))
       val condition = SearchCondition.fromMap(Map.empty)
       val users = UserService.search(condition)
       users.data.filter(_.id == user1.id).map(_.disabled).headOption should be(Some(false))
@@ -423,11 +421,19 @@ class UserServiceSpec extends FreeSpec with BeforeAndAfter {
       SpecCommonLogic.deleteAllCreateData()
       val user1 = SpecCommonLogic.insertUser(UserDetail(name = s"test1", ts = DateTime.now, disabled = false))
       val user2 = SpecCommonLogic.insertUser(UserDetail(name = s"test2", ts = DateTime.now, disabled = false))
-      UserService.updateDisabled(Seq.empty, Seq(user1.id, user2.id))
+      UserService.updateDisabled(toParam(Seq.empty, Seq(user1.id, user2.id)))
       val condition = SearchCondition.fromMap(Map.empty)
       val users = UserService.search(condition)
       users.data.filter(_.id == user1.id).map(_.disabled).headOption should be(Some(true))
       users.data.filter(_.id == user2.id).map(_.disabled).headOption should be(Some(true))
     }
+  }
+
+  def toParam(originals: Seq[String], updates: Seq[String]): UpdateParameter = {
+    val map = org.scalatra.util.MultiMap(Map(
+      "disabled.originals" -> originals,
+      "disabled.updates" -> updates
+    ))
+    UpdateParameter.fromMap(map)
   }
 }

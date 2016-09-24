@@ -58,6 +58,11 @@ object GroupService extends LazyLogging {
   val SERVICE_NAME = "GroupService"
 
   /**
+   * 追加・更新時に使用できるユーザーのメンバーロール
+   */
+  val validRoles = Seq(MemberRole.Member, MemberRole.Manager)
+
+  /**
    * グループを検索する。
    *
    * @param condition 検索条件
@@ -150,10 +155,9 @@ object GroupService extends LazyLogging {
    */
   def getMemberAddData(param: SearchMembersParameter): Try[MemberAddData] = {
     logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "getMemberAddData", param))
-    DB.readOnly { implicit s =>
+    val result = DB.readOnly { implicit s =>
       for {
         id <- Util.require(param.groupId, "グループID")
-        _ <- Util.checkUuid(id)
         group <- searchGroupById(id)
       } yield {
         MemberAddData(
@@ -162,6 +166,7 @@ object GroupService extends LazyLogging {
         )
       }
     }
+    Util.withErrorLogging(logger, LOG_MARKER, result)
   }
 
   /**
@@ -174,10 +179,9 @@ object GroupService extends LazyLogging {
    */
   def getMemberListData(param: SearchMembersParameter): Try[MemberListData] = {
     logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "getMemberListData", param))
-    DB.readOnly { implicit s =>
+    val result = DB.readOnly { implicit s =>
       for {
         id <- Util.require(param.groupId, "グループID")
-        _ <- Util.checkUuid(id)
         group <- searchGroupById(id)
       } yield {
         val members = searchGroupMembers(id)
@@ -188,6 +192,7 @@ object GroupService extends LazyLogging {
         )
       }
     }
+    Util.withErrorLogging(logger, LOG_MARKER, result)
   }
 
   /**
@@ -201,7 +206,7 @@ object GroupService extends LazyLogging {
    */
   def getMemberUpdateData(param: SearchMemberParameter): Try[MemberUpdateData] = {
     logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "getMemberUpdateData", param))
-    DB.readOnly { implicit s =>
+    val result = DB.readOnly { implicit s =>
       for {
         groupId <- Util.require(param.groupId, "グループID")
         userId <- Util.require(param.userId, "ユーザーID")
@@ -216,6 +221,7 @@ object GroupService extends LazyLogging {
         )
       }
     }
+    Util.withErrorLogging(logger, LOG_MARKER, result)
   }
 
   /**
@@ -480,6 +486,21 @@ object GroupService extends LazyLogging {
   }
 
   /**
+   * メンバー追加・更新時に適切なメンバーロールかを確認する。
+   *
+   * @param role チェック対象のメンバーロール
+   * @param 確認結果
+   *        Failure(ServiceException) チェック対象が有効なロールに含まれなかった場合
+   */
+  def checkRole(role: MemberRole): Try[Unit] = {
+    if (validRoles.contains(role)) {
+      Success(())
+    } else {
+      Failure(new ServiceException("無効なロールが指定されました。"))
+    }
+  }
+
+  /**
    * メンバーを更新する。
    *
    * @param param 入力パラメータ
@@ -494,6 +515,7 @@ object GroupService extends LazyLogging {
       for {
         groupId <- Util.require(param.groupId, "グループID")
         userId <- Util.require(param.userId, "ユーザーID")
+        _ <- checkRole(param.role)
         _ <- searchGroupById(groupId)
         _ <- searchUserById(userId)
         member <- searchMember(groupId, userId)
@@ -580,6 +602,7 @@ object GroupService extends LazyLogging {
       for {
         groupId <- Util.require(param.groupId, "グループID")
         userName <- Util.require(param.userName, "ユーザー名")
+        _ <- checkRole(param.role)
         group <- searchGroupById(groupId)
         user <- searchUserByName(userName)
         member <- searchMember(groupId, user.id)
@@ -686,7 +709,7 @@ object GroupService extends LazyLogging {
     member: Option[persistence.Member]
   )(implicit s: DBSession): Try[Unit] = {
     member match {
-      case Some(m) if m.role == persistence.GroupMemberRole.Deny =>
+      case Some(m) if m.role != persistence.GroupMemberRole.Deny =>
         Failure(new ServiceException(s"既に登録のあるユーザーが指定されました。"))
       case _ => Success(())
     }
@@ -714,7 +737,7 @@ object GroupService extends LazyLogging {
         groupId = groupId,
         userId = userId,
         role = role.toDBValue,
-        status = 1, // TODO この値の意味を調べて、定数化する
+        status = 1,
         createdBy = systemUserId,
         createdAt = timestamp,
         updatedBy = systemUserId,
@@ -733,12 +756,13 @@ object GroupService extends LazyLogging {
    */
   def applyChange(params: Map[String, String], multiParams: MultiMap): Try[Unit] = {
     val param = UpdateParameter.fromMap(multiParams)
-    params.get("update") match {
+    val result = params.get("update") match {
       case Some("logical_delete") => applyLogicalDelete(param)
       case Some("cancel_logical_delete") => applyCancelLogicalDelete(param)
       case Some("physical_delete") => applyPhysicalDelete(param)
       case _ => Failure(new ServiceException("無効な操作です。"))
     }
+    Util.withErrorLogging(logger, LOG_MARKER, result)
   }
 
   /**
@@ -750,11 +774,12 @@ object GroupService extends LazyLogging {
    */
   def applyChangeForMemberUpdate(params: Map[String, String]): Try[Unit] = {
     val param = UpdateMemberParameter.fromMap(params)
-    params.get("update") match {
+    val result = params.get("update") match {
       case Some("update") => applyUpdateMember(param)
       case Some("delete") => applyDeleteMember(param)
       case _ => Failure(new ServiceException("無効な操作です。"))
     }
+    Util.withErrorLogging(logger, LOG_MARKER, result)
   }
 
   /**
@@ -766,9 +791,10 @@ object GroupService extends LazyLogging {
    */
   def applyChangeForMemberAdd(params: Map[String, String]): Try[Unit] = {
     val param = AddMemberParameter.fromMap(params)
-    params.get("update") match {
+    val result = params.get("update") match {
       case Some("add") => applyAddMember(param)
       case _ => Failure(new ServiceException("無効な操作です。"))
     }
+    Util.withErrorLogging(logger, LOG_MARKER, result)
   }
 }

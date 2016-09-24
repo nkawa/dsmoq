@@ -88,7 +88,7 @@ object ApiKeyService extends LazyLogging {
    */
   def disable(param: DisableParameter): Try[Unit] = {
     logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "disable", param))
-    param.id.filter(!_.isEmpty).map { id =>
+    val result = param.id.filter(!_.isEmpty).map { id =>
       DB.localTx { implicit s =>
         for {
           _ <- execDisable(id)
@@ -99,6 +99,7 @@ object ApiKeyService extends LazyLogging {
     }.getOrElse {
       Failure(new ServiceException("キーが未選択です。"))
     }
+    Util.withErrorLogging(logger, LOG_MARKER, result)
   }
 
   /**
@@ -138,7 +139,7 @@ object ApiKeyService extends LazyLogging {
    */
   def add(param: AddParameter): Try[String] = {
     logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "add", param))
-    param.userName.filter(!_.isEmpty).map { userName =>
+    val result = param.userName.filter(!_.isEmpty).map { userName =>
       DB.localTx { implicit s =>
         for {
           user <- getUserByName(userName)
@@ -150,6 +151,7 @@ object ApiKeyService extends LazyLogging {
     }.getOrElse {
       Failure(new ServiceException("ユーザーが指定されていません。"))
     }
+    Util.withErrorLogging(logger, LOG_MARKER, result)
   }
 
   /**

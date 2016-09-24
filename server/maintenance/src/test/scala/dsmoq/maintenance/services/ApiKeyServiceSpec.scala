@@ -10,6 +10,10 @@ import org.scalatest.Matchers._
 
 import scalikejdbc.config.DBsWithEnv
 
+import dsmoq.maintenance.data.user
+import dsmoq.maintenance.data.apikey.AddParameter
+import dsmoq.maintenance.data.apikey.DisableParameter
+
 import dsmoq.maintenance.data.apikey.SearchResultApiKey
 
 class ApiKeyServiceSpec extends FreeSpec with BeforeAndAfter {
@@ -17,6 +21,7 @@ class ApiKeyServiceSpec extends FreeSpec with BeforeAndAfter {
   SpecCommonLogic.deleteAllCreateData()
 
   before {
+    SpecCommonLogic.deleteAllCreateData()
     SpecCommonLogic.insertDummyData()
   }
 
@@ -41,16 +46,18 @@ class ApiKeyServiceSpec extends FreeSpec with BeforeAndAfter {
     "invalid name" in {
       val orgs = ApiKeyService.list()
       val thrown = the[ServiceException] thrownBy {
-        ApiKeyService.add(Some("hoge")).get
+        val param = AddParameter.fromMap(Map("name" -> "hoge"))
+        ApiKeyService.add(param).get
       }
       thrown.getMessage should be("無効なユーザーが指定されました。")
       ApiKeyService.list() should be(orgs)
     }
     "disabled user" in {
-      UserService.updateDisabled(Seq.empty, Seq("023bfa40-e897-4dad-96db-9fd3cf001e79"))
+      UserService.updateDisabled(user.UpdateParameter(Seq.empty, Seq("023bfa40-e897-4dad-96db-9fd3cf001e79")))
       val orgs = ApiKeyService.list()
       val thrown = the[ServiceException] thrownBy {
-        ApiKeyService.add(Some("dummy1")).get
+        val param = AddParameter.fromMap(Map("name" -> "dummy"))
+        ApiKeyService.add(param).get
       }
       thrown.getMessage should be("無効なユーザーが指定されました。")
       ApiKeyService.list() should be(orgs)
@@ -60,16 +67,18 @@ class ApiKeyServiceSpec extends FreeSpec with BeforeAndAfter {
         n <- 0 to 2
       } {
         s"${n} key" in {
-          ApiKeyService.disable(Some("0cebc943-a0b9-4aa5-927d-65fa374bf0ec"))
+          ApiKeyService.disable(DisableParameter.fromMap(Map("id" -> "0cebc943-a0b9-4aa5-927d-65fa374bf0ec")))
+          ApiKeyService.disable(DisableParameter.fromMap(Map("id" -> "0cebc943-a0b9-4aa5-927d-65fa374bf0ed")))
           ApiKeyService.list().size should be(0)
+          val addParam = AddParameter.fromMap(Map("name" -> "dummy1"))
           for {
             _ <- 1 to n
           } {
-            ApiKeyService.add(Some("dummy1")).get
+            ApiKeyService.add(addParam).get
           }
           val orgs = ApiKeyService.list()
           orgs.size should be(n)
-          ApiKeyService.add(Some("dummy1")).get
+          ApiKeyService.add(addParam).get
           ApiKeyService.list().size should be(orgs.size + 1)
         }
       }
@@ -77,67 +86,61 @@ class ApiKeyServiceSpec extends FreeSpec with BeforeAndAfter {
   }
   "disable to" - {
     "none key" in {
-      ApiKeyService.list().size should be(1)
+      ApiKeyService.list().size should be(2)
       val thrown = the[ServiceException] thrownBy {
-        ApiKeyService.disable(None).get
+        val param = DisableParameter.fromMap(Map.empty)
+        ApiKeyService.disable(param).get
       }
       thrown.getMessage should be("キーが未選択です。")
-      ApiKeyService.list().size should be(1)
+      ApiKeyService.list().size should be(2)
     }
     "invalid key id" in {
-      ApiKeyService.list().size should be(1)
-      val thrown = the[ServiceException] thrownBy {
-        ApiKeyService.disable(Some(UUID.randomUUID.toString)).get
-      }
-      thrown.getMessage should be("無効なAPIキーが指定されました。")
-      ApiKeyService.list().size should be(1)
+      ApiKeyService.list().size should be(2)
+      val param = DisableParameter.fromMap(Map("id" -> UUID.randomUUID.toString))
+      ApiKeyService.disable(param).get
+      ApiKeyService.list().size should be(2)
     }
     "disabled key" in {
-      ApiKeyService.list().size should be(1)
-      val id = ApiKeyService.add(Some("dummy1")).get
       ApiKeyService.list().size should be(2)
-      ApiKeyService.disable(Some(id)).get
-      ApiKeyService.list().size should be(1)
-      val thrown = the[ServiceException] thrownBy {
-        ApiKeyService.disable(Some(id)).get
-      }
-      thrown.getMessage should be("無効なAPIキーが指定されました。")
-      ApiKeyService.list().size should be(1)
+      val id = ApiKeyService.add(AddParameter.fromMap(Map("name" -> "dummy1"))).get
+      ApiKeyService.list().size should be(3)
+      val param = DisableParameter.fromMap(Map("id" -> id))
+      ApiKeyService.disable(param).get
+      ApiKeyService.list().size should be(2)
+      ApiKeyService.disable(param).get
+      ApiKeyService.list().size should be(2)
     }
     "disabled user's" in {
-      ApiKeyService.list().size should be(1)
-      val id = ApiKeyService.add(Some("dummy1")).get
       ApiKeyService.list().size should be(2)
-      UserService.updateDisabled(Seq.empty, Seq("023bfa40-e897-4dad-96db-9fd3cf001e79"))
-      ApiKeyService.list().size should be(0)
-      val thrown = the[ServiceException] thrownBy {
-        ApiKeyService.disable(Some(id)).get
-      }
-      thrown.getMessage should be("無効なAPIキーが指定されました。")
-      ApiKeyService.list().size should be(0)
-      UserService.updateDisabled(Seq("023bfa40-e897-4dad-96db-9fd3cf001e79"), Seq.empty)
+      val id = ApiKeyService.add(AddParameter.fromMap(Map("name" -> "dummy1"))).get
+      ApiKeyService.list().size should be(3)
+      UserService.updateDisabled(user.UpdateParameter(Seq.empty, Seq("023bfa40-e897-4dad-96db-9fd3cf001e79")))
+      ApiKeyService.list().size should be(1)
+      val param = DisableParameter.fromMap(Map("id" -> id))
+      ApiKeyService.disable(param).get
+      ApiKeyService.list().size should be(1)
+      UserService.updateDisabled(user.UpdateParameter(Seq("023bfa40-e897-4dad-96db-9fd3cf001e79"), Seq.empty))
       ApiKeyService.list().size should be(2)
     }
     "disabled user's disabled key" in {
-      ApiKeyService.list().size should be(1)
-      val id = ApiKeyService.add(Some("dummy1")).get
       ApiKeyService.list().size should be(2)
-      ApiKeyService.disable(Some(id)).get
+      val id = ApiKeyService.add(AddParameter.fromMap(Map("name" -> "dummy1"))).get
+      ApiKeyService.list().size should be(3)
+      val param = DisableParameter.fromMap(Map("id" -> id))
+      ApiKeyService.disable(param).get
+      ApiKeyService.list().size should be(2)
+      UserService.updateDisabled(user.UpdateParameter(Seq.empty, Seq("023bfa40-e897-4dad-96db-9fd3cf001e79")))
       ApiKeyService.list().size should be(1)
-      UserService.updateDisabled(Seq.empty, Seq("023bfa40-e897-4dad-96db-9fd3cf001e79"))
-      ApiKeyService.list().size should be(0)
-      val thrown = the[ServiceException] thrownBy {
-        ApiKeyService.disable(Some(id)).get
-      }
-      thrown.getMessage should be("無効なAPIキーが指定されました。")
-      ApiKeyService.list().size should be(0)
-      UserService.updateDisabled(Seq("023bfa40-e897-4dad-96db-9fd3cf001e79"), Seq.empty)
+      ApiKeyService.disable(param).get
       ApiKeyService.list().size should be(1)
+      UserService.updateDisabled(user.UpdateParameter(Seq("023bfa40-e897-4dad-96db-9fd3cf001e79"), Seq.empty))
+      ApiKeyService.list().size should be(2)
     }
     "valid key" in {
+      ApiKeyService.list().size should be(2)
+      val param = DisableParameter.fromMap(Map("id" -> "0cebc943-a0b9-4aa5-927d-65fa374bf0ec"))
+      ApiKeyService.disable(param)
       ApiKeyService.list().size should be(1)
-      ApiKeyService.disable(Some("0cebc943-a0b9-4aa5-927d-65fa374bf0ec"))
-      ApiKeyService.list().size should be(0)
     }
   }
 }

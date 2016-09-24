@@ -131,7 +131,7 @@ object UserService extends LazyLogging {
    */
   def updateDisabled(param: UpdateParameter): Try[Unit] = {
     logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "updateDisabled", param))
-    DB.localTx { implicit s =>
+    val result = DB.localTx { implicit s =>
       for {
         _ <- checkChange(param.originals, param.updates)
         _ <- execUpdateDisabled(param.originals, param.updates)
@@ -139,6 +139,7 @@ object UserService extends LazyLogging {
         ()
       }
     }
+    Util.withErrorLogging(logger, LOG_MARKER, result)
   }
 
   /**

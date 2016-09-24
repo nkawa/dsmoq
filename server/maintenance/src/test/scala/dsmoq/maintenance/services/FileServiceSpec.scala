@@ -10,8 +10,22 @@ import org.scalatest.Matchers._
 import scalikejdbc.config.DBsWithEnv
 
 import dsmoq.persistence
-import dsmoq.maintenance.data.user.SearchCondition
+import dsmoq.persistence.PostgresqlHelper.PgConditionSQLBuilder
+import dsmoq.persistence.PostgresqlHelper.PgSQLSyntaxType
+import dsmoq.maintenance.data.file.SearchCondition
+import dsmoq.maintenance.data.file.UpdateParameter
 import dsmoq.maintenance.services.SpecCommonLogic.UserDetail
+
+import scalikejdbc.DB
+import scalikejdbc.DBSession
+import scalikejdbc.SelectSQLBuilder
+import scalikejdbc.SQLSyntax
+import scalikejdbc.interpolation.Implicits.scalikejdbcSQLInterpolationImplicitDef
+import scalikejdbc.interpolation.Implicits.scalikejdbcSQLSyntaxToStringImplicitDef
+import scalikejdbc.select
+import scalikejdbc.sqls
+import scalikejdbc.update
+import scalikejdbc.withSQL
 
 class FileServiceSpec extends FreeSpec with BeforeAndAfter {
   DBsWithEnv("test").setup()
@@ -25,409 +39,489 @@ class FileServiceSpec extends FreeSpec with BeforeAndAfter {
     SpecCommonLogic.deleteAllCreateData()
   }
 
+  val defaultUpdatedAt = new DateTime(2000, 1, 1, 0, 0, 0)
+
   "search by" - {
-    def prepareUsers(): Seq[persistence.User] = {
-      SpecCommonLogic.deleteAllCreateData()
-      val list1 = Seq(
-        SpecCommonLogic.insertUser(UserDetail(
-          name = "hoge1",
-          ts = new DateTime(2016, 9, 12, 0, 0, 0),
-          fullname = Some("fuga piyo"),
-          organization = Some("denkiyagi 1"),
-          disabled = false
-        )),
-        SpecCommonLogic.insertUser(UserDetail(
-          name = "hoge2",
-          ts = new DateTime(2016, 9, 12, 0, 0, 1),
-          fullname = Some("piyo fuga"),
-          organization = Some("denkiyagi 2"),
-          disabled = false
-        )),
-        SpecCommonLogic.insertUser(UserDetail(
-          name = "hoge3",
-          ts = new DateTime(2016, 9, 12, 0, 0, 2),
-          fullname = Some("fuga piyo"),
-          organization = Some("denkiyagi 1"),
-          disabled = true
-        )),
-        SpecCommonLogic.insertUser(UserDetail(
-          name = "hoge4",
-          ts = new DateTime(2016, 9, 12, 0, 0, 3),
-          fullname = Some("piyo fuga"),
-          organization = Some("denkiyagi 2"),
-          disabled = true
-        ))
-      )
-      val list2 = for (i <- 1 to 3) yield {
-        val dt = new DateTime(2016, 9, 13, 0, 0, i)
-        SpecCommonLogic.insertUser(UserDetail(name = s"test${i}", ts = dt, disabled = false))
+    def updateCreatedAt(files: Seq[persistence.File]): Unit = {
+      DB.localTx { implicit s =>
+        val f = persistence.File.column
+        for {
+          (file, index) <- files.zipWithIndex
+        } {
+          withSQL {
+            update(persistence.File)
+              .set(
+                f.createdAt -> new DateTime(2016, 9, 22, 0, 0, index)
+              )
+              .where
+              .eq(f.id, sqls.uuid(file.id))
+          }.update.apply()
+        }
       }
-      val list3 = for (i <- 4 to 6) yield {
-        val dt = new DateTime(2016, 9, 13, 0, 0, i)
-        SpecCommonLogic.insertUser(UserDetail(name = s"test${i}", ts = dt, disabled = true))
-      }
-      list1 ++ list2 ++ list3
     }
-    "userType=None, query=None, page=None" in {
-      val users = prepareUsers()
+    def prepareFiles(): (String, String, Seq[persistence.File]) = {
+      val client = SpecCommonLogic.createClient()
+      val files1 = (1 to 5).map(i => new java.io.File(s"./testdata/maintenance/file/test${i}.csv"))
+      val files2 = (6 to 10).map(i => new java.io.File(s"./testdata/maintenance/file/test${i}.csv"))
+      val dataset1 = client.createDataset("dataset1", true, false, files1: _*)
+      val dataset2 = client.createDataset("dataset2", true, false, files2: _*)
+      val files = getFiles(Seq(dataset1.getId, dataset2.getId))
+      val fileMap = files.groupBy(_.datasetId)
+      fileMap(dataset1.getId).take(2).foreach { file =>
+        client.deleteFile(file.datasetId, file.id)
+      }
+      fileMap(dataset2.getId).take(3).foreach { file =>
+        client.deleteFile(file.datasetId, file.id)
+      }
+      updateCreatedAt(files)
+      (dataset1.getId, dataset2.getId, getFiles(Seq(dataset1.getId, dataset2.getId)))
+    }
+    "fileType=None, datasetId=None, page=None" in {
+      val (datasetId1, datasetId2, files) = prepareFiles()
       val condition = SearchCondition.fromMap(Map.empty)
-      val results = UserService.search(condition)
-      val expects = users.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt)).map(_.id).take(5)
+      val results = FileService.search(condition)
+      val expects = files.map(_.id).take(5)
       val actuals = results.data.map(_.id)
       actuals should be(expects)
+      results.total should be(10)
+      results.from should be(1)
+      results.to should be(5)
     }
-    "userType=None, query=Some(not macth, not match, not match), page=None" in {
-      val users = prepareUsers()
-      val condition = SearchCondition.fromMap(Map("query" -> "aaaaaaa"))
-      val results = UserService.search(condition)
+    "fileType=None, datasetId=Some(invalid ID), page=None" in {
+      val (datasetId1, datasetId2, files) = prepareFiles()
+      val condition = SearchCondition.fromMap(Map("datasetId" -> "test"))
+      val results = FileService.search(condition)
       results.data should be(Seq.empty)
       results.total should be(0)
     }
-    "userType=None, query=Some(macth, not match, not match), page=None" in {
-      val users = prepareUsers()
-      val condition = SearchCondition.fromMap(Map("query" -> "hoge"))
-      val results = UserService.search(condition)
-      val expects = users.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt)).filter(_.name.contains("hoge")).map(_.id).take(5)
-      val actuals = results.data.map(_.id)
-      actuals should be(expects)
-    }
-    "userType=None, query=Some(not macth, match, not match), page=None" in {
-      val users = prepareUsers()
-      val condition = SearchCondition.fromMap(Map("query" -> "fuga"))
-      val results = UserService.search(condition)
-      val expects = users.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt)).filter(_.fullname.contains("fuga")).map(_.id).take(5)
-      val actuals = results.data.map(_.id)
-      actuals should be(expects)
-    }
-    "userType=None, query=Some(not macth, not match, match), page=None" in {
-      val users = prepareUsers()
-      val condition = SearchCondition.fromMap(Map("query" -> "denkiyagi"))
-      val results = UserService.search(condition)
-      val expects = users.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt)).filter(_.organization.contains("denkiyagi")).map(_.id).take(5)
-      val actuals = results.data.map(_.id)
-      actuals should be(expects)
-    }
-    "userType=Some(all), query=None, page=None" in {
-      val users = prepareUsers()
-      val condition = SearchCondition.fromMap(Map("userType" -> "all"))
-      val results = UserService.search(condition)
-      val expects = users.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt)).map(_.id).take(5)
-      val actuals = results.data.map(_.id)
-      actuals should be(expects)
-    }
-    "userType=Some(all), query=Some(not macth, not match, not match), page=None" in {
-      val users = prepareUsers()
-      val condition = SearchCondition.fromMap(Map("userType" -> "all", "query" -> "aaaaaaa"))
-      val results = UserService.search(condition)
+    "fileType=None, datasetId=Some(not exists), page=None" in {
+      val (datasetId1, datasetId2, files) = prepareFiles()
+      val condition = SearchCondition.fromMap(Map("datasetId" -> UUID.randomUUID.toString))
+      val results = FileService.search(condition)
       results.data should be(Seq.empty)
       results.total should be(0)
     }
-    "userType=Some(all), query=Some(macth, not match, not match), page=None" in {
-      val users = prepareUsers()
-      val condition = SearchCondition.fromMap(Map("userType" -> "all", "query" -> "hoge"))
-      val results = UserService.search(condition)
-      val expects = users.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt)).filter(_.name.contains("hoge")).map(_.id).take(5)
+    "fileType=None, datasetId=Some(dataset1), page=None" in {
+      val (datasetId1, datasetId2, files) = prepareFiles()
+      val condition = SearchCondition.fromMap(Map("datasetId" -> datasetId1))
+      val results = FileService.search(condition)
+      val expects = files.filter(_.datasetId == datasetId1).map(_.id).take(5)
       val actuals = results.data.map(_.id)
       actuals should be(expects)
     }
-    "userType=Some(all), query=Some(not macth, match, not match), page=None" in {
-      val users = prepareUsers()
-      val condition = SearchCondition.fromMap(Map("userType" -> "all", "query" -> "fuga"))
-      val results = UserService.search(condition)
-      val expects = users.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt)).filter(_.fullname.contains("fuga")).map(_.id).take(5)
+    "fileType=Some(all), datasetId=None, page=None" in {
+      val (datasetId1, datasetId2, files) = prepareFiles()
+      val condition = SearchCondition.fromMap(Map("fileType" -> "all"))
+      val results = FileService.search(condition)
+      val expects = files.map(_.id).take(5)
       val actuals = results.data.map(_.id)
       actuals should be(expects)
     }
-    "userType=Some(all), query=Some(not macth, not match, match), page=None" in {
-      val users = prepareUsers()
-      val condition = SearchCondition.fromMap(Map("userType" -> "all", "query" -> "denkiyagi"))
-      val results = UserService.search(condition)
-      val expects = users.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt)).filter(_.organization.contains("denkiyagi")).map(_.id).take(5)
-      val actuals = results.data.map(_.id)
-      actuals should be(expects)
-    }
-    "userType=Some(enabled), query=None, page=None" in {
-      val users = prepareUsers()
-      val condition = SearchCondition.fromMap(Map("userType" -> "enabled"))
-      val results = UserService.search(condition)
-      val expects = users.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt)).filter(!_.disabled).map(_.id).take(5)
-      val actuals = results.data.map(_.id)
-      actuals should be(expects)
-    }
-    "userType=Some(enabled), query=Some(not macth, not match, not match), page=None" in {
-      val users = prepareUsers()
-      val condition = SearchCondition.fromMap(Map("userType" -> "enabled", "query" -> "aaaaaaa"))
-      val results = UserService.search(condition)
+    "fileType=Some(all), datasetId=Some(invalid ID), page=None" in {
+      val (datasetId1, datasetId2, files) = prepareFiles()
+      val condition = SearchCondition.fromMap(Map("fileType" -> "all", "datasetId" -> "test"))
+      val results = FileService.search(condition)
       results.data should be(Seq.empty)
       results.total should be(0)
     }
-    "userType=Some(enabled), query=Some(macth, not match, not match), page=None" in {
-      val users = prepareUsers()
-      val condition = SearchCondition.fromMap(Map("userType" -> "enabled", "query" -> "hoge"))
-      val results = UserService.search(condition)
-      val expects = users.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt)).filter(!_.disabled).filter(_.name.contains("hoge")).map(_.id).take(5)
-      val actuals = results.data.map(_.id)
-      actuals should be(expects)
-    }
-    "userType=Some(enabled), query=Some(not macth, match, not match), page=None" in {
-      val users = prepareUsers()
-      val condition = SearchCondition.fromMap(Map("userType" -> "enabled", "query" -> "fuga"))
-      val results = UserService.search(condition)
-      val expects = users.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt)).filter(!_.disabled).filter(_.fullname.contains("fuga")).map(_.id).take(5)
-      val actuals = results.data.map(_.id)
-      actuals should be(expects)
-    }
-    "userType=Some(enabled), query=Some(not macth, not match, match), page=None" in {
-      val users = prepareUsers()
-      val condition = SearchCondition.fromMap(Map("userType" -> "enabled", "query" -> "denkiyagi"))
-      val results = UserService.search(condition)
-      val expects = users.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt)).filter(!_.disabled).filter(_.organization.contains("denkiyagi")).map(_.id).take(5)
-      val actuals = results.data.map(_.id)
-      actuals should be(expects)
-    }
-    "userType=Some(disabled), query=None, page=None" in {
-      val users = prepareUsers()
-      val condition = SearchCondition.fromMap(Map("userType" -> "disabled"))
-      val results = UserService.search(condition)
-      val expects = users.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt)).filter(_.disabled).map(_.id).take(5)
-      val actuals = results.data.map(_.id)
-      actuals should be(expects)
-    }
-    "userType=Some(disabled), query=Some(not macth, not match, not match), page=None" in {
-      val users = prepareUsers()
-      val condition = SearchCondition.fromMap(Map("userType" -> "disabled", "query" -> "aaaaaaa"))
-      val results = UserService.search(condition)
+    "fileType=Some(all), datasetId=Some(not exists), page=None" in {
+      val (datasetId1, datasetId2, files) = prepareFiles()
+      val condition = SearchCondition.fromMap(Map("fileType" -> "all", "datasetId" -> UUID.randomUUID.toString))
+      val results = FileService.search(condition)
       results.data should be(Seq.empty)
       results.total should be(0)
     }
-    "userType=Some(disabled), query=Some(macth, not match, not match), page=None" in {
-      val users = prepareUsers()
-      val condition = SearchCondition.fromMap(Map("userType" -> "disabled", "query" -> "hoge"))
-      val results = UserService.search(condition)
-      val expects = users.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt)).filter(_.disabled).filter(_.name.contains("hoge")).map(_.id).take(5)
+    "fileType=Some(all), datasetId=Some(dataset1), page=None" in {
+      val (datasetId1, datasetId2, files) = prepareFiles()
+      val condition = SearchCondition.fromMap(Map("fileType" -> "all", "datasetId" -> datasetId1))
+      val results = FileService.search(condition)
+      val expects = files.filter(_.datasetId == datasetId1).map(_.id).take(5)
       val actuals = results.data.map(_.id)
       actuals should be(expects)
     }
-    "userType=Some(disabled), query=Some(not macth, match, not match), page=None" in {
-      val users = prepareUsers()
-      val condition = SearchCondition.fromMap(Map("userType" -> "disabled", "query" -> "fuga"))
-      val results = UserService.search(condition)
-      val expects = users.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt)).filter(_.disabled).filter(_.fullname.contains("fuga")).map(_.id).take(5)
+    "fileType=Some(not_deleted), datasetId=None, page=None" in {
+      val (datasetId1, datasetId2, files) = prepareFiles()
+      val condition = SearchCondition.fromMap(Map("fileType" -> "not_deleted"))
+      val results = FileService.search(condition)
+      val expects = files.filter(!_.deletedAt.isDefined).map(_.id).take(5)
       val actuals = results.data.map(_.id)
       actuals should be(expects)
     }
-    "userType=Some(disabled), query=Some(not macth, not match, match), page=None" in {
-      val users = prepareUsers()
-      val condition = SearchCondition.fromMap(Map("userType" -> "disabled", "query" -> "denkiyagi"))
-      val results = UserService.search(condition)
-      val expects = users.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt)).filter(_.disabled).filter(_.organization.contains("denkiyagi")).map(_.id).take(5)
-      val actuals = results.data.map(_.id)
-      actuals should be(expects)
-    }
-    "userType=Some(aaaaa), query=None, page=None" in {
-      val users = prepareUsers()
-      val condition = SearchCondition.fromMap(Map("userType" -> "aaaaa"))
-      val results = UserService.search(condition)
-      val expects = users.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt)).map(_.id).take(5)
-      val actuals = results.data.map(_.id)
-      actuals should be(expects)
-    }
-    "userType=Some(aaaaa), query=Some(not macth, not match, not match), page=None" in {
-      val users = prepareUsers()
-      val condition = SearchCondition.fromMap(Map("userType" -> "aaaaa", "query" -> "aaaaaaa"))
-      val results = UserService.search(condition)
+    "fileType=Some(not_deleted), datasetId=Some(invalid ID), page=None" in {
+      val (datasetId1, datasetId2, files) = prepareFiles()
+      val condition = SearchCondition.fromMap(Map("fileType" -> "not_deleted", "datasetId" -> "test"))
+      val results = FileService.search(condition)
       results.data should be(Seq.empty)
       results.total should be(0)
     }
-    "userType=Some(aaaaa), query=Some(macth, not match, not match), page=None" in {
-      val users = prepareUsers()
-      val condition = SearchCondition.fromMap(Map("userType" -> "aaaaa", "query" -> "hoge"))
-      val results = UserService.search(condition)
-      val expects = users.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt)).filter(_.name.contains("hoge")).map(_.id).take(5)
+    "fileType=Some(not_deleted), datasetId=Some(not exists), page=None" in {
+      val (datasetId1, datasetId2, files) = prepareFiles()
+      val condition = SearchCondition.fromMap(Map("fileType" -> "not_deleted", "datasetId" -> UUID.randomUUID.toString))
+      val results = FileService.search(condition)
+      results.data should be(Seq.empty)
+      results.total should be(0)
+    }
+    "fileType=Some(not_deleted), datasetId=Some(dataset1), page=None" in {
+      val (datasetId1, datasetId2, files) = prepareFiles()
+      val condition = SearchCondition.fromMap(Map("fileType" -> "not_deleted", "datasetId" -> datasetId1))
+      val results = FileService.search(condition)
+      val expects = files.filter(f => !f.deletedAt.isDefined && f.datasetId == datasetId1).map(_.id).take(5)
       val actuals = results.data.map(_.id)
       actuals should be(expects)
     }
-    "userType=Some(aaaaa), query=Some(not macth, match, not match), page=None" in {
-      val users = prepareUsers()
-      val condition = SearchCondition.fromMap(Map("userType" -> "aaaaa", "query" -> "fuga"))
-      val results = UserService.search(condition)
-      val expects = users.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt)).filter(_.fullname.contains("fuga")).map(_.id).take(5)
+    "fileType=Some(deleted), datasetId=None, page=None" in {
+      val (datasetId1, datasetId2, files) = prepareFiles()
+      val condition = SearchCondition.fromMap(Map("fileType" -> "deleted"))
+      val results = FileService.search(condition)
+      val expects = files.filter(_.deletedAt.isDefined).map(_.id).take(5)
       val actuals = results.data.map(_.id)
       actuals should be(expects)
     }
-    "userType=Some(aaaaa), query=Some(not macth, not match, match), page=None" in {
-      val users = prepareUsers()
-      val condition = SearchCondition.fromMap(Map("userType" -> "aaaaa", "query" -> "denkiyagi"))
-      val results = UserService.search(condition)
-      val expects = users.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt)).filter(_.organization.contains("denkiyagi")).map(_.id).take(5)
+    "fileType=Some(deleted), datasetId=Some(invalid ID), page=None" in {
+      val (datasetId1, datasetId2, files) = prepareFiles()
+      val condition = SearchCondition.fromMap(Map("fileType" -> "deleted", "datasetId" -> "test"))
+      val results = FileService.search(condition)
+      results.data should be(Seq.empty)
+      results.total should be(0)
+    }
+    "fileType=Some(deleted), datasetId=Some(not exists), page=None" in {
+      val (datasetId1, datasetId2, files) = prepareFiles()
+      val condition = SearchCondition.fromMap(Map("fileType" -> "deleted", "datasetId" -> UUID.randomUUID.toString))
+      val results = FileService.search(condition)
+      results.data should be(Seq.empty)
+      results.total should be(0)
+    }
+    "fileType=Some(deleted), datasetId=Some(dataset1), page=None" in {
+      val (datasetId1, datasetId2, files) = prepareFiles()
+      val condition = SearchCondition.fromMap(Map("fileType" -> "deleted", "datasetId" -> datasetId1))
+      val results = FileService.search(condition)
+      val expects = files.filter(f => f.deletedAt.isDefined && f.datasetId == datasetId1).map(_.id).take(5)
       val actuals = results.data.map(_.id)
       actuals should be(expects)
     }
-    "userType=None, query=None, page=Some(-1)" in {
-      val users = prepareUsers()
+    "fileType=None, datasetId=None, page=Some(-1)" in {
+      val (datasetId1, datasetId2, files) = prepareFiles()
       val condition = SearchCondition.fromMap(Map("page" -> "-1"))
-      val results = UserService.search(condition)
-      val expects = users.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt)).map(_.id).take(5)
+      val results = FileService.search(condition)
+      val expects = files.map(_.id).take(5)
       val actuals = results.data.map(_.id)
       actuals should be(expects)
       results.total should be(10)
       results.from should be(1)
       results.to should be(5)
     }
-    "userType=None, query=None, page=Some(0)" in {
-      val users = prepareUsers()
+    "fileType=None, datasetId=None, page=Some(0)" in {
+      val (datasetId1, datasetId2, files) = prepareFiles()
       val condition = SearchCondition.fromMap(Map("page" -> "0"))
-      val results = UserService.search(condition)
-      val expects = users.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt)).map(_.id).take(5)
+      val results = FileService.search(condition)
+      val expects = files.map(_.id).take(5)
       val actuals = results.data.map(_.id)
       actuals should be(expects)
       results.total should be(10)
       results.from should be(1)
       results.to should be(5)
     }
-    "userType=None, query=None, page=Some(1)" in {
-      val users = prepareUsers()
+    "fileType=None, datasetId=None, page=Some(1)" in {
+      val (datasetId1, datasetId2, files) = prepareFiles()
       val condition = SearchCondition.fromMap(Map("page" -> "1"))
-      val results = UserService.search(condition)
-      val expects = users.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt)).map(_.id).take(5)
+      val results = FileService.search(condition)
+      val expects = files.map(_.id).take(5)
       val actuals = results.data.map(_.id)
       actuals should be(expects)
       results.total should be(10)
       results.from should be(1)
       results.to should be(5)
     }
-    "userType=None, query=None, page=Some(2)" in {
-      val users = prepareUsers()
+    "fileType=None, datasetId=None, page=Some(2)" in {
+      val (datasetId1, datasetId2, files) = prepareFiles()
       val condition = SearchCondition.fromMap(Map("page" -> "2"))
-      val results = UserService.search(condition)
-      val expects = users.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt)).map(_.id).drop(5).take(5)
+      val results = FileService.search(condition)
+      val expects = files.map(_.id).drop(5).take(5)
       val actuals = results.data.map(_.id)
       actuals should be(expects)
       results.total should be(10)
       results.from should be(6)
       results.to should be(10)
     }
-    "userType=None, query=None, page=Some(3)" in {
-      val users = prepareUsers()
+    "fileType=None, datasetId=None, page=Some(3)" in {
+      val (datasetId1, datasetId2, files) = prepareFiles()
       val condition = SearchCondition.fromMap(Map("page" -> "3"))
-      val results = UserService.search(condition)
-      val actuals = results.data.map(_.id)
-      actuals should be(Seq.empty)
+      val results = FileService.search(condition)
+      results.data should be(Seq.empty)
       results.total should be(10)
     }
-    "userType=None, query=None, page=Some(a)" in {
-      val users = prepareUsers()
+    "fileType=None, datasetId=None, page=Some(a)" in {
+      val (datasetId1, datasetId2, files) = prepareFiles()
       val condition = SearchCondition.fromMap(Map("page" -> "a"))
-      val results = UserService.search(condition)
-      val expects = users.sortWith((x1, x2) => x1.createdAt.isBefore(x2.createdAt)).map(_.id).take(5)
+      val results = FileService.search(condition)
+      val expects = files.map(_.id).take(5)
       val actuals = results.data.map(_.id)
       actuals should be(expects)
       results.total should be(10)
       results.from should be(1)
       results.to should be(5)
     }
-    "userType=Some(enabled), query=None, page=Some(2)" in {
-      val users = prepareUsers()
-      val condition = SearchCondition.fromMap(Map("userType" -> "enabled", "page" -> "2"))
-      val results = UserService.search(condition)
-      val actuals = results.data.map(_.id)
-      actuals should be(Seq.empty)
+    "fileType=Some(not_deleted), datasetId=None, page=Some(2)" in {
+      val (datasetId1, datasetId2, files) = prepareFiles()
+      val condition = SearchCondition.fromMap(Map("fileType" -> "not_deleted", "page" -> "2"))
+      val results = FileService.search(condition)
+      results.data should be(Seq.empty)
       results.total should be(5)
     }
   }
 
-  "update to" - {
-    val user1Id = "023bfa40-e897-4dad-96db-9fd3cf001e79"
-    "no update" in {
-      val now = DateTime.now
-      UserService.updateDisabled(Seq.empty, Seq.empty)
-      val condition = SearchCondition.fromMap(Map.empty)
-      val users = UserService.search(condition)
-      users.data.filter(u => u.updatedAt.isAfter(now)).size should be(0)
+  "logical delete" - {
+    def prepareFiles(): (String, Seq[persistence.File]) = {
+      val client = SpecCommonLogic.createClient()
+      val rawFiles = (1 to 2).map(i => new java.io.File(s"./testdata/maintenance/file/test${i}.csv"))
+      val dataset = client.createDataset("dataset1", true, false, rawFiles: _*)
+      val files = getFiles(Seq(dataset.getId))
+      resetUpdatedAt(files)
+      (dataset.getId, files)
     }
-    for {
-      (originals, updates) <- Seq((Seq("hoge"), Seq.empty), (Seq.empty, Seq("hoge")), (Seq(user1Id, "hoge"), Seq.empty), (Seq.empty, Seq(user1Id, "hoge")))
-    } {
-      s"invalid uuid ${originals.size}x${updates.size}" in {
-        val now = DateTime.now
-        val thrown = the[ServiceException] thrownBy {
-          UserService.updateDisabled(originals, updates).get
-        }
-        thrown.getMessage should be("指定したIDの形式が不正です。")
-        val condition = SearchCondition.fromMap(Map.empty)
-        val users = UserService.search(condition)
-        users.data.filter(u => u.updatedAt.isAfter(now)).size should be(0)
+    "no select" in {
+      val (datasetId, files) = prepareFiles()
+      val now = DateTime.now
+      val thrown = the[ServiceException] thrownBy {
+        FileService.applyLogicalDelete(toParam(Seq.empty)).get
+      }
+      thrown.getMessage should be("ファイルが選択されていません。")
+      getFiles(Seq(datasetId)).filter(u => u.updatedAt.isAfter(defaultUpdatedAt)).size should be(0)
+    }
+    "invalid ID x exists ID" in {
+      val now = DateTime.now
+      val (datasetId, files) = prepareFiles()
+      val thrown = the[org.postgresql.util.PSQLException] thrownBy {
+        FileService.applyLogicalDelete(toParam(Seq("test", files(1).id))).get
+      }
+      getFiles(Seq(datasetId)).filter(u => u.updatedAt.isAfter(defaultUpdatedAt)).size should be(0)
+    }
+    "exists ID x invalid ID" in {
+      val now = DateTime.now
+      val (datasetId, files) = prepareFiles()
+      val thrown = the[org.postgresql.util.PSQLException] thrownBy {
+        FileService.applyLogicalDelete(toParam(Seq(files(0).id, "test"))).get
+      }
+      getFiles(Seq(datasetId)).filter(u => u.updatedAt.isAfter(defaultUpdatedAt)).size should be(0)
+    }
+    "not exists ID x exists ID" in {
+      val (datasetId, files) = prepareFiles()
+      FileService.applyLogicalDelete(toParam(Seq(UUID.randomUUID.toString, files(1).id))).get
+      getFiles(Seq(datasetId)).filter(u => u.updatedAt.isAfter(defaultUpdatedAt)).size should be(1)
+      persistence.File.find(files(1).id).foreach { file =>
+        file.updatedAt.isAfter(defaultUpdatedAt) should be(true)
+        file.deletedBy.isDefined should be(true)
+        file.deletedAt.isDefined should be(true)
       }
     }
-    val notExistsId = UUID.randomUUID.toString
-    for {
-      (originals, updates) <- Seq((Seq(notExistsId), Seq.empty), (Seq.empty, Seq(notExistsId)), (Seq(user1Id, notExistsId), Seq.empty), (Seq.empty, Seq(user1Id, notExistsId)))
-    } {
-      s"not exists userid ${originals.size}x${updates.size}" in {
-        val now = DateTime.now
-        val thrown = the[ServiceException] thrownBy {
-          UserService.updateDisabled(originals, updates).get
-        }
-        thrown.getMessage should be("存在しないユーザーが指定されました。")
-        val condition = SearchCondition.fromMap(Map.empty)
-        val users = UserService.search(condition)
-        users.data.filter(u => u.updatedAt.isAfter(now)).size should be(0)
+    "exists ID x not exists ID" in {
+      val (datasetId, files) = prepareFiles()
+      FileService.applyLogicalDelete(toParam(Seq(files(0).id, UUID.randomUUID.toString))).get
+      persistence.File.find(files(0).id).foreach { file =>
+        file.updatedAt.isAfter(defaultUpdatedAt) should be(true)
+        file.deletedBy.isDefined should be(true)
+        file.deletedAt.isDefined should be(true)
       }
     }
-    "disable(1 user)" in {
-      SpecCommonLogic.deleteAllCreateData()
-      val user = SpecCommonLogic.insertUser(UserDetail(name = s"test1", ts = DateTime.now, disabled = false))
-      UserService.updateDisabled(Seq.empty, Seq(user.id))
-      val condition = SearchCondition.fromMap(Map.empty)
-      val users = UserService.search(condition)
-      users.data.filter(_.id == user.id).map(_.disabled).headOption should be(Some(true))
+    "not deleted" in {
+      val (datasetId, files) = prepareFiles()
+      FileService.applyLogicalDelete(toParam(Seq(files(0).id))).get
+      persistence.File.find(files(0).id).foreach { file =>
+        file.updatedAt.isAfter(defaultUpdatedAt) should be(true)
+        file.deletedBy.isDefined should be(true)
+        file.deletedAt.isDefined should be(true)
+      }
     }
-    "enable(1 user)" in {
-      SpecCommonLogic.deleteAllCreateData()
-      val user = SpecCommonLogic.insertUser(UserDetail(name = s"test1", ts = DateTime.now, disabled = true))
-      UserService.updateDisabled(Seq(user.id), Seq.empty)
-      val condition = SearchCondition.fromMap(Map.empty)
-      val users = UserService.search(condition)
-      users.data.filter(_.id == user.id).map(_.disabled).headOption should be(Some(false))
+    "deleted" in {
+      val (datasetId, files) = prepareFiles()
+      val client = SpecCommonLogic.createClient()
+      client.deleteFile(datasetId, files(0).id)
+      resetUpdatedAt(files)
+      FileService.applyLogicalDelete(toParam(Seq(files(0).id))).get
+      persistence.File.find(files(0).id).foreach { file =>
+        file.updatedAt.isAfter(defaultUpdatedAt) should be(false)
+        file.deletedBy.isDefined should be(true)
+        file.deletedAt.isDefined should be(true)
+      }
     }
-    "no update 2" in {
-      SpecCommonLogic.deleteAllCreateData()
-      val now = DateTime.now
-      val user = SpecCommonLogic.insertUser(UserDetail(name = s"test1", ts = DateTime.now, disabled = false))
-      UserService.updateDisabled(Seq(user.id), Seq(user.id))
-      val condition = SearchCondition.fromMap(Map.empty)
-      val users = UserService.search(condition)
-      users.data.filter(u => u.updatedAt.isAfter(now)).size should be(0)
+    "deleted and not deleted" in {
+      val (datasetId, files) = prepareFiles()
+      val client = SpecCommonLogic.createClient()
+      client.deleteFile(datasetId, files(0).id)
+      resetUpdatedAt(files)
+      FileService.applyLogicalDelete(toParam(Seq(files(0).id, files(1).id))).get
+      persistence.File.find(files(0).id).foreach { file =>
+        file.updatedAt.isAfter(defaultUpdatedAt) should be(false)
+        file.deletedBy.isDefined should be(true)
+        file.deletedAt.isDefined should be(true)
+      }
+      persistence.File.find(files(1).id).foreach { file =>
+        file.updatedAt.isAfter(defaultUpdatedAt) should be(true)
+        file.deletedBy.isDefined should be(true)
+        file.deletedAt.isDefined should be(true)
+      }
     }
-    "enable(1 user) and disable(1 user)" in {
-      SpecCommonLogic.deleteAllCreateData()
-      val user1 = SpecCommonLogic.insertUser(UserDetail(name = s"test1", ts = DateTime.now, disabled = true))
-      val user2 = SpecCommonLogic.insertUser(UserDetail(name = s"test2", ts = DateTime.now, disabled = false))
-      UserService.updateDisabled(Seq(user1.id), Seq(user2.id))
-      val condition = SearchCondition.fromMap(Map.empty)
-      val users = UserService.search(condition)
-      users.data.filter(_.id == user1.id).map(_.disabled).headOption should be(Some(false))
-      users.data.filter(_.id == user2.id).map(_.disabled).headOption should be(Some(true))
+    "not deleted and not deleted" in {
+      val (datasetId, files) = prepareFiles()
+      FileService.applyLogicalDelete(toParam(Seq(files(0).id, files(1).id))).get
+      persistence.File.find(files(0).id).foreach { file =>
+        file.updatedAt.isAfter(defaultUpdatedAt) should be(true)
+        file.deletedBy.isDefined should be(true)
+        file.deletedAt.isDefined should be(true)
+      }
+      persistence.File.find(files(1).id).foreach { file =>
+        file.updatedAt.isAfter(defaultUpdatedAt) should be(true)
+        file.deletedBy.isDefined should be(true)
+        file.deletedAt.isDefined should be(true)
+      }
     }
-    "enable(2 user)" in {
-      SpecCommonLogic.deleteAllCreateData()
-      val user1 = SpecCommonLogic.insertUser(UserDetail(name = s"test1", ts = DateTime.now, disabled = true))
-      val user2 = SpecCommonLogic.insertUser(UserDetail(name = s"test2", ts = DateTime.now, disabled = true))
-      UserService.updateDisabled(Seq(user1.id, user2.id), Seq.empty)
-      val condition = SearchCondition.fromMap(Map.empty)
-      val users = UserService.search(condition)
-      users.data.filter(_.id == user1.id).map(_.disabled).headOption should be(Some(false))
-      users.data.filter(_.id == user2.id).map(_.disabled).headOption should be(Some(false))
+  }
+
+  "cancel logical delete" - {
+    def prepareFiles(): (String, Seq[persistence.File]) = {
+      val client = SpecCommonLogic.createClient()
+      val rawFiles = (1 to 2).map(i => new java.io.File(s"./testdata/maintenance/file/test${i}.csv"))
+      val dataset = client.createDataset("dataset1", true, false, rawFiles: _*)
+      val files = getFiles(Seq(dataset.getId))
+      resetUpdatedAt(files)
+      (dataset.getId, files)
     }
-    "disable(2 user)" in {
-      SpecCommonLogic.deleteAllCreateData()
-      val user1 = SpecCommonLogic.insertUser(UserDetail(name = s"test1", ts = DateTime.now, disabled = false))
-      val user2 = SpecCommonLogic.insertUser(UserDetail(name = s"test2", ts = DateTime.now, disabled = false))
-      UserService.updateDisabled(Seq.empty, Seq(user1.id, user2.id))
-      val condition = SearchCondition.fromMap(Map.empty)
-      val users = UserService.search(condition)
-      users.data.filter(_.id == user1.id).map(_.disabled).headOption should be(Some(true))
-      users.data.filter(_.id == user2.id).map(_.disabled).headOption should be(Some(true))
+    "no select" in {
+      val (datasetId, files) = prepareFiles()
+      val thrown = the[ServiceException] thrownBy {
+        FileService.applyCancelLogicalDelete(toParam(Seq.empty)).get
+      }
+      thrown.getMessage should be("ファイルが選択されていません。")
+      getFiles(Seq(datasetId)).filter(u => u.updatedAt.isAfter(defaultUpdatedAt)).size should be(0)
     }
+    "invalid ID x exists ID" in {
+      val (datasetId, files) = prepareFiles()
+      val client = SpecCommonLogic.createClient()
+      client.deleteFile(datasetId, files(1).id)
+      resetUpdatedAt(files)
+      val thrown = the[org.postgresql.util.PSQLException] thrownBy {
+        FileService.applyCancelLogicalDelete(toParam(Seq("test", files(1).id))).get
+      }
+      getFiles(Seq(datasetId)).filter(u => u.updatedAt.isAfter(defaultUpdatedAt)).size should be(0)
+    }
+    "exists ID x invalid ID" in {
+      val (datasetId, files) = prepareFiles()
+      val client = SpecCommonLogic.createClient()
+      client.deleteFile(datasetId, files(0).id)
+      resetUpdatedAt(files)
+      val thrown = the[org.postgresql.util.PSQLException] thrownBy {
+        FileService.applyCancelLogicalDelete(toParam(Seq(files(0).id, "test"))).get
+      }
+      getFiles(Seq(datasetId)).filter(u => u.updatedAt.isAfter(defaultUpdatedAt)).size should be(0)
+    }
+    "not exists ID x exists ID" in {
+      val (datasetId, files) = prepareFiles()
+      val client = SpecCommonLogic.createClient()
+      client.deleteFile(datasetId, files(1).id)
+      resetUpdatedAt(files)
+      FileService.applyCancelLogicalDelete(toParam(Seq(UUID.randomUUID.toString, files(1).id))).get
+      persistence.File.find(files(1).id).foreach { file =>
+        file.updatedAt.isAfter(defaultUpdatedAt) should be(true)
+        file.deletedBy.isDefined should be(false)
+        file.deletedAt.isDefined should be(false)
+      }
+    }
+    "exists ID x not exists ID" in {
+      val (datasetId, files) = prepareFiles()
+      val client = SpecCommonLogic.createClient()
+      client.deleteFile(datasetId, files(0).id)
+      resetUpdatedAt(files)
+      FileService.applyCancelLogicalDelete(toParam(Seq(files(0).id, UUID.randomUUID.toString))).get
+      persistence.File.find(files(0).id).foreach { file =>
+        file.updatedAt.isAfter(defaultUpdatedAt) should be(true)
+        file.deletedBy.isDefined should be(false)
+        file.deletedAt.isDefined should be(false)
+      }
+    }
+    "not deleted" in {
+      val (datasetId, files) = prepareFiles()
+      FileService.applyCancelLogicalDelete(toParam(Seq(files(0).id))).get
+      persistence.File.find(files(0).id).foreach { file =>
+        file.updatedAt.isAfter(defaultUpdatedAt) should be(false)
+        file.deletedBy.isDefined should be(false)
+        file.deletedAt.isDefined should be(false)
+      }
+    }
+    "deleted" in {
+      val (datasetId, files) = prepareFiles()
+      val client = SpecCommonLogic.createClient()
+      client.deleteFile(datasetId, files(0).id)
+      resetUpdatedAt(files)
+      FileService.applyCancelLogicalDelete(toParam(Seq(files(0).id))).get
+      persistence.File.find(files(0).id).foreach { file =>
+        file.updatedAt.isAfter(defaultUpdatedAt) should be(true)
+        file.deletedBy.isDefined should be(false)
+        file.deletedAt.isDefined should be(false)
+      }
+    }
+    "deleted and deleted" in {
+      val (datasetId, files) = prepareFiles()
+      val client = SpecCommonLogic.createClient()
+      client.deleteFile(datasetId, files(0).id)
+      client.deleteFile(datasetId, files(1).id)
+      resetUpdatedAt(files)
+      FileService.applyCancelLogicalDelete(toParam(Seq(files(0).id, files(1).id))).get
+      persistence.File.find(files(0).id).foreach { file =>
+        file.updatedAt.isAfter(defaultUpdatedAt) should be(true)
+        file.deletedBy.isDefined should be(false)
+        file.deletedAt.isDefined should be(false)
+      }
+      persistence.File.find(files(1).id).foreach { file =>
+        file.updatedAt.isAfter(defaultUpdatedAt) should be(true)
+        file.deletedBy.isDefined should be(false)
+        file.deletedAt.isDefined should be(false)
+      }
+    }
+    "deleted and not deleted" in {
+      val (datasetId, files) = prepareFiles()
+      val client = SpecCommonLogic.createClient()
+      client.deleteFile(datasetId, files(0).id)
+      resetUpdatedAt(files)
+      FileService.applyCancelLogicalDelete(toParam(Seq(files(0).id, files(1).id))).get
+      persistence.File.find(files(0).id).foreach { file =>
+        file.updatedAt.isAfter(defaultUpdatedAt) should be(true)
+        file.deletedBy.isDefined should be(false)
+        file.deletedAt.isDefined should be(false)
+      }
+      persistence.File.find(files(1).id).foreach { file =>
+        file.updatedAt.isAfter(defaultUpdatedAt) should be(false)
+        file.deletedBy.isDefined should be(false)
+        file.deletedAt.isDefined should be(false)
+      }
+    }
+  }
+  def resetUpdatedAt(files: Seq[persistence.File]): Unit = {
+    DB.localTx { implicit s =>
+      val f = persistence.File.column
+      withSQL {
+        update(persistence.File)
+          .set(
+            f.updatedAt -> defaultUpdatedAt
+          )
+          .where
+          .in(f.id, files.map(f => sqls.uuid(f.id)))
+      }.update.apply()
+    }
+  }
+  def getFiles(datasetIds: Seq[String]): Seq[persistence.File] = {
+    val f = persistence.File.f
+    DB.readOnly { implicit s =>
+      withSQL {
+        select
+          .from(persistence.File as f)
+          .where
+          .inUuid(f.datasetId, datasetIds)
+          .orderBy(f.createdAt)
+      }.map(persistence.File(f.resultName)).list.apply()
+    }
+  }
+  def toParam(targets: Seq[String]): UpdateParameter = {
+    val map = org.scalatra.util.MultiMap(Map("checked" -> targets))
+    UpdateParameter.fromMap(map)
   }
 }

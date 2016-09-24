@@ -74,6 +74,15 @@ object FileService extends LazyLogging {
     }
     val limit = AppConfig.searchLimit
     val offset = (condition.page - 1) * limit
+    // datasetIdがUUID形式でない場合は、それに合致するIDは存在しないため、検索結果は0になる
+    if (condition.datasetId.map(!Util.isUUID(_)).getOrElse(false)) {
+      return SearchResult(
+        offset,
+        limit,
+        0,
+        Seq.empty
+      )
+    }
     DB.readOnly { implicit s =>
       val total = withSQL {
         createSqlBase(select(sqls.count))
@@ -307,11 +316,12 @@ object FileService extends LazyLogging {
    */
   def applyChange(params: Map[String, String], multiParams: MultiMap): Try[Unit] = {
     val param = UpdateParameter.fromMap(multiParams)
-    params.get("update") match {
+    val result = params.get("update") match {
       case Some("logical_delete") => applyLogicalDelete(param)
       case Some("cancel_logical_delete") => applyCancelLogicalDelete(param)
       case Some("physical_delete") => applyPhysicalDelete(param)
       case _ => Failure(new ServiceException("無効な操作です。"))
     }
+    Util.withErrorLogging(logger, LOG_MARKER, result)
   }
 }

@@ -24,3 +24,4 @@ org.scala-ide.sdt.core.prefs
 
 common/src/main/resources/application.conf
 taskServer/src/main/resources/application.conf
+maintenance/lib/*

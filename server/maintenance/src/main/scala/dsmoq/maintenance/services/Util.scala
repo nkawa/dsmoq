@@ -6,6 +6,9 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
+import com.typesafe.scalalogging.Logger
+import org.slf4j.Marker
+
 /**
  * サービスクラスで利用するユーティリティクラス
  */
@@ -79,5 +82,26 @@ object Util {
     params: Any*
   ): String = {
     s"MethodCall:${serviceName},${methodName},[${params.map(_.toString).mkString(",")}]"
+  }
+
+  /**
+   * チェック対象がFailure(ServiceException)の場合にロギングを行う。
+   *
+   * @param logger Logger
+   * @param marker LogMarker
+   * @param result チェック対象
+   * @return チェック対象
+   */
+  def withErrorLogging[T](logger: Logger, marker: Marker, result: Try[T]): Try[T] = {
+    result match {
+      case Failure(e) => {
+        e match {
+          case _: ServiceException => logger.error(marker, e.getMessage, e)
+          case _ => // do nothing
+        }
+      }
+      case _ => // do nothing
+    }
+    result
   }
 }

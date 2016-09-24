@@ -64,6 +64,16 @@ object DatasetService extends LazyLogging {
   val SERVICE_NAME = "DatasetService"
 
   /**
+   * ユーザーのアクセス権として有効なアクセスレベル
+   */
+  val validUserAccessLevel = Seq(AccessLevel.LimitedRead, AccessLevel.FullRead, AccessLevel.Owner)
+
+  /**
+   * グループのアクセス権として有効なアクセスレベル
+   */
+  val validGroupAccessLevel = Seq(AccessLevel.LimitedRead, AccessLevel.FullRead, AccessLevel.Provider)
+
+  /**
    * データセットを検索する。
    *
    * @param condition 検索条件
@@ -162,10 +172,9 @@ object DatasetService extends LazyLogging {
    */
   def getAclAddData(param: SearchAclsParameter): Try[AclAddData] = {
     logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "getAclAddData", param))
-    DB.readOnly { implicit s =>
+    val result = DB.readOnly { implicit s =>
       for {
         id <- Util.require(param.datasetId, "データセットID")
-        _ <- Util.checkUuid(id)
         dataset <- searchDatasetById(id)
       } yield {
         AclAddData(
@@ -174,6 +183,7 @@ object DatasetService extends LazyLogging {
         )
       }
     }
+    Util.withErrorLogging(logger, LOG_MARKER, result)
   }
 
   /**
@@ -186,10 +196,9 @@ object DatasetService extends LazyLogging {
    */
   def getAclListData(param: SearchAclsParameter): Try[AclListData] = {
     logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "getAclListData", param))
-    DB.readOnly { implicit s =>
+    val result = DB.readOnly { implicit s =>
       for {
         id <- Util.require(param.datasetId, "データセットID")
-        _ <- Util.checkUuid(id)
         dataset <- searchDatasetById(id)
       } yield {
         val ownerships = searchDatasetOwnerships(id)
@@ -200,6 +209,7 @@ object DatasetService extends LazyLogging {
         )
       }
     }
+    Util.withErrorLogging(logger, LOG_MARKER, result)
   }
 
   /**
@@ -213,7 +223,7 @@ object DatasetService extends LazyLogging {
    */
   def getAclUpdateDataForUser(param: SearchAclUserParameter): Try[AclUpdateData] = {
     logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "getAclUpdateDataForUser", param))
-    DB.readOnly { implicit s =>
+    val result = DB.readOnly { implicit s =>
       for {
         datasetId <- Util.require(param.datasetId, "データセットID")
         userId <- Util.require(param.userId, "ユーザーID")
@@ -228,6 +238,7 @@ object DatasetService extends LazyLogging {
         )
       }
     }
+    Util.withErrorLogging(logger, LOG_MARKER, result)
   }
 
   /**
@@ -314,7 +325,7 @@ object DatasetService extends LazyLogging {
    */
   def getAclUpdateDataForGroup(param: SearchAclGroupParameter): Try[AclUpdateData] = {
     logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "getAclUpdateDataForGroup", param))
-    DB.readOnly { implicit s =>
+    val result = DB.readOnly { implicit s =>
       for {
         datasetId <- Util.require(param.datasetId, "データセットID")
         groupId <- Util.require(param.groupId, "グループID")
@@ -329,6 +340,7 @@ object DatasetService extends LazyLogging {
         )
       }
     }
+    Util.withErrorLogging(logger, LOG_MARKER, result)
   }
 
   /**
@@ -630,11 +642,28 @@ object DatasetService extends LazyLogging {
   }
 
   /**
+   * アクセス権追加・更新時に適切なアクセスレベルかを確認する。
+   *
+   * @param accessLevel チェック対象のアクセスレベル
+   * @param validAccessLevels 有効なアクセスレベル
+   * @param 確認結果
+   *        Failure(ServiceException) チェック対象が有効なアクセスレベルに含まれなかった場合
+   */
+  def checkAccessLevel(accessLevel: AccessLevel, validAccessLevels: Seq[AccessLevel]): Try[Unit] = {
+    if (validAccessLevels.contains(accessLevel)) {
+      Success(())
+    } else {
+      Failure(new ServiceException("無効なアクセス権が指定されました。"))
+    }
+  }
+
+  /**
    * ユーザーのアクセス権を更新する。
    *
    * @param param 入力パラメータ
    * @return 処理結果
-   *        Failure(ServiceException) データセットIDが未指定の場合
+   *        Failure(ServiceException) データセットID、ユーザーIDが未指定の場合
+   *        Failure(ServiceException) アクセスレベルの指定がLimitedRead、FullRead、Owner以外の場合
    *        Failure(ServiceException) データセット、ユーザーが存在しない場合
    *        Failure(ServiceException) 指定したユーザーが無効化されている場合
    */
@@ -644,6 +673,7 @@ object DatasetService extends LazyLogging {
       for {
         datasetId <- Util.require(param.datasetId, "データセットID")
         userId <- Util.require(param.userId, "ユーザーID")
+        _ <- checkAccessLevel(param.accessLevel, validUserAccessLevel)
         dataset <- searchDatasetById(datasetId)
         _ <- searchUserById(userId)
         group <- searchUserGroupById(userId)
@@ -722,6 +752,7 @@ object DatasetService extends LazyLogging {
    * @param param 入力パラメータ
    * @return 処理結果
    *        Failure(ServiceException) データセットID、グループIDが未指定の場合
+   *        Failure(ServiceException) アクセスレベルの指定がLimitedRead、FullRead、Provider以外の場合
    *        Failure(ServiceException) データセット、グループが存在しない場合
    *        Failure(ServiceException) 指定したグループが削除されている場合
    */
@@ -731,6 +762,7 @@ object DatasetService extends LazyLogging {
       for {
         datasetId <- Util.require(param.datasetId, "データセットID")
         groupId <- Util.require(param.groupId, "グループID")
+        _ <- checkAccessLevel(param.accessLevel, validGroupAccessLevel)
         dataset <- searchDatasetById(datasetId)
         _ <- searchGroupById(groupId)
         ownership <- searchOwnership(datasetId, groupId)
@@ -775,6 +807,7 @@ object DatasetService extends LazyLogging {
    * @return 処理結果
    *        Failure(ServiceException) データセットIDが未指定の場合
    *        Failure(ServiceException) ユーザー名が未指定の場合
+   *        Failure(ServiceException) アクセスレベルの指定がLimitedRead、FullRead、Owner以外の場合
    *        Failure(ServiceException) データセット、ユーザーが存在しない場合
    *        Failure(ServiceException) 既にDeny以外のアクセス権を持っている場合
    *        Failure(ServiceException) 指定したユーザーが無効化されている場合
@@ -785,6 +818,7 @@ object DatasetService extends LazyLogging {
       for {
         datasetId <- Util.require(param.datasetId, "データセットID")
         userName <- Util.require(param.userName, "ユーザー名")
+        _ <- checkAccessLevel(param.accessLevel, validUserAccessLevel)
         dataset <- searchDatasetById(datasetId)
         group <- searchUserGroupByName(userName)
         ownership <- searchOwnership(datasetId, group.id)
@@ -980,6 +1014,7 @@ object DatasetService extends LazyLogging {
    * @return 処理結果
    *        Failure(ServiceException) データセットIDが未指定の場合
    *        Failure(ServiceException) グループ名が未指定の場合
+   *        Failure(ServiceException) アクセスレベルの指定がLimitedRead、FullRead、Provider以外の場合
    *        Failure(ServiceException) データセット、グループが存在しない場合
    *        Failure(ServiceException) 既にDeny以外のアクセス権を持っている場合
    *        Failure(ServiceException) 指定したグループが削除されている場合
@@ -990,6 +1025,7 @@ object DatasetService extends LazyLogging {
       for {
         datasetId <- Util.require(param.datasetId, "データセットID")
         groupName <- Util.require(param.groupName, "グループ名")
+        _ <- checkAccessLevel(param.accessLevel, validGroupAccessLevel)
         dataset <- searchDatasetById(datasetId)
         group <- searchGroupByName(groupName)
         ownership <- searchOwnership(datasetId, group.id)
@@ -1036,12 +1072,13 @@ object DatasetService extends LazyLogging {
    */
   def applyChange(params: Map[String, String], multiParams: MultiMap): Try[Unit] = {
     val param = UpdateParameter.fromMap(multiParams)
-    params.get("update") match {
+    val result = params.get("update") match {
       case Some("logical_delete") => applyLogicalDelete(param)
       case Some("cancel_logical_delete") => applyCancelLogicalDelete(param)
       case Some("physical_delete") => applyPhysicalDelete(param)
       case _ => Failure(new ServiceException("無効な操作です。"))
     }
+    Util.withErrorLogging(logger, LOG_MARKER, result)
   }
 
   /**
@@ -1053,11 +1090,12 @@ object DatasetService extends LazyLogging {
    */
   def applyChangeForAclUpdateUser(params: Map[String, String]): Try[Unit] = {
     val param = UpdateAclUserParameter.fromMap(params)
-    params.get("update") match {
+    val result = params.get("update") match {
       case Some("update") => applyUpdateAclUser(param)
       case Some("delete") => applyDeleteAclUser(param)
       case _ => Failure(new ServiceException("無効な操作です。"))
     }
+    Util.withErrorLogging(logger, LOG_MARKER, result)
   }
 
   /**
@@ -1069,11 +1107,12 @@ object DatasetService extends LazyLogging {
    */
   def applyChangeForAclUpdateGroup(params: Map[String, String]): Try[Unit] = {
     val param = UpdateAclGroupParameter.fromMap(params)
-    params.get("update") match {
+    val result = params.get("update") match {
       case Some("update") => applyUpdateAclGroup(param)
       case Some("delete") => applyDeleteAclGroup(param)
       case _ => Failure(new ServiceException("無効な操作です。"))
     }
+    Util.withErrorLogging(logger, LOG_MARKER, result)
   }
 
   /**
@@ -1085,10 +1124,11 @@ object DatasetService extends LazyLogging {
    */
   def applyChangeForAclAddUser(params: Map[String, String]): Try[Unit] = {
     val param = AddAclUserParameter.fromMap(params)
-    params.get("update") match {
+    val result = params.get("update") match {
       case Some("add") => applyAddAclUser(param)
       case _ => Failure(new ServiceException("無効な操作です。"))
     }
+    Util.withErrorLogging(logger, LOG_MARKER, result)
   }
 
   /**
@@ -1100,9 +1140,10 @@ object DatasetService extends LazyLogging {
    */
   def applyChangeForAclAddGroup(params: Map[String, String]): Try[Unit] = {
     val param = AddAclGroupParameter.fromMap(params)
-    params.get("update") match {
+    val result = params.get("update") match {
       case Some("add") => applyAddAclGroup(param)
       case _ => Failure(new ServiceException("無効な操作です。"))
     }
+    Util.withErrorLogging(logger, LOG_MARKER, result)
   }
 }

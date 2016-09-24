@@ -14,6 +14,8 @@ import scalikejdbc.UpdateOperation
 import scalikejdbc.deleteFrom
 import scalikejdbc.withSQL
 
+import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient
+
 object SpecCommonLogic {
   private val defaultUserIconId = "8a981652-ea4d-48cf-94db-0ceca7d81aef"
   private val presetImageIds = Seq(
@@ -21,6 +23,19 @@ object SpecCommonLogic {
     "8b570468-9814-4d30-8c04-392b263b6404",
     "960a5601-2b60-2531-e6ad-54b91612ede5"
   )
+
+  def createClient(): DsmoqClient = {
+    DsmoqClient.create("http://localhost:8080", apiKey1, secretKey1)
+  }
+
+  def createClient2(): DsmoqClient = {
+    DsmoqClient.create("http://localhost:8080", apiKey2, secretKey2)
+  }
+
+  val apiKey1 = "5dac067a4c91de87ee04db3e3c34034e84eb4a599165bcc9741bb9a91e8212cb"
+  val secretKey1 = "dc9765e63b2b469a7bfb611fad8a10f2394d2b98b7a7105078356ec2a74164ea"
+  val apiKey2 = "5dac067a4c91de87ee04db3e3c34034e84eb4a599165bcc9741bb9a91e8212cc"
+  val secretKey2 = "dc9765e63b2b469a7bfb611fad8a10f2394d2b98b7a7105078356ec2a74164eb"
 
   def insertDummyData() {
     val ts = DateTime.now
@@ -42,8 +57,8 @@ object SpecCommonLogic {
       persistence.ApiKey.create(
         id = "0cebc943-a0b9-4aa5-927d-65fa374bf0ec",
         userId = "023bfa40-e897-4dad-96db-9fd3cf001e79",
-        apiKey = "5dac067a4c91de87ee04db3e3c34034e84eb4a599165bcc9741bb9a91e8212cb",
-        secretKey = "dc9765e63b2b469a7bfb611fad8a10f2394d2b98b7a7105078356ec2a74164ea",
+        apiKey = apiKey1,
+        secretKey = secretKey1,
         permission = 3,
         createdBy = AppConfig.systemUserId,
         createdAt = ts,
@@ -100,6 +115,17 @@ object SpecCommonLogic {
         title = "title 2",
         description = "description 2",
         imageId = defaultUserIconId,
+        createdBy = AppConfig.systemUserId,
+        createdAt = ts,
+        updatedBy = AppConfig.systemUserId,
+        updatedAt = ts
+      )
+      persistence.ApiKey.create(
+        id = "0cebc943-a0b9-4aa5-927d-65fa374bf0ed",
+        userId = "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04",
+        apiKey = apiKey2,
+        secretKey = secretKey2,
+        permission = 3,
         createdBy = AppConfig.systemUserId,
         createdAt = ts,
         updatedBy = AppConfig.systemUserId,

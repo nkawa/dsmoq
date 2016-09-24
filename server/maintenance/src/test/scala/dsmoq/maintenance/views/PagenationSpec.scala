@@ -5,7 +5,7 @@ import org.scalatest.Matchers._
 
 class PagenationSpec extends FreeSpec {
   "pagenation" - {
-    "page 0, limit 10, total 100" in {
+    "page 0, lastPage 10, total 100" in {
       val pagenation = Pagenation(0, 10, 100)
       val expected = Pagenation(
         Pagenation.Page(1, false),
@@ -22,7 +22,7 @@ class PagenationSpec extends FreeSpec {
       )
       pagenation should be(expected)
     }
-    "page 1, limit 10, total 100" in {
+    "page 1, lastPage 10, total 100" in {
       val pagenation = Pagenation(1, 10, 100)
       val expected = Pagenation(
         Pagenation.Page(1, false),
@@ -39,7 +39,7 @@ class PagenationSpec extends FreeSpec {
       )
       pagenation should be(expected)
     }
-    "page 2, limit 10, total 100" in {
+    "page 2, lastPage 10, total 100" in {
       val pagenation = Pagenation(2, 10, 100)
       val expected = Pagenation(
         Pagenation.Page(1, true),
@@ -56,7 +56,7 @@ class PagenationSpec extends FreeSpec {
       )
       pagenation should be(expected)
     }
-    "page 5, limit 10, total 100" in {
+    "page 5, lastPage 10, total 100" in {
       val pagenation = Pagenation(5, 10, 100)
       val expected = Pagenation(
         Pagenation.Page(1, true),
@@ -73,7 +73,7 @@ class PagenationSpec extends FreeSpec {
       )
       pagenation should be(expected)
     }
-    "page 10, limit 10, total 100" in {
+    "page 10, lastPage 10, total 100" in {
       val pagenation = Pagenation(10, 10, 100)
       val expected = Pagenation(
         Pagenation.Page(1, true),
@@ -90,7 +90,7 @@ class PagenationSpec extends FreeSpec {
       )
       pagenation should be(expected)
     }
-    "page 11, limit 10, total 100" in {
+    "page 11, lastPage 10, total 100" in {
       val pagenation = Pagenation(11, 10, 100)
       val expected = Pagenation(
         Pagenation.Page(1, true),
@@ -107,8 +107,8 @@ class PagenationSpec extends FreeSpec {
       )
       pagenation should be(expected)
     }
-    "page 1, limit 10, total 9" in {
-      val pagenation = Pagenation(1, 10, 9)
+    "page 1, lastPage 1, total 9" in {
+      val pagenation = Pagenation(1, 1, 9)
       val expected = Pagenation(
         Pagenation.Page(1, false),
         Pagenation.Page(0, false),
