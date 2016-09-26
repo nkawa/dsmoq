@@ -109,6 +109,9 @@ class ApiController(
    */
   val queryService = new QueryService(resource)
 
+  /** HTTPレスポンスのGuestヘッダ名 */
+  val GUEST_HEADER_NAME = "X-Dsmoq-Guest"
+
   before() {
     contentType = formats("json")
   }
@@ -118,7 +121,7 @@ class ApiController(
     if (!hasAuthorizationHeader) {
       // APIキーでの認証でない(セッションでの認証)なら、isGuestヘッダを付与する
       try {
-        response.setHeader("isGuest", getUserFromSession.isGuest.toString)
+        response.setHeader(GUEST_HEADER_NAME, getUserFromSession.isGuest.toString)
       } catch {
         case e: Exception => {
           // エラー時はログにのみ残し、レスポンスには反映しない
