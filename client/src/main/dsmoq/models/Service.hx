@@ -17,6 +17,8 @@ import dsmoq.pages.Notification;
 class Service extends Stream<ServiceEvent> {
     public static inline var QueryLimit: UInt = 20;
 
+    private static inline var GUEST_HEADER_NAME: String = "X-Dsmoq-Guest";
+
     public static var instance(default, null) = new Service();
 
     public var bootstrap(default, null): Promise<Unit>;
@@ -428,7 +430,7 @@ class Service extends Stream<ServiceEvent> {
         var xhr = JQuery.ajax(url, { type: str, dataType: "json", cache: false, data: d });
         return xhr.always(function() {
             if (!profile.isGuest) {
-                if (xhr.getResponseHeader("isGuest") == "true") {
+                if (xhr.getResponseHeader(GUEST_HEADER_NAME) == "true") {
                     // ログインしている状態でisGuestヘッダがtrueの場合、
                     // セッションタイムアウトによってサーバー側ではログアウトしているが、
                     // クライアント側ではログイン情報が更新されていない。

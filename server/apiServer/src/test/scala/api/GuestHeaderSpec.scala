@@ -150,7 +150,7 @@ class GuestHeaderSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter wi
     } {
       guestHeaderCheck(sessionUser, resource, permission, innerError) {
         if (!innerError) {
-          header.get("isGuest") should be(Some((!sessionUser).toString))
+          header.get("X-Dsmoq-Guest") should be(Some((!sessionUser).toString))
         }
       }
     }
