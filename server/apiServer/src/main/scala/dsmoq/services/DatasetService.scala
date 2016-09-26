@@ -3106,7 +3106,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.map(_.int(1)).single.apply().getOrElse(0)
   }
 
-  def getZipedFiles(datasetId: String, historyId: String, canDownload: Boolean = true)(implicit s: DBSession): Seq[DatasetZipedFile] = {
+  def getZipedFiles(
+    datasetId: String,
+    historyId: String,
+    canDownload: Boolean = true
+  )(implicit s: DBSession): Seq[DatasetZipedFile] = {
     val zf = persistence.ZipedFiles.zf
     val zipedFiles = withSQL {
       select
