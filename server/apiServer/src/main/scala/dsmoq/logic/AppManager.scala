@@ -32,28 +32,27 @@ object AppManager {
    * アプリのJARファイルを保存する。
    *
    * @param appId アプリID
-   * @param appVersionId アプリバージョンID
    * @param file アプリのJARファイル
    * @throws IOException 入出力エラーが発生した場合
    */
-  def upload(appId: String, appVersionId: String, file: FileItem): Unit = {
-    val appDir = Paths.get(AppConf.appDir, "upload", appId).toFile
+  def upload(appId: String, file: FileItem): Unit = {
+    val appDir = Paths.get(AppConf.appDir, "upload").toFile
     if (!appDir.exists()) {
       appDir.mkdirs()
     }
-    file.write(appDir.toPath.resolve(appVersionId).toFile)
+    // TODO: ファイル存在時の挙動確認
+    file.write(appDir.toPath.resolve(appId).toFile)
   }
 
   /**
    * アプリのJARファイルを取得する。
    *
    * @param appId アプリID
-   * @param appVersionId アプリバージョンID
    * @return アプリのJARファイル
    * @throws RuntimeException ファイルが存在しない場合
    */
-  def download(appId: String, appVersionId: String): File = {
-    val fullPath = Paths.get(AppConf.appDir, "upload", appId, appVersionId).toFile
+  def download(appId: String): File = {
+    val fullPath = Paths.get(AppConf.appDir, "upload", appId).toFile
     if (!fullPath.exists()) {
       throw new RuntimeException("file not found")
     }

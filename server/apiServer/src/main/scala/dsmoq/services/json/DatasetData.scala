@@ -185,7 +185,6 @@ object DatasetData {
    */
   case class AppFile(
     appId: String,
-    appVersionId: String,
     lastModified: DateTime,
     content: InputStream
   )
