@@ -15,6 +15,7 @@ import dsmoq.maintenance.controllers.ResponseUtil.resultAs
 import dsmoq.maintenance.data.user.SearchCondition
 import dsmoq.maintenance.data.user.UpdateParameter
 import dsmoq.maintenance.services.UserService
+import dsmoq.maintenance.services.ErrorDetail
 
 /**
  * ユーザ処理系画面のサーブレット
@@ -53,8 +54,9 @@ class UserServlet extends ScalatraServlet with ScalateSupport with LazyLogging w
     } yield {
       SeeOther(searchUrl(condition.toMap))
     }
-    resultAs(result) { error =>
-      errorPage(error)
+    resultAs(result) {
+      case (error, details) =>
+        errorPage(error, details)
     }
   }
 
@@ -81,13 +83,15 @@ class UserServlet extends ScalatraServlet with ScalateSupport with LazyLogging w
    * エラーページを作成する。
    *
    * @param error エラーメッセージ
+   * @param details エラーの詳細
    * @return エラーページのHTML
    */
-  def errorPage(error: String): String = {
+  def errorPage(error: String, details: Seq[ErrorDetail] = Seq.empty): String = {
     val backUrl = Option(request.getHeader("Referer")).getOrElse("/")
     ssp(
       "util/error",
       "error" -> error,
+      "details" -> details,
       "backUrl" -> backUrl
     )
   }

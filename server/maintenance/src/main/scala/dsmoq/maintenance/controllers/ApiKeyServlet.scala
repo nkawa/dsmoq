@@ -15,6 +15,7 @@ import dsmoq.maintenance.controllers.ResponseUtil.resultAs
 import dsmoq.maintenance.data.apikey.AddParameter
 import dsmoq.maintenance.data.apikey.DisableParameter
 import dsmoq.maintenance.services.ApiKeyService
+import dsmoq.maintenance.services.ErrorDetail
 
 /**
  * APIキー処理系画面のサーブレット
@@ -51,8 +52,9 @@ class ApiKeyServlet extends ScalatraServlet with ScalateSupport with LazyLogging
     } yield {
       SeeOther(url("/"))
     }
-    resultAs(result) { error =>
-      errorPage(error)
+    resultAs(result) {
+      case (error, details) =>
+        errorPage(error, details)
     }
   }
 
@@ -85,8 +87,9 @@ class ApiKeyServlet extends ScalatraServlet with ScalateSupport with LazyLogging
     } yield {
       SeeOther(url("/"))
     }
-    resultAs(result) { error =>
-      errorPage(error)
+    resultAs(result) {
+      case (error, details) =>
+        errorPage(error, details)
     }
   }
 
@@ -94,13 +97,15 @@ class ApiKeyServlet extends ScalatraServlet with ScalateSupport with LazyLogging
    * エラーページを作成する。
    *
    * @param error エラーメッセージ
+   * @param details エラーの詳細
    * @return エラーページのHTML
    */
-  def errorPage(error: String): String = {
+  def errorPage(error: String, details: Seq[ErrorDetail] = Seq.empty): String = {
     val backUrl = Option(request.getHeader("Referer")).getOrElse("/")
     ssp(
       "util/error",
       "error" -> error,
+      "details" -> details,
       "backUrl" -> backUrl
     )
   }

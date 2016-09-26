@@ -28,6 +28,7 @@ class ScalatraBootstrap extends LifeCycle {
     context.mount(new FileServlet, "/file/*")
     context.mount(new GroupServlet, "/group/*")
 
+    System.setProperty(org.scalatra.EnvironmentKey, "development")
     DBs.setup()
   }
 

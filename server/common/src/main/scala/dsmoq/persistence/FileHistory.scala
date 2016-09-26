@@ -194,7 +194,7 @@ object FileHistory extends SQLSyntaxSupport[FileHistory] {
   }
 
   def destroy(entity: FileHistory)(implicit session: DBSession = autoSession): Unit = {
-    withSQL { delete.from(FileHistory).where.eq(column.id, entity.id) }.update.apply()
+    withSQL { delete.from(FileHistory).where.eq(column.id, sqls.uuid(entity.id)) }.update.apply()
   }
 
 }

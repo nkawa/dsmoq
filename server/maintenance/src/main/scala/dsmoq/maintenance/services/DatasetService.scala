@@ -1,6 +1,7 @@
 package dsmoq.maintenance.services
 
 import java.util.UUID
+import java.nio.file.Paths
 
 import scala.util.Failure
 import scala.util.Success
@@ -47,6 +48,7 @@ import scalikejdbc.interpolation.Implicits.scalikejdbcSQLSyntaxToStringImplicitD
 import scalikejdbc.select
 import scalikejdbc.sqls
 import scalikejdbc.update
+import scalikejdbc.delete
 import scalikejdbc.withSQL
 
 /**
@@ -62,6 +64,11 @@ object DatasetService extends LazyLogging {
    * サービス名
    */
   val SERVICE_NAME = "DatasetService"
+
+  /**
+   * 物理削除不能な保存状態
+   */
+  val cantDeleteState = Seq(persistence.SaveStatus.Synchronizing, persistence.SaveStatus.Deleting)
 
   /**
    * ユーザーのアクセス権として有効なアクセスレベル
@@ -634,11 +641,226 @@ object DatasetService extends LazyLogging {
    * @param param 入力パラメータ
    * @return 処理結果
    *        Failure(ServiceException) 要素が空の場合
+   *        Failure(ServiceException) データセットの物理削除に失敗した場合
+   *        Failure(ServiceException) 物理ファイルの物理削除に失敗した場合
    */
   def applyPhysicalDelete(param: UpdateParameter): Try[Unit] = {
     logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "applyPhysicalDelete", param))
-    // TODO 実装
-    Failure(new ServiceException("未実装です"))
+    DB.localTx { implicit s =>
+      for {
+        _ <- checkNonEmpty(param.targets)
+        (cantDeleteDatasets, deleteTargets) <- execApplyPhysicalDelete(param.targets)
+        cantDeletePhysicalFiles <- DeleteUtil.deletePhysicalFiles(LOG_MARKER, deleteTargets)
+        _ <- DeleteUtil.deleteResultToTry(cantDeleteDatasets, cantDeletePhysicalFiles)
+      } yield {
+        ()
+      }
+    }
+  }
+
+  /**
+   * データセットに物理削除を適用する。
+   *
+   * @param ids 物理削除対象のデータセットID
+   * @param s DBセッション
+   * @return 処理結果
+   *        Seq[DeleteUtil.CantDeleteData] 削除に失敗したデータセットデータのリスト
+   *        Seq[DeleteUtil.DeleteTarget] 削除対象の物理ファイルディレクトリのリスト
+   */
+  def execApplyPhysicalDelete(
+    ids: Seq[String]
+  )(implicit s: DBSession): Try[(Seq[DeleteUtil.CantDeleteData], Seq[DeleteUtil.DeleteTarget])] = {
+    Try {
+      val d = persistence.Dataset.d
+      val datasets = withSQL {
+        select
+          .from(persistence.Dataset as d)
+          .where
+          .inUuid(d.id, ids)
+      }.map(persistence.Dataset(d.resultName)).list.apply()
+      val deleteResults = datasets.map { dataset =>
+        if (!dataset.deletedAt.isDefined || !dataset.deletedBy.isDefined) {
+          // 削除対象に関連付けられたデータセットが論理削除済みでない場合は削除対象から外す
+          (Some(DeleteUtil.CantDeleteData("データセット", "論理削除済みではない", dataset.name)), Seq.empty)
+        } else if (cantDeleteState.contains(dataset.localState) || cantDeleteState.contains(dataset.s3State)) {
+          // 削除対象に関連付けられたデータセットが移動中、または削除中の場合は削除対象から外す
+          (Some(DeleteUtil.CantDeleteData("データセット", "ファイルが移動中、または削除中", dataset.name)), Seq.empty)
+        } else {
+          val f = persistence.File.f
+          val files = withSQL {
+            select
+              .from(persistence.File as f)
+              .where
+              .eq(f.datasetId, sqls.uuid(dataset.id))
+          }.map(persistence.File(f.resultName)).list.apply()
+          val deleteTargetsFile = files.flatMap { file =>
+            FileService.physicalDeleteFile(file, dataset.localState, dataset.s3State)
+          }
+          deleteAnnotations(dataset.id)
+          val deleteTargetsApp = deleteApps(dataset.id)
+          val deleteTargetsImage = deleteImages(dataset.id)
+          deleteOwnerships(dataset.id)
+          // Localの場合のみ、データセットのディレクトリを消す
+          // (S3は中身の存在しないディレクトリは自動的に消えるため、不要)
+          val deleteTargets = if (dataset.localState == persistence.SaveStatus.Saved) {
+            val path = Paths.get(AppConfig.fileDir, dataset.id)
+            deleteTargetsFile ++ deleteTargetsApp ++ deleteTargetsImage :+ DeleteUtil.LocalFile(path)
+          } else {
+            deleteTargetsFile ++ deleteTargetsApp ++ deleteTargetsImage
+          }
+          deleteDataset(dataset.id)
+          (None, deleteTargets)
+        }
+      }
+      val cantDeleteFiles = deleteResults.collect { case (Some(cantDelete), _) => cantDelete }
+      val deleteTargets = deleteResults.collect { case (None, deleteTargets) => deleteTargets }.flatten
+      (cantDeleteFiles, deleteTargets)
+    }
+  }
+
+  /**
+   * Datasetを物理削除する。
+   *
+   * @param datasetId データセットID
+   * @param s DBセッション
+   */
+  def deleteDataset(datasetId: String)(implicit s: DBSession): Unit = {
+    withSQL {
+      delete
+        .from(persistence.Dataset)
+        .where
+        .eq(persistence.Dataset.column.id, sqls.uuid(datasetId))
+    }.update.apply()
+  }
+
+  /**
+   * Ownershipを物理削除する。
+   *
+   * @param datasetId データセットID
+   * @param s DBセッション
+   */
+  def deleteOwnerships(datasetId: String)(implicit s: DBSession): Unit = {
+    withSQL {
+      delete
+        .from(persistence.Ownership)
+        .where
+        .eq(persistence.Ownership.column.datasetId, sqls.uuid(datasetId))
+    }.update.apply()
+  }
+
+  /**
+   * Image, DatasetImageを物理削除する。
+   * Imageは他のデータセット、グループから使用されていない場合のみ削除する。
+   *
+   * @param datasetId データセットID
+   * @param s DBセッション
+   * @return 削除対象の物理ファイルのリスト
+   */
+  def deleteImages(datasetId: String)(implicit s: DBSession): Seq[DeleteUtil.DeleteTarget] = {
+    val di = persistence.DatasetImage.di
+    val imageIds = withSQL {
+      select(di.result.imageId)
+        .from(persistence.DatasetImage as di)
+        .where
+        .eq(di.datasetId, sqls.uuid(datasetId))
+    }.map(_.string(di.resultName.imageId)).list.apply().toSet.toSeq
+    val deletableImageIds = imageIds.filter(id => DeleteUtil.canDeleteImage(imageId = id, datasetId = Some(datasetId)))
+    if (deletableImageIds.isEmpty) {
+      return Seq.empty
+    }
+    withSQL {
+      delete
+        .from(persistence.Image)
+        .where
+        .in(persistence.Image.column.id, deletableImageIds.map(sqls.uuid))
+    }.update.apply()
+    withSQL {
+      delete
+        .from(persistence.DatasetImage)
+        .where
+        .eq(persistence.DatasetImage.column.datasetId, sqls.uuid(datasetId))
+    }.update.apply()
+    deletableImageIds.map { id =>
+      DeleteUtil.LocalFile(Paths.get(AppConfig.fileDir, "upload", id))
+    }
+  }
+
+  /**
+   * App, DatasetAppを物理削除する。
+   *
+   * @param datasetId データセットID
+   * @param s DBセッション
+   * @return 削除対象の物理ファイルのリスト
+   */
+  def deleteApps(datasetId: String)(implicit s: DBSession): Seq[DeleteUtil.DeleteTarget] = {
+    val da = persistence.DatasetApp.v
+    val appIds = withSQL {
+      select(da.result.appId)
+        .from(persistence.DatasetApp as da)
+        .where
+        .eq(da.datasetId, sqls.uuid(datasetId))
+    }.map(_.string(da.resultName.appId)).list.apply().toSet.toSeq
+    if (appIds.isEmpty) {
+      return Seq.empty
+    }
+    withSQL {
+      delete
+        .from(persistence.App)
+        .where
+        .in(persistence.App.column.id, appIds.map(sqls.uuid))
+    }.update.apply()
+    withSQL {
+      delete
+        .from(persistence.DatasetApp)
+        .where
+        .eq(persistence.DatasetApp.column.datasetId, sqls.uuid(datasetId))
+    }.update.apply()
+    appIds.map { id =>
+      DeleteUtil.LocalFile(Paths.get(AppConfig.appDir, "upload", id))
+    }
+  }
+
+  /**
+   * Annotation, DatasetAnnotationを物理削除する。
+   * Annotationは、他のデータセットから使用されていない場合のみ削除する。
+   *
+   * @param datasetId データセットID
+   * @param s DBセッション
+   */
+  def deleteAnnotations(datasetId: String)(implicit s: DBSession): Unit = {
+    val da = persistence.DatasetAnnotation.da
+    val annotationIds = withSQL {
+      select(da.result.annotationId)
+        .from(persistence.DatasetAnnotation as da)
+        .where
+        .eq(da.datasetId, sqls.uuid(datasetId))
+    }.map(_.string(da.resultName.annotationId)).list.apply().toSet.toSeq
+    if (annotationIds.isEmpty) {
+      return
+    }
+    val dac = persistence.DatasetAnnotation.column
+    withSQL {
+      delete
+        .from(persistence.DatasetAnnotation)
+        .where
+        .eq(dac.datasetId, sqls.uuid(datasetId))
+    }.update.apply()
+    val ac = persistence.Annotation.column
+    withSQL {
+      delete
+        .from(persistence.Annotation)
+        .where
+        .in(ac.id, annotationIds.map(sqls.uuid))
+        .and
+        .notExists(
+          select
+            .from(persistence.DatasetAnnotation as da)
+            .where
+            .eq(da.annotationId, ac.id)
+            .and
+            .ne(da.datasetId, sqls.uuid(datasetId))
+        )
+    }.update.apply()
   }
 
   /**

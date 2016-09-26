@@ -96,7 +96,7 @@ object Util {
     result match {
       case Failure(e) => {
         e match {
-          case _: ServiceException => logger.error(marker, e.getMessage, e)
+          case e: ServiceException if e.withLogging => logger.error(marker, e.getMessage, e)
           case _ => // do nothing
         }
       }

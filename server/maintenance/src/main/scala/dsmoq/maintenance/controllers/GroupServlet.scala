@@ -21,6 +21,7 @@ import dsmoq.maintenance.data.group.UpdateParameter
 import dsmoq.maintenance.data.group.AddMemberParameter
 import dsmoq.maintenance.data.group.UpdateMemberParameter
 import dsmoq.maintenance.services.GroupService
+import dsmoq.maintenance.services.ErrorDetail
 
 /**
  * グループ処理系画面のサーブレット
@@ -65,8 +66,9 @@ class GroupServlet extends ScalatraServlet with ScalateSupport with LazyLogging 
         )
       )
     }
-    resultAs(result) { error =>
-      errorPage(error)
+    resultAs(result) {
+      case (error, details) =>
+        errorPage(error, details)
     }
   }
 
@@ -85,8 +87,9 @@ class GroupServlet extends ScalatraServlet with ScalateSupport with LazyLogging 
         )
       )
     }
-    resultAs(result) { error =>
-      errorPage(error)
+    resultAs(result) {
+      case (error, details) =>
+        errorPage(error, details)
     }
   }
 
@@ -105,8 +108,9 @@ class GroupServlet extends ScalatraServlet with ScalateSupport with LazyLogging 
         )
       )
     }
-    resultAs(result) { error =>
-      errorPage(error)
+    resultAs(result) {
+      case (error, details) =>
+        errorPage(error, details)
     }
   }
 
@@ -116,8 +120,9 @@ class GroupServlet extends ScalatraServlet with ScalateSupport with LazyLogging 
     } yield {
       SeeOther(searchUrl(params))
     }
-    resultAs(result) { error =>
-      errorPage(error)
+    resultAs(result) {
+      case (error, details) =>
+        errorPage(error, details)
     }
   }
 
@@ -127,8 +132,9 @@ class GroupServlet extends ScalatraServlet with ScalateSupport with LazyLogging 
     } yield {
       SeeOther(memberListUrl(params))
     }
-    resultAs(result) { error =>
-      errorPage(error)
+    resultAs(result) {
+      case (error, details) =>
+        errorPage(error, details)
     }
   }
 
@@ -138,8 +144,9 @@ class GroupServlet extends ScalatraServlet with ScalateSupport with LazyLogging 
     } yield {
       SeeOther(memberListUrl(params))
     }
-    resultAs(result) { error =>
-      errorPage(error)
+    resultAs(result) {
+      case (error, details) =>
+        errorPage(error, details)
     }
   }
 
@@ -166,13 +173,15 @@ class GroupServlet extends ScalatraServlet with ScalateSupport with LazyLogging 
    * エラーページを作成する。
    *
    * @param error エラーメッセージ
+   * @param details エラーの詳細
    * @return エラーページのHTML
    */
-  def errorPage(error: String): String = {
+  def errorPage(error: String, details: Seq[ErrorDetail] = Seq.empty): String = {
     val backUrl = Option(request.getHeader("Referer")).getOrElse("/")
     ssp(
       "util/error",
       "error" -> error,
+      "details" -> details,
       "backUrl" -> backUrl
     )
   }

@@ -4,13 +4,31 @@
     <!-- the filter element -->
     <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
       <evaluator class="ch.qos.logback.classic.boolex.OnMarkerEvaluator">
-        <marker>MAINTENANCE_LOG</marker>
+        <marker>MAINTENANCE_DELETE_FAILURE_LOG</marker>
+      </evaluator>
+      <onMatch>DENY</onMatch>
+      <onMismatch>ACCEPT</onMismatch>
+    </filter>
+
+    <File>maintenance.log</File>
+    <Append>true</Append>
+
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} [%thread] %marker %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <appender name="DELETE_FAILED" class="ch.qos.logback.core.FileAppender">
+    <!-- the filter element -->
+    <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
+      <evaluator class="ch.qos.logback.classic.boolex.OnMarkerEvaluator">
+        <marker>MAINTENANCE_DELETE_FAILURE_LOG</marker>
       </evaluator>
       <onMatch>ACCEPT</onMatch>
       <onMismatch>DENY</onMismatch>
     </filter>
 
-    <File>maintenance.log</File>
+    <File>delete_error.log</File>
     <Append>true</Append>
 
     <encoder>
@@ -29,5 +47,6 @@
   <root level="info">
     <appender-ref ref="STDOUT" />
     <appender-ref ref="MAINTENANCE" />
+    <appender-ref ref="DELETE_FAILED" />
   </root>
 </configuration>

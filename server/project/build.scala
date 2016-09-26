@@ -184,6 +184,7 @@ object DsmoqBuild extends Build {
         "commons-codec" % "commons-codec" % "1.10",
         "com.typesafe" % "config" % "1.3.0",
         "com.typesafe.scala-logging" % "scala-logging_2.11" % "3.1.0" % "compile",
+        "com.amazonaws" % "aws-java-sdk" % "1.9.4",
         "org.apache.httpcomponents" % "httpclient" % "4.3.6" % "test",
         "org.apache.httpcomponents" % "httpmime" % "4.3.6" % "test",
         "org.json4s" %% "json4s-jackson" % "3.2.10" % "test",

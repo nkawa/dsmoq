@@ -20,6 +20,7 @@ import dsmoq.maintenance.data.dataset.SearchAclsParameter
 import dsmoq.maintenance.data.dataset.SearchAclUserParameter
 import dsmoq.maintenance.data.dataset.SearchCondition
 import dsmoq.maintenance.services.DatasetService
+import dsmoq.maintenance.services.ErrorDetail
 
 /**
  * データセット処理系画面のサーブレット
@@ -64,8 +65,8 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
         )
       )
     }
-    resultAs(result) { error =>
-      errorPage(error)
+    resultAs(result) { (error, details) =>
+      errorPage(error, details)
     }
   }
 
@@ -84,8 +85,8 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
         )
       )
     }
-    resultAs(result) { error =>
-      errorPage(error)
+    resultAs(result) { (error, details) =>
+      errorPage(error, details)
     }
   }
 
@@ -104,8 +105,8 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
         )
       )
     }
-    resultAs(result) { error =>
-      errorPage(error)
+    resultAs(result) { (error, details) =>
+      errorPage(error, details)
     }
   }
 
@@ -125,8 +126,8 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
         )
       )
     }
-    resultAs(result) { error =>
-      errorPage(error)
+    resultAs(result) { (error, details) =>
+      errorPage(error, details)
     }
   }
 
@@ -146,8 +147,8 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
         )
       )
     }
-    resultAs(result) { error =>
-      errorPage(error)
+    resultAs(result) { (error, details) =>
+      errorPage(error, details)
     }
   }
 
@@ -157,8 +158,8 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
     } yield {
       SeeOther(searchUrl(params))
     }
-    resultAs(result) { error =>
-      errorPage(error)
+    resultAs(result) { (error, details) =>
+      errorPage(error, details)
     }
   }
 
@@ -168,8 +169,8 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
     } yield {
       SeeOther(aclListUrl(params))
     }
-    resultAs(result) { error =>
-      errorPage(error)
+    resultAs(result) { (error, details) =>
+      errorPage(error, details)
     }
   }
 
@@ -179,8 +180,8 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
     } yield {
       SeeOther(aclListUrl(params))
     }
-    resultAs(result) { error =>
-      errorPage(error)
+    resultAs(result) { (error, details) =>
+      errorPage(error, details)
     }
   }
 
@@ -190,8 +191,8 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
     } yield {
       SeeOther(aclListUrl(params))
     }
-    resultAs(result) { error =>
-      errorPage(error)
+    resultAs(result) { (error, details) =>
+      errorPage(error, details)
     }
   }
 
@@ -201,8 +202,8 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
     } yield {
       SeeOther(aclListUrl(params))
     }
-    resultAs(result) { error =>
-      errorPage(error)
+    resultAs(result) { (error, details) =>
+      errorPage(error, details)
     }
   }
 
@@ -229,13 +230,15 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
    * エラーページを作成する。
    *
    * @param error エラーメッセージ
+   * @param details エラーの詳細
    * @return エラーページのHTML
    */
-  def errorPage(error: String): String = {
+  def errorPage(error: String, details: Seq[ErrorDetail] = Seq.empty): String = {
     val backUrl = Option(request.getHeader("Referer")).getOrElse("/")
     ssp(
       "util/error",
       "error" -> error,
+      "details" -> details,
       "backUrl" -> backUrl
     )
   }
