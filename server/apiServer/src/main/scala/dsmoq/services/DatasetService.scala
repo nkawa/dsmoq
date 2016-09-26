@@ -4675,10 +4675,12 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         (dataset, app) <- db
       } yield {
         val file = AppManager.download(app.id)
+        val size = file.length
         val content = Files.newInputStream(file.toPath)
         DatasetData.AppFile(
           appId = app.id,
           lastModified = app.lastModified,
+          size = size,
           content = content
         )
       }

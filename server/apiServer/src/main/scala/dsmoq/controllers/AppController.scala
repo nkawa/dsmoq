@@ -83,6 +83,7 @@ class AppController(
     } yield {
       contentType = "application/java-archive"
       response.setDateHeader("Last-Modified", file.lastModified.getMillis)
+      response.setContentLengthLong(file.size)
       file.content
     }
     toActionResult(ret)
