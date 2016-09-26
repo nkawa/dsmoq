@@ -644,8 +644,6 @@ class DatasetEditPage {
             function(datasetId, file): Promise<{images: Array<Image>, primaryImage: String}> {
                 return Service.instance.addDatasetImage(datasetId, file);
             },
-            null,
-            null,
             function(datasetId, imageId): Promise<{primaryImage: String, featuredImage: String}> {
                 return Service.instance.removeDatasetImage(datasetId, imageId);
             },
@@ -695,12 +693,6 @@ class DatasetEditPage {
             function(datasetId, file): Promise<DatasetApp> {
                 return Service.instance.addDatasetApp(datasetId, file);
             },
-            function(datasetId, appId, file): Promise<DatasetApp> {
-                return Service.instance.upgradeDatasetApp(datasetId, appId, file);
-            },
-            function(_, data) {
-                updatePrimary(data);
-            },
             function(datasetId, appId): Promise<Unit> {
                 return Service.instance.removeDatasetApp(datasetId, appId);
             },
@@ -725,8 +717,6 @@ class DatasetEditPage {
         candicateSize: Int,
         get: String -> Int -> Int -> Promise<RangeSlice<T>>,
         add: String -> JqHtml -> Promise<Dynamic>,
-        upgrade: String -> String -> JqHtml -> Promise<U>,
-        upgraded: U -> DatasetEditSelect<T> -> Void,
         remove: String -> String -> Promise<R>,
         removed: R -> DatasetEditSelect<T> -> Void
     ): Promise<T> {
@@ -767,7 +757,7 @@ class DatasetEditPage {
                 var isPrevEnabled = html.find('#${name}-list-prev').attr("disabled") != "disabled";
                 var isNextEnabled = html.find('#${name}-list-next').attr("disabled") != "disabled";
                 var selectedIds = data.selectedIds.concat([]);
-                // Apply,Delete,UpgradeをDisableにする
+                // Apply,DeleteをDisableにする
                 JsViews.observable(data.selectedIds).refresh([]);
                 html.find('#${name}-list-prev').attr("disabled", "disabled");
                 html.find('#${name}-list-next').attr("disabled", "disabled");
@@ -832,18 +822,6 @@ class DatasetEditPage {
                     "upload",
                     function() {
                         return add(datasetId, html.find('#upload-${name}-form'));
-                    }
-                );
-            });
-            html.find('#upgrade-${name}-form input').on("change", function(_) {
-                execute(
-                    "upgrade",
-                    function() {
-                        var selected = html.find("input:checked").val();
-                        return upgrade(datasetId, selected, html.find('#upgrade-${name}-form'));
-                    },
-                    function(x) {
-                        upgraded(x, data);
                     }
                 );
             });

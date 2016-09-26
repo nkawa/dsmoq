@@ -4129,21 +4129,10 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         checkOwnerAccess(datasetId, user)
         val timestamp = DateTime.now()
         val appId = UUID.randomUUID.toString
-        val appVersionId = UUID.randomUUID.toString
         val fileName = file.getName
         persistence.App.create(
           id = appId,
           name = appNameOf(fileName),
-          createdBy = user.id,
-          createdAt = timestamp,
-          updatedBy = user.id,
-          updatedAt = timestamp
-        )
-        persistence.AppVersion.create(
-          id = appVersionId,
-          appId = appId,
-          fileName = fileName,
-          version = 1,
           createdBy = user.id,
           createdAt = timestamp,
           updatedBy = user.id,
@@ -4159,7 +4148,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           updatedBy = user.id,
           updatedAt = timestamp
         )
-        AppManager.upload(appId, appVersionId, file)
+        AppManager.upload(appId, file)
         getApp(datasetId, appId)
       }
     }
@@ -4309,25 +4298,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         getApp(datasetId, appId)
         checkOwnerAccess(datasetId, user)
         val timestamp = DateTime.now()
-        val appVersionId = UUID.randomUUID.toString
         val fileName = file.getName
-        val nextVersion = withSQL {
-          val v = persistence.AppVersion.syntax("v")
-          select(sqls.max(v.version))
-            .from(persistence.AppVersion as v)
-            .where
-            .eq(v.appId, sqls.uuid(appId))
-        }.map(_.int(1) + 1).single.apply().getOrElse(0)
-        persistence.AppVersion.create(
-          id = appVersionId,
-          appId = appId,
-          fileName = fileName,
-          version = nextVersion,
-          createdBy = user.id,
-          createdAt = timestamp,
-          updatedBy = user.id,
-          updatedAt = timestamp
-        )
         withSQL {
           val a = persistence.App.column
           update(persistence.App)
@@ -4339,7 +4310,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             .where
             .eq(a.id, sqls.uuid(appId))
         }.update.apply()
-        AppManager.upload(appId, appVersionId, file)
+        AppManager.upload(appId, file)
         getApp(datasetId, appId)
       }
     }
@@ -4382,20 +4353,6 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             .isNull(a.deletedAt)
         }.update.apply()
         withSQL {
-          val v = persistence.AppVersion.column
-          update(persistence.AppVersion)
-            .set(
-              v.deletedBy -> sqls.uuid(user.id),
-              v.deletedAt -> timestamp,
-              v.updatedBy -> sqls.uuid(user.id),
-              v.updatedAt -> timestamp
-            )
-            .where
-            .eq(v.appId, sqls.uuid(appId))
-            .and
-            .isNull(v.deletedAt)
-        }.update.apply()
-        withSQL {
           val da = persistence.DatasetApp.column
           update(persistence.DatasetApp)
             .set(
@@ -4432,31 +4389,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       DB.readOnly { implicit s =>
         checkDatasetExisitence(datasetId)
         checkOwnerAccess(datasetId, user)
-        val a = persistence.App.syntax("a")
-        val da = persistence.DatasetApp.syntax("da")
-        withSQL {
-          select(a.result.*, da.result.*)
-            .from(persistence.App as a)
-            .innerJoin(persistence.DatasetApp as da).on(a.id, da.appId)
-            .where
-            .eq(da.datasetId, sqls.uuid(datasetId))
-            .and
-            .eq(da.isPrimary, true)
-            .and
-            .isNull(a.deletedAt)
-            .and
-            .isNull(da.deletedAt)
-        }.map { rs =>
-          val app = persistence.App(a.resultName)(rs)
-          val datasetApp = persistence.DatasetApp(da.resultName)(rs)
-          DatasetData.App(
-            id = app.id,
-            name = app.name,
-            datasetId = datasetId,
-            isPrimary = datasetApp.isPrimary,
-            lastModified = app.updatedAt
-          )
-        }.single.apply()
+        getPrimaryApp(datasetId)
       }
     }
   }
@@ -4530,7 +4463,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         checkDatasetExisitence(datasetId)
         for {
           _ <- requireAllowDownload(user, datasetId).toOption
-          _ <- getNewestPrimaryApp(datasetId)
+          _ <- getPrimaryApp(datasetId)
           _ <- getUserKey(user)
         } yield {
           AppManager.getJnlpUrl(datasetId, user.id)
@@ -4579,63 +4512,18 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   }
 
   /**
-   * アプリの最新版情報を取得する。
-   *
-   * @param datasetId データセットID
-   * @param appId アプリID
-   * @param s DBセッション
-   * @return アプリの最新版情報
-   * @throws NotFoundException アプリまたは関連付けが存在しない場合
-   */
-  private def getNewestApp(datasetId: String, appId: String)(implicit s: DBSession): DatasetService.DatasetApp = {
-    val a = persistence.App.syntax("a")
-    val v = persistence.AppVersion.syntax("v")
-    val da = persistence.DatasetApp.syntax("da")
-    withSQL {
-      select(a.result.*, v.result.*)
-        .from(persistence.App as a)
-        .innerJoin(persistence.AppVersion as v).on(a.id, v.appId)
-        .innerJoin(persistence.DatasetApp as da).on(a.id, da.appId)
-        .where
-        .eq(a.id, sqls.uuid(appId))
-        .and
-        .eq(da.datasetId, sqls.uuid(datasetId))
-        .and
-        .isNull(a.deletedAt)
-        .and
-        .isNull(v.deletedAt)
-        .and
-        .isNull(da.deletedAt)
-        .orderBy(v.version.desc)
-        .limit(1)
-    }.map { rs =>
-      DatasetService.DatasetApp(
-        datasetId = datasetId,
-        appId = rs.string(a.resultName.id),
-        appName = rs.string(a.resultName.name),
-        appVersionId = rs.string(v.resultName.id),
-        updatedAt = rs.timestamp(v.resultName.updatedAt).toJodaDateTime
-      )
-    }.single.apply().getOrElse {
-      throw new NotFoundException
-    }
-  }
-
-  /**
-   * データセットに設定されているアプリの最新版情報を取得する。
+   * データセットに設定されているアプリの情報を取得する。
    *
    * @param datasetId データセットID
    * @param s DBセッション
-   * @return データセットに設定されているアプリの最新版情報、設定されていない場合 None
+   * @return データセットに設定されているアプリの情報、設定されていない場合 None
    */
-  private def getNewestPrimaryApp(datasetId: String)(implicit s: DBSession): Option[DatasetService.DatasetApp] = {
+  private def getPrimaryApp(datasetId: String)(implicit s: DBSession): Option[DatasetData.App] = {
     val a = persistence.App.syntax("a")
-    val v = persistence.AppVersion.syntax("v")
     val da = persistence.DatasetApp.syntax("da")
     withSQL {
-      select(a.result.*, v.result.*, da.result.isPrimary)
+      select(a.result.*, da.result.*)
         .from(persistence.App as a)
-        .innerJoin(persistence.AppVersion as v).on(a.id, v.appId)
         .innerJoin(persistence.DatasetApp as da).on(a.id, da.appId)
         .where
         .eq(da.datasetId, sqls.uuid(datasetId))
@@ -4644,18 +4532,16 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .and
         .isNull(a.deletedAt)
         .and
-        .isNull(v.deletedAt)
-        .and
         .isNull(da.deletedAt)
-        .orderBy(v.version.desc)
-        .limit(1)
     }.map { rs =>
-      DatasetService.DatasetApp(
+      val app = persistence.App(a.resultName)(rs)
+      val datasetApp = persistence.DatasetApp(da.resultName)(rs)
+      DatasetData.App(
+        id = app.id,
+        name = app.name,
         datasetId = datasetId,
-        appId = rs.string(a.resultName.id),
-        appName = rs.string(a.resultName.name),
-        appVersionId = rs.string(v.resultName.id),
-        updatedAt = rs.timestamp(v.resultName.updatedAt).toJodaDateTime
+        isPrimary = datasetApp.isPrimary,
+        lastModified = app.updatedAt
       )
     }.single.apply()
   }
@@ -4728,7 +4614,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         for {
           user <- found(getUser(userId))
           dataset <- found(getDataset(datasetId))
-          app <- found(getNewestPrimaryApp(datasetId))
+          app <- found(getPrimaryApp(datasetId))
           uk <- found(getUserKey(user))
           _ <- requireAllowDownload(user, datasetId)
         } yield {
@@ -4745,10 +4631,10 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           secretKey = uk.secretKey
         )
         DatasetData.AppJnlp(
-          id = app.appId,
+          id = app.id,
           name = dataset.name,
           datasetId = datasetId,
-          lastModified = app.updatedAt,
+          lastModified = app.lastModified,
           content = content
         )
       }
@@ -4778,7 +4664,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         for {
           user <- found(getUser(userId))
           dataset <- found(getDataset(datasetId))
-          app <- found(getNewestPrimaryApp(datasetId))
+          app <- found(getPrimaryApp(datasetId))
           _ <- found(getUserKey(user))
           _ <- requireAllowDownload(user, datasetId)
         } yield {
@@ -4788,40 +4674,15 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       for {
         (dataset, app) <- db
       } yield {
-        val file = AppManager.download(app.appId, app.appVersionId)
+        val file = AppManager.download(app.id)
         val content = Files.newInputStream(file.toPath)
         DatasetData.AppFile(
-          appId = app.appId,
-          appVersionId = app.appVersionId,
-          lastModified = app.updatedAt,
+          appId = app.id,
+          lastModified = app.lastModified,
           content = content
         )
       }
     }.flatMap(x => x)
-  }
-
-  /**
-   * 指定したアプリバージョンの更新日時を取得する。
-   *
-   * @param appId アプリID
-   * @param appVersionId アプリバージョンID
-   * @param s DBセッション
-   * @return 更新日時、取得できなかった場合 None
-   */
-  private def getAppVersionUpdatedAt(appId: String, appVersionId: String)(implicit s: DBSession): Option[DateTime] = {
-    val v = persistence.AppVersion.syntax("v")
-    withSQL {
-      select(v.result.updatedAt)
-        .from(persistence.AppVersion as v)
-        .where
-        .eq(v.id, sqls.uuid(appVersionId))
-        .and
-        .eq(v.appId, sqls.uuid(appId))
-        .and
-        .isNull(v.deletedAt)
-    }.map { rs =>
-      rs.timestamp(v.resultName.updatedAt).toJodaDateTime
-    }.single.apply()
   }
 
   /**
@@ -4962,23 +4823,6 @@ object DatasetService {
 
   /** アプリ検索に用いるデフォルトの削除状態 */
   val DEFAULT_GET_APP_DELETED_TYPE = GetAppDeletedTypes.LOGICAL_DELETED_EXCLUDE
-
-  /**
-   * バージョン情報を含むアプリ情報
-   *
-   * @param datasetId データセットID
-   * @param appId アプリID
-   * @param appName アプリ名
-   * @param appVersionId アプリバージョンID
-   * @param updatedAt アプリバージョンの更新日時
-   */
-  case class DatasetApp(
-    datasetId: String,
-    appId: String,
-    appName: String,
-    appVersionId: String,
-    updatedAt: DateTime
-  )
 
   /**
    * ユーザのAPIキー情報
