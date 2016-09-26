@@ -41,11 +41,12 @@ object AppConf {
     isDisabled = false
   )
 
-  val defaultAvatarImageId = sys.getString("system.image.default.avatar")
-  val defaultDatasetImageId = sys.getString("system.image.default.dataset")
-  val defaultGroupImageId = sys.getString("system.image.default.group")
-  val defaultLicenseId = sys.getString("system.image.default.license")
-  val defaultFeaturedImageIds = sys.getStringList("system.image.default.featured").asScala
+  val defaultAvatarImageId = sys.getString("system.default.image.avatar")
+  val defaultDatasetImageId = sys.getString("system.default.image.dataset")
+  val defaultGroupImageId = sys.getString("system.default.image.group")
+  val defaultFeaturedImageIds = sys.getStringList("system.default.image.featured").asScala
+
+  val defaultLicenseId = sys.getString("system.default.license")
 
   val urlRoot = root.getString("apiserver.url_root")
   val imageDownloadRoot = root.getString("apiserver.image_url_root")
