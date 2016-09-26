@@ -89,7 +89,7 @@ class ZipSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             checkStatus()
             val f = parse(body).extract[AjaxResponse[DatasetFile]].data
             f.zipedFiles.length should be(2)
-            (f.url, f.zipedFiles.head.url)
+            (f.url.get, f.zipedFiles.head.url.get)
           }
 
           get(new java.net.URI(fileUrl).getPath) {
@@ -120,7 +120,7 @@ class ZipSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             checkStatus()
             val f = parse(body).extract[AjaxResponse[DatasetFile]].data
             f.zipedFiles.length should be(0)
-            f.url
+            f.url.get
           }
 
           get(new java.net.URI(url).getPath) {
@@ -147,7 +147,7 @@ class ZipSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             checkStatus()
             val f = parse(body).extract[AjaxResponse[DatasetFile]].data
             f.zipedFiles.length should be(3)
-            (f.url, f.zipedFiles.head.url)
+            (f.url.get, f.zipedFiles.head.url.get)
           }
 
           get(new java.net.URI(fileUrl).getPath) {

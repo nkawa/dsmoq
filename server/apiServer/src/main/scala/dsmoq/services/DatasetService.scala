@@ -242,8 +242,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
               id = x._1.id,
               name = x._1.name,
               description = x._1.description,
-              size = x._2.fileSize,
-              url = AppConf.fileDownloadRoot + datasetId + "/" + x._1.id,
+              size = Some(x._2.fileSize),
+              url = Some(AppConf.fileDownloadRoot + datasetId + "/" + x._1.id),
               createdBy = Some(user),
               createdAt = timestamp.toString(),
               updatedBy = Some(user),
@@ -1398,8 +1398,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
               id = x._1.id,
               name = x._1.name,
               description = x._1.description,
-              size = x._2.fileSize,
-              url = AppConf.fileDownloadRoot + id + "/" + x._1.id,
+              size = Some(x._2.fileSize),
+              url = Some(AppConf.fileDownloadRoot + id + "/" + x._1.id),
               createdBy = Some(user),
               createdAt = timestamp.toString(),
               updatedBy = Some(user),
@@ -2257,9 +2257,10 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
                 ownerType = OwnerType.User
               )
             case OwnerType.Group =>
+              val group = persistence.Group.find(x.id).getOrElse {
+                throw new BadRequestException(resource.getString(ResourceNames.INVALID_GROUP))
+              }
               saveOrCreateOwnerships(user, datasetId, x.id, x.accessLevel)
-
-              val group = persistence.Group.find(x.id).get
               DatasetData.DatasetOwnership(
                 id = x.id,
                 name = group.name,
@@ -2486,16 +2487,25 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   ) extends FileResult
 
   def findFile(fileId: String)(implicit session: DBSession): Option[FileResult] = {
-    persistence.File.find(fileId).map { file =>
-      val history = persistence.FileHistory.find(file.historyId).get
+    val file = for {
+      file <- persistence.File.find(fileId)
+      if file.deletedAt.isEmpty
+      history <- persistence.FileHistory.find(file.historyId)
+      if history.deletedAt.isEmpty
+    } yield {
       FileResultNormal(file, history.filePath)
-    }.orElse {
-      persistence.ZipedFiles.find(fileId).map { zipFile =>
-        val history = persistence.FileHistory.find(zipFile.historyId).get
-        val file = persistence.File.find(history.fileId).get
-        FileResultZip(file, history.filePath, zipFile)
-      }
     }
+    lazy val zipedFile = for {
+      zipFile <- persistence.ZipedFiles.find(fileId)
+      if zipFile.deletedAt.isEmpty
+      history <- persistence.FileHistory.find(zipFile.historyId)
+      if history.deletedAt.isEmpty
+      file <- persistence.File.find(history.fileId)
+      if file.deletedAt.isEmpty
+    } yield {
+      FileResultZip(file, history.filePath, zipFile)
+    }
+    file orElse zipedFile
   }
 
   /**
@@ -2965,6 +2975,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
 
   private def getFiles(
     datasetId: String,
+    permission: Int,
     limit: Int,
     offset: Int
   )(implicit s: DBSession): Seq[DatasetData.DatasetFile] = {
@@ -3002,13 +3013,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.list.apply().map {
       case (file, createdUser, updatedUser, createdUserMail, updatedUserMail) => {
         val history = persistence.FileHistory.find(file.historyId).get
-        val zipCount = if (history.isZip) { getZipedFiles(datasetId, history.id).size } else { 0 }
+        val canDownload = permission >= UserAndGroupAccessLevel.ALLOW_DOWNLOAD
+        val zipCount = if (history.isZip) { getZipedFiles(datasetId, history.id, canDownload).size } else { 0 }
         DatasetData.DatasetFile(
           id = file.id,
           name = file.name,
           description = file.description,
-          url = AppConf.fileDownloadRoot + datasetId + "/" + file.id,
-          size = file.fileSize,
+          url = if (canDownload) Some(AppConf.fileDownloadRoot + datasetId + "/" + file.id) else None,
+          size = if (canDownload) Some(file.fileSize) else None,
           createdBy = createdUser.map(u => User(u, createdUserMail.getOrElse(""))),
           createdAt = file.createdAt.toString(),
           updatedBy = updatedUser.map(u => User(u, updatedUserMail.getOrElse(""))),
@@ -3060,8 +3072,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           id = file.id,
           name = file.name,
           description = file.description,
-          url = AppConf.fileDownloadRoot + datasetId + "/" + file.id,
-          size = file.fileSize,
+          url = Some(AppConf.fileDownloadRoot + datasetId + "/" + file.id),
+          size = Some(file.fileSize),
           createdBy = createdUser.map(u => User(u, createdUserMail.getOrElse(""))),
           createdAt = file.createdAt.toString(),
           updatedBy = updatedUser.map(u => User(u, updatedUserMail.getOrElse(""))),
@@ -3094,7 +3106,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.map(_.int(1)).single.apply().getOrElse(0)
   }
 
-  def getZipedFiles(datasetId: String, historyId: String)(implicit s: DBSession): Seq[DatasetZipedFile] = {
+  def getZipedFiles(datasetId: String, historyId: String, canDownload: Boolean = true)(implicit s: DBSession): Seq[DatasetZipedFile] = {
     val zf = persistence.ZipedFiles.zf
     val zipedFiles = withSQL {
       select
@@ -3109,8 +3121,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       DatasetZipedFile(
         id = x.id,
         name = x.name,
-        size = x.fileSize,
-        url = AppConf.fileDownloadRoot + datasetId + "/" + x.id
+        size = if (canDownload) Some(x.fileSize) else None,
+        url = if (canDownload) Some(AppConf.fileDownloadRoot + datasetId + "/" + x.id) else None
       )
     }.toSeq
   }
@@ -3365,57 +3377,58 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   def importAttribute(datasetId: String, file: FileItem, user: User): Try[Unit] = {
     Try {
       val csv = use(new InputStreamReader(file.getInputStream)) { in =>
-        CSVReader.open(in).all()
+        CSVReader.open(in).all().collect {
+          case name :: value :: _ => (name, value)
+        }
       }
-      val nameMap = csv.map(x => (x(0), x(1))).toMap
 
       DB.localTx { implicit s =>
+        checkDatasetExisitence(datasetId)
+        checkOwnerAccess(datasetId, user)
+
         val a = persistence.Annotation.a
         val da = persistence.DatasetAnnotation.da
         val exists = withSQL {
           select
             .from(Annotation as a)
             .where
-            .in(a.name, csv.map(_(0)))
-        }.map(persistence.Annotation(a.resultName)).list.apply()
+            .in(a.name, csv.map(_._1))
+        }.map { rs =>
+          val annotation = persistence.Annotation(a.resultName)(rs)
+          (annotation.name, annotation.id)
+        }.list.apply().toMap
 
-        val notExists = csv.filter(x => !exists.map(_.name).contains(x(0)))
-        val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
 
-        val created = notExists.map { annotation =>
-          persistence.Annotation.create(
-            id = UUID.randomUUID().toString,
-            name = annotation(0),
-            createdBy = myself.id,
-            createdAt = timestamp,
-            updatedBy = myself.id,
-            updatedAt = timestamp
-          )
-        }
+        val names = csv.map(_._1).toSet
+        val annotations = names.map { name =>
+          val id = exists.getOrElse(name, {
+            val id = UUID.randomUUID().toString
+            persistence.Annotation.create(
+              id = id,
+              name = name,
+              createdBy = user.id,
+              createdAt = timestamp,
+              updatedBy = user.id,
+              updatedAt = timestamp
+            )
+            id
+          })
+          (name, id)
+        }.toMap
 
-        val existRels = withSQL {
-          select
-            .from(DatasetAnnotation as da)
-            .join(Annotation as a).on(da.annotationId, a.id)
-            .where
-            .eqUuid(da.datasetId, datasetId)
-            .and
-            .in(a.name, exists.map(_.name))
-        }.map(persistence.DatasetAnnotation(da.resultName)).list.apply()
-
-        (exists.filter(x => !existRels.map(_.annotationId).contains(x.id)) ++ created).foreach { annotation =>
-
-          persistence.DatasetAnnotation.create(
-            id = UUID.randomUUID().toString,
-            datasetId = datasetId,
-            annotationId = annotation.id,
-            data = nameMap(annotation.name),
-            createdBy = myself.id,
-            createdAt = timestamp,
-            updatedBy = myself.id,
-            updatedAt = timestamp
-          )
+        csv.foreach {
+          case (name, value) =>
+            persistence.DatasetAnnotation.create(
+              id = UUID.randomUUID().toString,
+              datasetId = datasetId,
+              annotationId = annotations(name),
+              data = value,
+              createdBy = user.id,
+              createdAt = timestamp,
+              updatedBy = user.id,
+              updatedAt = timestamp
+            )
         }
       }
     }
@@ -3977,7 +3990,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(user, "user")
       DB.readOnly { implicit s =>
         val dataset = checkDatasetExisitence(datasetId)
-        checkReadPermission(datasetId, user)
+        val permission = checkReadPermission(datasetId, user)
         val validatedLimit = limit.map { x =>
           if (x < 0) { 0 } else { x }
         }.getOrElse(AppConf.fileLimit)
@@ -3987,7 +4000,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         if (validatedOffset < 0) {
           RangeSlice(RangeSliceSummary(count, 0, validatedOffset), Seq.empty[DatasetData.DatasetFile])
         } else {
-          val files = getFiles(datasetId, validatedLimit, validatedOffset)
+          val files = getFiles(datasetId, permission, validatedLimit, validatedOffset)
           RangeSlice(RangeSliceSummary(count, files.size, validatedOffset), files)
         }
       }
@@ -4033,7 +4046,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             x
           }
         }
-        checkReadPermission(datasetId, user)
+        val permission = checkReadPermission(datasetId, user)
         val validatedLimit = limit.map { x =>
           if (x < 0) { 0 } else { x }
         }.getOrElse(AppConf.fileLimit)
@@ -4046,7 +4059,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             Seq.empty[DatasetData.DatasetZipedFile]
           )
         } else {
-          val files = getZippedFiles(datasetId, history.id, validatedLimit, validatedOffset)
+          val files = getZippedFiles(datasetId, history.id, permission, validatedLimit, validatedOffset)
           RangeSlice(RangeSliceSummary(count, files.size, validatedOffset), files)
         }
       }
@@ -4056,6 +4069,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   private def getZippedFiles(
     datasetId: String,
     historyId: String,
+    permission: Int,
     limit: Int,
     offset: Int
   )(implicit s: DBSession): Seq[DatasetZipedFile] = {
@@ -4071,12 +4085,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     if (zipedFiles.exists(hasPassword)) {
       return Seq.empty
     }
+    val canDownload = permission >= UserAndGroupAccessLevel.ALLOW_DOWNLOAD
     zipedFiles.map { x =>
       DatasetZipedFile(
         id = x.id,
         name = x.name,
-        size = x.fileSize,
-        url = AppConf.fileDownloadRoot + datasetId + "/" + x.id
+        size = if (canDownload) Some(x.fileSize) else None,
+        url = if (canDownload) Some(AppConf.fileDownloadRoot + datasetId + "/" + x.id) else None
       )
     }.toSeq
   }
@@ -4816,8 +4831,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @return 取得したユーザ、存在しないまたは無効な場合None
    */
   private def getUser(id: String)(implicit s: DBSession): Option[User] = {
-    if (id == User.guest.id) {
-      return Some(User.guest)
+    if (id == AppConf.guestUser.id) {
+      return Some(AppConf.guestUser)
     }
     val u = persistence.User.u
     val ma = persistence.MailAddress.ma

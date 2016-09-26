@@ -86,8 +86,8 @@ object DatasetData {
     id: String,
     name: String,
     description: String,
-    url: String,
-    size: Long,
+    url: Option[String],
+    size: Option[Long],
     createdBy: Option[User],
     createdAt: String,
     updatedBy: Option[User],
@@ -100,8 +100,8 @@ object DatasetData {
   case class DatasetZipedFile(
     id: String,
     name: String,
-    size: Long,
-    url: String
+    size: Option[Long],
+    url: Option[String]
   )
 
   case class DatasetOwnership(

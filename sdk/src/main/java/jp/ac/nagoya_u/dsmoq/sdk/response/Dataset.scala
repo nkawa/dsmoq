@@ -115,8 +115,8 @@ case class DatasetFile(
   private val id: String,
   private val name: String,
   private val description: String,
-  private val url: String,
-  private val size: Long,
+  private val url: Option[String],
+  private val size: Option[Long],
   private val createdBy: Option[User],
   private val createdAt: String,
   private val updatedBy: Option[User],
@@ -128,8 +128,8 @@ case class DatasetFile(
   def getId = id
   def getName = name
   def getDescription = description
-  def getUrl = url
-  def getSize = size
+  def getUrl = url.orNull
+  def getSize = size.getOrElse(-1)
   def getCreatedBy = createdBy.orNull
   def getCreatedAt = createdAt
   def getUpdatedBy = updatedBy.orNull
@@ -141,13 +141,13 @@ case class DatasetFile(
 case class DatasetZipedFile(
   private val id: String,
   private val name: String,
-  private val size: Long,
-  private val url: String
+  private val size: Option[Long],
+  private val url: Option[String]
 ) {
   def getId = id
   def getName = name
-  def getSize = size
-  def getUrl = url
+  def getSize = size.getOrElse(-1)
+  def getUrl = url.orNull
 }
 
 case class DatasetOwnership(

@@ -855,7 +855,7 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             }
             (datasetId, primaryAppId)
           }
-          withApiKey(if (apiKey && !authenticated) Some(AppConf.guestUserId) else None) {
+          withApiKey(if (apiKey && !authenticated) Some(AppConf.guestUser.id) else None) {
             session {
               if (authenticated) {
                 signIn(if (apiKey) "dummy2" else "dummy3", "password")
@@ -885,13 +885,13 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         testDatasetId <- Seq(Some(""), Some("hello"), Some(uuid), None) // None: create new dataset
         datasetDeleted <- Seq(true, false)
         if !(testDatasetId.isDefined && datasetDeleted)
-        user <- Seq("", "hello", uuid, AppConf.guestUserId, dummy3UserId)
+        user <- Seq("", "hello", uuid, AppConf.guestUser.id, dummy3UserId)
         userDisabled <- Seq(true, false)
         if !(userDisabled && user == dummy3UserId)
         permission <- 0 to 3
         if !(testDatasetId.isDefined && permission != 0)
         if !((user == "" || user == "hello" || user == uuid) && permission != 0)
-        if !(user == AppConf.guestUserId && permission == 3)
+        if !(user == AppConf.guestUser.id && permission == 3)
         apiKey <- Seq(true, false)
         if !((user == "" || user == "hello" || user == uuid) && apiKey)
         currentPrimaryApp <- Seq(true, false)
@@ -919,7 +919,7 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
                     )
                   )
                   post(s"/api/datasets/${datasetId}/acl", accessLevelParams) { checkStatus() }
-                } else if (user == AppConf.guestUserId) {
+                } else if (user == AppConf.guestUser.id) {
                   val guestAccessLevelParams = Map("d" -> compact(render(("accessLevel" -> permission))))
                   put(s"/api/datasets/${datasetId}/guest_access", guestAccessLevelParams) { checkStatus() }
                 }
@@ -942,7 +942,7 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             }
             (datasetId, primaryAppId)
           }
-          withApiKey(if (apiKey && (user == AppConf.guestUserId || user == dummy3UserId)) Some(user) else None) {
+          withApiKey(if (apiKey && (user == AppConf.guestUser.id || user == dummy3UserId)) Some(user) else None) {
             session {
               for {
                 ext <- Seq("jnlp", "jar")
