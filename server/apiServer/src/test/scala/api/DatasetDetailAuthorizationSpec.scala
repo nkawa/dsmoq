@@ -44,6 +44,7 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
     ).toMultipartConfigElement
     holder.getRegistration.setMultipartConfig(multipartConfig)
     servletContextHandler.addServlet(holder, "/api/*")
+    SpecCommonLogic.deleteAllCreateData()
   }
 
   override def afterAll() {
@@ -109,24 +110,23 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
         post("/api/signout") { checkStatus() }
         post("/api/signin", dummyUserLoginParams) { checkStatus() }
         datasetParams.foreach { params =>
-          // for debug
-          println("debug params(user):" + params)
-
-          if (params._2 > UserAccessLevel.Deny || params._3 > GroupAccessLevel.Deny || params._4 > DefaultAccessLevel.Deny) {
-            get("/api/datasets/" + params._1) {
-              status should be(200)
-              val result = parse(body).extract[AjaxResponse[Dataset]]
-              result.data.id should be(params._1)
-              val permission = Seq(params._2, params._3, params._4).sorted.last
-              result.data.permission should be(permission)
-              result.data.defaultAccessLevel should be(params._4)
-            }
-          } else {
-            get("/api/datasets/" + params._1) {
-              // AccessDenied 
-              status should be(403)
-              val result = parse(body).extract[AjaxResponse[Any]]
-              result.status should be("AccessDenied")
+          withClue("user params: " + params) {
+            if (params._2 > UserAccessLevel.Deny || params._3 > GroupAccessLevel.Deny || params._4 > DefaultAccessLevel.Deny) {
+              get("/api/datasets/" + params._1) {
+                status should be(200)
+                val result = parse(body).extract[AjaxResponse[Dataset]]
+                result.data.id should be(params._1)
+                val permission = Seq(params._2, params._3, params._4).sorted.last
+                result.data.permission should be(permission)
+                result.data.defaultAccessLevel should be(params._4)
+              }
+            } else {
+              get("/api/datasets/" + params._1) {
+                // AccessDenied 
+                status should be(403)
+                val result = parse(body).extract[AjaxResponse[Any]]
+                result.status should be("AccessDenied")
+              }
             }
           }
         }
@@ -134,23 +134,22 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
         // ゲストアクセス時のデータセット詳細閲覧  Denyではない(AllowLimitedRead以上)であれば閲覧可
         post("/api/signout") { checkStatus() }
         datasetParams.foreach { params =>
-          // for debug
-          println("debug params(guest):" + params)
-
-          if (params._4 > DefaultAccessLevel.Deny) {
-            get("/api/datasets/" + params._1) {
-              status should be(200)
-              val result = parse(body).extract[AjaxResponse[Dataset]]
-              result.data.id should be(params._1)
-              result.data.permission should be(params._4)
-              result.data.defaultAccessLevel should be(params._4)
-            }
-          } else {
-            get("/api/datasets/" + params._1) {
-              // AccessDenied 
-              status should be(403)
-              val result = parse(body).extract[AjaxResponse[Any]]
-              result.status should be("AccessDenied")
+          withClue("guest params: " + params) {
+            if (params._4 > DefaultAccessLevel.Deny) {
+              get("/api/datasets/" + params._1) {
+                status should be(200)
+                val result = parse(body).extract[AjaxResponse[Dataset]]
+                result.data.id should be(params._1)
+                result.data.permission should be(params._4)
+                result.data.defaultAccessLevel should be(params._4)
+              }
+            } else {
+              get("/api/datasets/" + params._1) {
+                // AccessDenied 
+                status should be(403)
+                val result = parse(body).extract[AjaxResponse[Any]]
+                result.status should be("AccessDenied")
+              }
             }
           }
         }
@@ -158,23 +157,22 @@ class DatasetDetailAuthorizationSpec extends FreeSpec with ScalatraSuite with Be
         // 何も権限を付与していないユーザーのデータセット詳細閲覧 ゲストと同じアクセス制限となる
         post("/api/signin", anotherUserLoginParams) { checkStatus() }
         datasetParams.foreach { params =>
-          // for debug
-          println("debug params(not authorization user):" + params)
-
-          if (params._4 > DefaultAccessLevel.Deny) {
-            get("/api/datasets/" + params._1) {
-              status should be(200)
-              val result = parse(body).extract[AjaxResponse[Dataset]]
-              result.data.id should be(params._1)
-              result.data.permission should be(params._4)
-              result.data.defaultAccessLevel should be(params._4)
-            }
-          } else {
-            get("/api/datasets/" + params._1) {
-              // AccessDenied 
-              status should be(403)
-              val result = parse(body).extract[AjaxResponse[Any]]
-              result.status should be("AccessDenied")
+          withClue("not authorization user params: " + params) {
+            if (params._4 > DefaultAccessLevel.Deny) {
+              get("/api/datasets/" + params._1) {
+                status should be(200)
+                val result = parse(body).extract[AjaxResponse[Dataset]]
+                result.data.id should be(params._1)
+                result.data.permission should be(params._4)
+                result.data.defaultAccessLevel should be(params._4)
+              }
+            } else {
+              get("/api/datasets/" + params._1) {
+                // AccessDenied 
+                status should be(403)
+                val result = parse(body).extract[AjaxResponse[Any]]
+                result.status should be("AccessDenied")
+              }
             }
           }
         }

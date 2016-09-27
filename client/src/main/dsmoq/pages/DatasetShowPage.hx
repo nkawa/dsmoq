@@ -29,7 +29,7 @@ class DatasetShowPage {
         var binding = JsViews.observable({ data: Async.Pending });
         View.getTemplate("dataset/show").link(html, binding.data());
 
-        Service.instance.getDataset(id).flatMap(function (res) {
+        Service.instance.getDataset(id).then(function (res) {
             var data = {
                 name: res.meta.name,
                 description: res.meta.description,
@@ -40,7 +40,7 @@ class DatasetShowPage {
                     name: res.filesCount + " files",
                     files: new Array<FileItem>(),
                     opened: res.filesCount > 0,
-                    useProgress: false
+                    useProgress: res.filesCount > 0
                 },
                 attributes: res.meta.attributes,
                 license: res.meta.license,
@@ -55,34 +55,6 @@ class DatasetShowPage {
                 filesCount: res.filesCount,
                 fileLimit: res.fileLimit
             };
-            if (res.filesCount == 0) {
-                return Promise.fulfilled(data);
-            }
-            return setDatasetFiles(data, id, data.fileLimit, 0)
-                .map(function (files) {
-                    data.root.files = files;
-                    return data;
-                })
-                .thenError(function (err: Dynamic) {
-                    switch (err.status) {
-                        case 403: // Forbidden
-                            switch (err.responseJSON.status) {
-                                case ApiStatus.AccessDenied:
-                                    navigation.fulfill(Navigation.Navigate(Page.Top));
-                                case ApiStatus.Unauthorized:
-                                    navigation.fulfill(Navigation.Navigate(Page.Top));
-                            }
-                        case 404: // NotFound
-                            switch (err.responseJSON.status) {
-                                case ApiStatus.NotFound:
-                                    navigation.fulfill(Navigation.Navigate(Page.Top));
-                            }
-                        case _: // その他(500系など)
-                            html.html("Network error");
-                    }
-                });
-        })
-        .then(function (data) {
             binding.setProperty("data", data);
 
             html.find("#dataset-edit").on("click", function (_) {
@@ -95,7 +67,7 @@ class DatasetShowPage {
                 return Service.instance.deleteDeataset(id);
             }).then(function (_) {
                 // TODO 削除対象データセット閲覧履歴（このページ）をHistoryから消す
-                navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, "", new Array<{type: String, item: Dynamic}>())));
+                navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, "")));
             });
             
             html.find("#dataset-copy").createEventStream("click").flatMap(function (_) {
@@ -105,9 +77,8 @@ class DatasetShowPage {
             }).then(function(x) {
                 navigation.fulfill(Navigation.Navigate(Page.DatasetShow(x.datasetId)));
             });
-           
-            // ファイルが1件以上ある場合、more filesやzipファイルの展開イベントを割り当てる必要がある
-            if (data.root.files.length > 0) {
+
+            if (data.filesCount > 0) {
                 // ファイル一覧の表示開閉切替
                 html.find(".accordion-head-item").on("click", function (_) {
                     binding.setProperty("data.root.opened", !data.root.opened);
@@ -122,14 +93,41 @@ class DatasetShowPage {
                         }
                     }
                 });
-                setTopMoreClickEvent(html, navigation, binding, data, id);
-                setZipClickEvent(html, navigation, data, id);
+                setDatasetFiles(data, id, data.fileLimit, 0).then(
+                    function(files) {
+                        JsViews.observable(data.root.files).refresh(files);
+                        binding.setProperty("data.root.useProgress", false);
+                        setTopMoreClickEvent(html, navigation, binding, data, id);
+                        setZipClickEvent(html, navigation, data, id);
+                    },
+                    function() {
+                        binding.setProperty("data.root.useProgress", false);
+                    }
+                );
             }
+
             Service.instance.getDatasetAppUrl(id).then(function(url) {
-                JsViews.observable(data).setProperty("appUrl", url);
+                binding.setProperty("data.appUrl", url);
             });
         }, function (err: Dynamic) {
-            html.html(err.responseJSON.status);
+            switch (err.status) {
+                case 403: // Forbidden
+                    switch (err.responseJSON.status) {
+                        case ApiStatus.AccessDenied:
+                            navigation.fulfill(Navigation.Navigate(Page.Top));
+                        case ApiStatus.Unauthorized:
+                            navigation.fulfill(Navigation.Navigate(Page.Top));
+                    }
+                case 404: // NotFound
+                    switch (err.responseJSON.status) {
+                        case ApiStatus.NotFound:
+                            navigation.fulfill(Navigation.Navigate(Page.Top));
+                        case ApiStatus.IllegalArgument:
+                            navigation.fulfill(Navigation.Navigate(Page.Top));
+                    }
+                case _: // その他(500系など)
+                    html.html("Network error");
+            }
         });
 
         return navigation.promise;

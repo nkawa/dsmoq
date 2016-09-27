@@ -46,6 +46,7 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
     holder.getRegistration.setMultipartConfig(multipartConfig)
     servletContextHandler.addServlet(holder, "/api/*")
     addServlet(new FileController(resource), "/files/*")
+    SpecCommonLogic.deleteAllCreateData()
   }
 
   override def afterAll() {
@@ -1212,7 +1213,7 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
   private def getFileUrl(datasetId: String): String = {
     get(s"/api/datasets/${datasetId}/files") {
       val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
-      result.data.results(0).url
+      result.data.results(0).url.get
     }
   }
 

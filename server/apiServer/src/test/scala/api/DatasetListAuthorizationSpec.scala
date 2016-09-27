@@ -49,6 +49,7 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
     ).toMultipartConfigElement
     holder.getRegistration.setMultipartConfig(multipartConfig)
     servletContextHandler.addServlet(holder, "/api/*")
+    SpecCommonLogic.deleteAllCreateData()
   }
 
   override def afterAll() {

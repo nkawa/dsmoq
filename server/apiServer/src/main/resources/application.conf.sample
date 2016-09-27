@@ -38,7 +38,7 @@ test {
   apiserver {
     port = 8080
     image_dir = "../../test_storage/image"
-    app_dir = "../test_storage/jws"
+    app_dir = "../../test_storage/jws"
     file_dir = "../../test_storage/file"
     temp_dir = "../../test_storage/temp"
     message_dir = "../../test_storage"

@@ -29,8 +29,8 @@ trait GuestHeaderBehaviors { this: FreeSpec with ScalatraSuite =>
   private val dummyFile = new File("../README.md")
 
   def guestHeaderCheck(sessionUser: Boolean, resource: Boolean, permission: Boolean, innerError: Boolean)(expected: => Any): Unit = {
-    val uuid = UUID.randomUUID.toString
-    s"guest header check (sessionUser: ${sessionUser}, resource: ${resource}, permission: ${permission}, innerError: ${innerError}) - ${uuid}" in {
+    withClue(s"sessionUser: ${sessionUser}, resource: ${resource}, permission: ${permission}, innerError: ${innerError}") {
+      val uuid = UUID.randomUUID.toString
       val datasetId = session {
         signInDummy1()
         createDataset(permission)
@@ -124,6 +124,7 @@ class GuestHeaderSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter wi
     ).toMultipartConfigElement
     holder.getRegistration.setMultipartConfig(multipartConfig)
     servletContextHandler.addServlet(holder, "/api/*")
+    SpecCommonLogic.deleteAllCreateData()
   }
 
   override def afterAll() {
@@ -139,7 +140,7 @@ class GuestHeaderSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter wi
     SpecCommonLogic.deleteAllCreateData()
   }
 
-  "Guest header test" - {
+  "Guest header test" in {
     for {
       sessionUser <- Seq(true, false)
       resource <- Seq(true, false)
@@ -149,7 +150,7 @@ class GuestHeaderSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter wi
     } {
       guestHeaderCheck(sessionUser, resource, permission, innerError) {
         if (!innerError) {
-          header.get("isGuest") should be(Some((!sessionUser).toString))
+          header.get("X-Dsmoq-Guest") should be(Some((!sessionUser).toString))
         }
       }
     }

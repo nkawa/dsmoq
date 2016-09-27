@@ -62,6 +62,7 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     ).toMultipartConfigElement
     holder.getRegistration.setMultipartConfig(multipartConfig)
     servletContextHandler.addServlet(holder, "/api/*")
+    SpecCommonLogic.deleteAllCreateData()
   }
 
   override def afterAll() {
@@ -70,7 +71,6 @@ class InputCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   }
 
   before {
-    SpecCommonLogic.deleteAllCreateData()
     SpecCommonLogic.insertDummyData()
   }
 

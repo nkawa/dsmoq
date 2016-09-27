@@ -1,5 +1,8 @@
 package dsmoq.services
 
+import dsmoq.AppConf
+import dsmoq.persistence
+
 case class User(
   id: String,
   name: String,
@@ -14,7 +17,7 @@ case class User(
 )
 
 object User {
-  def apply(x: dsmoq.persistence.User, address: String): User = User(
+  def apply(x: persistence.User, address: String): User = User(
     id = x.id,
     name = x.name,
     fullname = x.fullname,

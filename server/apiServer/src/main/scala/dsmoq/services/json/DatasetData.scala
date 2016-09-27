@@ -86,8 +86,8 @@ object DatasetData {
     id: String,
     name: String,
     description: String,
-    url: String,
-    size: Long,
+    url: Option[String],
+    size: Option[Long],
     createdBy: Option[User],
     createdAt: String,
     updatedBy: Option[User],
@@ -100,8 +100,8 @@ object DatasetData {
   case class DatasetZipedFile(
     id: String,
     name: String,
-    size: Long,
-    url: String
+    size: Option[Long],
+    url: Option[String]
   )
 
   case class DatasetOwnership(
@@ -163,7 +163,6 @@ object DatasetData {
    *
    * @param id アプリID
    * @param name アプリ名
-   * @param versionId アプリバージョンID
    * @param datasetId データセットID
    * @param lastModified 最終更新日時
    * @param content JNLPファイルの中身
@@ -171,7 +170,6 @@ object DatasetData {
   case class AppJnlp(
     id: String,
     name: String,
-    versionId: String,
     datasetId: String,
     lastModified: DateTime,
     content: String
@@ -187,8 +185,8 @@ object DatasetData {
    */
   case class AppFile(
     appId: String,
-    appVersionId: String,
     lastModified: DateTime,
+    size: Long,
     content: InputStream
   )
 }
