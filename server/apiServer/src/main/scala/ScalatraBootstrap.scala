@@ -13,9 +13,7 @@ import dsmoq.controllers.AppController
 import dsmoq.controllers.FileController
 import dsmoq.controllers.GoogleOAuthController
 import dsmoq.controllers.ImageController
-import dsmoq.controllers.MockController
 import dsmoq.controllers.ResourceController
-import dsmoq.controllers.SessionsController
 import javax.servlet.ServletContext
 import scalikejdbc.Closable
 import scalikejdbc.GlobalSettings
@@ -65,15 +63,11 @@ class ScalatraBootstrap extends LifeCycle {
     val resource = ResourceBundle.getBundle("message", UTF8_ENCODING_CONTROL)
 
     context.mount(new ResourceController, "/*")
-    context.mount(new SessionsController, "/sessions/*")
     context.mount(new ApiController(resource), "/api/*")
     context.mount(new GoogleOAuthController(resource), "/google_oauth/*")
     context.mount(new ImageController(resource), "/images/*")
     context.mount(new FileController(resource), "/files/*")
     context.mount(new AppController(resource), "/apps/*")
-
-    // mock
-    context.mount(new MockController, "/mock")
 
     System.setProperty(org.scalatra.EnvironmentKey, "development")
   }
