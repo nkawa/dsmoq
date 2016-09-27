@@ -1,4 +1,4 @@
-package api.api.logic
+package api.common
 
 import java.io.File
 
@@ -20,7 +20,7 @@ object SpecCommonLogic {
   private lazy val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
   private lazy val client = new AmazonS3Client(cre)
 
-  def insertDummyData() {
+  def insertDummyData(): Unit = {
     val ts = DateTime.now
     // user1 create
     DB.localTx { implicit s =>
@@ -272,7 +272,7 @@ object SpecCommonLogic {
     }
   }
 
-  def deleteAllCreateData() {
+  def deleteAllCreateData(): Unit = {
     DB.localTx { implicit s =>
       //  テーブルにinsertしたデータ削除(licenses, images以外)
       deleteAllData(deleteFrom(persistence.Annotation))
@@ -465,13 +465,13 @@ object SpecCommonLogic {
     }
   }
 
-  private def deleteAllData(query: SQLBuilder[UpdateOperation])(implicit s: DBSession) {
+  private def deleteAllData(query: SQLBuilder[UpdateOperation])(implicit s: DBSession): Unit = {
     withSQL {
       query
     }.update.apply()
   }
 
-  private def deleteFile(path: String) {
+  private def deleteFile(path: String): Unit = {
     val file = new File(path)
     if (file.isDirectory) {
       file.listFiles.foreach { f =>
@@ -481,17 +481,14 @@ object SpecCommonLogic {
     file.delete()
   }
 
-  private def deleteAllFile(): Unit =
-    {
-      val cre = new BasicAWSCredentials(AppConf.s3AccessKey, AppConf.s3SecretKey)
-      val client = new AmazonS3Client(cre)
-      val l = client.listObjects(AppConf.s3UploadRoot)
+  private def deleteAllFile(): Unit = {
+    val l = client.listObjects(AppConf.s3UploadRoot)
 
-      l.getObjectSummaries.toList.foreach { obj =>
-        client.deleteObject(AppConf.s3UploadRoot, obj.getKey)
-      }
-      l.getCommonPrefixes.toList.foreach { obj =>
-        client.deleteObject(AppConf.s3UploadRoot, obj)
-      }
+    l.getObjectSummaries.toList.foreach { obj =>
+      client.deleteObject(AppConf.s3UploadRoot, obj.getKey)
     }
+    l.getCommonPrefixes.toList.foreach { obj =>
+      client.deleteObject(AppConf.s3UploadRoot, obj)
+    }
+  }
 }

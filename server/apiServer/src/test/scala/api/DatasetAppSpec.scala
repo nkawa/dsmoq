@@ -1,55 +1,31 @@
 package api
 
 import java.io.File
-import java.net.URLEncoder
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
-import java.util.Base64
-import java.util.ResourceBundle
 import java.util.UUID
-import javax.crypto.Mac
-import javax.crypto.spec.SecretKeySpec
 
-import com.amazonaws.auth.BasicAWSCredentials
-import com.amazonaws.services.s3.AmazonS3Client
-
-import org.eclipse.jetty.server.Connector
-import org.eclipse.jetty.servlet.ServletHolder
 import org.joda.time.DateTime
 import org.json4s.JsonDSL._
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
-import org.json4s.{ DefaultFormats, Formats }
-import org.scalatest.{ BeforeAndAfter, FreeSpec }
-import org.scalatra.servlet.MultipartConfig
-import org.scalatra.test.scalatest.ScalatraSuite
 
-import _root_.api.api.logic.SpecCommonLogic
+import common.DsmoqSpec
 import dsmoq.AppConf
 import dsmoq.controllers.AjaxResponse
-import dsmoq.controllers.ApiController
-import dsmoq.controllers.AppController
-import dsmoq.controllers.DateTimeSerializer
 import dsmoq.persistence
-import dsmoq.persistence.PostgresqlHelper._
-import dsmoq.persistence.{ DefaultAccessLevel, OwnerType, UserAccessLevel, GroupAccessLevel }
+import dsmoq.persistence.{ OwnerType, UserAccessLevel, GroupAccessLevel }
 import dsmoq.services.DatasetService.GetAppDeletedTypes
 import dsmoq.services.json.DatasetData
 import dsmoq.services.json.DatasetData.Dataset
 import dsmoq.services.json.DatasetData.DatasetAddFiles
 import dsmoq.services.json.DatasetData.DatasetAddImages
 import dsmoq.services.json.DatasetData.DatasetDeleteImage
-import dsmoq.services.json.DatasetData._
 import dsmoq.services.json.GroupData.Group
 import dsmoq.services.json.RangeSlice
-import dsmoq.services.json.TaskData._
-import scalikejdbc._
-import scalikejdbc.config.{ DBsWithEnv, DBs }
 
-class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
-  protected implicit val jsonFormats: Formats = DefaultFormats + DateTimeSerializer
-
+class DatasetAppSpec extends DsmoqSpec {
   private val testdataDir = Paths.get("../testdata")
   private val tempDir = testdataDir.resolve("temp")
   private val emptyFile = testdataDir.resolve("empty").toFile
@@ -61,36 +37,7 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
   override def beforeAll() {
     super.beforeAll()
-    DBsWithEnv("test").setup()
-    System.setProperty(org.scalatra.EnvironmentKey, "test")
-
-    val resource = ResourceBundle.getBundle("message")
-    val servlet = new ApiController(resource)
-    val holder = new ServletHolder(servlet.getClass.getName, servlet)
-    // multi-part file upload config
-    val multipartConfig = MultipartConfig(
-      maxFileSize = Some(3 * 1024 * 1024),
-      fileSizeThreshold = Some(1 * 1024 * 1024)
-    ).toMultipartConfigElement
-    holder.getRegistration.setMultipartConfig(multipartConfig)
-    servletContextHandler.addServlet(holder, "/api/*")
-    addServlet(new AppController(resource), "/apps/*")
-
-    SpecCommonLogic.deleteAllCreateData()
     Files.createDirectories(tempDir)
-  }
-
-  override def afterAll() {
-    DBsWithEnv("test").close()
-    super.afterAll()
-  }
-
-  before {
-    SpecCommonLogic.insertDummyData()
-  }
-
-  after {
-    SpecCommonLogic.deleteAllCreateData()
   }
 
   val uuid = UUID.randomUUID.toString
@@ -112,7 +59,7 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           s"auth: ${authenticated}, owner: ${owner}, file: ${fileParam}"
         withClue(clue) {
           val datasetId = session {
-            signInDummy1()
+            signIn()
             val datasetId = testDatasetId.getOrElse(createDataset(guestAccess))
             if (datasetDeleted) {
               delete(s"/api/datasets/${datasetId}") { checkStatus() }
@@ -147,7 +94,7 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     }
     "file names" in {
       session {
-        signInDummy1()
+        signIn()
         val datasetId = createDataset()
         for {
           ascii <- Seq(true, false)
@@ -207,7 +154,7 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           s"appId: ${testAppId}, deleted: ${appDeleted}, auth: ${authenticated}, owner: ${owner}"
         withClue(clue) {
           val (datasetId, appId) = session {
-            signInDummy1()
+            signIn()
             val datasetId = testDatasetId.getOrElse(createDataset(guestAccess))
             val appId = testAppId.getOrElse {
               val appDatasetId = if (testDatasetId.isEmpty && appRelated) datasetId else createDataset(guestAccess)
@@ -250,7 +197,7 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   "get apps" - {
     "form invalids" in {
       val (datasetId, appId) = session {
-        signInDummy1()
+        signIn()
         val datasetId = createDataset()
         val appId = createApp(datasetId)
         (datasetId, appId)
@@ -273,7 +220,7 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         offset <- Seq(None, Some(JString("a"))) ++ (-1 to 1).map(x => Some(JInt(x)))
       } {
         session {
-          signInDummy1()
+          signIn()
           val params = Map(
             "d" -> compact(
               render(
@@ -293,7 +240,7 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
                 checkStatus(400, Some("Illegal Argument"))
               } else {
                 checkStatus()
-                val result = parse(body).extract[AjaxResponse[RangeSlice[App]]].data
+                val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetData.App]]].data
                 if (deletedType == Some(JInt(GetAppDeletedTypes.LOGICAL_DELETED_ONLY))
                   || excludeIds.collect { case JArray(xs) => xs.contains(JString(appId)) }.getOrElse(false)) {
                   result.summary.total should be(0)
@@ -327,7 +274,7 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           s"auth: ${authenticated}, owner: ${owner}, formInvalid: ${formInvalid}"
         withClue(clue) {
           val datasetId = session {
-            signInDummy1()
+            signIn()
             val datasetId = testDatasetId.getOrElse {
               val datasetId = createDataset(guestAccess)
               createApp(datasetId)
@@ -379,7 +326,7 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         } {
           s"deleteds: ${deleteds}, primary: ${primary}, excludes: ${excludes}, others: ${others}, otherDatasets: ${otherDatasets}" in {
             session {
-              signInDummy1()
+              signIn()
               val dataset = createDataset()
               (1 to deleteds).map { _ =>
                 val app = createApp(dataset)
@@ -401,7 +348,7 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               val excludesParam = JArray(excludeIds.map(JString).toList)
               get(s"/api/datasets/${dataset}/apps", params = Map("d" -> compact(render("excludeIds" -> excludesParam)))) {
                 checkStatus()
-                val result = parse(body).extract[AjaxResponse[RangeSlice[App]]].data
+                val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetData.App]]].data
                 result.summary.total should be(others + (if (primary) 1 else 0))
               }
             }
@@ -410,26 +357,26 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
       }
       "primary app" in {
         session {
-          signInDummy1()
+          signIn()
           val datasetId = createDataset()
           val app1 = createApp(datasetId)
           get(s"/api/datasets/${datasetId}/apps") {
             checkStatus()
-            val result = parse(body).extract[AjaxResponse[RangeSlice[App]]].data
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetData.App]]].data
             result.summary.total should be(1)
             result.results.map(_.id) should be(Seq(app1))
           }
           val app2 = createApp(datasetId)
           get(s"/api/datasets/${datasetId}/apps") {
             checkStatus()
-            val result = parse(body).extract[AjaxResponse[RangeSlice[App]]].data
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetData.App]]].data
             result.summary.total should be(2)
             result.results.map(_.id) should be(Seq(app2, app1))
           }
           setPrimaryApp(datasetId, app1)
           get(s"/api/datasets/${datasetId}/apps") {
             checkStatus()
-            val result = parse(body).extract[AjaxResponse[RangeSlice[App]]].data
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetData.App]]].data
             result.summary.total should be(2)
             result.results.map(_.id) should be(Seq(app1, app2))
           }
@@ -437,26 +384,26 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
       }
       "deleted Type" in {
         session {
-          signInDummy1()
+          signIn()
           val datasetId = createDataset()
           val app1 = createApp(datasetId)
           val app2 = createApp(datasetId)
           delete(s"/api/datasets/${datasetId}/apps/${app2}") { checkStatus() }
           get(s"/api/datasets/${datasetId}/apps", params = Map("d" -> compact(render("deletedType" -> 0)))) {
             checkStatus()
-            val result = parse(body).extract[AjaxResponse[RangeSlice[App]]].data
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetData.App]]].data
             result.summary.total should be(1)
             result.results.map(_.id) should be(Seq(app1))
           }
           get(s"/api/datasets/${datasetId}/apps", params = Map("d" -> compact(render("deletedType" -> 1)))) {
             checkStatus()
-            val result = parse(body).extract[AjaxResponse[RangeSlice[App]]].data
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetData.App]]].data
             result.summary.total should be(2)
             result.results.map(_.id) should be(Seq(app2, app1))
           }
           get(s"/api/datasets/${datasetId}/apps", params = Map("d" -> compact(render("deletedType" -> 2)))) {
             checkStatus()
-            val result = parse(body).extract[AjaxResponse[RangeSlice[App]]].data
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetData.App]]].data
             result.summary.total should be(1)
             result.results.map(_.id) should be(Seq(app2))
           }
@@ -464,7 +411,7 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
       }
       "offset, limit" in {
         session {
-          signInDummy1()
+          signIn()
           val datasetId = createDataset()
           val num = 5
           val apps = (0 to (num - 1)).map(_ => createApp(datasetId)).toSeq.reverse
@@ -475,7 +422,7 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             withClue(s"num: ${num}, offset: ${offset}, limit: ${limit}") {
               get(s"/api/datasets/${datasetId}/apps", params = Map("d" -> compact(render(("offset" -> offset) ~ ("limit" -> limit))))) {
                 checkStatus()
-                val result = parse(body).extract[AjaxResponse[RangeSlice[App]]].data
+                val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetData.App]]].data
                 result.summary.total should be(num)
                 result.results.map(_.id) should be(apps.drop(offset).take(limit))
               }
@@ -506,7 +453,7 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           s"appId: ${testAppId}, deleted: ${appDeleted}, auth: ${authenticated}, owner: ${owner}, file: ${fileParam}"
         withClue(clue) {
           val (datasetId, appId) = session {
-            signInDummy1()
+            signIn()
             val datasetId = testDatasetId.getOrElse(createDataset(guestAccess))
             val appId = testAppId.getOrElse {
               val appDatasetId = if (testDatasetId.isEmpty && appRelated) datasetId else createDataset(guestAccess)
@@ -550,7 +497,7 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     }
     "file names" in {
       session {
-        signInDummy1()
+        signIn()
         val datasetId = createDataset()
         val appId = createApp(datasetId)
         for {
@@ -611,7 +558,7 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           s"appId: ${testAppId}, deleted: ${appDeleted}, auth: ${authenticated}, owner: ${owner}"
         withClue(clue) {
           val (datasetId, appId) = session {
-            signInDummy1()
+            signIn()
             val datasetId = testDatasetId.getOrElse(createDataset(guestAccess))
             val appId = testAppId.getOrElse {
               val appDatasetId = if (testDatasetId.isEmpty && appRelated) datasetId else createDataset(guestAccess)
@@ -676,7 +623,7 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           s"currentPrimaryApp: ${currentPrimaryApp}, deleted: ${currentPrimaryAppDeleted}"
         withClue(clue) {
           val (datasetId, appId) = session {
-            signInDummy1()
+            signIn()
             val datasetId = testDatasetId.getOrElse(createDataset(guestAccess))
             if (currentPrimaryApp) {
               val currentPrimaryAppId = createApp(datasetId, true)
@@ -751,7 +698,7 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           s"currentPrimaryApp: ${currentPrimaryApp}, deleted: ${currentPrimaryAppDeleted}"
         withClue(clue) {
           val (datasetId, primaryAppId) = session {
-            signInDummy1()
+            signIn()
             val datasetId = testDatasetId.getOrElse(createDataset(guestAccess))
             val primaryAppId = if (currentPrimaryApp) {
               val currentPrimaryAppId = createApp(datasetId, true)
@@ -816,7 +763,7 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           s"currentPrimaryApp: ${currentPrimaryApp}, deleted: ${currentPrimaryAppDeleted}"
         withClue(clue) {
           val (datasetId, primaryAppId) = session {
-            signInDummy1()
+            signIn()
             val datasetId = testDatasetId.getOrElse {
               val datasetId = createDataset()
               if (permission != 0) {
@@ -904,7 +851,7 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           s"currentPrimaryApp: ${currentPrimaryApp}, deleted: ${currentPrimaryAppDeleted}"
         withClue(clue) {
           val (datasetId, primaryAppId) = session {
-            signInDummy1()
+            signIn()
             val datasetId = testDatasetId.getOrElse {
               val datasetId = createDataset()
               if (permission != 0) {
@@ -968,39 +915,6 @@ class DatasetAppSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           }
         }
       }
-    }
-  }
-
-  def signInDummy1() {
-    signIn("dummy1", "password")
-  }
-
-  def signIn(id: String, password: String) {
-    post("/api/signin", params = Map("d" -> compact(render(("id" -> id) ~ ("password" -> password))))) {
-      checkStatus()
-    }
-  }
-
-  def createDataset(allowGuest: Boolean = false): String = {
-    val params = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
-    val dataset = post("/api/datasets", params) {
-      checkStatus()
-      parse(body).extract[AjaxResponse[Dataset]].data
-    }
-    if (allowGuest) {
-      val params = Map("d" -> compact(render(("accessLevel" -> JInt(DefaultAccessLevel.FullPublic)))))
-      put(s"/api/datasets/${dataset.id}/guest_access", params) {
-        checkStatus()
-      }
-    }
-    dataset.id
-  }
-
-  def checkStatus(expectedCode: Int = 200, expectedAjaxStatus: Option[String] = Some("OK")) {
-    status should be(expectedCode)
-    expectedAjaxStatus.foreach { expected =>
-      val result = parse(body).extract[AjaxResponse[Any]]
-      result.status should be(expected)
     }
   }
 
