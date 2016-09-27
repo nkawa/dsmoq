@@ -1,4 +1,4 @@
-package dsmoq.persistence
+package dsmoq.maintenance.services
 
 /**
  * LocalあるいはS3の保存状態定数定義体

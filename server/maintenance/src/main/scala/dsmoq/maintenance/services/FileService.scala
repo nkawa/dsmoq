@@ -51,7 +51,7 @@ object FileService extends LazyLogging {
   /**
    * 物理削除不能な保存状態
    */
-  val cantDeleteState = Seq(persistence.SaveStatus.Synchronizing, persistence.SaveStatus.Deleting)
+  val cantDeleteState = Seq(SaveStatus.Synchronizing, SaveStatus.Deleting)
 
   /**
    * ファイルを検索する。
@@ -316,7 +316,7 @@ object FileService extends LazyLogging {
       for {
         _ <- checkNonEmpty(param.targets)
         (cantDeleteFiles, deleteTargets) <- execApplyPhysicalDelete(param.targets)
-        cantDeletePhysicalFiles <- DeleteUtil.deletePhysicalFiles(LOG_MARKER, deleteTargets)
+        cantDeletePhysicalFiles <- DeleteUtil.deletePhysicalFiles(deleteTargets)
         _ <- DeleteUtil.deleteResultToTry(cantDeleteFiles, cantDeletePhysicalFiles)
       } yield {
         ()
@@ -330,12 +330,12 @@ object FileService extends LazyLogging {
    * @param ids 物理削除対象のファイルID
    * @param s DBセッション
    * @return 処理結果
-   *        Seq[DeleteUtil.CantDeleteData] 削除に失敗したファイルデータのリスト
+   *        Seq[DeleteUtil.DeleteFailedData] 削除に失敗したファイルデータのリスト
    *        Seq[DeleteUtil.DeleteTarget] 削除対象の物理ファイルディレクトリのリスト
    */
   def execApplyPhysicalDelete(
     ids: Seq[String]
-  )(implicit s: DBSession): Try[(Seq[DeleteUtil.CantDeleteData], Seq[DeleteUtil.DeleteTarget])] = {
+  )(implicit s: DBSession): Try[(Seq[DeleteUtil.DeleteFailedData], Seq[DeleteUtil.DeleteTarget])] = {
     Try {
       val f = persistence.File.f
       val files = withSQL {
@@ -352,10 +352,10 @@ object FileService extends LazyLogging {
         }
         if (!file.deletedAt.isDefined || !file.deletedBy.isDefined) {
           // 削除対象に関連付けられたファイルが論理削除済みでない場合は削除対象から外す
-          (Some(DeleteUtil.CantDeleteData("ファイル", "論理削除済みではない", file.name)), Seq.empty)
+          (Some(DeleteUtil.DeleteFailedData("ファイル", "論理削除済みではない", file.name)), Seq.empty)
         } else if (cantDeleteState.contains(localState) || cantDeleteState.contains(s3State)) {
           // 削除対象に関連付けられたファイルが移動中、または削除中の場合は削除対象から外す
-          (Some(DeleteUtil.CantDeleteData("ファイル", "ファイルが移動中、または削除中", file.name)), Seq.empty)
+          (Some(DeleteUtil.DeleteFailedData("ファイル", "ファイルが移動中、または削除中", file.name)), Seq.empty)
         } else {
           val deleteTargets = physicalDeleteFile(file, localState, s3State)
           (None, deleteTargets)
@@ -391,12 +391,12 @@ object FileService extends LazyLogging {
     deleteZipedFiles(fileHistoryIds)
     deleteFileHistories(file.id)
     deleteFile(file.id)
-    val localFiles: Seq[DeleteUtil.DeleteTarget] = if (localState == persistence.SaveStatus.Saved) {
+    val localFiles: Seq[DeleteUtil.DeleteTarget] = if (localState == SaveStatus.Saved) {
       Seq(DeleteUtil.LocalFile(Paths.get(AppConfig.fileDir, file.datasetId, file.id)))
     } else {
       Seq.empty
     }
-    val s3Files: Seq[DeleteUtil.DeleteTarget] = if (s3State == persistence.SaveStatus.Saved) {
+    val s3Files: Seq[DeleteUtil.DeleteTarget] = if (s3State == SaveStatus.Saved) {
       Seq(DeleteUtil.S3File(AppConfig.s3UploadRoot, s"${file.datasetId}/${file.id}"))
     } else {
       Seq.empty

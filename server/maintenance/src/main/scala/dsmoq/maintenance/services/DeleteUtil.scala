@@ -37,6 +37,11 @@ import dsmoq.maintenance.AppConfig
  */
 object DeleteUtil extends LazyLogging {
   /**
+   * ログマーカー
+   */
+  val LOG_MARKER = MarkerFactory.getMarker("MAINTENANCE_DELETE_SUCCESS_LOG")
+
+  /**
    * 削除失敗時に使用するログマーカー
    */
   val DELETE_FAILURE_LOG_MARKER = MarkerFactory.getMarker("MAINTENANCE_DELETE_FAILURE_LOG")
@@ -59,24 +64,23 @@ object DeleteUtil extends LazyLogging {
   /**
    * 削除できなかったデータを表すケースクラス
    */
-  case class CantDeleteData(dataType: String, reason: String, name: String)
+  case class DeleteFailedData(dataType: String, reason: String, name: String)
 
   /**
    * 指定されたディレクトリを含んで、それ以下の物理ファイルを一括削除する。
    *
-   * @param marker 削除成功時に使用するログマーカー
    * @param dirs 削除対象の物理ファイルディレクトリのリスト
    * @return 処理結果
    *        Success(Seq[String]) 削除に失敗した物理ファイル情報のリスト
    */
-  def deletePhysicalFiles(marker: Marker, dirs: Seq[DeleteTarget]): Try[Seq[String]] = {
+  def deletePhysicalFiles(dirs: Seq[DeleteTarget]): Try[Seq[String]] = {
     Try {
       lazy val crediential = new BasicAWSCredentials(AppConfig.s3AccessKey, AppConfig.s3SecretKey)
       lazy val client = new AmazonS3Client(crediential)
       val targets = dirs.flatMap {
         case LocalFile(path) => localDirToDeleteTargets(path)
         case S3File(bucket, path) => s3DirToDeleteTargets(client, bucket, path)
-      }.toSet.toSeq
+      }
       val results = for {
         target <- targets
       } yield {
@@ -85,11 +89,11 @@ object DeleteUtil extends LazyLogging {
             val message = s"Location: Local, Path:${path.toAbsolutePath.toString}"
             try {
               Files.deleteIfExists(path)
-              logger.info(marker, s"DELETE_SUCCEED: ${message}")
+              logger.info(LOG_MARKER, s"DELETE_SUCCEED: ${message}")
               Success(())
             } catch {
               case e: Exception => {
-                logger.error(marker, e.getMessage, e)
+                logger.error(LOG_MARKER, e.getMessage, e)
                 logger.error(DELETE_FAILURE_LOG_MARKER, s"DELETE_FAILED: ${message}")
                 Failure(new ServiceException(message))
               }
@@ -99,11 +103,11 @@ object DeleteUtil extends LazyLogging {
             val message = s"Location: S3, Bucket: ${bucket}, Path:${path}"
             try {
               client.deleteObject(bucket, path)
-              logger.info(marker, s"DELETE_SUCCEED: ${message}")
+              logger.info(LOG_MARKER, s"DELETE_SUCCEED: ${message}")
               Success(())
             } catch {
               case e: Exception => {
-                logger.error(marker, e.getMessage, e)
+                logger.error(LOG_MARKER, e.getMessage, e)
                 logger.error(DELETE_FAILURE_LOG_MARKER, s"DELETE_FAILED: ${message}")
                 Failure(new ServiceException(message))
               }
@@ -129,8 +133,8 @@ object DeleteUtil extends LazyLogging {
    */
   def canDeleteImage(
     imageId: String,
-    datasetId: Option[String] = None,
-    groupId: Option[String] = None
+    datasetIds: Seq[String] = Seq.empty,
+    groupIds: Seq[String] = Seq.empty
   )(implicit s: DBSession): Boolean = {
     if (AppConfig.defaultImageIds.contains(imageId)) {
       return false
@@ -142,7 +146,11 @@ object DeleteUtil extends LazyLogging {
         .where(
           sqls.toAndConditionOpt(
             Some(sqls.eq(di.imageId, sqls.uuid(imageId))),
-            datasetId.map(id => sqls.ne(di.datasetId, sqls.uuid(id)))
+            if (datasetIds.isEmpty) {
+              None
+            } else {
+              Some(sqls.notIn(di.datasetId, datasetIds.map(sqls.uuid)))
+            }
           )
         )
     }.map(_.int(1)).single.apply().getOrElse(0)
@@ -153,7 +161,11 @@ object DeleteUtil extends LazyLogging {
         .where(
           sqls.toAndConditionOpt(
             Some(sqls.eq(gi.imageId, sqls.uuid(imageId))),
-            groupId.map(id => sqls.ne(gi.groupId, sqls.uuid(id)))
+            if (groupIds.isEmpty) {
+              None
+            } else {
+              Some(sqls.notIn(gi.groupId, groupIds.map(sqls.uuid)))
+            }
           )
         )
     }.map(_.int(1)).single.apply().getOrElse(0)
@@ -169,7 +181,7 @@ object DeleteUtil extends LazyLogging {
    *        Success(Unit) cantDeletes, physicalFilesがともに空の場合
    *        Failure(ServiceException) cantDelete, physicalFilesのいずれかに要素がある場合
    */
-  def deleteResultToTry(cantDeletes: Seq[CantDeleteData], physicalFiles: Seq[String]): Try[Unit] = {
+  def deleteResultToTry(cantDeletes: Seq[DeleteFailedData], physicalFiles: Seq[String]): Try[Unit] = {
     if (cantDeletes.isEmpty && physicalFiles.isEmpty) {
       return Success(())
     }
@@ -199,17 +211,15 @@ object DeleteUtil extends LazyLogging {
   def localDirToDeleteTargets(dir: Path): Seq[DeleteTarget] = {
     val file = dir.toFile
     if (!file.exists) {
-      println(dir.toString)
       return Seq.empty
     } else if (file.isFile) {
       return Seq(LocalFile(dir))
     }
-    file.list.map(file => LocalFile(dir.resolve(file))).toSeq :+ LocalFile(dir)
+    file.list.map(dir.resolve).filter(_.toFile.isFile).map(LocalFile.apply).toSeq
   }
 
   /**
    * S3のディレクトリの中身をDeleteTargetとして変換する。
-   * (中身のないディレクトリは勝手に消えるため、ディレクトリはDeleteTargetに変換しない。)
    *
    * @param client AmazonS3Client
    * @param bucket bucket名
