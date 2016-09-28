@@ -2,68 +2,26 @@ package api
 
 import java.io.File
 import java.util.UUID
-import java.util.ResourceBundle
 
-import org.eclipse.jetty.servlet.ServletHolder
+import org.json4s.JsonDSL._
+import org.json4s._
+import org.json4s.jackson.JsonMethods._
 
-import _root_.api.api.logic.SpecCommonLogic
-import dsmoq.AppConf
-import dsmoq.controllers.{ AjaxResponse, ApiController }
+import common.DsmoqSpec
+import dsmoq.controllers.AjaxResponse
 import dsmoq.persistence._
 import dsmoq.services.json.DatasetData.{ DatasetsSummary, Dataset }
 import dsmoq.services.json.GroupData.Group
 import dsmoq.services.json.RangeSlice
-import org.eclipse.jetty.server.Connector
-import org.json4s.jackson.JsonMethods._
-import org.json4s.{ DefaultFormats, Formats }
-import org.scalatest.{ BeforeAndAfterEach, BeforeAndAfter, FreeSpec }
-import org.scalatra.servlet.MultipartConfig
-import org.scalatra.test.scalatest.ScalatraSuite
-import scalikejdbc.config.{ DBsWithEnv, DBs }
-import scalikejdbc._, SQLInterpolation._
-import org.json4s._
-import org.json4s.JsonDSL._
+import scalikejdbc._
 
-class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
-  protected implicit val jsonFormats: Formats = DefaultFormats
-
+class DatasetListAuthorizationSpec extends DsmoqSpec {
   private val dummyFile = new File("../README.md")
   private val accesscCheckUserID = "eb7a596d-e50c-483f-bbc7-50019eea64d7" // dummy 4
   private val accessCheckUserLoginParams = Map("d" -> compact(render(("id" -> "dummy4") ~ ("password" -> "password"))))
   private val noAuthorityUserLoginParams = Map("d" -> compact(render(("id" -> "dummy2") ~ ("password" -> "password"))))
   private val dataCreateUser1ID = "023bfa40-e897-4dad-96db-9fd3cf001e79" // dummy1
   private val dataCreateUser2ID = "4aaefd45-2fe5-4ce0-b156-3141613f69a6" // dummy3
-
-  override def beforeAll() {
-    super.beforeAll()
-    DBsWithEnv("test").setup()
-    System.setProperty(org.scalatra.EnvironmentKey, "test")
-
-    val resource = ResourceBundle.getBundle("message")
-    val servlet = new ApiController(resource)
-    val holder = new ServletHolder(servlet.getClass.getName, servlet)
-    // multi-part file upload config
-    val multipartConfig = MultipartConfig(
-      maxFileSize = Some(3 * 1024 * 1024),
-      fileSizeThreshold = Some(1 * 1024 * 1024)
-    ).toMultipartConfigElement
-    holder.getRegistration.setMultipartConfig(multipartConfig)
-    servletContextHandler.addServlet(holder, "/api/*")
-    SpecCommonLogic.deleteAllCreateData()
-  }
-
-  override def afterAll() {
-    DBsWithEnv("test").close()
-    super.afterAll()
-  }
-
-  before {
-    SpecCommonLogic.insertDummyData()
-  }
-
-  after {
-    SpecCommonLogic.deleteAllCreateData()
-  }
 
   "Authorization Test" - {
     "設定した権限にあわせてデータセット一覧を取得できるか" in {
@@ -554,23 +512,11 @@ class DatasetListAuthorizationSpec extends FreeSpec with ScalatraSuite with Befo
   }
 
   private def signInDataCreateUser1() {
-    val params = Map("d" -> compact(render(("id" -> "dummy1") ~ ("password" -> "password"))))
-    post("/api/signin", params) {
-      checkStatus()
-    }
+    signIn()
   }
 
   private def signInDataCreateUser2() {
-    val params = Map("d" -> compact(render(("id" -> "dummy3") ~ ("password" -> "password"))))
-    post("/api/signin", params) {
-      checkStatus()
-    }
-  }
-
-  private def checkStatus() {
-    status should be(200)
-    val result = parse(body).extract[AjaxResponse[Any]]
-    result.status should be("OK")
+    signIn("dummy3")
   }
 
   private def createGroup(): (String, String) = {

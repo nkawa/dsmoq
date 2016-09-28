@@ -1,33 +1,16 @@
 package api.status
 
-import java.net.URLEncoder
-import java.util.ResourceBundle
-import java.util.UUID
-
-import org.eclipse.jetty.servlet.ServletHolder
-
-import _root_.api.api.logic.SpecCommonLogic
-import org.scalatest.{ BeforeAndAfter, FreeSpec }
-import org.scalatra.test.scalatest.ScalatraSuite
-import org.json4s.{ DefaultFormats, Formats }
-import dsmoq.controllers.{ ApiController, AjaxResponse }
-import scalikejdbc.config.{ DBsWithEnv, DBs }
 import java.io.File
-import org.scalatra.servlet.MultipartConfig
+
 import org.json4s.JsonDSL._
 import org.json4s.jackson.JsonMethods.{ compact, parse, render }
-import org.json4s.{ DefaultFormats, Formats, JBool, JInt }
-import org.scalatest.{ BeforeAndAfter, FreeSpec }
-import org.scalatra.servlet.MultipartConfig
-import org.scalatra.test.scalatest.ScalatraSuite
-import scalikejdbc._
+
+import api.common.DsmoqSpec
+import dsmoq.AppConf
+import dsmoq.controllers.AjaxResponse
 import scalikejdbc.config.DBsWithEnv
 
-import dsmoq.AppConf
-
-class ProfileStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
-  protected implicit val jsonFormatChecks: Formats = DefaultFormats
-
+class ProfileStatusCheckSpec extends DsmoqSpec {
   private val dummyImage = new File("../testdata/image/1byteover.png")
   private val dummyFile = new File("../testdata/test1.csv")
   private val dummyZipFile = new File("../testdata/test1.zip")
@@ -37,39 +20,6 @@ class ProfileStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
   private val testUserId = "023bfa40-e897-4dad-96db-9fd3cf001e79" // dummy1
   private val dummyUserId = "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04" // dummy 2
   private val dummyUserLoginParams = Map("d" -> compact(render(("id" -> "dummy4") ~ ("password" -> "password"))))
-
-  private val host = "http://localhost:8080"
-
-  override def beforeAll() {
-    super.beforeAll()
-    DBsWithEnv("test").setup()
-    System.setProperty(org.scalatra.EnvironmentKey, "test")
-
-    val resource = ResourceBundle.getBundle("message")
-    val servlet = new ApiController(resource)
-    val holder = new ServletHolder(servlet.getClass.getName, servlet)
-    // multi-part file upload config
-    val multipartConfig = MultipartConfig(
-      maxFileSize = Some(3 * 1024 * 1024),
-      fileSizeThreshold = Some(1 * 1024 * 1024)
-    ).toMultipartConfigElement
-    holder.getRegistration.setMultipartConfig(multipartConfig)
-    servletContextHandler.addServlet(holder, "/api/*")
-  }
-
-  override def afterAll() {
-    DBsWithEnv("test").close()
-    super.afterAll()
-  }
-
-  before {
-    SpecCommonLogic.deleteAllCreateData()
-    SpecCommonLogic.insertDummyData()
-  }
-
-  after {
-    SpecCommonLogic.deleteAllCreateData()
-  }
 
   private val OK = "OK"
   private val ILLEGAL_ARGUMENT = "Illegal Argument"
@@ -446,30 +396,10 @@ class ProfileStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
    * ダミーユーザでサインインします。
    */
   private def dummySignIn(): Unit = {
-    post("/api/signin", dummyUserLoginParams) {
-      checkStatus(200, "OK")
-    }
+    signIn("dummy4")
   }
 
-  /**
-   * テストユーザでサインインします。
-   */
-  private def signIn() {
-    val params = Map("d" -> compact(render(("id" -> "dummy1") ~ ("password" -> "password"))))
-    post("/api/signin", params) {
-      checkStatus(200, "OK")
-    }
-  }
-
-  /**
-   * API呼び出し結果のstatusを確認します。
-   *
-   * @param statusCode ステータスコード
-   * @param statuString ステータス文字列
-   */
-  private def checkStatus(statusCode: Int, statusString: String): Unit = {
-    status should be(statusCode)
-    val result = parse(body).extract[AjaxResponse[Any]]
-    result.status should be(statusString)
+  private def checkStatus(code: Int, str: String): Unit = {
+    checkStatus(code, Some(str))
   }
 }

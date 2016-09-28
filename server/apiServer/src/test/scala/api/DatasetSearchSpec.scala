@@ -1,80 +1,36 @@
 package api
 
 import java.util.UUID
-import java.util.ResourceBundle
 
-import org.eclipse.jetty.servlet.ServletHolder
 import org.json4s.JsonDSL._
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
-import org.scalatest.{ BeforeAndAfter, FreeSpec }
-import org.scalatra.servlet.MultipartConfig
-import org.scalatra.test.scalatest.ScalatraSuite
 
-import _root_.api.api.logic.SpecCommonLogic
+import common.DsmoqSpec
 import dsmoq.AppConf
 import dsmoq.controllers.AjaxResponse
-import dsmoq.controllers.ApiController
-import dsmoq.controllers.json.SearchDatasetParams
-import dsmoq.controllers.json.SearchDatasetParamsSerializer
 import dsmoq.persistence
-import dsmoq.persistence.{ DefaultAccessLevel, OwnerType, UserAccessLevel, GroupAccessLevel, GroupMemberRole }
+import dsmoq.persistence.{ OwnerType, UserAccessLevel, GroupAccessLevel, GroupMemberRole }
 import dsmoq.persistence.PostgresqlHelper.PgConditionSQLBuilder
 import dsmoq.persistence.PostgresqlHelper.PgSQLSyntaxType
-import dsmoq.services.json.DatasetData.Dataset
 import dsmoq.services.json.DatasetData.DatasetsSummary
 import dsmoq.services.json.GroupData.Group
 import dsmoq.services.json.RangeSlice
-import dsmoq.services.json.SearchDatasetCondition
-import dsmoq.services.json.SearchDatasetConditionSerializer
-import scalikejdbc._
-import scalikejdbc.config.{ DBsWithEnv, DBs }
+import scalikejdbc.DB
+import scalikejdbc.config.DBs
+import scalikejdbc.withSQL
+import scalikejdbc.update
 import scalikejdbc.interpolation.Implicits.scalikejdbcSQLInterpolationImplicitDef
 import scalikejdbc.interpolation.Implicits.scalikejdbcSQLSyntaxToStringImplicitDef
 
-class DatasetSearchSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
-  protected implicit val jsonFormats: Formats = DefaultFormats +
-    SearchDatasetConditionSerializer + SearchDatasetParamsSerializer
-
-  override def beforeAll() {
-    super.beforeAll()
-    DBsWithEnv("test").setup()
-    System.setProperty(org.scalatra.EnvironmentKey, "test")
-
-    val resource = ResourceBundle.getBundle("message")
-    val servlet = new ApiController(resource)
-    val holder = new ServletHolder(servlet.getClass.getName, servlet)
-    // multi-part file upload config
-    val multipartConfig = MultipartConfig(
-      maxFileSize = Some(3 * 1024 * 1024),
-      fileSizeThreshold = Some(1 * 1024 * 1024)
-    ).toMultipartConfigElement
-    holder.getRegistration.setMultipartConfig(multipartConfig)
-    servletContextHandler.addServlet(holder, "/api/*")
-
-    SpecCommonLogic.deleteAllCreateData()
-  }
-
-  override def afterAll() {
-    DBsWithEnv("test").close()
-    super.afterAll()
-  }
-
-  before {
-    SpecCommonLogic.insertDummyData()
-  }
-
-  after {
-    SpecCommonLogic.deleteAllCreateData()
-  }
-
+class DatasetSearchSpec extends DsmoqSpec {
   val dummy2Id = "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04"
   val uuid = UUID.randomUUID.toString
   val validQuery = parse("""{"target":"query","operator":"contain","value":"test"}""")
 
   "invalids" in {
     val ds = session {
-      signInDummy1()
+      signIn()
       (1 to 2).map(_ => createDataset(allowGuest = true)).toSeq.reverse
     }
     for {
@@ -108,7 +64,7 @@ class DatasetSearchSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
   "query targets" - {
     "query" in {
       session {
-        signInDummy1()
+        signIn()
         val d1 = createDataset(name = "abc")
         val d2 = createDataset(name = "def")
         paramTest("query", JString("a"), Seq("contain", "not-contain"), Seq(d1, d2))
@@ -116,7 +72,7 @@ class DatasetSearchSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
     }
     "owner" in {
       val d1 = session {
-        signInDummy1()
+        signIn()
         createDataset(allowGuest = true)
       }
       val d2 = session {
@@ -127,7 +83,7 @@ class DatasetSearchSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
     }
     "tag" in {
       session {
-        signInDummy1()
+        signIn()
         val d1 = createDataset()
         setAttribute(d1, Seq("tuvwx" -> "$tag"))
         val d2 = createDataset()
@@ -136,7 +92,7 @@ class DatasetSearchSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
     }
     "attribute" in {
       session {
-        signInDummy1()
+        signIn()
         val d1 = createDataset()
         setAttribute(d1, Seq("abc" -> "def"))
         val d2 = createDataset()
@@ -165,7 +121,7 @@ class DatasetSearchSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
     }
     "public" in {
       session {
-        signInDummy1()
+        signIn()
         val d1 = createDataset(allowGuest = true)
         val d2 = createDataset(allowGuest = false)
         paramTest("public", JString("public"), Seq(""), Seq(d1))
@@ -174,7 +130,7 @@ class DatasetSearchSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
     }
     "total-size" in {
       session {
-        signInDummy1()
+        signIn()
         val d1 = createDataset()
         val d2 = createDataset()
         val d3 = createDataset()
@@ -213,7 +169,7 @@ class DatasetSearchSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
     }
     "num-of-files" in {
       session {
-        signInDummy1()
+        signIn()
         val d1 = createDataset()
         setFileNum(d1, 9)
         val d2 = createDataset()
@@ -252,7 +208,7 @@ class DatasetSearchSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
     val orTrueElement = render(("operator" -> "or") ~ ("value" -> render(Seq(trueElement))))
     val orFalseElement = render(("operator" -> "or") ~ ("value" -> render(Seq(falseElement))))
     session {
-      signInDummy1()
+      signIn()
       val id = createDataset()
       for {
         operator <- Seq("or", "and")
@@ -295,7 +251,7 @@ class DatasetSearchSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
   }
   "permissions" in {
     val ds = session {
-      signInDummy1()
+      signIn()
       val gid = createGroup(Seq(dummy2Id))
       for {
         found <- Seq(true, false)
@@ -390,31 +346,6 @@ class DatasetSearchSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
     }
   }
 
-  def signInDummy1(): Unit = {
-    signIn("dummy1", "password")
-  }
-
-  def signIn(id: String, password: String): Unit = {
-    post("/api/signin", params = Map("d" -> compact(render(("id" -> id) ~ ("password" -> password))))) {
-      checkStatus()
-    }
-  }
-
-  def createDataset(name: String = "test", allowGuest: Boolean = false): String = {
-    val params = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> name)
-    val dataset = post("/api/datasets", params) {
-      checkStatus()
-      parse(body).extract[AjaxResponse[Dataset]].data
-    }
-    if (allowGuest) {
-      val params = Map("d" -> compact(render(("accessLevel" -> JInt(DefaultAccessLevel.FullPublic)))))
-      put(s"/api/datasets/${dataset.id}/guest_access", params) {
-        checkStatus()
-      }
-    }
-    dataset.id
-  }
-
   def createGroup(members: Seq[String] = Seq.empty): String = {
     val createParams = Map("d" -> compact(render(("name" -> "gg") ~ ("description" -> ""))))
     val gid = post("/api/groups", createParams) {
@@ -445,14 +376,6 @@ class DatasetSearchSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter 
     )
     post(s"/api/datasets/${datasetId}/acl", params) {
       checkStatus()
-    }
-  }
-
-  def checkStatus(expectedCode: Int = 200, expectedAjaxStatus: Option[String] = Some("OK")): Unit = {
-    status should be(expectedCode)
-    expectedAjaxStatus.foreach { expected =>
-      val result = parse(body).extract[AjaxResponse[Any]]
-      result.status should be(expected)
     }
   }
 }
