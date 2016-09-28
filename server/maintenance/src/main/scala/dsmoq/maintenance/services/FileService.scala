@@ -315,9 +315,7 @@ object FileService extends LazyLogging {
     DB.localTx { implicit s =>
       for {
         _ <- checkNonEmpty(param.targets)
-        (cantDeleteFiles, deleteTargets) <- execApplyPhysicalDelete(param.targets)
-        cantDeletePhysicalFiles <- DeleteUtil.deletePhysicalFiles(deleteTargets)
-        _ <- DeleteUtil.deleteResultToTry(cantDeleteFiles, cantDeletePhysicalFiles)
+        _ <- execApplyPhysicalDelete(param.targets)
       } yield {
         ()
       }
@@ -325,128 +323,155 @@ object FileService extends LazyLogging {
   }
 
   /**
-   * ファイルに物理削除を適用する。
+   * ファイルデータ物理削除の削除対象のケースクラス
    *
-   * @param ids 物理削除対象のファイルID
+   * @param invalids 削除に失敗したファイルデータ
+   * @param records 物理削除を行うデータセットオブジェクト
+   * @param deleteFiles 削除対象の物理ファイル・ディレクトリ
+   */
+  case class DeleteInfo(
+    invalids: Seq[DeleteUtil.DeleteFailedData],
+    records: Seq[persistence.File],
+    deleteFiles: Seq[DeleteUtil.DeleteTarget]
+  )
+
+  /**
+   * ファイルデータに物理削除を適用する。
+   *
+   * @param targets 物理削除対象のファイルID
    * @param s DBセッション
    * @return 処理結果
-   *        Seq[DeleteUtil.DeleteFailedData] 削除に失敗したファイルデータのリスト
-   *        Seq[DeleteUtil.DeleteTarget] 削除対象の物理ファイルディレクトリのリスト
+   *        Failure(ServiceException) ファイルデータの物理削除に失敗した場合
+   *        Failure(ServiceException) 物理ファイルの物理削除に失敗した場合
    */
-  def execApplyPhysicalDelete(
-    ids: Seq[String]
-  )(implicit s: DBSession): Try[(Seq[DeleteUtil.DeleteFailedData], Seq[DeleteUtil.DeleteTarget])] = {
+  def execApplyPhysicalDelete(targets: Seq[String])(implicit s: DBSession): Try[Unit] = {
+    val deleteResult = Try {
+      val f = persistence.File.f
+      val d = persistence.Dataset.d
+      val files = withSQL {
+        select(f.result.*, d.result.*)
+          .from(persistence.File as f)
+          .innerJoin(persistence.Dataset as d).on(f.datasetId, d.id)
+          .where
+          .inUuid(f.id, targets)
+      }.map { rs =>
+        val file = persistence.File(f.resultName)(rs)
+        val dataset = persistence.Dataset(d.resultName)(rs)
+        (file, dataset)
+      }.list.apply()
+      val (deleteds, notDeleteds) = files.partition {
+        case (f, _) => isLogicalDeleted(f)
+      }
+      val (synchronizingOrDeletings, records) = files.partition {
+        case (_, d) => isSynchronizingState(d) || isDeletingState(d)
+      }
+      val invalids = notDeleteds.map {
+        case (file, _) => DeleteUtil.DeleteFailedData("ファイル", "論理削除済みではない", file.name)
+      } ++ synchronizingOrDeletings.map {
+        case (file, _) => DeleteUtil.DeleteFailedData("ファイル", "ファイルが移動中、または削除中", file.name)
+      }
+      val deleteFiles = files.flatMap { case (f, d) => getDeleteFile(f, d) }
+      DeleteInfo(invalids, records.map(_._1), deleteFiles)
+    }
+    for {
+      DeleteInfo(invalids, records, deleteFiles) <- deleteResult
+      _ <- deleteRecords(records)
+      deleteFaileds <- DeleteUtil.deletePhysicalFiles(deleteFiles)
+      _ <- DeleteUtil.deleteResultToTry(invalids, deleteFaileds)
+    } yield {
+      ()
+    }
+  }
+
+  /**
+   * 論理削除済みかを判定する。
+   *
+   * @param file ファイルデータオブジェクト
+   * @return 論理削除済みであればtrue、そうでなければfalse
+   */
+  def isLogicalDeleted(file: persistence.File): Boolean = {
+    file.deletedAt.isDefined && file.deletedBy.isDefined
+  }
+
+  /**
+   * データセットのローカル、S3の保存状態が移動中であるかを判定する。
+   * @param dataset データセットオブジェクト
+   * @return 移動中であればtrue、そうでなければfalse
+   */
+  def isSynchronizingState(dataset: persistence.Dataset): Boolean = {
+    dataset.localState == SaveStatus.Synchronizing || dataset.s3State == SaveStatus.Synchronizing
+  }
+
+  /**
+   * データセットのローカル、S3の保存状態が削除中であるかを判定する。
+   * @param dataset データセットオブジェクト
+   * @return 削除中であればtrue、そうでなければfalse
+   */
+  def isDeletingState(dataset: persistence.Dataset): Boolean = {
+    dataset.localState == SaveStatus.Deleting || dataset.s3State == SaveStatus.Deleting
+  }
+
+  /**
+   * 削除対象のファイルデータの物理ファイルを取得する。
+   *
+   * @param file 削除対象のファイルデータ
+   * @param dataset 削除対象ファイルの属するデータセット
+   * @return 削除対象物理ファイル
+   */
+  def getDeleteFile(file: persistence.File, dataset: persistence.Dataset): Seq[DeleteUtil.DeleteTarget] = {
+    val localDir = if (dataset.localState == SaveStatus.Saved) {
+      val path = Paths.get(AppConfig.fileDir, dataset.id, file.id)
+      Seq(DeleteUtil.LocalFile(path))
+    } else {
+      Seq.empty
+    }
+    val s3Dir = if (dataset.s3State == SaveStatus.Saved) {
+      Seq(DeleteUtil.S3File(AppConfig.s3UploadRoot, s"${dataset.id}/${file.id}"))
+    } else {
+      Seq.empty
+    }
+    localDir ++ s3Dir
+  }
+
+  /**
+   * ファイル関連のDBデータを物理削除する。
+   *
+   * @param files 削除対象のファイルIDのリスト
+   * @param s DBセッション
+   * @return 処理結果
+   */
+  def deleteRecords(files: Seq[persistence.File])(implicit s: DBSession): Try[Unit] = {
     Try {
       val f = persistence.File.f
-      val files = withSQL {
-        select
+      val h = persistence.FileHistory.fh
+      val z = persistence.ZipedFiles.zf
+      val ids = files.map(_.id)
+      withSQL {
+        delete
+          .from(persistence.ZipedFiles as z)
+          .where
+          .exists(
+            select
+              .from(persistence.FileHistory as h)
+              .where
+              .eq(z.historyId, h.id)
+              .and
+              .inUuid(h.fileId, ids)
+          )
+      }.update.apply()
+      withSQL {
+        delete
+          .from(persistence.FileHistory as h)
+          .where
+          .inUuid(h.fileId, ids)
+      }.update.apply()
+      withSQL {
+        delete
           .from(persistence.File as f)
           .where
           .inUuid(f.id, ids)
-      }.map(persistence.File(f.resultName)).list.apply()
-      val deleteResults = files.map { file =>
-        val dataset = persistence.Dataset.find(file.datasetId)
-        val (localState, s3State) = dataset match {
-          case Some(dataset) => (dataset.localState, dataset.s3State)
-          case None => (file.localState, file.s3State)
-        }
-        if (!file.deletedAt.isDefined || !file.deletedBy.isDefined) {
-          // 削除対象に関連付けられたファイルが論理削除済みでない場合は削除対象から外す
-          (Some(DeleteUtil.DeleteFailedData("ファイル", "論理削除済みではない", file.name)), Seq.empty)
-        } else if (cantDeleteState.contains(localState) || cantDeleteState.contains(s3State)) {
-          // 削除対象に関連付けられたファイルが移動中、または削除中の場合は削除対象から外す
-          (Some(DeleteUtil.DeleteFailedData("ファイル", "ファイルが移動中、または削除中", file.name)), Seq.empty)
-        } else {
-          val deleteTargets = physicalDeleteFile(file, localState, s3State)
-          (None, deleteTargets)
-        }
-      }
-      val cantDeleteFiles = deleteResults.collect { case (Some(cantDelete), _) => cantDelete }
-      val deleteTargets = deleteResults.collect { case (None, deleteTargets) => deleteTargets }.flatten
-      (cantDeleteFiles, deleteTargets)
+      }.update.apply()
     }
-  }
-
-  /**
-   * File, FileHistory, ZipedFilesを物理削除する。
-   *
-   * @param file Fileオブジェクト
-   * @param localState Localの保存状況
-   * @param s3State s3の保存状況
-   * @param s DBセッション
-   * @return 削除対象の物理ファイルディレクトリのリスト
-   */
-  def physicalDeleteFile(
-    file: persistence.File,
-    localState: Int,
-    s3State: Int
-  )(implicit s: DBSession): Seq[DeleteUtil.DeleteTarget] = {
-    val fh = persistence.FileHistory.fh
-    val fileHistoryIds = withSQL {
-      select(fh.result.id)
-        .from(persistence.FileHistory as fh)
-        .where
-        .eq(fh.fileId, sqls.uuid(file.id))
-    }.map(_.string(fh.resultName.id)).list.apply()
-    deleteZipedFiles(fileHistoryIds)
-    deleteFileHistories(file.id)
-    deleteFile(file.id)
-    val localFiles: Seq[DeleteUtil.DeleteTarget] = if (localState == SaveStatus.Saved) {
-      Seq(DeleteUtil.LocalFile(Paths.get(AppConfig.fileDir, file.datasetId, file.id)))
-    } else {
-      Seq.empty
-    }
-    val s3Files: Seq[DeleteUtil.DeleteTarget] = if (s3State == SaveStatus.Saved) {
-      Seq(DeleteUtil.S3File(AppConfig.s3UploadRoot, s"${file.datasetId}/${file.id}"))
-    } else {
-      Seq.empty
-    }
-    localFiles ++ s3Files
-  }
-
-  /**
-   * Fileを物理削除する。
-   *
-   * @param fileId ファイルID
-   * @param s DBセッション
-   */
-  def deleteFile(fileId: String)(implicit s: DBSession): Unit = {
-    withSQL {
-      delete
-        .from(persistence.File)
-        .where
-        .eq(persistence.File.column.id, sqls.uuid(fileId))
-    }.update.apply()
-  }
-
-  /**
-   * FileHistoryを物理削除する。
-   *
-   * @param fileId ファイルID
-   * @param s DBセッション
-   */
-  def deleteFileHistories(fileId: String)(implicit s: DBSession): Unit = {
-    withSQL {
-      delete
-        .from(persistence.FileHistory)
-        .where
-        .eq(persistence.FileHistory.column.fileId, sqls.uuid(fileId))
-    }.update.apply()
-  }
-
-  /**
-   * ZipedFilesを物理削除する。
-   *
-   * @param fileHistoryIds ファイル履歴ID
-   * @param s DBセッション
-   */
-  def deleteZipedFiles(fileHistoryIds: Seq[String])(implicit s: DBSession): Unit = {
-    withSQL {
-      delete
-        .from(persistence.ZipedFiles)
-        .where
-        .in(persistence.ZipedFiles.column.historyId, fileHistoryIds.map(sqls.uuid))
-    }.update.apply()
   }
 
   /**

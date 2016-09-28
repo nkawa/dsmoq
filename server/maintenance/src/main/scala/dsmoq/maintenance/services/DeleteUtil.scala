@@ -1,5 +1,6 @@
 package dsmoq.maintenance.services
 
+import java.io.File
 import java.nio.file.Path
 import java.nio.file.Files
 
@@ -203,19 +204,31 @@ object DeleteUtil extends LazyLogging {
   }
 
   /**
-   * ローカルのディレクトリの中身をDeleteTargetとして変換する。
+   * ローカルストレージのパスをDeleteTargetとして変換する。
    *
-   * @param dir ローカルティレクトリのパス
+   * @param path ローカルのパス
    * @return 変換結果
    */
-  def localDirToDeleteTargets(dir: Path): Seq[DeleteTarget] = {
-    val file = dir.toFile
+  def localDirToDeleteTargets(path: Path): Seq[DeleteTarget] = {
+    localDirToDeleteTargets(path.toFile)
+  }
+
+  /**
+   * ローカルストレージのパスをDeleteTargetとして変換する。
+   *
+   * @param file ローカルのファイルまたはディレクトリ
+   * @return 変換結果
+   */
+  def localDirToDeleteTargets(file: File): Seq[DeleteTarget] = {
     if (!file.exists) {
       return Seq.empty
-    } else if (file.isFile) {
-      return Seq(LocalFile(dir))
     }
-    file.list.map(dir.resolve).filter(_.toFile.isFile).map(LocalFile.apply).toSeq
+    val children = if (file.isFile) {
+      Seq.empty
+    } else {
+      file.listFiles.toSeq.flatMap(localDirToDeleteTargets)
+    }
+    children :+ LocalFile(file.toPath)
   }
 
   /**

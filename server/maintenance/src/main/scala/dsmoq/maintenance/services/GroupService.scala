@@ -488,134 +488,170 @@ object GroupService extends LazyLogging {
     DB.localTx { implicit s =>
       for {
         _ <- checkNonEmpty(param.targets)
-        //        (cantDeleteGroups, deleteTargets) <- execApplyPhysicalDelete(param.targets)
-        //        cantDeletePhysicalFiles <- DeleteUtil.deletePhysicalFiles(deleteTargets)
-        //        _ <- DeleteUtil.deleteResultToTry(cantDeleteGroups, cantDeletePhysicalFiles)
+        _ <- execApplyPhysicalDelete(param.targets)
       } yield {
         ()
       }
     }
   }
 
-  //  /**
-  //   * グループに物理削除を適用する。
-  //   *
-  //   * @param ids 物理削除対象のグループID
-  //   * @param s DBセッション
-  //   * @return 処理結果
-  //   *        Seq[DeleteUtil.DeleteFailedData] 削除に失敗したグループデータのリスト
-  //   *        Seq[DeleteUtil.DeleteTarget] 削除対象の物理ファイルディレクトリのリスト
-  //   */
-  //  def execApplyPhysicalDelete(
-  //    ids: Seq[String]
-  //  )(implicit s: DBSession): Try[(Seq[DeleteUtil.DeleteFailedData], Seq[DeleteUtil.DeleteTarget])] = {
-  //    Try {
-  //      val g = persistence.Group.g
-  //      val groups = withSQL {
-  //        select
-  //          .from(persistence.Group as g)
-  //          .where
-  //          .inUuid(g.id, ids)
-  //      }.map(persistence.Group(g.resultName)).list.apply()
-  //      val deleteResults = groups.map { group =>
-  //        if (!group.deletedAt.isDefined || !group.deletedBy.isDefined) {
-  //          // 削除対象に関連付けられたグループが論理削除済みでない場合は削除対象から外す
-  //          (Some(DeleteUtil.DeleteFailedData("グループ", "論理削除済みではない", group.name)), Seq.empty)
-  //        } else {
-  //          val deleteTargets = deleteImages(group.id)
-  //          deleteMembers(group.id)
-  //          deleteOwnerships(group.id)
-  //          deleteGroup(group.id)
-  //          (None, deleteTargets)
-  //        }
-  //      }
-  //      val cantDeleteFiles = deleteResults.collect { case (Some(cantDelete), _) => cantDelete }
-  //      val deleteTargets = deleteResults.collect { case (None, deleteTargets) => deleteTargets }.flatten
-  //      (cantDeleteFiles, deleteTargets)
-  //    }
-  //  }
+  /**
+   * グループ物理削除の削除対象のケースクラス
+   *
+   * @param images 画像ID
+   * @param invalids 削除に失敗したデータセット
+   * @param records 物理削除を行うデータセットオブジェクト
+   * @param deleteFiles 削除対象の物理ファイル・ディレクトリ
+   */
+  case class DeleteInfo(
+    images: Seq[String],
+    invalids: Seq[DeleteUtil.DeleteFailedData],
+    records: Seq[persistence.Group],
+    deleteFiles: Seq[DeleteUtil.DeleteTarget]
+  )
 
   /**
-   * Groupを物理削除する。
+   * グループに物理削除を適用する。
    *
-   * @param groupId グループID
+   * @param targets 物理削除対象のファイルID
+   * @param s DBセッション
+   * @return 処理結果
+   *        Failure(ServiceException) ファイルデータの物理削除に失敗した場合
+   *        Failure(ServiceException) 物理ファイルの物理削除に失敗した場合
+   */
+  def execApplyPhysicalDelete(targets: Seq[String])(implicit s: DBSession): Try[Unit] = {
+    val deleteResult = Try {
+      val g = persistence.Group.g
+      val groups = withSQL {
+        select
+          .from(persistence.Group as g)
+          .where
+          .inUuid(g.id, targets)
+      }.map(persistence.Group(g.resultName)).list.apply()
+      val (records, notDeleteds) = groups.partition(isLogicalDeleted)
+      val invalids = notDeleteds.map { group =>
+        DeleteUtil.DeleteFailedData("グループ", "論理削除済みではない", group.name)
+      }
+      val (imageIds, images) = pickupDeleteImages(records)
+      DeleteInfo(
+        imageIds,
+        invalids,
+        records,
+        images
+      )
+    }
+    for {
+      DeleteInfo(images, invalids, records, deleteFiles) <- deleteResult
+      _ <- deleteRecords(records, images)
+      deleteFaileds <- DeleteUtil.deletePhysicalFiles(deleteFiles)
+      _ <- DeleteUtil.deleteResultToTry(invalids, deleteFaileds)
+    } yield {
+      ()
+    }
+  }
+
+  /**
+   * 論理削除済みかを判定する。
+   *
+   * @param group グループオブジェクト
+   * @return 論理削除済みであればtrue、そうでなければfalse
+   */
+  def isLogicalDeleted(group: persistence.Group): Boolean = {
+    group.deletedAt.isDefined && group.deletedBy.isDefined
+  }
+
+  /**
+   * 削除対象のImageの物理ディレクトリを取得する。
+   *
+   * @param groups 削除対象のグループオブジェクトのリスト
+   * @param s DBセッション
+   * @return 削除対象のImageの物理ディレクトリのリスト
+   */
+  def pickupDeleteImages(
+    groups: Seq[persistence.Group]
+  )(implicit s: DBSession): (Seq[String], Seq[DeleteUtil.DeleteTarget]) = {
+    var ids = groups.map(_.id)
+    val gi = persistence.GroupImage.gi
+    val imageIds = withSQL {
+      select(sqls.distinct(gi.result.imageId))
+        .from(persistence.GroupImage as gi)
+        .where
+        .inUuid(gi.groupId, ids)
+    }.map(_.string(gi.resultName.imageId)).list.apply()
+    val deletableImageIds = imageIds.filter { id =>
+      DeleteUtil.canDeleteImage(imageId = id, groupIds = ids)
+    }
+    val deleteImages = deletableImageIds.map { id =>
+      DeleteUtil.LocalFile(Paths.get(AppConfig.imageDir, "upload", id))
+    }
+    (deletableImageIds, deleteImages)
+  }
+
+  /**
+   * グループ関連のDBデータを物理削除する。
+   *
+   * @param groups 削除対象のグループIDのリスト
+   * @param images 削除対象の画像IDのリスト
+   * @param s DBセッション
+   * @return 処理結果
+   */
+  def deleteRecords(
+    groups: Seq[persistence.Group],
+    images: Seq[String]
+  )(implicit s: DBSession): Try[Unit] = {
+    Try {
+      deleteGroups(groups.map(_.id))
+      deleteImages(images)
+    }
+  }
+
+  /**
+   * Image関連のDBデータを物理削除する。
+   *
+   * @param imageIds 画像IDのリスト
    * @param s DBセッション
    */
-  def deleteGroup(groupId: String)(implicit s: DBSession): Unit = {
+  def deleteImages(imageIds: Seq[String])(implicit s: DBSession): Unit = {
     withSQL {
       delete
-        .from(persistence.Group)
+        .from(persistence.Image)
         .where
-        .eq(persistence.Group.column.id, sqls.uuid(groupId))
+        .inUuid(persistence.Image.column.id, imageIds)
     }.update.apply()
   }
 
   /**
-   * Ownershipを物理削除する。
+   * Group関連のDBデータを物理削除する。
    *
-   * @param groupId グループID
+   * @param groupIds グループIDのリスト
    * @param s DBセッション
    */
-  def deleteOwnerships(groupId: String)(implicit s: DBSession): Unit = {
+  def deleteGroups(groupIds: Seq[String])(implicit s: DBSession): Unit = {
     withSQL {
       delete
         .from(persistence.Ownership)
         .where
-        .eq(persistence.Ownership.column.groupId, sqls.uuid(groupId))
+        .inUuid(persistence.Ownership.column.groupId, groupIds)
     }.update.apply()
-  }
-
-  /**
-   * Memberを物理削除する。
-   *
-   * @param groupId グループID
-   * @param s DBセッション
-   */
-  def deleteMembers(groupId: String)(implicit s: DBSession): Unit = {
     withSQL {
       delete
         .from(persistence.Member)
         .where
-        .eq(persistence.Member.column.groupId, sqls.uuid(groupId))
+        .inUuid(persistence.Member.column.groupId, groupIds)
+    }.update.apply()
+    withSQL {
+      delete
+        .from(persistence.GroupImage)
+        .where
+        .inUuid(persistence.GroupImage.column.groupId, groupIds)
+    }.update.apply()
+    withSQL {
+      delete
+        .from(persistence.Group)
+        .where
+        .inUuid(persistence.Group.column.id, groupIds)
     }.update.apply()
   }
-
-  //  /**
-  //   * Image, DatasetImageを物理削除する。
-  //   * Imageは他のデータセット、グループから使用されていない場合のみ削除する。
-  //   *
-  //   * @param groupId グループID
-  //   * @param s DBセッション
-  //   * @return 削除対象の物理ファイルのリスト
-  //   */
-  //  def deleteImages(groupId: String)(implicit s: DBSession): Seq[DeleteUtil.DeleteTarget] = {
-  //    val gi = persistence.GroupImage.gi
-  //    val imageIds = withSQL {
-  //      select(gi.result.imageId)
-  //        .from(persistence.GroupImage as gi)
-  //        .where
-  //        .eq(gi.groupId, sqls.uuid(groupId))
-  //    }.map(_.string(gi.resultName.imageId)).list.apply().toSet.toSeq
-  //    val deletableImageIds = imageIds.filter(id => DeleteUtil.canDeleteImage(imageId = id, groupId = Some(groupId)))
-  //    if (deletableImageIds.isEmpty) {
-  //      return Seq.empty
-  //    }
-  //    withSQL {
-  //      delete
-  //        .from(persistence.Image)
-  //        .where
-  //        .in(persistence.Image.column.id, deletableImageIds.map(sqls.uuid))
-  //    }.update.apply()
-  //    withSQL {
-  //      delete
-  //        .from(persistence.GroupImage)
-  //        .where
-  //        .eq(persistence.GroupImage.column.groupId, sqls.uuid(groupId))
-  //    }.update.apply()
-  //    deletableImageIds.map { id =>
-  //      DeleteUtil.LocalFile(Paths.get(AppConfig.fileDir, "upload", id))
-  //    }
-  //  }
 
   /**
    * メンバー追加・更新時に適切なメンバーロールかを確認する。

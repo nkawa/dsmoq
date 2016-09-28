@@ -671,7 +671,7 @@ object DatasetService extends LazyLogging {
   /**
    * データセットに物理削除を適用する。
    *
-   * @param ids 物理削除対象のデータセットID
+   * @param targets 物理削除対象のデータセットID
    * @param s DBセッション
    * @return 処理結果
    *        Failure(ServiceException) データセットの物理削除に失敗した場合
@@ -727,7 +727,6 @@ object DatasetService extends LazyLogging {
       deleteAnnotations(datasets.map(_.id))
       deleteApps(apps)
       deleteImages(images)
-      deleteOwnerships(datasets.map(_.id))
       deleteDatasets(datasets.map(_.id))
     }
   }
@@ -744,7 +743,7 @@ object DatasetService extends LazyLogging {
   )(implicit s: DBSession): (Seq[String], Seq[DeleteUtil.DeleteTarget]) = {
     val da = persistence.DatasetApp.v
     val appIds = withSQL {
-      select(da.result.appId)
+      select(sqls.distinct(da.result.appId))
         .from(persistence.DatasetApp as da)
         .where
         .in(da.datasetId, datasets.map(dataset => sqls.uuid(dataset.id)))
@@ -776,7 +775,7 @@ object DatasetService extends LazyLogging {
       DeleteUtil.canDeleteImage(imageId = id, datasetIds = datasets.map(_.id))
     }
     val deleteImages = deletableImageIds.map { id =>
-      DeleteUtil.LocalFile(Paths.get(AppConfig.fileDir, "upload", id))
+      DeleteUtil.LocalFile(Paths.get(AppConfig.imageDir, "upload", id))
     }
     (deletableImageIds, deleteImages)
   }
@@ -850,7 +849,7 @@ object DatasetService extends LazyLogging {
   }
 
   /**
-   * File, FileHistory, ZipedFilesを物理削除する。
+   * File関連のDBデータを物理削除する。
    *
    * @param datasetIds データセットIDのリスト
    * @param s DBセッション
@@ -891,7 +890,7 @@ object DatasetService extends LazyLogging {
   }
 
   /**
-   * Datasetを物理削除する。
+   * Dataset関連のDBデータを物理削除する。
    *
    * @param datasetIds データセットIDのリスト
    * @param s DBセッション
@@ -899,29 +898,32 @@ object DatasetService extends LazyLogging {
   def deleteDatasets(datasetIds: Seq[String])(implicit s: DBSession): Unit = {
     withSQL {
       delete
-        .from(persistence.Dataset)
-        .where
-        .in(persistence.Dataset.column.id, datasetIds.map(sqls.uuid))
-    }.update.apply()
-  }
-
-  /**
-   * Ownershipを物理削除する。
-   *
-   * @param datasetIds データセットIDのリスト
-   * @param s DBセッション
-   */
-  def deleteOwnerships(datasetIds: Seq[String])(implicit s: DBSession): Unit = {
-    withSQL {
-      delete
         .from(persistence.Ownership)
         .where
-        .in(persistence.Ownership.column.datasetId, datasetIds.map(sqls.uuid))
+        .inUuid(persistence.Ownership.column.datasetId, datasetIds)
+    }.update.apply()
+    withSQL {
+      delete
+        .from(persistence.DatasetImage)
+        .where
+        .inUuid(persistence.DatasetImage.column.datasetId, datasetIds)
+    }.update.apply()
+    withSQL {
+      delete
+        .from(persistence.DatasetApp)
+        .where
+        .inUuid(persistence.DatasetApp.column.datasetId, datasetIds)
+    }.update.apply()
+    withSQL {
+      delete
+        .from(persistence.Dataset)
+        .where
+        .inUuid(persistence.Dataset.column.id, datasetIds)
     }.update.apply()
   }
 
   /**
-   * Image, DatasetImageを物理削除する。
+   * Imageを物理削除する。
    *
    * @param imageIds 画像IDのリスト
    * @param s DBセッション
@@ -931,18 +933,12 @@ object DatasetService extends LazyLogging {
       delete
         .from(persistence.Image)
         .where
-        .in(persistence.Image.column.id, imageIds.map(sqls.uuid))
-    }.update.apply()
-    withSQL {
-      delete
-        .from(persistence.DatasetImage)
-        .where
-        .in(persistence.DatasetImage.column.imageId, imageIds.map(sqls.uuid))
+        .inUuid(persistence.Image.column.id, imageIds)
     }.update.apply()
   }
 
   /**
-   * App, DatasetAppを物理削除する。
+   * Appを物理削除する。
    *
    * @param appIds AppIDのリスト
    * @param s DBセッション
@@ -952,13 +948,7 @@ object DatasetService extends LazyLogging {
       delete
         .from(persistence.App)
         .where
-        .in(persistence.App.column.id, appIds.map(sqls.uuid))
-    }.update.apply()
-    withSQL {
-      delete
-        .from(persistence.DatasetApp)
-        .where
-        .in(persistence.DatasetApp.column.appId, appIds.map(sqls.uuid))
+        .inUuid(persistence.App.column.id, appIds)
     }.update.apply()
   }
 
