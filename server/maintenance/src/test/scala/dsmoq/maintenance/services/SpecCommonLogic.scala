@@ -366,7 +366,6 @@ object SpecCommonLogic {
       deleteAllData(deleteFrom(persistence.Annotation))
       deleteAllData(deleteFrom(persistence.ApiKey))
       deleteAllData(deleteFrom(persistence.App))
-      deleteAllData(deleteFrom(persistence.AppVersion))
       deleteAllData(deleteFrom(persistence.Dataset))
       deleteAllData(deleteFrom(persistence.DatasetAccessLog))
       deleteAllData(deleteFrom(persistence.DatasetAnnotation))
