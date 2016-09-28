@@ -741,6 +741,9 @@ object DatasetService extends LazyLogging {
   def pickupDeleteApps(
     datasets: Seq[persistence.Dataset]
   )(implicit s: DBSession): (Seq[String], Seq[DeleteUtil.DeleteTarget]) = {
+    if (datasets.isEmpty) {
+      return (Seq.empty, Seq.empty)
+    }
     val da = persistence.DatasetApp.v
     val appIds = withSQL {
       select(sqls.distinct(da.result.appId))
@@ -764,6 +767,9 @@ object DatasetService extends LazyLogging {
   def pickupDeleteImages(
     datasets: Seq[persistence.Dataset]
   )(implicit s: DBSession): (Seq[String], Seq[DeleteUtil.DeleteTarget]) = {
+    if (datasets.isEmpty) {
+      return (Seq.empty, Seq.empty)
+    }
     val di = persistence.DatasetImage.di
     val imageIds = withSQL {
       select(sqls.distinct(di.result.imageId))
@@ -839,6 +845,9 @@ object DatasetService extends LazyLogging {
   def getDatasets(
     ids: Seq[String]
   )(implicit s: DBSession): Seq[persistence.Dataset] = {
+    if (ids.isEmpty) {
+      return Seq.empty
+    }
     val d = persistence.Dataset.d
     withSQL {
       select
@@ -855,6 +864,9 @@ object DatasetService extends LazyLogging {
    * @param s DBセッション
    */
   def deleteFiles(datasetIds: Seq[String])(implicit s: DBSession): Unit = {
+    if (datasetIds.isEmpty) {
+      return
+    }
     val f = persistence.File.f
     val fileIds = withSQL {
       select(f.result.id)
@@ -896,6 +908,9 @@ object DatasetService extends LazyLogging {
    * @param s DBセッション
    */
   def deleteDatasets(datasetIds: Seq[String])(implicit s: DBSession): Unit = {
+    if (datasetIds.isEmpty) {
+      return
+    }
     withSQL {
       delete
         .from(persistence.Ownership)
@@ -929,6 +944,9 @@ object DatasetService extends LazyLogging {
    * @param s DBセッション
    */
   def deleteImages(imageIds: Seq[String])(implicit s: DBSession): Unit = {
+    if (imageIds.isEmpty) {
+      return
+    }
     withSQL {
       delete
         .from(persistence.Image)
@@ -944,6 +962,9 @@ object DatasetService extends LazyLogging {
    * @param s DBセッション
    */
   def deleteApps(appIds: Seq[String])(implicit s: DBSession): Unit = {
+    if (appIds.isEmpty) {
+      return
+    }
     withSQL {
       delete
         .from(persistence.App)
@@ -960,6 +981,9 @@ object DatasetService extends LazyLogging {
    * @param s DBセッション
    */
   def deleteAnnotations(datasetIds: Seq[String])(implicit s: DBSession): Unit = {
+    if (datasetIds.isEmpty) {
+      return
+    }
     val da = persistence.DatasetAnnotation.da
     val ac = persistence.Annotation.column
     withSQL {

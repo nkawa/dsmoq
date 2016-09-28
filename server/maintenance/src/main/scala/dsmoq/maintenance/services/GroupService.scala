@@ -570,6 +570,9 @@ object GroupService extends LazyLogging {
   def pickupDeleteImages(
     groups: Seq[persistence.Group]
   )(implicit s: DBSession): (Seq[String], Seq[DeleteUtil.DeleteTarget]) = {
+    if (groups.isEmpty) {
+      return (Seq.empty, Seq.empty)
+    }
     var ids = groups.map(_.id)
     val gi = persistence.GroupImage.gi
     val imageIds = withSQL {
@@ -612,6 +615,9 @@ object GroupService extends LazyLogging {
    * @param s DBセッション
    */
   def deleteImages(imageIds: Seq[String])(implicit s: DBSession): Unit = {
+    if (imageIds.isEmpty) {
+      return
+    }
     withSQL {
       delete
         .from(persistence.Image)
@@ -627,6 +633,9 @@ object GroupService extends LazyLogging {
    * @param s DBセッション
    */
   def deleteGroups(groupIds: Seq[String])(implicit s: DBSession): Unit = {
+    if (groupIds.isEmpty) {
+      return
+    }
     withSQL {
       delete
         .from(persistence.Ownership)
