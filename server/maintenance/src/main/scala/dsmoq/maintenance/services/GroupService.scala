@@ -122,7 +122,7 @@ object GroupService extends LazyLogging {
       }.map(_.int(1)).single.apply().getOrElse(0)
       val records = withSQL {
         createSqlBase(select(g.result.*))
-          .orderBy(g.createdAt)
+          .orderBy(g.createdAt, g.id)
           .offset(offset)
           .limit(limit)
       }.map { rs =>

@@ -138,7 +138,7 @@ object DatasetService extends LazyLogging {
       }.map(_.int(1)).single.apply().getOrElse(0)
       val records = withSQL {
         createSqlBase(select(d.result.*))
-          .orderBy(d.createdAt)
+          .orderBy(d.createdAt, d.id)
           .offset(offset)
           .limit(limit)
       }.map { rs =>

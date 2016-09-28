@@ -85,7 +85,7 @@ object UserService extends LazyLogging {
       }.map(_.int(1)).single.apply().getOrElse(0)
       val records = withSQL {
         createSqlBase(select(u.result.*, ma.result.address))
-          .orderBy(u.createdAt)
+          .orderBy(u.createdAt, u.id)
           .offset(offset)
           .limit(limit)
       }.map { rs =>

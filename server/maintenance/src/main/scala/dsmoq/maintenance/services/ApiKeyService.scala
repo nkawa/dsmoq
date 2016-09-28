@@ -63,6 +63,7 @@ object ApiKeyService extends LazyLogging {
           .eq(u.disabled, false)
           .and
           .isNull(ak.deletedAt)
+          .orderBy(ak.createdAt, ak.id)
       }.map { rs =>
         val key = persistence.ApiKey(ak.resultName)(rs)
         val user = persistence.User(u.resultName)(rs)

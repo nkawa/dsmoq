@@ -97,7 +97,7 @@ object FileService extends LazyLogging {
       }.map(_.int(1)).single.apply().getOrElse(0)
       val records = withSQL {
         createSqlBase(select(f.result.*, d.result.*, u.result.*))
-          .orderBy(f.createdAt)
+          .orderBy(f.createdAt, f.id)
           .offset(offset)
           .limit(limit)
       }.map { rs =>
