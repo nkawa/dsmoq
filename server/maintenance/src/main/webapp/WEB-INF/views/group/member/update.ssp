@@ -24,6 +24,7 @@
       <input type="hidden" name="groupId" value="${data.groupId}" />
       <input type="hidden" name="userId" value="${data.member.id}" />
       <input type="hidden" name="${csrfKey}" value="${csrfToken}">
+      <% render("/views/util/formHidden.ssp", Map("params" -> condition.toMap)) %>
       <div class="table">
         <table>
           <tbody>

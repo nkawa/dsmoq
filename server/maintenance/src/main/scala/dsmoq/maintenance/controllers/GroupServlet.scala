@@ -118,7 +118,7 @@ class GroupServlet extends ScalatraServlet with ScalateSupport with LazyLogging 
     val result = for {
       _ <- GroupService.applyChange(params, multiParams)
     } yield {
-      SeeOther(searchUrl(params))
+      SeeOther(searchUrl(params - "page"))
     }
     resultAs(result) {
       case (error, details) =>

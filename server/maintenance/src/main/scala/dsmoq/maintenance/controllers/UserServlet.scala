@@ -48,11 +48,10 @@ class UserServlet extends ScalatraServlet with ScalateSupport with LazyLogging w
   }
 
   post("/apply") {
-    val condition = SearchCondition.fromMap(params)
     val result = for {
       _ <- UserService.updateDisabled(UpdateParameter.fromMap(multiParams))
     } yield {
-      SeeOther(searchUrl(condition.toMap))
+      SeeOther(searchUrl(params - "page"))
     }
     resultAs(result) {
       case (error, details) =>
@@ -103,6 +102,7 @@ class UserServlet extends ScalatraServlet with ScalateSupport with LazyLogging w
    * @return 検索画面のURL
    */
   def searchUrl(params: Map[String, String]): String = {
-    url("/", params)
+    val condition = SearchCondition.fromMap(params)
+    url("/", condition.toMap)
   }
 }

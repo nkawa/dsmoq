@@ -24,6 +24,7 @@
     <form method="POST" action="/dataset/acl/add/user/apply">
       <input type="hidden" name="${csrfKey}" value="${csrfToken}">
       <input type="hidden" name="datasetId" value="${data.datasetId}" />
+      <% render("/views/util/formHidden.ssp", Map("params" -> condition.toMap)) %>
       <p>
         <label>ユーザーID <input name="userName" type="text" value="" /></label>
         <select name="accessLevel" class="operation">
@@ -38,6 +39,7 @@
     <form method="POST" action="/dataset/acl/add/group/apply">
       <input type="hidden" name="${csrfKey}" value="${csrfToken}">
       <input type="hidden" name="datasetId" value="${data.datasetId}" />
+      <% render("/views/util/formHidden.ssp", Map("params" -> condition.toMap)) %>
       <p>
         <label>グループ名 <input name="groupName" type="text" value="" /></label>
         <select name="accessLevel" class="operation">

@@ -27,6 +27,7 @@
       <input type="hidden" name="userId" value="${data.ownership.id}" />
       <input type="hidden" name="${csrfKey}" value="${csrfToken}">
       <input type="hidden" name="datasetId" value="${data.datasetId}" />
+      <% render("/views/util/formHidden.ssp", Map("params" -> condition.toMap)) %>
       <div class="table">
         <table>
           <tbody>
@@ -67,6 +68,7 @@
       <input type="hidden" name="groupId" value="${data.ownership.id}" />
       <input type="hidden" name="${csrfKey}" value="${csrfToken}">
       <input type="hidden" name="datasetId" value="${data.datasetId}" />
+      <% render("/views/util/formHidden.ssp", Map("params" -> condition.toMap)) %>
       <div class="table">
         <table>
           <tbody>

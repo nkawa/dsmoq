@@ -53,7 +53,7 @@ class FileServlet extends ScalatraServlet with ScalateSupport with LazyLogging w
     val result = for {
       _ <- FileService.applyChange(params, multiParams)
     } yield {
-      SeeOther(searchUrl(params))
+      SeeOther(searchUrl(params - "page"))
     }
     resultAs(result) {
       case (error, details) =>

@@ -20,6 +20,7 @@
     <form method="POST" action="/group/member/add/apply">
       <input type="hidden" name="${csrfKey}" value="${csrfToken}">
       <input type="hidden" name="groupId" value="${data.groupId}" />
+      <% render("/views/util/formHidden.ssp", Map("params" -> condition.toMap)) %>
       <p>
         <label>ユーザーID <input name="userName" type="text" value="" /></label>
         <select name="role" class="operation">

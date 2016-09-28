@@ -156,7 +156,7 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
     val result = for {
       _ <- DatasetService.applyChange(params, multiParams)
     } yield {
-      SeeOther(searchUrl(params))
+      SeeOther(searchUrl(params - "page"))
     }
     resultAs(result) { (error, details) =>
       errorPage(error, details)
