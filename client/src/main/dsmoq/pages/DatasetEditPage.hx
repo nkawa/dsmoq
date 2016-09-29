@@ -111,8 +111,14 @@ class DatasetEditPage {
                     updatedFiles: [],
                     ownerships: x.ownerships,
                     defaultAccessLevel: x.defaultAccessLevel,
-                    primaryImage: x.primaryImage,
-                    featuredImage: x.featuredImage,
+                    primaryImage: {
+                        id: x.primaryImage.id,
+                        url: x.primaryImage.url
+                    },
+                    featuredImage: {
+                        id: x.featuredImage.id,
+                        url: x.featuredImage.url
+                    },
                     localState: x.localState,
                     s3State: x.s3State,
                     primaryApp: null,

@@ -1,5 +1,7 @@
 package dsmoq.maintenance.services
 
+import java.util.UUID
+
 import org.joda.time.DateTime
 
 import dsmoq.maintenance.AppConfig
@@ -12,6 +14,8 @@ import scalikejdbc.UpdateOperation
 import scalikejdbc.deleteFrom
 import scalikejdbc.withSQL
 
+import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient
+
 object SpecCommonLogic {
   private val defaultUserIconId = "8a981652-ea4d-48cf-94db-0ceca7d81aef"
   private val presetImageIds = Seq(
@@ -19,6 +23,19 @@ object SpecCommonLogic {
     "8b570468-9814-4d30-8c04-392b263b6404",
     "960a5601-2b60-2531-e6ad-54b91612ede5"
   )
+
+  def createClient(): DsmoqClient = {
+    DsmoqClient.create("http://localhost:8080", apiKey1, secretKey1)
+  }
+
+  def createClient2(): DsmoqClient = {
+    DsmoqClient.create("http://localhost:8080", apiKey2, secretKey2)
+  }
+
+  val apiKey1 = "5dac067a4c91de87ee04db3e3c34034e84eb4a599165bcc9741bb9a91e8212cb"
+  val secretKey1 = "dc9765e63b2b469a7bfb611fad8a10f2394d2b98b7a7105078356ec2a74164ea"
+  val apiKey2 = "5dac067a4c91de87ee04db3e3c34034e84eb4a599165bcc9741bb9a91e8212cc"
+  val secretKey2 = "dc9765e63b2b469a7bfb611fad8a10f2394d2b98b7a7105078356ec2a74164eb"
 
   def insertDummyData() {
     val ts = DateTime.now
@@ -40,8 +57,8 @@ object SpecCommonLogic {
       persistence.ApiKey.create(
         id = "0cebc943-a0b9-4aa5-927d-65fa374bf0ec",
         userId = "023bfa40-e897-4dad-96db-9fd3cf001e79",
-        apiKey = "5dac067a4c91de87ee04db3e3c34034e84eb4a599165bcc9741bb9a91e8212cb",
-        secretKey = "dc9765e63b2b469a7bfb611fad8a10f2394d2b98b7a7105078356ec2a74164ea",
+        apiKey = apiKey1,
+        secretKey = secretKey1,
         permission = 3,
         createdBy = AppConfig.systemUserId,
         createdAt = ts,
@@ -98,6 +115,17 @@ object SpecCommonLogic {
         title = "title 2",
         description = "description 2",
         imageId = defaultUserIconId,
+        createdBy = AppConfig.systemUserId,
+        createdAt = ts,
+        updatedBy = AppConfig.systemUserId,
+        updatedAt = ts
+      )
+      persistence.ApiKey.create(
+        id = "0cebc943-a0b9-4aa5-927d-65fa374bf0ed",
+        userId = "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04",
+        apiKey = apiKey2,
+        secretKey = secretKey2,
+        permission = 3,
         createdBy = AppConfig.systemUserId,
         createdAt = ts,
         updatedBy = AppConfig.systemUserId,
@@ -256,13 +284,88 @@ object SpecCommonLogic {
     }
   }
 
+  case class UserDetail(name: String, ts: DateTime, fullname: Option[String] = None, organization: Option[String] = None, disabled: Boolean = false)
+
+  def insertUser(detail: UserDetail): persistence.User = {
+    // user1 create
+    DB.localTx { implicit s =>
+      val userId = UUID.randomUUID.toString
+      val user = persistence.User.create(
+        id = userId,
+        name = detail.name,
+        fullname = detail.fullname.getOrElse(s"テストダミーユーザー ${detail.name}"),
+        organization = detail.organization.getOrElse(s"organization ${detail.name}"),
+        title = s"title ${detail.name}",
+        description = s"description ${detail.name}",
+        imageId = defaultUserIconId,
+        createdBy = AppConfig.systemUserId,
+        createdAt = detail.ts,
+        updatedBy = AppConfig.systemUserId,
+        updatedAt = detail.ts,
+        disabled = detail.disabled
+      )
+      persistence.ApiKey.create(
+        id = UUID.randomUUID.toString,
+        userId = userId,
+        apiKey = s"${detail.name} apikey",
+        secretKey = s"${detail.name} secretkey",
+        permission = 3,
+        createdBy = AppConfig.systemUserId,
+        createdAt = detail.ts,
+        updatedBy = AppConfig.systemUserId,
+        updatedAt = detail.ts
+      )
+      persistence.Password.create(
+        id = UUID.randomUUID.toString,
+        userId = userId,
+        hash = "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8",
+        createdBy = AppConfig.systemUserId,
+        createdAt = detail.ts,
+        updatedBy = AppConfig.systemUserId,
+        updatedAt = detail.ts
+      )
+      persistence.MailAddress.create(
+        id = UUID.randomUUID.toString(),
+        userId = userId,
+        address = s"${detail.name}@example.jp",
+        status = 1,
+        createdBy = AppConfig.systemUserId,
+        createdAt = detail.ts,
+        updatedBy = AppConfig.systemUserId,
+        updatedAt = detail.ts
+      )
+      val groupId = UUID.randomUUID.toString
+      persistence.Group.create(
+        id = groupId,
+        name = detail.name,
+        description = "",
+        groupType = 1,
+        createdBy = AppConfig.systemUserId,
+        createdAt = detail.ts,
+        updatedBy = AppConfig.systemUserId,
+        updatedAt = detail.ts
+      )
+      persistence.Member.create(
+        id = UUID.randomUUID.toString,
+        groupId = groupId,
+        userId = userId,
+        role = 2,
+        status = 1,
+        createdBy = AppConfig.systemUserId,
+        createdAt = detail.ts,
+        updatedBy = AppConfig.systemUserId,
+        updatedAt = detail.ts
+      )
+      user
+    }
+  }
+
   def deleteAllCreateData() {
     DB.localTx { implicit s =>
       //  テーブルにinsertしたデータ削除(licenses, images以外)
       deleteAllData(deleteFrom(persistence.Annotation))
       deleteAllData(deleteFrom(persistence.ApiKey))
       deleteAllData(deleteFrom(persistence.App))
-      deleteAllData(deleteFrom(persistence.AppVersion))
       deleteAllData(deleteFrom(persistence.Dataset))
       deleteAllData(deleteFrom(persistence.DatasetAccessLog))
       deleteAllData(deleteFrom(persistence.DatasetAnnotation))

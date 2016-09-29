@@ -1,0 +1,33 @@
+<%@ val error: String %>
+<%@ val details: Seq[dsmoq.maintenance.services.ErrorDetail] %>
+<%@ val backUrl: String %>
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>データメンテナンス：エラー</title>
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+    <link rel="stylesheet" type="text/css" href="/css/ionicons.min.css">
+  </head>
+ <body>
+    <p class="error">
+      ${error}
+    </p>
+    #for(detail <- details)
+    <div class="error">
+      <p>${detail.title}</p>
+      #if(!detail.messages.isEmpty)
+      <ul class="error-list">
+        #for(message <- detail.messages)
+        <li>${message}</li>
+        #end
+      </ul>
+      #end
+    </div>
+    #end
+    <hr>
+    <p>
+      <a href="${backUrl}">Back</a>
+    </p>
+  </body>
+</html>

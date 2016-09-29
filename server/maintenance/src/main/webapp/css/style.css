@@ -40,3 +40,6 @@ div.button > button {
 div.buttons > button {
     margin-right: 10px;
 }
+ul.error-list {
+   list-style: none;
+}

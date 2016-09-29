@@ -1,4 +1,5 @@
-<%@ val error: Option[String] %>
+<%@ val csrfKey: String %>
+<%@ val csrfToken: String %>
 <!DOCTYPE html>
 <html>
   <head>
@@ -6,19 +7,14 @@
     <title>データメンテナンス：APIキー発行ツール：APIキー発行</title>
     <link rel="stylesheet" type="text/css" href="/css/style.css">
     <script type="text/javascript" src="/js/lib/jquery-3.1.0.min.js"></script>
-    <script type="text/javascript" src="/js/apikey/add.js"></script>
   </head>
   <body>
     <p>
       <a class="menu" href="/">メニュー</a>
     </p>
     <h1>APIキー発行</h1>
-    <p class="error">
-    #for(err <- error)
-      ${err}
-    #end
-    </p>
-    <form method="POST" action="/apikey/add/proc">
+    <form method="POST" action="/apikey/add/apply">
+      <input type="hidden" name="${csrfKey}" value="${csrfToken}">
       <p>
         <label>
           ユーザーID

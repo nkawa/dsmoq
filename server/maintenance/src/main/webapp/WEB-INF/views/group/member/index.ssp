@@ -1,0 +1,49 @@
+<%@ val condition: dsmoq.maintenance.data.group.SearchCondition %>
+<%@ val data: dsmoq.maintenance.data.group.MemberListData %>
+<% import dsmoq.maintenance.views.Util %>
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>データメンテナンス：グループメンバー一覧</title>
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+  </head>
+  <body>
+    <p>
+      <a class="menu" href="/">メニュー</a>
+    </p>
+    <h1>グループメンバー一覧</h1>
+    <h2>${data.groupName}</h2>
+    #if(data.members.isEmpty)
+    <p>メンバーなし</p>
+    #else
+    <div class="table">
+      <table>
+        <thead>
+          <tr>
+            <th>ユーザーID</th>
+            <th>アクセス権</th>
+            <th>更新</th>
+          </tr>
+        </thead>
+        <tbody>
+          #for (item <- data.members)
+          <tr>
+            <td>${item.name}</td>
+            <td>${item.role.toString}</td>
+            <td><a href="${Util.getGroupMemberUpdateUrl(data.groupId, item.id, condition)}">更新</a></td>
+          </tr>
+          #end
+        </tbody>
+      </table>
+    </div>
+    #end
+    <hr>
+    <p>
+      <a href="${Util.getGroupMemberAddUrl(data.groupId, condition)}">メンバー追加</a>
+    </p>
+    <p>
+      <a href="${Util.getGroupManagementUrl(condition)}">Back</a>
+    </p>
+  </body>
+</html>

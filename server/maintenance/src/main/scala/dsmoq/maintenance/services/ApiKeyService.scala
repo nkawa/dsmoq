@@ -13,6 +13,8 @@ import org.slf4j.MarkerFactory
 import com.typesafe.scalalogging.LazyLogging
 
 import dsmoq.maintenance.AppConfig
+import dsmoq.maintenance.data.apikey.AddParameter
+import dsmoq.maintenance.data.apikey.DisableParameter
 import dsmoq.maintenance.data.apikey.SearchResultApiKey
 import dsmoq.persistence
 import dsmoq.persistence.PostgresqlHelper.PgConditionSQLBuilder
@@ -39,11 +41,17 @@ object ApiKeyService extends LazyLogging {
   val LOG_MARKER = MarkerFactory.getMarker("MAINTENANCE_APIKEY_LOG")
 
   /**
+   * サービス名
+   */
+  val SERVICE_NAME = "ApiKeyService"
+
+  /**
    * 登録されているAPIキーの一覧を取得する。
    *
    * @return APIキーの一覧
    */
   def list(): Seq[SearchResultApiKey] = {
+    logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "list"))
     val u = persistence.User.u
     val ak = persistence.ApiKey.ak
     DB.readOnly { implicit s =>
@@ -55,6 +63,7 @@ object ApiKeyService extends LazyLogging {
           .eq(u.disabled, false)
           .and
           .isNull(ak.deletedAt)
+          .orderBy(ak.createdAt, ak.id)
       }.map { rs =>
         val key = persistence.ApiKey(ak.resultName)(rs)
         val user = persistence.User(u.resultName)(rs)
@@ -75,55 +84,23 @@ object ApiKeyService extends LazyLogging {
   /**
    * 指定されたAPIキーを無効化する。
    *
-   * @param id APIキーのID
+   * @param param 入力パラメータ
    * @return 処理結果、ID不正時Failure(ServiceException)
    */
-  def disable(id: Option[String]): Try[Unit] = {
-    id.filter(!_.isEmpty).map { id =>
+  def disable(param: DisableParameter): Try[Unit] = {
+    logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "disable", param))
+    val result = param.id.filter(!_.isEmpty).map { id =>
       DB.localTx { implicit s =>
         for {
-          _ <- Util.checkUuid(id)
-          _ <- checkId(id)
           _ <- execDisable(id)
         } yield {
           ()
         }
       }
     }.getOrElse {
-      Failure(new ServiceException("IDが指定されていません。"))
+      Failure(new ServiceException("キーが未選択です。"))
     }
-  }
-
-  /**
-   * 指定されたIDが有効化を確認する。
-   *
-   * @param id APIキーのID
-   * @return 処理結果、ID不正時Failure(ServiceException)
-   */
-  def checkId(id: String)(implicit s: DBSession): Try[Unit] = {
-    Try {
-      val ak = persistence.ApiKey.ak
-      val u = persistence.User.u
-      withSQL {
-        select(ak.result.id)
-          .from(persistence.ApiKey as ak)
-          .innerJoin(persistence.User as u).on(u.id, ak.userId)
-          .where
-          .eq(ak.id, sqls.uuid(id))
-          .and
-          .eq(u.disabled, false)
-          .and
-          .isNull(ak.deletedAt)
-      }.map { rs =>
-        rs.string(ak.resultName.id)
-      }.single.apply().isDefined
-    }.flatMap { contains =>
-      if (contains) {
-        Success(())
-      } else {
-        Failure(new ServiceException("無効なAPIキーが指定されました。"))
-      }
-    }
+    Util.withErrorLogging(logger, LOG_MARKER, result)
   }
 
   /**
@@ -147,6 +124,10 @@ object ApiKeyService extends LazyLogging {
           )
           .where
           .eq(ak.id, sqls.uuid(id))
+          .and
+          .isNull(ak.deletedBy)
+          .and
+          .isNull(ak.deletedAt)
       }.update.apply()
     }
   }
@@ -154,11 +135,12 @@ object ApiKeyService extends LazyLogging {
   /**
    * 指定されたユーザ名を持つユーザにAPIキーを発行する。
    *
-   * @param userName ユーザ名
+   * @param param 入力パラメータ
    * @return 発行したAPIキーID、ユーザ名不正時Failure(ServiceException)
    */
-  def add(userName: Option[String]): Try[String] = {
-    userName.filter(!_.isEmpty).map { userName =>
+  def add(param: AddParameter): Try[String] = {
+    logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "add", param))
+    val result = param.userName.filter(!_.isEmpty).map { userName =>
       DB.localTx { implicit s =>
         for {
           user <- getUserByName(userName)
@@ -170,6 +152,7 @@ object ApiKeyService extends LazyLogging {
     }.getOrElse {
       Failure(new ServiceException("ユーザーが指定されていません。"))
     }
+    Util.withErrorLogging(logger, LOG_MARKER, result)
   }
 
   /**

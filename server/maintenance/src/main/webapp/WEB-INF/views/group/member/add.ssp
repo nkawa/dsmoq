@@ -1,0 +1,38 @@
+<%@ val condition: dsmoq.maintenance.data.group.SearchCondition %>
+<%@ val data: dsmoq.maintenance.data.group.MemberAddData %>
+<%@ val csrfKey: String %>
+<%@ val csrfToken: String %>
+<% import dsmoq.maintenance.views.Util %>
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>データメンテナンス：グループメンバー追加</title>
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+    <link rel="stylesheet" type="text/css" href="/css/ionicons.min.css">
+  </head>
+  <body>
+    <p>
+      <a class="menu" href="/">メニュー</a>
+    </p>
+    <h1>グループメンバー追加</h1>
+    <h2>${data.groupName}</h2>
+    <form method="POST" action="/group/member/add/apply">
+      <input type="hidden" name="${csrfKey}" value="${csrfToken}">
+      <input type="hidden" name="groupId" value="${data.groupId}" />
+      <% render("/views/util/formHidden.ssp", Map("params" -> condition.toMap)) %>
+      <p>
+        <label>ユーザーID <input name="userName" type="text" value="" /></label>
+        <select name="role" class="operation">
+          <option value="member">Member</option>
+          <option value="manager">Manager</option>
+        </select>
+        <button class="add" name="update" type="submit" value="add">追加</button>
+      </p>
+    </form>
+    <hr>
+    <p>
+      <a href="${Util.getGroupMemberUrl(data.groupId, condition)}">Back</a>
+    </p>
+  </body>
+</html>

@@ -70,9 +70,9 @@ object Member extends SQLSyntaxSupport[Member] {
 
   //val autoSession = AutoSession
 
-  def find(id: Any)(implicit session: DBSession = autoSession): Option[Member] = {
+  def find(id: String)(implicit session: DBSession = autoSession): Option[Member] = {
     withSQL {
-      select.from(Member as m).where.eq(m.id, id)
+      select.from(Member as m).where.eq(m.id, sqls.uuid(id))
     }.map(Member(m.resultName)).single.apply()
   }
 

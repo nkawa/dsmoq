@@ -1,5 +1,7 @@
 package dsmoq.maintenance.controllers
 
+import org.scalatra.CsrfTokenSupport
+import org.scalatra.Forbidden
 import org.scalatra.Ok
 import org.scalatra.ScalatraServlet
 import org.scalatra.SeeOther
@@ -11,12 +13,14 @@ import com.typesafe.scalalogging.LazyLogging
 import dsmoq.maintenance.AppConfig
 import dsmoq.maintenance.controllers.ResponseUtil.resultAs
 import dsmoq.maintenance.data.user.SearchCondition
+import dsmoq.maintenance.data.user.UpdateParameter
 import dsmoq.maintenance.services.UserService
+import dsmoq.maintenance.services.ErrorDetail
 
 /**
  * ユーザ処理系画面のサーブレット
  */
-class UserServlet extends ScalatraServlet with ScalateSupport with LazyLogging {
+class UserServlet extends ScalatraServlet with ScalateSupport with LazyLogging with CsrfTokenSupport {
   /**
    * ログマーカー
    */
@@ -26,22 +30,32 @@ class UserServlet extends ScalatraServlet with ScalateSupport with LazyLogging {
     contentType = "text/html"
   }
 
+  /**
+   * CSRFが検出された場合のActionを定義する。
+   */
+  override def handleForgery() {
+    contentType = "text/html"
+    val message = "無効なトークンが指定されました。"
+    logger.error(LOG_MARKER, message)
+    halt(
+      Forbidden(errorPage(message))
+    )
+  }
+
   get("/") {
     val condition = SearchCondition.fromMap(params)
     Ok(search(condition))
   }
 
-  post("/proc") {
-    val originals = multiParams("disabled.originals")
-    val updates = multiParams("disabled.updates")
-    val condition = SearchCondition.fromMap(params)
+  post("/apply") {
     val result = for {
-      _ <- UserService.updateDisabled(originals, updates)
+      _ <- UserService.updateDisabled(UpdateParameter.fromMap(multiParams))
     } yield {
-      SeeOther(searchUrl(condition.toMap))
+      SeeOther(searchUrl(params - "page"))
     }
-    resultAs(result) { error =>
-      search(condition, Some(error))
+    resultAs(result) {
+      case (error, details) =>
+        errorPage(error, details)
     }
   }
 
@@ -52,14 +66,32 @@ class UserServlet extends ScalatraServlet with ScalateSupport with LazyLogging {
    * @param error エラー文言
    * @return 検索画面のHTML
    */
-  def search(condition: SearchCondition, error: Option[String] = None): String = {
+  def search(condition: SearchCondition): String = {
     val result = UserService.search(condition)
     ssp(
       "user/index",
       "condition" -> condition,
       "result" -> result,
+      "url" -> searchUrl _,
+      "csrfKey" -> csrfKey,
+      "csrfToken" -> csrfToken
+    )
+  }
+
+  /**
+   * エラーページを作成する。
+   *
+   * @param error エラーメッセージ
+   * @param details エラーの詳細
+   * @return エラーページのHTML
+   */
+  def errorPage(error: String, details: Seq[ErrorDetail] = Seq.empty): String = {
+    val backUrl = Option(request.getHeader("Referer")).getOrElse("/")
+    ssp(
+      "util/error",
       "error" -> error,
-      "url" -> searchUrl _
+      "details" -> details,
+      "backUrl" -> backUrl
     )
   }
 
@@ -70,6 +102,7 @@ class UserServlet extends ScalatraServlet with ScalateSupport with LazyLogging {
    * @return 検索画面のURL
    */
   def searchUrl(params: Map[String, String]): String = {
-    url("/", params)
+    val condition = SearchCondition.fromMap(params)
+    url("/", condition.toMap)
   }
 }
