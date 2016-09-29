@@ -46,6 +46,6 @@ test {
     image_url_root = "http://localhost:8080/images/"
     app_url_root = "http://localhost:8080/apps/"
     file_url_root = "http://localhost:8080/files/"
-    file_limit = 20
+    file_limit = 150
   }
 }
