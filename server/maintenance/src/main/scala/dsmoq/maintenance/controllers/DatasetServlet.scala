@@ -65,8 +65,9 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
         )
       )
     }
-    resultAs(result) { (error, details) =>
-      errorPage(error, details)
+    resultAs(result) {
+      case (error, details) =>
+        errorPage(error, details)
     }
   }
 
@@ -85,8 +86,9 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
         )
       )
     }
-    resultAs(result) { (error, details) =>
-      errorPage(error, details)
+    resultAs(result) {
+      case (error, details) =>
+        errorPage(error, details)
     }
   }
 
@@ -105,8 +107,9 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
         )
       )
     }
-    resultAs(result) { (error, details) =>
-      errorPage(error, details)
+    resultAs(result) {
+      case (error, details) =>
+        errorPage(error, details)
     }
   }
 
@@ -126,8 +129,9 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
         )
       )
     }
-    resultAs(result) { (error, details) =>
-      errorPage(error, details)
+    resultAs(result) {
+      case (error, details) =>
+        errorPage(error, details)
     }
   }
 
@@ -147,8 +151,9 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
         )
       )
     }
-    resultAs(result) { (error, details) =>
-      errorPage(error, details)
+    resultAs(result) {
+      case (error, details) =>
+        errorPage(error, details)
     }
   }
 
@@ -158,8 +163,9 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
     } yield {
       SeeOther(searchUrl(params - "page"))
     }
-    resultAs(result) { (error, details) =>
-      errorPage(error, details)
+    resultAs(result) {
+      case (error, details) =>
+        errorPage(error, details)
     }
   }
 
@@ -169,8 +175,9 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
     } yield {
       SeeOther(aclListUrl(params))
     }
-    resultAs(result) { (error, details) =>
-      errorPage(error, details)
+    resultAs(result) {
+      case (error, details) =>
+        errorPage(error, details)
     }
   }
 
@@ -180,8 +187,9 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
     } yield {
       SeeOther(aclListUrl(params))
     }
-    resultAs(result) { (error, details) =>
-      errorPage(error, details)
+    resultAs(result) {
+      case (error, details) =>
+        errorPage(error, details)
     }
   }
 
@@ -191,8 +199,9 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
     } yield {
       SeeOther(aclListUrl(params))
     }
-    resultAs(result) { (error, details) =>
-      errorPage(error, details)
+    resultAs(result) {
+      case (error, details) =>
+        errorPage(error, details)
     }
   }
 
@@ -202,8 +211,9 @@ class DatasetServlet extends ScalatraServlet with ScalateSupport with LazyLoggin
     } yield {
       SeeOther(aclListUrl(params))
     }
-    resultAs(result) { (error, details) =>
-      errorPage(error, details)
+    resultAs(result) {
+      case (error, details) =>
+        errorPage(error, details)
     }
   }
 

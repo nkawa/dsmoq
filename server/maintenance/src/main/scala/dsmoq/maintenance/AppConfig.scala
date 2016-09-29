@@ -7,6 +7,7 @@ import com.typesafe.config.ConfigFactory
  */
 object AppConfig {
   private val config = ConfigFactory.load
+  private val sys = ConfigFactory.load("system.conf")
 
   val port = config.getInt("maintenance.port")
   val user = config.getString("maintenance.user")
@@ -25,5 +26,5 @@ object AppConfig {
   val s3SecretKey = config.getString("s3.secret_key")
   val s3UploadRoot = config.getString("s3.upload_bucket")
 
-  val defaultImageIds = config.getStringList("maintenance.default_images")
+  val defaultImageIds = sys.getStringList("system.default.images")
 }
