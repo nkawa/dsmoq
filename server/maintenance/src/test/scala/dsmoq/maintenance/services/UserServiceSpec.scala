@@ -362,7 +362,7 @@ class UserServiceSpec extends FreeSpec with BeforeAndAfter {
     }
     val notExistsId = UUID.randomUUID.toString
     for {
-      (originals, updates) <- Seq((Seq(notExistsId), Seq.empty), (Seq.empty, Seq(notExistsId)), (Seq(user1Id, notExistsId), Seq.empty), (Seq.empty, Seq(user1Id, notExistsId)))
+      (originals, updates) <- Seq((Seq(notExistsId), Seq.empty), (Seq.empty, Seq(notExistsId)))
     } {
       s"not exists userid ${originals.size}x${updates.size}" in {
         val now = DateTime.now
@@ -371,6 +371,24 @@ class UserServiceSpec extends FreeSpec with BeforeAndAfter {
         val users = UserService.search(condition)
         users.data.filter(u => u.updatedAt.isAfter(now)).size should be(0)
       }
+    }
+    "not exists userid 2x0" in {
+      val now = DateTime.now
+      val originals = Seq(user1Id, notExistsId)
+      val updates = Seq.empty
+      UserService.updateDisabled(toParam(originals, updates)).get
+      val condition = SearchCondition.fromMap(Map.empty)
+      val users = UserService.search(condition)
+      users.data.filter(_.id == user1Id).map(_.disabled).headOption should be(Some(false))
+    }
+    "not exists userid 0x2" in {
+      val now = DateTime.now
+      val originals = Seq.empty
+      val updates = Seq(user1Id, notExistsId)
+      UserService.updateDisabled(toParam(originals, updates)).get
+      val condition = SearchCondition.fromMap(Map.empty)
+      val users = UserService.search(condition)
+      users.data.filter(_.id == user1Id).map(_.disabled).headOption should be(Some(true))
     }
     "disable(1 user)" in {
       SpecCommonLogic.deleteAllCreateData()
