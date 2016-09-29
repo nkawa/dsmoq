@@ -362,7 +362,7 @@ object FileService extends LazyLogging {
       val (deleteds, notDeleteds) = files.partition {
         case (f, _) => isLogicalDeleted(f)
       }
-      val (synchronizingOrDeletings, records) = files.partition {
+      val (synchronizingOrDeletings, records) = deleteds.partition {
         case (_, d) => isSynchronizingState(d) || isDeletingState(d)
       }
       val invalids = notDeleteds.map {
@@ -370,7 +370,7 @@ object FileService extends LazyLogging {
       } ++ synchronizingOrDeletings.map {
         case (file, _) => DeleteUtil.DeleteFailedData("ファイル", "ファイルが移動中、または削除中", file.name)
       }
-      val deleteFiles = files.flatMap { case (f, d) => getDeleteFile(f, d) }
+      val deleteFiles = records.flatMap { case (f, d) => getDeleteFile(f, d) }
       DeleteInfo(invalids, records.map(_._1), deleteFiles)
     }
     for {
@@ -441,6 +441,9 @@ object FileService extends LazyLogging {
    * @return 処理結果
    */
   def deleteRecords(files: Seq[persistence.File])(implicit s: DBSession): Try[Unit] = {
+    if (files.isEmpty) {
+      return Success(())
+    }
     Try {
       val f = persistence.File.f
       val h = persistence.FileHistory.fh

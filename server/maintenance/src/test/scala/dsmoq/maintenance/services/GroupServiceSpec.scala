@@ -1,6 +1,7 @@
 package dsmoq.maintenance.services
 
 import java.util.UUID
+import java.nio.file.Paths
 import org.joda.time.DateTime
 
 import org.scalatest.BeforeAndAfter
@@ -12,6 +13,7 @@ import scalikejdbc.config.DBsWithEnv
 import dsmoq.persistence
 import dsmoq.persistence.PostgresqlHelper.PgConditionSQLBuilder
 import dsmoq.persistence.PostgresqlHelper.PgSQLSyntaxType
+import dsmoq.maintenance.AppConfig
 import dsmoq.maintenance.data
 import dsmoq.maintenance.data.group.MemberRole
 import dsmoq.maintenance.data.group.SearchCondition
@@ -24,6 +26,7 @@ import dsmoq.maintenance.data.group.UpdateMemberParameter
 import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient
 import jp.ac.nagoya_u.dsmoq.sdk.request.CreateGroupParam
 import jp.ac.nagoya_u.dsmoq.sdk.request.AddMemberParam
+import jp.ac.nagoya_u.dsmoq.sdk.request.SetAccessLevelParam
 
 import scalikejdbc.DB
 import scalikejdbc.DBSession
@@ -999,6 +1002,164 @@ class GroupServiceSpec extends FreeSpec with BeforeAndAfter {
       val searchParam = SearchMembersParameter.fromMap(Map("groupId" -> group.getId))
       val result = GroupService.getMemberListData(searchParam).get
       result.members.filter(_.name == "dummy1").length should be(0)
+    }
+  }
+
+  "physical delete" - {
+    "no select" in {
+      val thrown = the[ServiceException] thrownBy {
+        val param = UpdateParameter.fromMap(org.scalatra.util.MultiMap(Map.empty))
+        GroupService.applyPhysicalDelete(param).get
+      }
+      thrown.getMessage should be("グループが選択されていません。")
+    }
+    "not exists" in {
+      val result = GroupService.applyPhysicalDelete(toParam(Seq(UUID.randomUUID.toString)))
+      result.isSuccess should be(true)
+    }
+    def prepareGroup(): GroupIds = {
+      import scala.collection.JavaConverters._
+      val client = SpecCommonLogic.createClient()
+      val png = new java.io.File("./testdata/maintenance/group/test.png")
+      val group = client.createGroup(CreateGroupParam("group1", ""))
+      val dataset = client.createDataset("dataset1", true, false)
+      addAclGroup(client, dataset.getId, group.getId, persistence.GroupAccessLevel.Provider)
+      client.addImagesToGroup(group.getId, png)
+      getGroupIds(group.getId)
+    }
+    "success" in {
+      val ids = prepareGroup()
+      val client = SpecCommonLogic.createClient()
+      client.deleteGroup(ids.groupId)
+      val result = GroupService.applyPhysicalDelete(toParam(Seq(ids.groupId)))
+      result.isSuccess should be(true)
+      persistence.Group.find(ids.groupId).isEmpty should be(true)
+      ids.memberIds.forall(persistence.Member.find(_).isEmpty) should be(true)
+      ids.ownershipIds.forall(persistence.Ownership.find(_).isEmpty) should be(true)
+      ids.imageIds.forall(persistence.Image.find(_).isEmpty) should be(true)
+      ids.groupImageIds.forall(persistence.GroupImage.find(_).isEmpty) should be(true)
+      ids.imageIds.forall { id => !Paths.get(AppConfig.imageDir, "upload", id).toFile.exists } should be(true)
+    }
+    "shared annotation and image" in {
+      val ids = prepareGroup()
+      val client = SpecCommonLogic.createClient()
+      client.deleteGroup(ids.groupId)
+      val group = client.createGroup(CreateGroupParam("group1", ""))
+      addImage(group.getId, ids.imageIds)
+      val result = GroupService.applyPhysicalDelete(toParam(Seq(ids.groupId)))
+      result.isSuccess should be(true)
+      persistence.Group.find(ids.groupId).isEmpty should be(true)
+      ids.memberIds.forall(persistence.Member.find(_).isEmpty) should be(true)
+      ids.ownershipIds.forall(persistence.Ownership.find(_).isEmpty) should be(true)
+      ids.imageIds.forall(persistence.Image.find(_).isDefined) should be(true)
+      ids.groupImageIds.forall(persistence.GroupImage.find(_).isEmpty) should be(true)
+      ids.imageIds.forall { id => Paths.get(AppConfig.imageDir, "upload", id).toFile.exists } should be(true)
+    }
+    "not deleted" in {
+      val ids = prepareGroup()
+      val thrown = the[ServiceException] thrownBy {
+        GroupService.applyPhysicalDelete(toParam(Seq(ids.groupId))).get
+      }
+      val messages = Seq("group1, Reason: 論理削除済みではない")
+      thrown.details should be(Seq(ErrorDetail("一部のグループが削除できませんでした。", messages)))
+      persistence.Group.find(ids.groupId).isDefined should be(true)
+      ids.memberIds.forall(persistence.Member.find(_).isDefined) should be(true)
+      ids.ownershipIds.forall(persistence.Ownership.find(_).isDefined) should be(true)
+      ids.imageIds.forall(persistence.Image.find(_).isDefined) should be(true)
+      ids.groupImageIds.forall(persistence.GroupImage.find(_).isDefined) should be(true)
+      ids.imageIds.forall { id => Paths.get(AppConfig.imageDir, "upload", id).toFile.exists } should be(true)
+    }
+    "delete file failed" in {
+      val ids = prepareGroup()
+      val client = SpecCommonLogic.createClient()
+      client.deleteGroup(ids.groupId)
+      val deleteFailDir = Paths.get(AppConfig.imageDir, "upload", ids.imageIds(0))
+      val deleteFailFiles = deleteFailDir.toFile.list.map(deleteFailDir.resolve)
+      deleteFailFiles.foreach { file =>
+        file.toFile.setReadOnly
+      }
+      val thrown = the[ServiceException] thrownBy {
+        GroupService.applyPhysicalDelete(toParam(Seq(ids.groupId))).get
+      }
+      deleteFailFiles.foreach { file =>
+        file.toFile.setWritable(true)
+      }
+      val messages = (deleteFailFiles :+ deleteFailDir)
+        .map(path => s"Location: Local, Path:${path.toAbsolutePath.toString}").sorted
+      thrown.details.map(_.title) should be(Seq("一部のファイルが削除できませんでした。"))
+      thrown.details.flatMap(_.messages).sorted should be(messages)
+      persistence.Group.find(ids.groupId).isEmpty should be(true)
+      ids.memberIds.forall(persistence.Member.find(_).isEmpty) should be(true)
+      ids.ownershipIds.forall(persistence.Ownership.find(_).isEmpty) should be(true)
+      ids.imageIds.forall(persistence.Image.find(_).isEmpty) should be(true)
+      ids.groupImageIds.forall(persistence.GroupImage.find(_).isEmpty) should be(true)
+      ids.imageIds.take(1).forall { id => Paths.get(AppConfig.imageDir, "upload", id).toFile.exists } should be(true)
+      ids.imageIds.drop(1).forall { id => !Paths.get(AppConfig.imageDir, "upload", id).toFile.exists } should be(true)
+    }
+  }
+
+  def addImage(groupId: String, imageIds: Seq[String]): Unit = {
+    DB.localTx { implicit s =>
+      imageIds.foreach { id =>
+        persistence.GroupImage.create(
+          id = UUID.randomUUID.toString,
+          groupId = groupId,
+          imageId = id,
+          isPrimary = false,
+          createdAt = DateTime.now,
+          createdBy = AppConfig.systemUserId,
+          updatedAt = DateTime.now,
+          updatedBy = AppConfig.systemUserId
+        )
+      }
+    }
+  }
+
+  def addAclGroup(client: DsmoqClient, datasetId: String, groupId: String, accessLevel: Int): Unit = {
+    import scala.collection.JavaConverters._
+    val acls = Seq(
+      new SetAccessLevelParam(groupId, persistence.OwnerType.Group, accessLevel)
+    )
+    client.changeAccessLevel(datasetId, acls.asJava)
+  }
+
+  case class GroupIds(
+    groupId: String, memberIds: Seq[String], ownershipIds: Seq[String],
+    imageIds: Seq[String], groupImageIds: Seq[String]
+  )
+
+  def getGroupIds(groupId: String): GroupIds = {
+    DB.readOnly { implicit s =>
+      val o = persistence.Ownership.o
+      val ownershipIds = withSQL {
+        select(o.result.id)
+          .from(persistence.Ownership as o)
+          .where
+          .eqUuid(o.groupId, groupId)
+      }.map(_.string(o.resultName.id)).list.apply()
+      val m = persistence.Member.m
+      val memberIds = withSQL {
+        select(m.result.id)
+          .from(persistence.Member as m)
+          .where
+          .eqUuid(m.groupId, groupId)
+      }.map(_.string(m.resultName.id)).list.apply()
+      val gi = persistence.GroupImage.gi
+      val groupImages = withSQL {
+        select
+          .from(persistence.GroupImage as gi)
+          .where
+          .eqUuid(gi.groupId, groupId)
+      }.map(persistence.GroupImage(gi.resultName)).list.apply()
+      val imageIds = groupImages.map(_.imageId).filter(!AppConfig.defaultImageIds.contains(_)).distinct
+      val groupImageIds = groupImages.map(_.id)
+      GroupIds(
+        groupId = groupId,
+        memberIds = memberIds,
+        ownershipIds = ownershipIds,
+        imageIds = imageIds,
+        groupImageIds = groupImageIds
+      )
     }
   }
 

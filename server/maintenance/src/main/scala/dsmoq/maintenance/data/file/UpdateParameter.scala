@@ -26,7 +26,7 @@ object UpdateParameter {
    */
   def fromMap(map: MultiMap): UpdateParameter = {
     UpdateParameter(
-      targets = map("checked")
+      targets = map.get("checked").getOrElse(Seq.empty)
     )
   }
 }

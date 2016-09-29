@@ -188,7 +188,8 @@ object DsmoqBuild extends Build {
         "org.apache.httpcomponents" % "httpclient" % "4.3.6" % "test",
         "org.apache.httpcomponents" % "httpmime" % "4.3.6" % "test",
         "org.json4s" %% "json4s-jackson" % "3.2.10" % "test",
-        "com.fasterxml.jackson.core" % "jackson-databind" % "2.4.4" % "test"
+        "com.fasterxml.jackson.core" % "jackson-databind" % "2.4.4" % "test",
+        "net.databinder.dispatch" %% "dispatch-core" % "0.11.2" % "test"
       ),
       scalateTemplateConfig in Compile <<= (sourceDirectory in Compile) { base =>
         Seq(

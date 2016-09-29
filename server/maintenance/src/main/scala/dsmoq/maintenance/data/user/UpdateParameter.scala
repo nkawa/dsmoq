@@ -27,8 +27,8 @@ object UpdateParameter {
    */
   def fromMap(map: MultiMap): UpdateParameter = {
     UpdateParameter(
-      originals = map("disabled.originals"),
-      updates = map("disabled.updates")
+      originals = map.get("disabled.originals").getOrElse(Seq.empty),
+      updates = map.get("disabled.updates").getOrElse(Seq.empty)
     )
   }
 }

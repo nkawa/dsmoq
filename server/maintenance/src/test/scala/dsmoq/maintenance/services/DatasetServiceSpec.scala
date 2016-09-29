@@ -2,6 +2,13 @@ package dsmoq.maintenance.services
 
 import java.util.UUID
 import org.joda.time.DateTime
+import java.net.URLEncoder
+import java.nio.charset.Charset
+import java.nio.file.Paths
+import java.util.Base64
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
+import java.nio.charset.StandardCharsets
 
 import org.scalatest.BeforeAndAfter
 import org.scalatest.FreeSpec
@@ -9,9 +16,18 @@ import org.scalatest.Matchers._
 
 import scalikejdbc.config.DBsWithEnv
 
+import dispatch.Defaults.executor
+import dispatch.url
+import dispatch.Http
+import dispatch.as
+import com.ning.http.multipart.FilePart
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+
 import dsmoq.persistence
 import dsmoq.persistence.PostgresqlHelper.PgConditionSQLBuilder
 import dsmoq.persistence.PostgresqlHelper.PgSQLSyntaxType
+import dsmoq.maintenance.AppConfig
 import dsmoq.maintenance.data
 import dsmoq.maintenance.data.dataset.AccessLevel
 import dsmoq.maintenance.data.dataset.SearchCondition
@@ -27,6 +43,7 @@ import dsmoq.maintenance.data.dataset.UpdateParameter
 import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient
 import jp.ac.nagoya_u.dsmoq.sdk.request.SetAccessLevelParam
 import jp.ac.nagoya_u.dsmoq.sdk.request.CreateGroupParam
+import jp.ac.nagoya_u.dsmoq.sdk.request.GetRangeParam
 
 import scalikejdbc.DB
 import scalikejdbc.DBSession
@@ -54,6 +71,7 @@ class DatasetServiceSpec extends FreeSpec with BeforeAndAfter {
   val defaultUpdatedAt = new DateTime(2000, 1, 1, 0, 0, 0)
   val userId1 = "023bfa40-e897-4dad-96db-9fd3cf001e79"
   val userId2 = "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04"
+  val DEFAULT_REQUEST_CHARSET = StandardCharsets.UTF_8
 
   "search by" - {
     def updateCreatedAt(datasets: Seq[String]): Unit = {
@@ -1447,6 +1465,359 @@ class DatasetServiceSpec extends FreeSpec with BeforeAndAfter {
       val result = DatasetService.getAclListData(searchParam).get
       result.ownerships.filter(_.name == "group1").length should be(0)
     }
+  }
+
+  "physical delete" - {
+    "no select" in {
+      val thrown = the[ServiceException] thrownBy {
+        val param = UpdateParameter.fromMap(org.scalatra.util.MultiMap(Map.empty))
+        DatasetService.applyPhysicalDelete(param).get
+      }
+      thrown.getMessage should be("データセットが選択されていません。")
+    }
+    "not exists" in {
+      val result = DatasetService.applyPhysicalDelete(toParam(Seq(UUID.randomUUID.toString)))
+      result.isSuccess should be(true)
+    }
+    def prepareDataset(): DatasetIds = {
+      import scala.collection.JavaConverters._
+      val client = SpecCommonLogic.createClient()
+      val csv = new java.io.File("./testdata/maintenance/dataset/test.csv")
+      val png = new java.io.File("./testdata/maintenance/dataset/test.png")
+      val zip = new java.io.File("./testdata/maintenance/dataset/test.zip")
+      val jar = new java.io.File("./testdata/maintenance/dataset/test.jar")
+      val dataset = client.createDataset("dataset1", true, false, csv, zip)
+      val files = client.getDatasetFiles(dataset.getId, new GetRangeParam())
+      client.updateFile(dataset.getId, files.getResults.get(0).getId, png)
+      addApp(dataset.getId, jar)
+      client.addImagesToDataset(dataset.getId, png)
+      getDatasetIds(dataset.getId)
+    }
+    "success" in {
+      val ids = prepareDataset()
+      val client = SpecCommonLogic.createClient()
+      client.deleteDataset(ids.datasetId)
+      val result = DatasetService.applyPhysicalDelete(toParam(Seq(ids.datasetId)))
+      result.isSuccess should be(true)
+      persistence.Dataset.find(ids.datasetId).isEmpty should be(true)
+      ids.ownershipIds.forall(persistence.Ownership.find(_).isEmpty) should be(true)
+      ids.fileIds.forall(persistence.File.find(_).isEmpty) should be(true)
+      ids.fileHistoryIds.forall(persistence.FileHistory.find(_).isEmpty) should be(true)
+      ids.zippedFileIds.forall(persistence.ZipedFiles.find(_).isEmpty) should be(true)
+      ids.appIds.forall(persistence.App.find(_).isEmpty) should be(true)
+      ids.datasetAppIds.forall(persistence.DatasetApp.find(_).isEmpty) should be(true)
+      ids.annotationIds.forall(persistence.Annotation.find(_).isEmpty) should be(true)
+      ids.datasetAnnotationIds.forall(persistence.DatasetAnnotation.find(_).isEmpty) should be(true)
+      ids.imageIds.forall(persistence.Image.find(_).isEmpty) should be(true)
+      ids.datasetImageIds.forall(persistence.DatasetImage.find(_).isEmpty) should be(true)
+      ids.imageIds.forall { id => !Paths.get(AppConfig.imageDir, "upload", id).toFile.exists } should be(true)
+      ids.appIds.forall { id => !Paths.get(AppConfig.appDir, "upload", id).toFile.exists } should be(true)
+      !Paths.get(AppConfig.fileDir, ids.datasetId).toFile.exists should be(true)
+    }
+    "shared annotation and image" in {
+      val ids = prepareDataset()
+      val client = SpecCommonLogic.createClient()
+      client.copyDataset(ids.datasetId)
+      client.deleteDataset(ids.datasetId)
+      val result = DatasetService.applyPhysicalDelete(toParam(Seq(ids.datasetId)))
+      result.isSuccess should be(true)
+      persistence.Dataset.find(ids.datasetId).isEmpty should be(true)
+      ids.ownershipIds.forall(persistence.Ownership.find(_).isEmpty) should be(true)
+      ids.fileIds.forall(persistence.File.find(_).isEmpty) should be(true)
+      ids.fileHistoryIds.forall(persistence.FileHistory.find(_).isEmpty) should be(true)
+      ids.zippedFileIds.forall(persistence.ZipedFiles.find(_).isEmpty) should be(true)
+      ids.appIds.forall(persistence.App.find(_).isEmpty) should be(true)
+      ids.datasetAppIds.forall(persistence.DatasetApp.find(_).isEmpty) should be(true)
+      // all exists
+      ids.annotationIds.forall(persistence.Annotation.find(_).isDefined) should be(true)
+      ids.datasetAnnotationIds.forall(persistence.DatasetAnnotation.find(_).isEmpty) should be(true)
+      // all exists
+      ids.imageIds.forall(persistence.Image.find(_).isDefined) should be(true)
+      ids.datasetImageIds.forall(persistence.DatasetImage.find(_).isEmpty) should be(true)
+      // all exists
+      ids.imageIds.forall { id => Paths.get(AppConfig.imageDir, "upload", id).toFile.exists } should be(true)
+      ids.appIds.forall { id => !Paths.get(AppConfig.appDir, "upload", id).toFile.exists } should be(true)
+      !Paths.get(AppConfig.fileDir, ids.datasetId).toFile.exists should be(true)
+    }
+    "not deleted" in {
+      val ids = prepareDataset()
+      val thrown = the[ServiceException] thrownBy {
+        DatasetService.applyPhysicalDelete(toParam(Seq(ids.datasetId))).get
+      }
+      val messages = Seq("dataset1, Reason: 論理削除済みではない")
+      thrown.details should be(Seq(ErrorDetail("一部のデータセットが削除できませんでした。", messages)))
+      persistence.Dataset.find(ids.datasetId).isDefined should be(true)
+      ids.ownershipIds.forall(persistence.Ownership.find(_).isDefined) should be(true)
+      ids.fileIds.forall(persistence.File.find(_).isDefined) should be(true)
+      ids.fileHistoryIds.forall(persistence.FileHistory.find(_).isDefined) should be(true)
+      ids.zippedFileIds.forall(persistence.ZipedFiles.find(_).isDefined) should be(true)
+      ids.appIds.forall(persistence.App.find(_).isDefined) should be(true)
+      ids.datasetAppIds.forall(persistence.DatasetApp.find(_).isDefined) should be(true)
+      ids.annotationIds.forall(persistence.Annotation.find(_).isDefined) should be(true)
+      ids.datasetAnnotationIds.forall(persistence.DatasetAnnotation.find(_).isDefined) should be(true)
+      ids.imageIds.forall(persistence.Image.find(_).isDefined) should be(true)
+      ids.datasetImageIds.forall(persistence.DatasetImage.find(_).isDefined) should be(true)
+      ids.imageIds.forall { id => Paths.get(AppConfig.imageDir, "upload", id).toFile.exists } should be(true)
+      ids.appIds.forall { id => Paths.get(AppConfig.appDir, "upload", id).toFile.exists } should be(true)
+      Paths.get(AppConfig.fileDir, ids.datasetId).toFile.exists should be(true)
+    }
+    "synchronizing(local)" in {
+      val ids = prepareDataset()
+      val client = SpecCommonLogic.createClient()
+      client.deleteDataset(ids.datasetId)
+      updateLocalState(ids.datasetId, SaveStatus.Synchronizing)
+      val thrown = the[ServiceException] thrownBy {
+        DatasetService.applyPhysicalDelete(toParam(Seq(ids.datasetId))).get
+      }
+      val messages = Seq("dataset1, Reason: ファイルが移動中、または削除中")
+      thrown.details should be(Seq(ErrorDetail("一部のデータセットが削除できませんでした。", messages)))
+      persistence.Dataset.find(ids.datasetId).isDefined should be(true)
+      ids.ownershipIds.forall(persistence.Ownership.find(_).isDefined) should be(true)
+      ids.fileIds.forall(persistence.File.find(_).isDefined) should be(true)
+      ids.fileHistoryIds.forall(persistence.FileHistory.find(_).isDefined) should be(true)
+      ids.zippedFileIds.forall(persistence.ZipedFiles.find(_).isDefined) should be(true)
+      ids.appIds.forall(persistence.App.find(_).isDefined) should be(true)
+      ids.datasetAppIds.forall(persistence.DatasetApp.find(_).isDefined) should be(true)
+      ids.annotationIds.forall(persistence.Annotation.find(_).isDefined) should be(true)
+      ids.datasetAnnotationIds.forall(persistence.DatasetAnnotation.find(_).isDefined) should be(true)
+      ids.imageIds.forall(persistence.Image.find(_).isDefined) should be(true)
+      ids.datasetImageIds.forall(persistence.DatasetImage.find(_).isDefined) should be(true)
+      ids.imageIds.forall { id => Paths.get(AppConfig.imageDir, "upload", id).toFile.exists } should be(true)
+      ids.appIds.forall { id => Paths.get(AppConfig.appDir, "upload", id).toFile.exists } should be(true)
+      Paths.get(AppConfig.fileDir, ids.datasetId).toFile.exists should be(true)
+    }
+    "deleting(local)" in {
+      val ids = prepareDataset()
+      val client = SpecCommonLogic.createClient()
+      client.deleteDataset(ids.datasetId)
+      updateLocalState(ids.datasetId, SaveStatus.Deleting)
+      val thrown = the[ServiceException] thrownBy {
+        DatasetService.applyPhysicalDelete(toParam(Seq(ids.datasetId))).get
+      }
+      val messages = Seq("dataset1, Reason: ファイルが移動中、または削除中")
+      thrown.details should be(Seq(ErrorDetail("一部のデータセットが削除できませんでした。", messages)))
+      persistence.Dataset.find(ids.datasetId).isDefined should be(true)
+      ids.ownershipIds.forall(persistence.Ownership.find(_).isDefined) should be(true)
+      ids.fileIds.forall(persistence.File.find(_).isDefined) should be(true)
+      ids.fileHistoryIds.forall(persistence.FileHistory.find(_).isDefined) should be(true)
+      ids.zippedFileIds.forall(persistence.ZipedFiles.find(_).isDefined) should be(true)
+      ids.appIds.forall(persistence.App.find(_).isDefined) should be(true)
+      ids.datasetAppIds.forall(persistence.DatasetApp.find(_).isDefined) should be(true)
+      ids.annotationIds.forall(persistence.Annotation.find(_).isDefined) should be(true)
+      ids.datasetAnnotationIds.forall(persistence.DatasetAnnotation.find(_).isDefined) should be(true)
+      ids.imageIds.forall(persistence.Image.find(_).isDefined) should be(true)
+      ids.datasetImageIds.forall(persistence.DatasetImage.find(_).isDefined) should be(true)
+      ids.imageIds.forall { id => Paths.get(AppConfig.imageDir, "upload", id).toFile.exists } should be(true)
+      ids.appIds.forall { id => Paths.get(AppConfig.appDir, "upload", id).toFile.exists } should be(true)
+      Paths.get(AppConfig.fileDir, ids.datasetId).toFile.exists should be(true)
+    }
+    "synchronizing(s3)" in {
+      val ids = prepareDataset()
+      val client = SpecCommonLogic.createClient()
+      client.deleteDataset(ids.datasetId)
+      updateS3State(ids.datasetId, SaveStatus.Synchronizing)
+      val thrown = the[ServiceException] thrownBy {
+        DatasetService.applyPhysicalDelete(toParam(Seq(ids.datasetId))).get
+      }
+      val messages = Seq("dataset1, Reason: ファイルが移動中、または削除中")
+      thrown.details should be(Seq(ErrorDetail("一部のデータセットが削除できませんでした。", messages)))
+      persistence.Dataset.find(ids.datasetId).isDefined should be(true)
+      ids.ownershipIds.forall(persistence.Ownership.find(_).isDefined) should be(true)
+      ids.fileIds.forall(persistence.File.find(_).isDefined) should be(true)
+      ids.fileHistoryIds.forall(persistence.FileHistory.find(_).isDefined) should be(true)
+      ids.zippedFileIds.forall(persistence.ZipedFiles.find(_).isDefined) should be(true)
+      ids.appIds.forall(persistence.App.find(_).isDefined) should be(true)
+      ids.datasetAppIds.forall(persistence.DatasetApp.find(_).isDefined) should be(true)
+      ids.annotationIds.forall(persistence.Annotation.find(_).isDefined) should be(true)
+      ids.datasetAnnotationIds.forall(persistence.DatasetAnnotation.find(_).isDefined) should be(true)
+      ids.imageIds.forall(persistence.Image.find(_).isDefined) should be(true)
+      ids.datasetImageIds.forall(persistence.DatasetImage.find(_).isDefined) should be(true)
+      ids.imageIds.forall { id => Paths.get(AppConfig.imageDir, "upload", id).toFile.exists } should be(true)
+      ids.appIds.forall { id => Paths.get(AppConfig.appDir, "upload", id).toFile.exists } should be(true)
+      Paths.get(AppConfig.fileDir, ids.datasetId).toFile.exists should be(true)
+    }
+    "deleting(s3)" in {
+      val ids = prepareDataset()
+      val client = SpecCommonLogic.createClient()
+      client.deleteDataset(ids.datasetId)
+      updateS3State(ids.datasetId, SaveStatus.Deleting)
+      val thrown = the[ServiceException] thrownBy {
+        DatasetService.applyPhysicalDelete(toParam(Seq(ids.datasetId))).get
+      }
+      val messages = Seq("dataset1, Reason: ファイルが移動中、または削除中")
+      thrown.details should be(Seq(ErrorDetail("一部のデータセットが削除できませんでした。", messages)))
+      persistence.Dataset.find(ids.datasetId).isDefined should be(true)
+      ids.ownershipIds.forall(persistence.Ownership.find(_).isDefined) should be(true)
+      ids.fileIds.forall(persistence.File.find(_).isDefined) should be(true)
+      ids.fileHistoryIds.forall(persistence.FileHistory.find(_).isDefined) should be(true)
+      ids.zippedFileIds.forall(persistence.ZipedFiles.find(_).isDefined) should be(true)
+      ids.appIds.forall(persistence.App.find(_).isDefined) should be(true)
+      ids.datasetAppIds.forall(persistence.DatasetApp.find(_).isDefined) should be(true)
+      ids.annotationIds.forall(persistence.Annotation.find(_).isDefined) should be(true)
+      ids.datasetAnnotationIds.forall(persistence.DatasetAnnotation.find(_).isDefined) should be(true)
+      ids.imageIds.forall(persistence.Image.find(_).isDefined) should be(true)
+      ids.datasetImageIds.forall(persistence.DatasetImage.find(_).isDefined) should be(true)
+      ids.imageIds.forall { id => Paths.get(AppConfig.imageDir, "upload", id).toFile.exists } should be(true)
+      ids.appIds.forall { id => Paths.get(AppConfig.appDir, "upload", id).toFile.exists } should be(true)
+      Paths.get(AppConfig.fileDir, ids.datasetId).toFile.exists should be(true)
+    }
+    "delete file failed" in {
+      val ids = prepareDataset()
+      val client = SpecCommonLogic.createClient()
+      client.deleteDataset(ids.datasetId)
+      val deleteFailDir = Paths.get(AppConfig.fileDir, ids.datasetId, ids.fileIds(0))
+      val deleteFailFiles = deleteFailDir.toFile.list.map(deleteFailDir.resolve)
+      deleteFailFiles.foreach { file =>
+        file.toFile.setReadOnly
+      }
+      val thrown = the[ServiceException] thrownBy {
+        DatasetService.applyPhysicalDelete(toParam(Seq(ids.datasetId))).get
+      }
+      deleteFailFiles.foreach { file =>
+        file.toFile.setWritable(true)
+      }
+      val messages = (deleteFailFiles :+ deleteFailDir :+ Paths.get(AppConfig.fileDir, ids.datasetId))
+        .map(path => s"Location: Local, Path:${path.toAbsolutePath.toString}").sorted
+      thrown.details.map(_.title) should be(Seq("一部のファイルが削除できませんでした。"))
+      thrown.details.flatMap(_.messages).sorted should be(messages)
+      persistence.Dataset.find(ids.datasetId).isEmpty should be(true)
+      ids.ownershipIds.forall(persistence.Ownership.find(_).isEmpty) should be(true)
+      ids.fileIds.forall(persistence.File.find(_).isEmpty) should be(true)
+      ids.fileHistoryIds.forall(persistence.FileHistory.find(_).isEmpty) should be(true)
+      ids.zippedFileIds.forall(persistence.ZipedFiles.find(_).isEmpty) should be(true)
+      ids.appIds.forall(persistence.App.find(_).isEmpty) should be(true)
+      ids.datasetAppIds.forall(persistence.DatasetApp.find(_).isEmpty) should be(true)
+      ids.annotationIds.forall(persistence.Annotation.find(_).isEmpty) should be(true)
+      ids.datasetAnnotationIds.forall(persistence.DatasetAnnotation.find(_).isEmpty) should be(true)
+      ids.imageIds.forall(persistence.Image.find(_).isEmpty) should be(true)
+      ids.datasetImageIds.forall(persistence.DatasetImage.find(_).isEmpty) should be(true)
+      ids.imageIds.forall { id => !Paths.get(AppConfig.imageDir, "upload", id).toFile.exists } should be(true)
+      ids.appIds.forall { id => !Paths.get(AppConfig.appDir, "upload", id).toFile.exists } should be(true)
+      Paths.get(AppConfig.fileDir, ids.datasetId).toFile.exists should be(true)
+      deleteFailDir.toFile.exists should be(true)
+      deleteFailFiles.forall(_.toFile.exists) should be(true)
+      ids.fileIds.drop(1).forall { id => !Paths.get(AppConfig.fileDir, ids.datasetId, id).toFile.exists } should be(true)
+    }
+  }
+
+  def updateLocalState(datasetId: String, localState: Int): Unit = {
+    DB.localTx { implicit s =>
+      withSQL {
+        update(persistence.Dataset)
+          .set(persistence.Dataset.column.localState -> localState)
+          .where
+          .eqUuid(persistence.Dataset.column.id, datasetId)
+      }.update.apply()
+    }
+  }
+
+  def updateS3State(datasetId: String, s3State: Int): Unit = {
+    DB.localTx { implicit s =>
+      withSQL {
+        update(persistence.Dataset)
+          .set(persistence.Dataset.column.s3State -> s3State)
+          .where
+          .eqUuid(persistence.Dataset.column.id, datasetId)
+      }.update.apply()
+    }
+  }
+
+  case class DatasetIds(
+    datasetId: String, ownershipIds: Seq[String],
+    fileIds: Seq[String], fileHistoryIds: Seq[String], zippedFileIds: Seq[String],
+    appIds: Seq[String], datasetAppIds: Seq[String],
+    annotationIds: Seq[String], datasetAnnotationIds: Seq[String],
+    imageIds: Seq[String], datasetImageIds: Seq[String]
+  )
+
+  def getDatasetIds(datasetId: String): DatasetIds = {
+    DB.readOnly { implicit s =>
+      val o = persistence.Ownership.o
+      val ownershipIds = withSQL {
+        select(o.result.id)
+          .from(persistence.Ownership as o)
+          .where
+          .eqUuid(o.datasetId, datasetId)
+      }.map(_.string(o.resultName.id)).list.apply()
+      val f = persistence.File.f
+      val fileIds = withSQL {
+        select(f.result.id)
+          .from(persistence.File as f)
+          .where
+          .eqUuid(f.datasetId, datasetId)
+      }.map(_.string(f.resultName.id)).list.apply()
+      val fh = persistence.FileHistory.fh
+      val fileHistoryIds = withSQL {
+        select(fh.result.id)
+          .from(persistence.FileHistory as fh)
+          .where
+          .inUuid(fh.fileId, fileIds)
+      }.map(_.string(fh.resultName.id)).list.apply()
+      val zf = persistence.ZipedFiles.zf
+      val zippedFileIds = withSQL {
+        select(zf.result.id)
+          .from(persistence.ZipedFiles as zf)
+          .where
+          .inUuid(zf.historyId, fileHistoryIds)
+      }.map(_.string(zf.resultName.id)).list.apply()
+      val dap = persistence.DatasetApp.v
+      val datasetApps = withSQL {
+        select
+          .from(persistence.DatasetApp as dap)
+          .where
+          .eqUuid(dap.datasetId, datasetId)
+      }.map(persistence.DatasetApp(dap.resultName)).list.apply()
+      val appIds = datasetApps.map(_.appId).distinct
+      val datasetAppIds = datasetApps.map(_.id)
+      val da = persistence.DatasetAnnotation.da
+      val datasetAnnotations = withSQL {
+        select
+          .from(persistence.DatasetAnnotation as da)
+          .where
+          .eqUuid(da.datasetId, datasetId)
+      }.map(persistence.DatasetAnnotation(da.resultName)).list.apply()
+      val annotationIds = datasetAnnotations.map(_.annotationId).distinct
+      val datasetAnnotationIds = datasetAnnotations.map(_.id)
+      val di = persistence.DatasetImage.di
+      val datasetImages = withSQL {
+        select
+          .from(persistence.DatasetImage as di)
+          .where
+          .eqUuid(di.datasetId, datasetId)
+      }.map(persistence.DatasetImage(di.resultName)).list.apply()
+      val imageIds = datasetImages.map(_.imageId).filter(!AppConfig.defaultImageIds.contains(_)).distinct
+      val datasetImageIds = datasetImages.map(_.id)
+      DatasetIds(
+        datasetId = datasetId,
+        ownershipIds = ownershipIds,
+        fileIds = fileIds,
+        fileHistoryIds = fileHistoryIds,
+        zippedFileIds = zippedFileIds,
+        appIds = appIds,
+        datasetAppIds = datasetAppIds,
+        annotationIds = annotationIds,
+        datasetAnnotationIds = datasetAnnotationIds,
+        imageIds = imageIds,
+        datasetImageIds = datasetImageIds
+      )
+    }
+  }
+
+  def addApp(datasetId: String, file: java.io.File): Unit = {
+    val signature = getSignature(SpecCommonLogic.apiKey1, SpecCommonLogic.secretKey1)
+    val request = url(s"http://localhost:8080/api/datasets/${datasetId}/apps").POST
+      .addHeader("Authorization", s"api_key=${SpecCommonLogic.apiKey1}, signature=${signature}")
+      .addBodyPart(new FilePart("file", file))
+    val result = Http(request OK as.String)
+    Await.result(result, Duration.Inf)
+  }
+
+  def getSignature(apiKey: String, secretKey: String): String = {
+    val sk = new SecretKeySpec(secretKey.getBytes(DEFAULT_REQUEST_CHARSET), "HmacSHA1")
+    val mac = Mac.getInstance("HmacSHA1")
+    mac.init(sk)
+    val result = mac.doFinal((apiKey + "&" + secretKey).getBytes(DEFAULT_REQUEST_CHARSET))
+    URLEncoder.encode(Base64.getEncoder().encodeToString(result), DEFAULT_REQUEST_CHARSET.name())
   }
 
   def addAclGroup(client: DsmoqClient, datasetId: String, groupId: String, accessLevel: Int): Unit = {

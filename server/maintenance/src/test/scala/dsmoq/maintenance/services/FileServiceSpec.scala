@@ -1,6 +1,7 @@
 package dsmoq.maintenance.services
 
 import java.util.UUID
+import java.nio.file.Paths
 import org.joda.time.DateTime
 
 import org.scalatest.BeforeAndAfter
@@ -13,8 +14,11 @@ import dsmoq.persistence
 import dsmoq.persistence.PostgresqlHelper.PgConditionSQLBuilder
 import dsmoq.persistence.PostgresqlHelper.PgSQLSyntaxType
 import dsmoq.maintenance.data.file.SearchCondition
+import dsmoq.maintenance.AppConfig
 import dsmoq.maintenance.data.file.UpdateParameter
 import dsmoq.maintenance.services.SpecCommonLogic.UserDetail
+
+import jp.ac.nagoya_u.dsmoq.sdk.request.GetRangeParam
 
 import scalikejdbc.DB
 import scalikejdbc.DBSession
@@ -495,6 +499,201 @@ class FileServiceSpec extends FreeSpec with BeforeAndAfter {
       }
     }
   }
+  "physical delete" - {
+    "no select" in {
+      val thrown = the[ServiceException] thrownBy {
+        val param = UpdateParameter.fromMap(org.scalatra.util.MultiMap(Map.empty))
+        FileService.applyPhysicalDelete(param).get
+      }
+      thrown.getMessage should be("ファイルが選択されていません。")
+    }
+    "not exists" in {
+      val result = FileService.applyPhysicalDelete(toParam(Seq(UUID.randomUUID.toString)))
+      result.isSuccess should be(true)
+    }
+    def prepareFile(): FileIds = {
+      val client = SpecCommonLogic.createClient()
+      val csv = new java.io.File("./testdata/maintenance/dataset/test.csv")
+      val zip = new java.io.File("./testdata/maintenance/dataset/test.zip")
+      val dataset = client.createDataset("dataset1", true, false, csv)
+      val files = client.getDatasetFiles(dataset.getId, new GetRangeParam())
+      client.updateFile(dataset.getId, files.getResults.get(0).getId, zip)
+      getFileIds(dataset.getId)
+    }
+    "success" in {
+      val ids = prepareFile()
+      val client = SpecCommonLogic.createClient()
+      client.deleteFile(ids.datasetId, ids.fileId)
+      val result = FileService.applyPhysicalDelete(toParam(Seq(ids.fileId)))
+      result.isSuccess should be(true)
+      persistence.File.find(ids.fileId).isEmpty should be(true)
+      ids.fileHistoryIds.forall(persistence.FileHistory.find(_).isEmpty) should be(true)
+      ids.zippedFileIds.forall(persistence.ZipedFiles.find(_).isEmpty) should be(true)
+      !Paths.get(AppConfig.fileDir, ids.datasetId, ids.fileId).toFile.exists should be(true)
+    }
+    "not deleted" in {
+      val ids = prepareFile()
+      val thrown = the[ServiceException] thrownBy {
+        FileService.applyPhysicalDelete(toParam(Seq(ids.fileId))).get
+      }
+      val messages = Seq("test.zip, Reason: 論理削除済みではない")
+      thrown.details should be(Seq(ErrorDetail("一部のファイルが削除できませんでした。", messages)))
+      persistence.File.find(ids.fileId).isDefined should be(true)
+      ids.fileHistoryIds.forall(persistence.FileHistory.find(_).isDefined) should be(true)
+      ids.zippedFileIds.forall(persistence.ZipedFiles.find(_).isDefined) should be(true)
+      Paths.get(AppConfig.fileDir, ids.datasetId, ids.fileId).toFile.exists should be(true)
+      Paths.get(AppConfig.fileDir, ids.datasetId, ids.fileId).toFile.list.sorted should be(ids.fileHistoryIds.sorted)
+    }
+    "synchronizing(local)" in {
+      val ids = prepareFile()
+      val client = SpecCommonLogic.createClient()
+      client.deleteFile(ids.datasetId, ids.fileId)
+      updateLocalState(ids.datasetId, SaveStatus.Synchronizing)
+      val thrown = the[ServiceException] thrownBy {
+        FileService.applyPhysicalDelete(toParam(Seq(ids.fileId))).get
+      }
+      val messages = Seq("test.zip, Reason: ファイルが移動中、または削除中")
+      thrown.details should be(Seq(ErrorDetail("一部のファイルが削除できませんでした。", messages)))
+      persistence.File.find(ids.fileId).isDefined should be(true)
+      ids.fileHistoryIds.forall(persistence.FileHistory.find(_).isDefined) should be(true)
+      ids.zippedFileIds.forall(persistence.ZipedFiles.find(_).isDefined) should be(true)
+      Paths.get(AppConfig.fileDir, ids.datasetId, ids.fileId).toFile.exists should be(true)
+      Paths.get(AppConfig.fileDir, ids.datasetId, ids.fileId).toFile.list.toSeq.sorted should be(ids.fileHistoryIds.sorted)
+    }
+    "deleting(local)" in {
+      val ids = prepareFile()
+      val client = SpecCommonLogic.createClient()
+      client.deleteFile(ids.datasetId, ids.fileId)
+      updateLocalState(ids.datasetId, SaveStatus.Deleting)
+      val thrown = the[ServiceException] thrownBy {
+        FileService.applyPhysicalDelete(toParam(Seq(ids.fileId))).get
+      }
+      val messages = Seq("test.zip, Reason: ファイルが移動中、または削除中")
+      thrown.details should be(Seq(ErrorDetail("一部のファイルが削除できませんでした。", messages)))
+      persistence.File.find(ids.fileId).isDefined should be(true)
+      ids.fileHistoryIds.forall(persistence.FileHistory.find(_).isDefined) should be(true)
+      ids.zippedFileIds.forall(persistence.ZipedFiles.find(_).isDefined) should be(true)
+      Paths.get(AppConfig.fileDir, ids.datasetId, ids.fileId).toFile.exists should be(true)
+      Paths.get(AppConfig.fileDir, ids.datasetId, ids.fileId).toFile.list.toSeq.sorted should be(ids.fileHistoryIds.sorted)
+    }
+    "synchronizing(s3)" in {
+      val ids = prepareFile()
+      val client = SpecCommonLogic.createClient()
+      client.deleteFile(ids.datasetId, ids.fileId)
+      updateS3State(ids.datasetId, SaveStatus.Synchronizing)
+      val thrown = the[ServiceException] thrownBy {
+        FileService.applyPhysicalDelete(toParam(Seq(ids.fileId))).get
+      }
+      val messages = Seq("test.zip, Reason: ファイルが移動中、または削除中")
+      thrown.details should be(Seq(ErrorDetail("一部のファイルが削除できませんでした。", messages)))
+      persistence.File.find(ids.fileId).isDefined should be(true)
+      ids.fileHistoryIds.forall(persistence.FileHistory.find(_).isDefined) should be(true)
+      ids.zippedFileIds.forall(persistence.ZipedFiles.find(_).isDefined) should be(true)
+      Paths.get(AppConfig.fileDir, ids.datasetId, ids.fileId).toFile.exists should be(true)
+      Paths.get(AppConfig.fileDir, ids.datasetId, ids.fileId).toFile.list.toSeq.sorted should be(ids.fileHistoryIds.sorted)
+    }
+    "deleting(s3)" in {
+      val ids = prepareFile()
+      val client = SpecCommonLogic.createClient()
+      client.deleteFile(ids.datasetId, ids.fileId)
+      updateS3State(ids.datasetId, SaveStatus.Deleting)
+      val thrown = the[ServiceException] thrownBy {
+        FileService.applyPhysicalDelete(toParam(Seq(ids.fileId))).get
+      }
+      val messages = Seq("test.zip, Reason: ファイルが移動中、または削除中")
+      thrown.details should be(Seq(ErrorDetail("一部のファイルが削除できませんでした。", messages)))
+      persistence.File.find(ids.fileId).isDefined should be(true)
+      ids.fileHistoryIds.forall(persistence.FileHistory.find(_).isDefined) should be(true)
+      ids.zippedFileIds.forall(persistence.ZipedFiles.find(_).isDefined) should be(true)
+      Paths.get(AppConfig.fileDir, ids.datasetId, ids.fileId).toFile.exists should be(true)
+      Paths.get(AppConfig.fileDir, ids.datasetId, ids.fileId).toFile.list.toSeq.sorted should be(ids.fileHistoryIds.sorted)
+    }
+    "delete file failed" in {
+      val ids = prepareFile()
+      val client = SpecCommonLogic.createClient()
+      client.deleteFile(ids.datasetId, ids.fileId)
+      val deleteFailDir = Paths.get(AppConfig.fileDir, ids.datasetId, ids.fileId)
+      val deleteFailFiles = deleteFailDir.toFile.list.map(deleteFailDir.resolve)
+      deleteFailFiles.foreach { file =>
+        file.toFile.setReadOnly
+      }
+      val thrown = the[ServiceException] thrownBy {
+        FileService.applyPhysicalDelete(toParam(Seq(ids.fileId))).get
+      }
+      deleteFailFiles.foreach { file =>
+        file.toFile.setWritable(true)
+      }
+      val messages = (deleteFailFiles :+ deleteFailDir)
+        .map(path => s"Location: Local, Path:${path.toAbsolutePath.toString}").sorted
+      thrown.details.map(_.title) should be(Seq("一部のファイルが削除できませんでした。"))
+      thrown.details.flatMap(_.messages).sorted should be(messages)
+      persistence.File.find(ids.fileId).isEmpty should be(true)
+      ids.fileHistoryIds.forall(persistence.FileHistory.find(_).isEmpty) should be(true)
+      ids.zippedFileIds.forall(persistence.ZipedFiles.find(_).isEmpty) should be(true)
+      Paths.get(AppConfig.fileDir, ids.datasetId).toFile.exists should be(true)
+      deleteFailDir.toFile.exists should be(true)
+      deleteFailFiles.forall(_.toFile.exists) should be(true)
+    }
+  }
+
+  def updateLocalState(datasetId: String, localState: Int): Unit = {
+    DB.localTx { implicit s =>
+      withSQL {
+        update(persistence.Dataset)
+          .set(persistence.Dataset.column.localState -> localState)
+          .where
+          .eqUuid(persistence.Dataset.column.id, datasetId)
+      }.update.apply()
+    }
+  }
+
+  def updateS3State(datasetId: String, s3State: Int): Unit = {
+    DB.localTx { implicit s =>
+      withSQL {
+        update(persistence.Dataset)
+          .set(persistence.Dataset.column.s3State -> s3State)
+          .where
+          .eqUuid(persistence.Dataset.column.id, datasetId)
+      }.update.apply()
+    }
+  }
+
+  case class FileIds(
+    datasetId: String, fileId: String, fileHistoryIds: Seq[String], zippedFileIds: Seq[String]
+  )
+
+  def getFileIds(datasetId: String): FileIds = {
+    DB.readOnly { implicit s =>
+      val f = persistence.File.f
+      val fileId = withSQL {
+        select(f.result.id)
+          .from(persistence.File as f)
+          .where
+          .eqUuid(f.datasetId, datasetId)
+      }.map(_.string(f.resultName.id)).single.apply().get
+      val fh = persistence.FileHistory.fh
+      val fileHistoryIds = withSQL {
+        select(fh.result.id)
+          .from(persistence.FileHistory as fh)
+          .where
+          .eqUuid(fh.fileId, fileId)
+      }.map(_.string(fh.resultName.id)).list.apply()
+      val zf = persistence.ZipedFiles.zf
+      val zippedFileIds = withSQL {
+        select(zf.result.id)
+          .from(persistence.ZipedFiles as zf)
+          .where
+          .inUuid(zf.historyId, fileHistoryIds)
+      }.map(_.string(zf.resultName.id)).list.apply()
+      FileIds(
+        datasetId = datasetId,
+        fileId = fileId,
+        fileHistoryIds = fileHistoryIds,
+        zippedFileIds = zippedFileIds
+      )
+    }
+  }
+
   def resetUpdatedAt(files: Seq[persistence.File]): Unit = {
     DB.localTx { implicit s =>
       val f = persistence.File.column
@@ -508,6 +707,7 @@ class FileServiceSpec extends FreeSpec with BeforeAndAfter {
       }.update.apply()
     }
   }
+
   def getFiles(datasetIds: Seq[String]): Seq[persistence.File] = {
     val f = persistence.File.f
     DB.readOnly { implicit s =>
@@ -520,6 +720,7 @@ class FileServiceSpec extends FreeSpec with BeforeAndAfter {
       }.map(persistence.File(f.resultName)).list.apply()
     }
   }
+
   def toParam(targets: Seq[String]): UpdateParameter = {
     val map = org.scalatra.util.MultiMap(Map("checked" -> targets))
     UpdateParameter.fromMap(map)

@@ -681,7 +681,7 @@ object DatasetService extends LazyLogging {
     val deleteResult = Try {
       val datasets = getDatasets(targets)
       val (deleteds, notDeleteds) = datasets.partition(d => isLogicalDeleted(d))
-      val (synchronizingOrDeletings, records) = datasets.partition(d => isSynchronizingState(d) || isDeletingState(d))
+      val (synchronizingOrDeletings, records) = deleteds.partition(d => isSynchronizingState(d) || isDeletingState(d))
       val (appIds, apps) = pickupDeleteApps(records)
       val (imageIds, images) = pickupDeleteImages(records)
       val invalids = notDeleteds.map { dataset =>
