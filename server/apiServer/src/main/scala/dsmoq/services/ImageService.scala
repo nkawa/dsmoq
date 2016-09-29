@@ -147,6 +147,13 @@ class ImageService(resource: ResourceBundle) {
     Option(file).filter(_.exists)
   }
 
+  /**
+   * ユーザの所属するグループ(Personal/Public問わず)のIDを取得する。
+   *
+   * @param user ユーザ情報
+   * @param s DBセッション
+   * @return 取得結果
+   */
   def getJoinedGroups(user: User)(implicit s: DBSession): Seq[String] = {
     if (user.isGuest) {
       Seq.empty

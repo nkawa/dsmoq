@@ -72,6 +72,12 @@ import dsmoq.services.json.RangeSlice
 import dsmoq.services.json.SearchDatasetCondition
 import dsmoq.services.json.SearchDatasetConditionSerializer
 
+/**
+ * /apiにマッピングされるサーブレットクラス。
+ * WebAPIを提供する。
+ *
+ * @param resource リソースバンドル
+ */
 class ApiController(
   val resource: ResourceBundle
 ) extends ScalatraServlet with JacksonJsonSupport with FileUploadSupport with LazyLogging with AuthTrait {

@@ -5,6 +5,10 @@ import org.scalatra.NotFound
 import org.scalatra.Ok
 import org.scalatra.ScalatraServlet
 
+/**
+ * /にマッピングされるサーブレットクラス
+ * Viewのファイルへのルーティングを提供する。
+ */
 class ResourceController extends ScalatraServlet {
   object Ext {
     val Js = """.*\.js$""".r

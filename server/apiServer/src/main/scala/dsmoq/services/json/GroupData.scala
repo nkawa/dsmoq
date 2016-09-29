@@ -1,7 +1,20 @@
 package dsmoq.services.json
 
+/**
+ * Group系APIのレスポンスに使用するJSON型を取りまとめるオブジェクト
+ */
 object GroupData {
-  // response
+
+  /**
+   * グループのサマリ情報を返却するためのJSON型
+   *
+   * @param id グループID
+   * @param name グループ名
+   * @param description 説明
+   * @param image アイコン画像URL
+   * @param members メンバー人数
+   * @param datasets このグループが管理しているデータセットの件数
+   */
   case class GroupsSummary(
     id: String,
     name: String,
@@ -11,6 +24,18 @@ object GroupData {
     datasets: Int
   )
 
+  /**
+   * グループの情報を返却するためのJSON型
+   *
+   * @param id グループID
+   * @param name グループ名
+   * @param description 説明
+   * @param images 画像一覧
+   * @param primaryImage アイコン画像ID
+   * @param isMember API実行アカウントがこのグループのメンバーか否か
+   * @param role API実行アカウントがこのグループに対して持つロール(@see dsmoq.persistence.GroupMemberRole)
+   * @param providedDatasetCount このグループが管理しているデータセットの件数
+   */
   case class Group(
     id: String,
     name: String,
@@ -22,6 +47,18 @@ object GroupData {
     providedDatasetCount: Int
   )
 
+  /**
+   * グループのメンバー情報を返却するためのJSON型
+   *
+   * @param id ユーザID
+   * @param name ユーザアカウント名
+   * @param fullname ユーザ名
+   * @param organization 所属
+   * @param title タイトル
+   * @param description 説明
+   * @param image アイコン画像URL
+   * @param role このグループに対するロール(@see dsmoq.persistence.GroupMemberRole)
+   */
   case class MemberSummary(
     id: String,
     name: String,
@@ -42,13 +79,6 @@ object GroupData {
     ownerships: Seq[MemberSummary]
   )
 
-  case class AddMember(
-    id: String,
-    name: String,
-    organization: String,
-    role: Int
-  )
-
   /**
    * グループに追加した画像を返却するためのJSON型
    *
@@ -60,15 +90,30 @@ object GroupData {
     primaryImage: String
   )
 
+  /**
+   * グループから画像を削除したときの情報を返却するためのJSON型
+   *
+   * @param primaryImage 画像削除後のアイコン画像ID
+   */
   case class GroupDeleteImage(
     primaryImage: String
   )
+
+  /**
+   * グループから取得した画像を返却する際のJSON型
+   *
+   * @param id 画像ID
+   * @param name 画像名
+   * @param url 画像URL
+   * @param isPrimary アイコン画像か否か
+   */
   case class GroupGetImage(
     id: String,
     name: String,
     url: String,
     isPrimary: Boolean
   )
+
   /**
    * グループに設定した画像IDを返却するためのJSON型
    * @param imageId 画像ID

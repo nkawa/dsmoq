@@ -16,6 +16,12 @@ import dsmoq.exceptions.AccessDeniedException
 import dsmoq.exceptions.NotFoundException
 import dsmoq.services.ImageService
 
+/**
+ * /imagesにマッピングされるサーブレットクラス。
+ * 画像の参照機能を提供する。
+ *
+ * @param resource リソースバンドル
+ */
 class ImageController(val resource: ResourceBundle) extends ScalatraServlet with LazyLogging with AuthTrait {
 
   /**
@@ -115,6 +121,13 @@ class ImageController(val resource: ResourceBundle) extends ScalatraServlet with
     toActionResult(ret)
   }
 
+  /**
+   * リクエストヘッダにContent-Disposition、Content-Typeを設定し、ファイルを返す。
+   *
+   * @param image 画像ファイル
+   * @param name ファイル名
+   * @return 画像ファイル
+   */
   private def getImage(image: java.io.File, name: String) = {
     logger.debug(LOG_MARKER, "getImage succeeded")
     response.setHeader("Content-Disposition", "inline; filename=" + name)

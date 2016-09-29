@@ -36,6 +36,11 @@ import scalikejdbc.sqls
 import scalikejdbc.update
 import scalikejdbc.withSQL
 
+/**
+ * ユーザアカウント関連の操作を取り扱うサービスクラス
+ *
+ * @param resource リソースバンドルのインスタンス
+ */
 class AccountService(resource: ResourceBundle) extends LazyLogging {
 
   val LOG_MARKER = MarkerFactory.getMarker("AUTH_LOG")
@@ -45,13 +50,16 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
    *
    * @param id アカウント名 or メールアドレス
    * @param password パスワード
-   * @return 取得したユーザオブジェクト。エラーが発生した場合、例外をFailureで包んで返す。
-   *         発生する可能性のある例外は、BadRequestExceptionである。
+   * @return
+   *         Success(User) ログイン成功時、ログインユーザ情報
+   *         Failure(NullPointerException) 引数がnullの場合
+   *         Failure(BadRequestException) ログイン失敗時
    */
   def findUserByIdAndPassword(id: String, password: String): Try[User] = {
     logger.info(LOG_MARKER, "Login request... : [id] = {}", id)
-
     Try {
+      CheckUtil.checkNull(id, "id")
+      CheckUtil.checkNull(password, "password")
       DB.readOnly { implicit s =>
         findUser(id, password) match {
           case None => {
@@ -82,6 +90,14 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * IDとパスワードを指定してユーザを検索します。
+   *
+   * @param id アカウント名 or メールアドレス
+   * @param password パスワード
+   * @param s DBセッション
+   * @return 取得結果
+   */
   private def findUser(id: String, password: String)(implicit s: DBSession): Option[User] = {
     val u = persistence.User.u
     val ma = persistence.MailAddress.ma
@@ -132,11 +148,16 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
    *
    * @param id ユーザID
    * @param email EMailアドレス
-   * @return 更新後のユーザオブジェクト。エラーが発生した場合は例外をFailureで包んで返す。
-   *         発生する可能性のある例外は、BadRequestExceptionである。
+   * @return
+   *         Success(User) 更新成功時、更新後ユーザ情報
+   *         Failure(NullPointerException) 引数がnullの場合
+   *         Failure(BadRequestException) 更新対象ユーザがGoogleアカウントユーザの場合
+   *         Failure(BadRequestException) Emailアドレスが既に登録されている場合
    */
   def changeUserEmail(id: String, email: String): Try[User] = {
     Try {
+      CheckUtil.checkNull(id, "id")
+      CheckUtil.checkNull(email, "email")
       // Eメールアドレスのフォーマットチェックはしていない
       val trimmedEmail = email.trim
 
@@ -174,6 +195,14 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * 同じメールアドレスでの登録があるかを確認する。
+   *
+   * @param id ログインユーザID
+   * @param email E-Mailアドレス
+   * @param s DBセッション
+   * @return ログインユーザ以外に登録があればtrue、それ以外の場合はfalse
+   */
   private def existsSameEmail(id: String, email: String)(implicit s: DBSession): Boolean = {
     val ma = persistence.MailAddress.ma
     withSQL {
@@ -194,11 +223,17 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
    * @param id ユーザID
    * @param currentPassword 現在のパスワード
    * @param newPassword 新しいパスワード
-   * @return エラーがあった場合は、例外をFailureで包んで返す。
-   *         発生する可能性のある例外は、BadRequestExceptionである。
+   * @return
+   *         Success(Unit) 変更成功時
+   *         Failure(NullPointerException) 引数がnullの場合
+   *         Failure(BadRequestException) 更新対象ユーザがGoogleアカウントユーザの場合
+   *         Failure(BadRequestException) パスワードが一致しなかった場合
    */
   def changeUserPassword(id: String, currentPassword: String, newPassword: String): Try[Unit] = {
     Try {
+      CheckUtil.checkNull(id, "id")
+      CheckUtil.checkNull(currentPassword, "currentPassword")
+      CheckUtil.checkNull(newPassword, "newPassword")
       DB.localTx { implicit s =>
         if (isGoogleUser(id)) {
           throw new BadRequestException(resource.getString(ResourceNames.CANT_CHANGE_GOOGLE_USER_PASSWORD))
@@ -211,6 +246,14 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * 現在のパスワードオブジェクトを取得する。
+   *
+   * @param id ユーザID
+   * @param currentPassword 現在のパスワード
+   * @param s DBセッション
+   * @return 取得結果
+   */
   private def getCurrentPassword(
     id: String,
     currentPassword: String
@@ -234,6 +277,15 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
     }.map(persistence.Password(p.resultName)).single.apply()
   }
 
+  /**
+   * パスワードを更新する。
+   *
+   * @param id ユーザID
+   * @param newPassword 新しいパスワード
+   * @param currentPassword 現在のパスワードオブジェクト
+   * @param s DBセッション
+   * @return 変更件数
+   */
   private def updatePassword(
     id: String,
     newPassword: String,
@@ -258,8 +310,12 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
    * @param organization 組織名
    * @param title タイトル
    * @param description 説明
-   * @return 更新後のユーザオブジェクト。エラーが発生した場合、例外をFailureで包んで返す。
-   *         発生する可能性のある例外は、NotFoundException、BadRequestExceptionである。
+   * @return
+   *         Success(User) 更新成功時、更新後ユーザ情報
+   *         Failure(NullPointerException) 引数がnullの場合
+   *         Failure(NotFoundException) ユーザが見つからない場合(無効化されている場合も含む)
+   *         Failure(BadRequestException) 更新対象ユーザがGoogleアカウントユーザのアカウント名を変更する場合
+   *         Failure(BadRequestException) アカウント名が既に登録されている場合
    */
   def updateUserProfile(
     id: String,
@@ -270,6 +326,12 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
     description: Option[String]
   ): Try[User] = {
     Try {
+      CheckUtil.checkNull(id, "id")
+      CheckUtil.checkNull(name, "name")
+      CheckUtil.checkNull(fullname, "fullname")
+      CheckUtil.checkNull(organization, "organization")
+      CheckUtil.checkNull(title, "title")
+      CheckUtil.checkNull(description, "description")
       DB.localTx { implicit s =>
         val trimmedName = StringUtil.trimAllSpaces(name.getOrElse(""))
         val trimmedFullname = StringUtil.trimAllSpaces(fullname.getOrElse(""))
@@ -330,8 +392,10 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
    *
    * @param id ユーザID
    * @param icon アイコン画像
-   * @return アイコンの画像ID。エラーが発生した場合、例外をFailureで包んで返す。
-   *         発生する可能性のある例外は、NotFoundExceptionである。
+   * @return
+   *         Success(String) 更新成功時、アイコン画像ID
+   *         Failure(NullPointerException) 引数がnullの場合
+   *         Failure(NotFoundException) ユーザが見つからない場合(無効化されている場合も含む)
    */
   def changeIcon(id: String, icon: FileItem): Try[String] = {
     Try {
@@ -432,6 +496,13 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * APIキーとシークレットキーからシグネチャを取得する。
+   *
+   * @param apiKey APIキー
+   * @param secretKey シークレットキー
+   * @return シグネチャ
+   */
   private def getSignature(apiKey: String, secretKey: String): String = {
     val sk = new SecretKeySpec(secretKey.getBytes(), "HmacSHA1");
     val mac = Mac.getInstance("HmacSHA1")
@@ -440,6 +511,14 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
     URLEncoder.encode(Base64.getEncoder.encodeToString(result), "UTF-8")
   }
 
+  /**
+   * 同名のユーザが存在するかを確認する。
+   *
+   * @param id ユーザID
+   * @param name ユーザ名
+   * @param session DBセッション
+   * @return 指定ユーザ以外で同名のユーザが存在する場合はtrue、それ以外の場合はfalse
+   */
   private def existsSameName(id: String, name: String)(implicit session: DBSession): Boolean = {
     val u = persistence.User.u
     withSQL {
@@ -450,6 +529,12 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
     }.map(_ => ()).single.apply().nonEmpty
   }
 
+  /**
+   * パスワードからハッシュ値を作成する。
+   *
+   * @param password パスワード
+   * @return ハッシュ化したパスワード
+   */
   private def createPasswordHash(password: String) = {
     // TODO パスワードソルトを追加
     MessageDigest.getInstance("SHA-256").digest(password.getBytes("UTF-8")).map("%02x".format(_)).mkString
@@ -462,11 +547,21 @@ class AccountService(resource: ResourceBundle) extends LazyLogging {
    * @return ユーザのプロファイル
    */
   def getUserProfile(user: User): Try[ProfileData] = {
-    DB.readOnly { implicit s =>
-      Success(ProfileData(user, isGoogleUser(user.id)))
+    Try {
+      CheckUtil.checkNull(user, "user")
+      DB.readOnly { implicit s =>
+        ProfileData(user, isGoogleUser(user.id))
+      }
     }
   }
 
+  /**
+   * Googleユーザか否かを判定する。
+   *
+   * @param id ユーザID
+   * @param session DBセッション
+   * @return Googleユーザであればtrue、それ以外の場合はfalse
+   */
   private def isGoogleUser(id: String)(implicit session: DBSession): Boolean = {
     persistence.GoogleUser.findByUserId(id).isDefined
   }

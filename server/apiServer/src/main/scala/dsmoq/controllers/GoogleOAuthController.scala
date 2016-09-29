@@ -12,6 +12,12 @@ import com.typesafe.scalalogging.LazyLogging
 
 import dsmoq.services.GoogleAccountService
 
+/**
+ * /google_oauthにマッピングされるサーブレットクラス。
+ * Google OAuthでのログイン、リダイレクト機能を提供する。
+ *
+ * @param resource リソースバンドル
+ */
 class GoogleOAuthController(val resource: ResourceBundle) extends ScalatraServlet with LazyLogging with AuthTrait {
   /**
    * GoogleAccountServiceのインスタンス

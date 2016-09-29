@@ -110,8 +110,9 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param saveS3 データセットをS3に保存するか否か
    * @param name データセット名
    * @param user ユーザ情報
-   * @return 作成したデータセットオブジェクト。エラーがあれば、例外をFailureに包んで返却する。
-   *     発生しうる例外は、NullPointerExceptionである。
+   * @return
+   *     Success(DatasetData.Dataset) 作成に成功した場合、作成したデータセットオブジェクト
+   *     Failure(NullPointerException) 引数がnullの場合
    */
   def create(
     files: Seq[FileItem],
@@ -281,6 +282,16 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * ZipファイルからZip内ファイルを登録・作成する。
+   *
+   * @param path ファイルパス
+   * @param historyId ファイル履歴ID
+   * @param timestamp タイムスタンプ
+   * @param myself ログインユーザオブジェクト
+   * @return
+   *     Success(Long) 作成に成功した場合、非圧縮サイズの合計値
+   */
   private def createZipedFiles(
     path: Path,
     historyId: String,
@@ -323,6 +334,17 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * タスクを作成する。
+   *
+   * @param datasetId データセットID
+   * @param commandType LocalあるいはS3の保存先変更を表すコマンド値(@see dsmoq.services.MoveToStatus)
+   * @param userId ユーザID
+   * @param timestamp タイムスタンプ
+   * @param isSave 移動前のディレクトリを保存したままにしておくか否か
+   * @param s DBセッション
+   * @return タスクID
+   */
   private def createTask(
     datasetId: String,
     commandType: Int,
@@ -358,7 +380,9 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param limit 検索上限
    * @param offset 検索オフセット
    * @param user ユーザ情報
-   * @return 検索結果
+   * @return
+   *        Success(RangeSlice[DatasetData.DatasetsSummary]) 検索成功時、検索結果
+   *        Failure(NullPointerException) 引数がnullの場合
    */
   def search(
     query: SearchDatasetCondition,
@@ -661,8 +685,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param attributes 検索する属性
    * @param limit 検索上限
    * @param offset 検索オフセット
+   * @param orderby ソート条件を規定する文字列
    * @param user ユーザ情報
-   * @return 検索結果
+   * @return
+   *        Success(RangeSlice[DatasetData.DatasetsSummary]) 検索成功時、検索結果
+   *        Failure(NullPointerException) 引数がnullの場合
    */
   def search(
     query: Option[String],
@@ -675,6 +702,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     user: User
   ): Try[RangeSlice[DatasetData.DatasetsSummary]] = {
     Try {
+      CheckUtil.checkNull(query, "query")
+      CheckUtil.checkNull(owners, "owners")
+      CheckUtil.checkNull(groups, "groups")
+      CheckUtil.checkNull(attributes, "attributes")
+      CheckUtil.checkNull(limit, "limit")
+      CheckUtil.checkNull(offset, "offset")
+      CheckUtil.checkNull(orderby, "orderby")
+      CheckUtil.checkNull(user, "user")
       val limit_ = limit.getOrElse(DEFALUT_LIMIT)
       val offset_ = offset.getOrElse(0)
 
@@ -705,6 +740,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * ユーザアカウント名から対応するPersonalグループIDを取得する。
+   *
+   * @param names ユーザアカウント名のリスト
+   * @param s DBセッション
+   * @return 取得結果
+   */
   private def getGroupIdsByUserName(names: Seq[String])(implicit s: DBSession): Option[Seq[String]] = {
     if (names.nonEmpty) {
       val g = persistence.Group.g
@@ -736,6 +778,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * グループ名からグループIDを取得する。
+   *
+   * @param names グループ名のリスト
+   * @param s DBセッション
+   * @return 取得結果
+   */
   private def getGroupIdsByGroupName(names: Seq[String])(implicit s: DBSession): Option[Seq[String]] = {
     if (names.nonEmpty) {
       val g = persistence.Group.g
@@ -759,6 +808,17 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * 検索結果のデータセット件数を取得する。
+   *
+   * @param joindGroups ログインユーザが所属しているグループIDのリスト
+   * @param query 検索文字列
+   * @param ownerUsers オーナーのユーザIDのリスト
+   * @param ownerGroups ProviderのグループIDのリスト
+   * @param attributes 属性のリスト
+   * @param s DBセッション
+   * @return データセット件数
+   */
   private def countDataSets(
     joindGroups: Seq[String],
     query: Option[String],
@@ -774,6 +834,21 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.map(implicit rs => rs.int(1)).single.apply().get
   }
 
+  /**
+   * データセットを検索する。
+   *
+   * @param joindGroups ログインユーザが所属しているグループIDのリスト
+   * @param query 検索文字列
+   * @param ownerUsers オーナーのユーザIDのリスト
+   * @param ownerGroups ProviderのグループIDのリスト
+   * @param attributes 属性のリスト
+   * @param limit 検索上限
+   * @param offset 検索オフセット
+   * @param orderby ソート条件を規定する文字列
+   * @param user ユーザ情報
+   * @param s DBセッション
+   * @return 検索結果
+   */
   private def findDataSets(
     joindGroups: Seq[String],
     query: Option[String],
@@ -860,6 +935,17 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * データセットを検索するSQLを作成する。
+   *
+   * @param selectSql select部のSQL
+   * @param joindGroups ログインユーザが所属しているグループIDのリスト
+   * @param query 検索文字列
+   * @param ownerUsers オーナーのユーザIDのリスト
+   * @param ownerGroups ProviderのグループIDのリスト
+   * @param attributes 属性のリスト
+   * @return 検索SQL
+   */
   private def createDatasetSql[A](
     selectSql: SelectSQLBuilder[A],
     joinedGroups: Seq[String],
@@ -1055,6 +1141,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * データセットのアイコン画像のMapを作成する。
+   *
+   * @param datasetIds データセットIDのリスト
+   * @param s DBセッション
+   * @return データセットアイコン画像のMap
+   */
   private def getImageIdMap(datasetIds: Seq[String])(implicit s: DBSession): Map[String, String] = {
     if (datasetIds.nonEmpty) {
       val di = persistence.DatasetImage.syntax("di")
@@ -1078,6 +1171,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * データセットのFeatured画像のMapを作成する。
+   *
+   * @param datasetIds データセットIDのリスト
+   * @param s DBセッション
+   * @return データセットFeatured画像のMap
+   */
   private def getFeaturedImageIdMap(datasetIds: Seq[String])(implicit s: DBSession): Map[String, String] = {
     if (datasetIds.nonEmpty) {
       val di = persistence.DatasetImage.syntax("di")
@@ -1101,6 +1201,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * データセットのOwner/Providerのアクセス権のMapを作成する。
+   *
+   * @param datasetIds データセットIDのリスト
+   * @param s DBセッション
+   * @return データセットのOwner/Providerのアクセス権のMap
+   */
   private def getOwnerMap(
     datasetIds: Seq[String]
   )(implicit s: DBSession): Map[String, Seq[DatasetData.DatasetOwnership]] = {
@@ -1270,8 +1377,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    *
    * @param id データセットID
    * @param user ユーザ情報
-   * @return データセットオブジェクト。エラーがあれば、例外をFailureに包んで返却する。
-   *     発生しうる例外は、NotFoundException、NullPointerException、AccessDeniedExceptionである。
+   * @return
+   *        Success(DatasetData.Dataset) 取得成功時、データセット情報
+   *        Failure(NullPointerException) 引数がnullの場合
+   *        Failure(NotFoundException) データセットが見つからない場合
+   *        Failure(AccessDeniedException) ログインユーザに参照権限がない場合
    */
   def get(id: String, user: User): Try[DatasetData.Dataset] = {
     Try {
@@ -1319,8 +1429,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param id データセットID
    * @param files ファイルリスト
    * @param user ユーザ情報
-   * @return 追加したファイルデータオブジェクト。エラーがあれば、例外をFailureに包んで返却する。
-   *     発生しうる例外は、AccessDeniedException、NotFoundException、NullPointerExceptionである。
+   * @return
+   *        Success(DatasetData.DatasetAddFiles) 追加成功時、追加したファイルデータオブジェクト
+   *        Failure(NullPointerException) 引数がnullの場合
+   *        Failure(NotFoundException) データセットが見つからない場合
+   *        Failure(AccessDeniedException) ログインユーザに編集権権がない場合
    */
   def addFiles(id: String, files: Seq[FileItem], user: User): Try[DatasetData.DatasetAddFiles] = {
     Try {
@@ -1421,8 +1534,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param fileId ファイルID
    * @param file 更新するファイル
    * @param user ユーザ情報
-   * @return 更新したファイルオブジェクト。エラーがあれば、例外をFailureに包んで返却する。
-   *     発生しうる例外は、NotFoundException、AccessDeniedException、NullPointerExceptionである。
+   * @return
+   *        Success(DatasetData.DatasetFile) 更新成功時、更新したファイルデータオブジェクト
+   *        Failure(NullPointerException) 引数がnullの場合
+   *        Failure(NotFoundException) データセット、ファイルが見つからない場合
+   *        Failure(AccessDeniedException) ログインユーザに編集権限がない場合
    */
   def updateFile(datasetId: String, fileId: String, file: FileItem, user: User): Try[DatasetData.DatasetFile] = {
     Try {
@@ -1511,6 +1627,19 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * ファイルの名前、サイズ、保存先を変更する。
+   *
+   * @param fileId ファイルID
+   * @param historyId ファイル履歴ID
+   * @param file 更新に使用するファイル
+   * @param userId 更新者のユーザID
+   * @param timestamp タイムスタンプ
+   * @param s3State S3保存状態
+   * @param localState ローカル保存状態
+   * @param s DBセッション
+   * @return 更新件数
+   */
   private def updateFileNameAndSize(
     fileId: String,
     historyId: String,
@@ -1540,12 +1669,16 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   /**
    * 指定したファイルのメタデータを更新します。
    *
-   * @param datasetId
-   * @param fileId
-   * @param filename
-   * @param description
-   * @param user
-   * @return
+   * @param datasetId データセットID
+   * @param fileId ファイルID
+   * @param filename ファイル名
+   * @param description 説明
+   * @param user ログインユーザ情報
+   * @retur
+   *        Success(DatasetData.DatasetFile) 更新成功時、更新したファイルデータオブジェクト
+   *        Failure(NullPointerException) 引数がnullの場合
+   *        Failure(NotFoundException) データセット、ファイルが見つからない場合
+   *        Failure(AccessDeniedException) ログインユーザに編集権限がない場合
    */
   def updateFileMetadata(
     datasetId: String,
@@ -1555,6 +1688,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     user: User
   ): Try[DatasetData.DatasetFile] = {
     Try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(fileId, "fileId")
+      CheckUtil.checkNull(filename, "filename")
+      CheckUtil.checkNull(description, "description")
+      CheckUtil.checkNull(user, "user")
       DB.localTx { implicit s =>
         checkDatasetWithFile(datasetId, fileId)
         checkOwnerAccess(datasetId, user)
@@ -1569,6 +1707,18 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * ファイルの名前、説明を変更する。
+   *
+   * @param fileId ファイルID
+   * @param datasetId データセットID
+   * @param fileName ファイル名
+   * @param description 説明
+   * @param userId 更新者のユーザID
+   * @param timestamp タイムスタンプ
+   * @param s DBセッション
+   * @return 更新件数
+   */
   private def updateFileNameAndDescription(
     fileId: String,
     datasetId: String,
@@ -1596,13 +1746,20 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   /**
    * 指定したファイルを削除します。
    *
-   * @param datasetId
-   * @param fileId
-   * @param user
+   * @param datasetId データセットID
+   * @param fileId ファイルID
+   * @param user ログインユーザ情報
    * @return
+   *        Success(Unit) 削除成功時
+   *        Failure(NullPointerException) 引数がnullの場合
+   *        Failure(NotFoundException) データセット、ファイルが見つからない場合
+   *        Failure(AccessDeniedException) ログインユーザに編集権限がない場合
    */
   def deleteDatasetFile(datasetId: String, fileId: String, user: User): Try[Unit] = {
     Try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(fileId, "fileId")
+      CheckUtil.checkNull(user, "user")
       DB.localTx { implicit s =>
         checkDatasetWithFile(datasetId, fileId)
         checkOwnerAccess(datasetId, user)
@@ -1618,6 +1775,15 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * ファイルを論理削除する。
+   *
+   * @param datasetId データセットID
+   * @param fileId ファイルID
+   * @param userId 更新者のユーザID
+   * @param timestamp タイムスタンプ
+   * @param s DBセッション
+   */
   private def deleteFile(
     datasetId: String,
     fileId: String,
@@ -1649,8 +1815,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param saveLocal ローカルに保存するか否か
    * @param saveS3 S3に保存するか否か
    * @param user ユーザオブジェクト
-   * @return データセットの保存先変更タスクオブジェクト。エラーが発生した場合は、例外をFailureにつつんで返却する。
-   *     発生しうる例外は、NotFoundException、AccessDeniedException、NullPointerExceptionである。
+   * @return
+   *        Success(DatasetTask) 変更成功時、保存先変更タスク情報
+   *        Failure(NullPointerException) 引数がnullの場合
+   *        Failure(NotFoundException) データセット、ファイルが見つからない場合
+   *        Failure(AccessDeniedException) ログインユーザに編集権限がない場合
    */
   def modifyDatasetStorage(id: String, saveLocal: Boolean, saveS3: Boolean, user: User): Try[DatasetTask] = {
     Try {
@@ -1722,6 +1891,16 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * データセットの保存状態を更新する。
+   *
+   * @param ds データセットオブジェクト
+   * @param userId 更新者のユーザID
+   * @param timestamp タイムスタンプ
+   * @param localState ローカル保存状態
+   * @param s3State S3保存状態
+   * @return 更新後のデータセットオブジェクト
+   */
   private def updateDatasetStorage(
     ds: Dataset,
     userId: String,
@@ -1754,8 +1933,12 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param license データセットのライセンス
    * @param attributes データセットの属性一覧
    * @param user ユーザ情報
-   * @return 更新後のデータセットのメタデータ。エラーがあれば、例外をFailureに包んで返却する。
-   *     発生しうる例外は、BadRequestException、NotFoundException、NullPointerException、AccessDeniedExceptionである。
+   * @return
+   *        Success(DatasetData.DatasetMetaData) 更新成功時、更新後のデータセットのメタデータ
+   *        Failure(NullPointerException) 引数がnullの場合
+   *        Failure(NotFoundException) データセット、ファイルが見つからない場合
+   *        Failure(AccessDeniedException) ログインユーザに編集権限がない場合
+   *        Failure(BadRequestException) ライセンスIDが不正な場合
    */
   def modifyDatasetMeta(
     id: String,
@@ -1848,6 +2031,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * 未削除のDatasetAnnotationのID一覧を取得する。
+   *
+   * @param id アノテーションID
+   * @param s DBセッション
+   * @return 取得結果
+   */
   private def getDatasetAnnotations(id: String)(implicit s: DBSession): Seq[String] = {
     val da = persistence.DatasetAnnotation.da
     withSQL {
@@ -1860,6 +2050,12 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.map(rs => rs.string(da.resultName.id)).list.apply()
   }
 
+  /**
+   * 未削除のAnnotationのID・名前一覧を取得する。
+   *
+   * @param s DBセッション
+   * @return 取得結果
+   */
   private def getAvailableAnnotations(implicit s: DBSession): Seq[(String, String)] = {
     val a = persistence.Annotation.a
     withSQL {
@@ -1875,6 +2071,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.list.apply()
   }
 
+  /**
+   * データセットに関連づいた未削除のAnnotationのID・名前一覧を取得する。
+   *
+   * @param id データセットID
+   * @param s DBセッション
+   * @return 取得結果
+   */
   private def getAnnotationsRelatedByDataset(id: String)(implicit s: DBSession): Seq[(String, String)] = {
     val a = persistence.Annotation.a
     val da = persistence.DatasetAnnotation.da
@@ -1890,6 +2093,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.map(rs => (rs.string(a.resultName.name).toLowerCase, rs.string(a.resultName.id))).list.apply()
   }
 
+  /**
+   * Annotationを物理削除する。
+   *
+   * @param id アノテーションID
+   * @param s DBセッション
+   * @return 削除件数
+   */
   private def deleteAnnotation(id: String)(implicit s: DBSession): Int = {
     withSQL {
       val a = persistence.Annotation.a
@@ -1899,6 +2109,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.update.apply()
   }
 
+  /**
+   * DatasetAnnotationを物理削除する。
+   *
+   * @param id データセットID
+   * @param s DBセッション
+   * @return 削除件数
+   */
   private def deleteDatasetAnnotation(id: String)(implicit s: DBSession): Int = {
     val da = persistence.DatasetAnnotation.da
     withSQL {
@@ -1908,6 +2125,18 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.update.apply()
   }
 
+  /**
+   * データセットの詳細を更新する。
+   *
+   * @param id データセットID
+   * @param name データセット名
+   * @param description 説明
+   * @param licenseId ライセンスID
+   * @param userId 更新者のユーザID
+   * @param timestamp タイムスタンプ
+   * @param s DBセッション
+   * @return 更新件数
+   */
   private def updateDatasetDetail(
     id: String,
     name: String,
@@ -1937,8 +2166,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param datasetId データセットID
    * @param images 追加する画像の一覧
    * @param user ユーザ情報
-   * @return 追加した画像オブジェクト。エラーがあれば、例外をFailureに包んで返却する。
-   *     発生しうる例外は、AccessDeniedException、NotFoundException、NullPointerExceptionである。
+   * @return
+   *        Success(DatasetData.DatasetAddImages) 追加成功時、追加した画像オブジェクト
+   *        Failure(NullPointerException) 引数がnullの場合
+   *        Failure(NotFoundException) データセットが見つからない場合
+   *        Failure(AccessDeniedException) ログインユーザに編集権限がない場合
    */
   def addImages(datasetId: String, images: Seq[FileItem], user: User): Try[DatasetData.DatasetAddImages] = {
     Try {
@@ -2009,7 +2241,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param imageId 画像ID
    * @param user ログインユーザ情報
    * @return
-   *        Success(DatasetData.ChangeDatasetImage) 変更後の画像ID
+   *        Success(DatasetData.ChangeDatasetImage) 変更成功時、変更後の画像ID
    *        Failure(NullPointerException) 引数がnullの場合
    *        Failure(NotFoundException) データセット、または画像が見つからない場合
    *        Failure(AccessDeniedException) ログインユーザに編集権限がない場合
@@ -2038,6 +2270,16 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * データセットのアイコン画像を解除する。
+   *
+   * @param datasetId データセットID
+   * @param imageId 画像ID
+   * @param myself ログインユーザ情報
+   * @param timestamp タイムスタンプ
+   * @param s DBセッション
+   * @return 更新件数
+   */
   private def turnOffPrimaryOtherImage(
     datasetId: String,
     imageId: String,
@@ -2057,6 +2299,16 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.update.apply()
   }
 
+  /**
+   * データセットのアイコン画像を指定する。
+   *
+   * @param datasetId データセットID
+   * @param imageId 画像ID
+   * @param myself ログインユーザ情報
+   * @param timestamp タイムスタンプ
+   * @param s DBセッション
+   * @return 更新件数
+   */
   private def turnImageToPrimary(
     datasetId: String,
     imageId: String,
@@ -2079,13 +2331,21 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   /**
    * 指定したデータセットの画像を削除します。
    *
-   * @param datasetId
-   * @param imageId
-   * @param user
+   * @param datasetId データセットID
+   * @param imageId 画像ID
+   * @param user ログインユーザ情報
    * @return
+   *        Success(DatasetData.DatasetDeleteImage) 削除成功時、削除した画像情報
+   *        Failure(NullPointerException) 引数がnullの場合
+   *        Failure(NotFoundException) データセット、画像が見つからない場合
+   *        Failure(AccessDeniedException) ログインユーザに編集権限がない場合
+   *        Failure(BadRequestException) デフォルト画像を削除する場合
    */
   def deleteImage(datasetId: String, imageId: String, user: User): Try[DatasetData.DatasetDeleteImage] = {
     Try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(imageId, "imageId")
+      CheckUtil.checkNull(user, "user")
       DB.localTx { implicit s =>
         checkDatasetExisitence(datasetId)
         if (!existsImage(datasetId, imageId)) {
@@ -2129,6 +2389,15 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * データセットのアイコン画像を指定する。
+   *
+   * @param id DatasetImageID
+   * @param myself ログインユーザ情報
+   * @param timestamp タイムスタンプ
+   * @param s DBセッション
+   * @return 更新件数
+   */
   private def turnImageToPrimaryById(
     id: String,
     myself: persistence.User,
@@ -2143,6 +2412,15 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.update.apply()
   }
 
+  /**
+   * データセットのFeatured画像を指定する。
+   *
+   * @param id DatasetImageID
+   * @param myself ログインユーザ情報
+   * @param timestamp タイムスタンプ
+   * @param s DBセッション
+   * @return 更新件数
+   */
   private def turnImageToFeaturedById(
     id: String,
     myself: persistence.User,
@@ -2157,6 +2435,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.update.apply()
   }
 
+  /**
+   * データセットに関連づいているDatasetImage、ImageのIDを一件取得する。
+   *
+   * @param datasetId データセットID
+   * @param s DBセッション
+   * @return 取得結果
+   */
   private def findNextImage(datasetId: String)(implicit s: DBSession): Option[(String, String)] = {
     val di = persistence.DatasetImage.di
     val i = persistence.Image.i
@@ -2175,6 +2460,16 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.map(rs => (rs.string(di.resultName.id), rs.string(i.resultName.id))).single.apply()
   }
 
+  /**
+   * DatasetImageを論理削除する。
+   *
+   * @param datasetId データセットID
+   * @param imageId 画像ID
+   * @param myself ログインユーザ情報
+   * @param timestamp タイムスタンプ
+   * @param s DBセッション
+   * @return 更新件数
+   */
   private def deleteDatasetImage(
     datasetId: String,
     imageId: String,
@@ -2206,8 +2501,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param datasetId データセットID
    * @param acl アクセスコントロール変更オブジェクトのリスト
    * @param user ユーザオブジェクト
-   * @return 変更されたアクセスコントロールのリスト。エラーがあれば、例外をFailureに包んで返却する。
-   *     発生しうる例外は、AccessDeniedException、BadRequestException、NotFoundException、NullPointerExceptionである。
+   * @return
+   *        Success(Seq[DatasetData.DatasetOwnership]) 設定成功時、変更されたアクセスコントロールのリスト
+   *        Failure(NullPointerException) 引数がnullの場合
+   *        Failure(NotFoundException) データセットが見つからない場合
+   *        Failure(AccessDeniedException) ログインユーザに編集権限がない場合
+   *        Failure(BadRequestException) 更新結果でオーナーがいなくなる場合
+   *        Failure(BadRequestException) 無効化されたユーザが指定された場合
+   *        Failure(BadRequestException) 存在しないグループが指定された場合
    */
   def setAccessControl(
     datasetId: String,
@@ -2308,6 +2609,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.map(persistence.User(u.resultName)).list.apply()
   }
 
+  /**
+   * ユーザIDからPersonalグループIDを取得する。
+   *
+   * @param userId ユーザID
+   * @param s DBセッション
+   * @return 取得結果
+   */
   def findGroupIdByUserId(userId: String)(implicit s: DBSession): Option[String] = {
     val u = persistence.User.u
     val m = persistence.Member.m
@@ -2335,8 +2643,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param datasetId データセットID
    * @param accessLevel 設定するゲストアクセスレベル
    * @param user ユーザ情報
-   * @return 設定したゲストアクセスレベル。エラーがあれば、例外をFailureに包んで返却する。
-   *     発生しうる例外は、NotFoundException、AccessDeniedException、NullPointerExceptionである。
+   * @return
+   *        Success(DatasetData.DatasetGuestAccessLevel) 設定成功時、設定したゲストアクセスレベル
+   *        Failure(NullPointerException) 引数がnullの場合
+   *        Failure(NotFoundException) データセットが見つからない場合
+   *        Failure(AccessDeniedException) ログインユーザに編集権限がない場合
    */
   def setGuestAccessLevel(
     datasetId: String,
@@ -2385,6 +2696,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * ゲストユーザに対するOwnershipを取得する。
+   *
+   * @param datasetId データセットID
+   * @param s DBセッション
+   * @return 取得結果
+   */
   private def findGuestOwnership(datasetId: String)(implicit s: DBSession): Option[persistence.Ownership] = {
     val o = persistence.Ownership.o
     withSQL(
@@ -2400,12 +2718,18 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
   /**
    * 指定したデータセットを削除します。
    *
-   * @param datasetId
-   * @param user
+   * @param datasetId データセットID
+   * @param user ログインユーザ情報
    * @return
+   *        Success(Unit) 削除成功時
+   *        Failure(NullPointerException) 引数がnullの場合
+   *        Failure(NotFoundException) データセットが見つからない場合
+   *        Failure(AccessDeniedException) ログインユーザに編集権限がない場合
    */
   def deleteDataset(datasetId: String, user: User): Try[Unit] = {
     Try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(user, "user")
       DB.localTx { implicit s =>
         checkDatasetExisitence(datasetId)
         checkOwnerAccess(datasetId, user)
@@ -2414,6 +2738,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * データセットを論理削除する。
+   *
+   * @param datasetId データセットID
+   * @param user ログインユーザ情報
+   * @param s DBセッション
+   * @return 更新件数
+   */
   private def deleteDatasetById(datasetId: String, user: User)(implicit s: DBSession): Int = {
     val timestamp = DateTime.now()
     val d = persistence.Dataset.column
@@ -2425,6 +2757,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.update.apply()
   }
 
+  /**
+   * 指定したユーザがデータセットのオーナーか否かを判定する。
+   *
+   * @param userId ユーザID
+   * @param datasetId データセットID
+   * @param s DBセッション
+   * @return オーナーであればtrue、それ以外の場合はfalse
+   */
   private def isOwner(userId: String, datasetId: String)(implicit s: DBSession): Boolean = {
     val o = persistence.Ownership.o
     val g = persistence.Group.g
@@ -2452,6 +2792,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.map(x => true).single.apply().getOrElse(false)
   }
 
+  /**
+   * ユーザが所属するグループ(Personal/Public問わず)を取得する。
+   *
+   * @param user ログインユーザ情報
+   * @param s DBセッション
+   * @return 所属するグループIDのリスト
+   */
   def getJoinedGroups(user: User)(implicit s: DBSession): Seq[String] = {
     if (user.isGuest) {
       Seq.empty
@@ -2472,20 +2819,48 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * ファイル取得結果を表すtrait
+   *
+   * @param file ファイルオブジェクト
+   * @param path ファイルパス
+   */
   sealed trait FileResult {
     val file: persistence.File
     val path: String
   }
+
+  /**
+   * ファイル取得結果：通常ファイルを表すケースクラス
+   *
+   * @param file ファイルオブジェクト
+   * @param path ファイルパス
+   */
   case class FileResultNormal(
     file: persistence.File,
     path: String
   ) extends FileResult
+
+  /**
+   * ファイル取得結果：Zipファイルを表すケースクラス
+   *
+   * @param file ファイルオブジェクト
+   * @param path ファイルパス
+   * @param zipFile Zipファイルオブジェクト
+   */
   case class FileResultZip(
     file: persistence.File,
     path: String,
     zipFile: persistence.ZipedFiles
   ) extends FileResult
 
+  /**
+   * ファイルを取得する。
+   *
+   * @param fileId ファイルID
+   * @param session DBセッション
+   * @return 取得結果
+   */
   def findFile(fileId: String)(implicit session: DBSession): Option[FileResult] = {
     val file = for {
       file <- persistence.File.find(fileId)
@@ -2535,15 +2910,41 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     Success(())
   }
 
+  /**
+   * OptionをTryに変換する。
+   *
+   * @tparam T オプショナルな値の型
+   * @param opt オプショナルな値
+   * @return
+   *        Success(T) オプショナルな値が存在した場合
+   *        Failure(NotFoundException) オプショナルな値が存在しなかった場合
+   */
   def found[T](opt: Option[T]): Try[T] = {
     opt match {
       case Some(x) => Success(x)
       case None => Failure(new NotFoundException)
     }
   }
+
+  /**
+   * Zipファイルにパスワードが掛かっているかを判定する。
+   *
+   * @param zipedFile Zipファイルオブジェクト
+   * @return パスワードが掛かっている場合はtrue、それ以外の場合はfalse
+   */
   def hasPassword(zipedFile: persistence.ZipedFiles): Boolean = {
     (zipedFile.cenHeader(8) & 0x01) == 1
   }
+
+  /**
+   * ファイルにパスワードが掛かっていないかを確認する。
+   *
+   * @param file ファイル取得結果オブジェクト
+   * @return
+   *        Success(Unit) Zipファイルでない場合
+   *        Success(Unit) パスワードのかかっていないZipファイルの場合
+   *        Failure(NotFoundException) パスワードのかかったZipファイルの場合
+   */
   def requireNotWithPassword(file: FileResult): Try[Unit] = {
     file match {
       case FileResultNormal(_, _) => Success(())
@@ -2557,6 +2958,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * ファイルからRange指定したInputStreamを作成する。
+   *
+   * @param path ファイルパス
+   * @param offset Rangeの開始位置
+   * @param limit Rangeの取得幅
+   * @return 作成したInputStream
+   */
   def createRangeInputStream(path: Path, offset: Long, limit: Long): InputStream = {
     val is = Files.newInputStream(path)
     try {
@@ -2569,6 +2978,16 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       }
     }
   }
+
+  /**
+   * InputStreamから解凍済みのInputStreamを作成する。
+   *
+   * @param data InputStream
+   * @param centralHeader Zipセントラルヘッダ
+   * @param dataSize データサイズ
+   * @param encoding 解凍するエンコーディング
+   * @return 解凍済みのInputStream
+   */
   def createUnzipInputStream(
     data: InputStream,
     centralHeader: Array[Byte],
@@ -2581,6 +3000,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     zis.getNextEntry
     zis
   }
+
+  /**
+   * Zipフォーマットのfooterを作成する。
+   *
+   * @param centralHeader Zipセントラルヘッダ
+   * @param dataSize データサイズ
+   * @return 構築したfooterのByte列
+   */
   def createFooter(centralHeader: Array[Byte], dataSize: Long): Array[Byte] = {
     val centralHeaderSize = centralHeader.length
     val zip64EndOfCentralDirectoryRecord = if (dataSize < 0x00000000FFFFFFFFL) {
@@ -2630,6 +3057,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       endOfCentralDirectoryRecord
     )
   }
+
+  /**
+   * 文字列がSJISエンコーディングかを判定する。
+   *
+   * @param str 判定する文字列
+   * @return SJISの場合はtrue、それ以外の場合はfalse
+   */
   private def isSJIS(str: String): Boolean = {
     try {
       val encoded = new String(str.getBytes("SHIFT_JIS"), "SHIFT_JIS")
@@ -2638,6 +3072,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       case e: Exception => false
     }
   }
+
+  /**
+   * Long値を要素4のByte列に変換する。
+   *
+   * @param num Long値
+   * @return 変換結果
+   */
   def longToByte4(num: Long): Array[Byte] = {
     Array[Long](
       (num & 0x00000000000000FFL),
@@ -2646,6 +3087,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       (num & 0x00000000FF000000L) >> 24
     ).map(_.toByte)
   }
+
+  /**
+   * Long値を要素8のByte列に変換する。
+   *
+   * @param num Long値
+   * @return 変換結果
+   */
   def longToByte8(num: Long): Array[Byte] = {
     Array[Long](
       (num & 0x00000000000000FFL),
@@ -2659,6 +3107,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     ).map(_.toByte)
   }
 
+  /**
+   * 未削除のFileHistoryを取得する。
+   *
+   * @param fileId ファイルID
+   * @param s DBセッション
+   * @return FileHistoryのファイルパス
+   */
   private def getFileHistory(fileId: String)(implicit s: DBSession): Option[String] = {
     val fh = persistence.FileHistory.syntax("fh")
     val filePath = withSQL {
@@ -2672,6 +3127,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     filePath
   }
 
+  /**
+   * ユーザIDからPersonalグループを取得する。
+   *
+   * @param userId ユーザID
+   * @param s DBセッション
+   * @return 取得結果
+   */
   private def getPersonalGroup(userId: String)(implicit s: DBSession): Option[persistence.Group] = {
     val g = persistence.Group.syntax("g")
     val m = persistence.Member.syntax("m")
@@ -2687,6 +3149,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.map(rs => persistence.Group(g.resultName)(rs)).single.apply()
   }
 
+  /**
+   * 未削除のデータセットを取得する。
+   *
+   * @param id データセットID
+   * @param s DBセッション
+   * @return 取得結果
+   */
   private def getDataset(id: String)(implicit s: DBSession): Option[Dataset] = {
     if (StringUtil.isUUID(id)) {
       val d = persistence.Dataset.syntax("d")
@@ -2740,6 +3209,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.max
   }
 
+  /**
+   * データセットのゲストアクセスレベルを取得する。
+   *
+   * @param datasetId データセットID
+   * @param s DBセッション
+   * @return ゲストアクセスレベル
+   */
   private def getGuestAccessLevel(datasetId: String)(implicit s: DBSession): Int = {
     val o = persistence.Ownership.syntax("o")
     withSQL {
@@ -2754,6 +3230,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.map(_.int(o.resultName.accessLevel)).single.apply().getOrElse(0)
   }
 
+  /**
+   * Ownerのユーザ、Providerのグループの一覧を取得する。
+   *
+   * @param datasetIds データセットIDのリスト
+   * @param userInfo ログインユーザ情報
+   * @param s DBセッション
+   * @return 取得結果
+   */
   private def getOwnerGroups(
     datasetIds: Seq[String],
     userInfo: User
@@ -2837,6 +3321,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * データセットのすべてのアクセス権を取得する。
+   *
+   * @param datasetId データセットID
+   * @param userInfo ログインユーザ情報
+   * @param s DBセッション
+   * @return 取得結果
+   */
   private def getAllOwnerships(
     datasetId: String,
     userInfo: User
@@ -2920,6 +3412,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     owner ++ sortedPartial
   }
 
+  /**
+   * データセットのすべての属性を取得する。
+   *
+   * @param datasetId データセットID
+   * @param s DBセッション
+   * @return 取得結果
+   */
   private def getAttributes(datasetId: String)(implicit s: DBSession): Seq[DatasetData.DatasetAttribute] = {
     val da = persistence.DatasetAnnotation.syntax("da")
     val a = persistence.Annotation.syntax("d")
@@ -2945,6 +3444,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * データセットのすべての画像を取得する。
+   *
+   * @param datasetId データセットID
+   * @param s DBセッション
+   * @return 取得結果
+   */
   private def getImages(datasetId: String)(implicit s: DBSession): Seq[Image] = {
     val di = persistence.DatasetImage.di
     val i = persistence.Image.i
@@ -2973,6 +3479,16 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * ファイル一覧を取得する。
+   *
+   * @param datasetId データセットID
+   * @param permission ログインユーザのアクセスレベル
+   * @param limit 取得件数
+   * @param offset 取得開始位置
+   * @param s DBセッション
+   * @return 取得結果
+   */
   private def getFiles(
     datasetId: String,
     permission: Int,
@@ -3033,6 +3549,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * ファイルを取得する。
+   *
+   * @param datasetId データセットID
+   * @param fileId ファイルID
+   * @param s DBセッション
+   * @return 取得結果
+   */
   private def getFile(datasetId: String, fileId: String)(implicit s: DBSession): Option[DatasetData.DatasetFile] = {
     val f = persistence.File.f
     val u1 = persistence.User.syntax("u1")
@@ -3086,6 +3610,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * データセットの持つファイル数を取得する。
+   *
+   * @param datasetId データセットID
+   * @param s DBセッション
+   * @return ファイル数
+   */
   def getFileAmount(datasetId: String)(implicit s: DBSession): Int = {
     val f = persistence.File.f
     val u1 = persistence.User.syntax("u1")
@@ -3106,6 +3637,15 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.map(_.int(1)).single.apply().getOrElse(0)
   }
 
+  /**
+   * Zip内ファイルを取得する。
+   *
+   * @param datasetId データセットID
+   * @param historyId ファイル履歴ID
+   * @param canDownload ダウンロード可能か否か
+   * @param s DBセッション
+   * @return 取得結果
+   */
   def getZipedFiles(
     datasetId: String,
     historyId: String,
@@ -3131,6 +3671,15 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.toSeq
   }
 
+  /**
+   * データセットのファイル情報(ファイル数、データサイズ)を更新する。
+   *
+   * @param datasetId データセットID
+   * @param userId 更新者のユーザID
+   * @param timestamp タイムスタンプ
+   * @param s DBセッション
+   * @return 更新件数
+   */
   private def updateDatasetFileStatus(
     datasetId: String,
     userId: String,
@@ -3157,6 +3706,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.update.apply()
   }
 
+  /**
+   * データセットのアイコン画像IDを取得する。
+   *
+   * @param datasetId データセットID
+   * @param s DBセッション
+   * @return 取得結果
+   */
   private def getPrimaryImageId(datasetId: String)(implicit s: DBSession): Option[String] = {
     val di = persistence.DatasetImage.syntax("di")
     val i = persistence.Image.syntax("i")
@@ -3175,6 +3731,13 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.map(rs => rs.string(i.resultName.id)).single.apply()
   }
 
+  /**
+   * データセットのFeatured画像IDを取得する。
+   *
+   * @param datasetId データセットID
+   * @param s DBセッション
+   * @return 取得結果
+   */
   private def getFeaturedImageId(datasetId: String)(implicit s: DBSession): Option[String] = {
     val di = persistence.DatasetImage.syntax("di")
     val i = persistence.Image.syntax("i")
@@ -3193,11 +3756,26 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.map(rs => rs.string(i.resultName.id)).single.apply()
   }
 
+  /**
+   * データセットのアクセスカウントを取得する。
+   *
+   * @param datasetId データセットID
+   * @param s DBセッション
+   * @return アクセスカウント
+   */
   private def getAccessCount(datasetId: String)(implicit s: DBSession): Long = {
     val dal = persistence.DatasetAccessLog.dal
     persistence.DatasetAccessLog.countBy(sqls.eqUuid(dal.datasetId, datasetId))
   }
 
+  /**
+   * データセットに対象の画像が存在しているかを判定する。
+   *
+   * @param datasetId データセットID
+   * @param imageId 画像ID
+   * @param s DBセッション
+   * @return データセットに関連づいており、画像が存在している場合はtrue、それ以外の場合はfalse
+   */
   private def existsImage(datasetId: String, imageId: String)(implicit s: DBSession): Boolean = {
     val i = persistence.Image.syntax("i")
     val di = persistence.DatasetImage.syntax("di")
@@ -3216,6 +3794,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.map(rs => rs.string(i.resultName.id)).single.apply().isDefined
   }
 
+  /**
+   * データセットに対象のファイルが存在しているかを判定する。
+   *
+   * @param datasetId データセットID
+   * @param fileId ファイルID
+   * @param s DBセッション
+   * @return ファイルが存在している場合はtrue、それ以外の場合はfalse
+   */
   private def existsFile(datasetId: String, fileId: String)(implicit s: DBSession): Boolean = {
     val f = persistence.File.syntax("f")
     val d = persistence.Dataset.syntax("d")
@@ -3234,6 +3820,15 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.map(rs => rs.string(f.resultName.id)).single.apply().isDefined
   }
 
+  /**
+   * Onwershipが存在していれば更新し、していなければ作成する。
+   *
+   * @param userInfo ログインユーザ情報
+   * @param datasetId データセットID
+   * @param groupId グループID
+   * @param accessLevel アクセスレベル
+   * @param s DBセッション
+   */
   private def saveOrCreateOwnerships(
     userInfo: User,
     datasetId: String,
@@ -3284,8 +3879,21 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * データセットのコピーを作成する。
+   *
+   * @param datasetId データセットID
+   * @param user ログインユーザ情報
+   * @return
+   *        Success(CopiedDataset) コピー成功時、コピーデータセット情報
+   *        Failure(NullPointerException) 引数がnullの場合
+   *        Failure(NotFoundException) データセットが見つからない場合
+   *        Failure(AccessDeniedException) ログインユーザに編集権限がない場合
+   */
   def copyDataset(datasetId: String, user: User): Try[CopiedDataset] = {
     Try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(user, "user")
       DB.localTx { implicit s =>
         checkDatasetExisitence(datasetId)
         checkOwnerAccess(datasetId, user)
@@ -3378,8 +3986,23 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * データセットに属性をインポートする。
+   *
+   * @param datasetId データセットID
+   * @param file インポートファイル
+   * @param user ログインユーザ情報
+   * @return
+   *        Success(Unit) インポート成功時
+   *        Failure(NullPointerException) 引数がnullの場合
+   *        Failure(NotFoundException) データセットが見つからない場合
+   *        Failure(AccessDeniedException) ログインユーザに編集権限がない場合
+   */
   def importAttribute(datasetId: String, file: FileItem, user: User): Try[Unit] = {
     Try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(file, "file")
+      CheckUtil.checkNull(user, "user")
       val csv = use(new InputStreamReader(file.getInputStream)) { in =>
         CSVReader.open(in).all().collect {
           case name :: value :: _ => (name, value)
@@ -3438,6 +4061,15 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * Loan Patternでリソースを取り扱う。
+   *
+   * @tparam T1 取り扱うリソースの型
+   * @tparam T2 リソースに対して行う処理の結果型
+   * @param resource 取り扱うリソース
+   * @param f リソースに対して行う処理
+   * @return 処理結果
+   */
   private def use[T1 <: Closeable, T2](resource: T1)(f: T1 => T2): T2 = {
     try {
       f(resource)
@@ -3455,8 +4087,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    *
    * @param datasetId データセットID
    * @param user ユーザ情報
-   * @return CSVファイル。エラーがあれば、例外をFailureに包んで返却する。
-   *     発生しうる例外は、NotFoundException、NullPointerException、AccessDeniedExceptionである。
+   * @return
+   *        Success(File) 取得成功時、CSVファイル
+   *        Failure(NullPointerException) 引数がnullの場合
+   *        Failure(NotFoundException) データセットが見つからない場合
+   *        Failure(AccessDeniedException) ログインユーザに参照権限がない場合
    */
   def exportAttribute(datasetId: String, user: User): Try[java.io.File] = {
     Try {
@@ -3495,8 +4130,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param limit 検索上限
    * @param offset 検索の開始位置
    * @param user ユーザ情報
-   * @return アクセスレベルの一覧(offset, limitつき)。エラーがあれば、例外をFailureに包んで返却する。
-   *     発生しうる例外は、NotFoundException、AccessDeniedException、NullPointerExceptionである。
+   * @return
+   *        Success(RangeSlice[DatasetOwnership]) 取得成功時、アクセスレベルの一覧(offset, limitつき)
+   *        Failure(NullPointerException) 引数がnullの場合
+   *        Failure(NotFoundException) データセットが見つからない場合
+   *        Failure(AccessDeniedException) ログインユーザに参照権限がない場合
    */
   def searchOwnerships(
     datasetId: String,
@@ -3636,8 +4274,11 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param limit 検索上限
    * @param offset 検索の開始位置
    * @param user ユーザー情報
-   * @return データセットが保持する画像の一覧(総件数、limit、offset付き)。エラーがあれば、例外をFailureに包んで返却する。
-   *     発生しうる例外は、AccessDeniedException、NotFoundException、NullPointerExceptionである。
+   * @return
+   *        Success(RangeSlice[DatasetGetImage]) 取得成功時、データセットが保持する画像の一覧(総件数、limit、offset付き)
+   *        Failure(NullPointerException) 引数がnullの場合
+   *        Failure(NotFoundException) データセットが見つからない場合
+   *        Failure(AccessDeniedException) ログインユーザに参照権限がない場合
    */
   def getImages(
     datasetId: String,
@@ -3744,6 +4385,16 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * データセットのFeatured画像を解除する。
+   *
+   * @param datasetId データセットID
+   * @param imageId 画像ID
+   * @param myself ログインユーザ情報
+   * @param timestamp タイムスタンプ
+   * @param s DBセッション
+   * @return 更新件数
+   */
   private def turnOffFeaturedOtherImage(
     datasetId: String,
     imageId: String,
@@ -3763,6 +4414,16 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.update.apply()
   }
 
+  /**
+   * データセットのFeatured画像を設定する。
+   *
+   * @param datasetId データセットID
+   * @param imageId 画像ID
+   * @param myself ログインユーザ情報
+   * @param timestamp タイムスタンプ
+   * @param s DBセッション
+   * @return 更新件数
+   */
   private def turnImageToFeatured(
     datasetId: String,
     imageId: String,
@@ -3978,8 +4639,12 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param limit 検索上限
    * @param offset 検索の開始位置
    * @param user ユーザー情報
-   * @return データセットが保持するファイル情報の一覧(総件数、limit、offset付き)。エラーがあれば、例外をFailureに包んで返却する。
-   *     発生しうる例外は、NotFoundException、AccessDeniedException、NullPointerExceptionである。
+   * @return
+   *        Success(RangeSlice[DatasetData.DatasetFile])
+   *          取得成功時、データセットが保持するファイル情報の一覧(総件数、limit、offset付き)
+   *        Failure(NullPointerException) 引数がnullの場合
+   *        Failure(NotFoundException) データセットが見つからない場合
+   *        Failure(AccessDeniedException) ログインユーザに参照権限がない場合
    */
   def getDatasetFiles(
     datasetId: String,
@@ -4019,8 +4684,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    * @param limit 検索上限
    * @param offset 検索の開始位置
    * @param user ユーザー情報
-   * @return Zipファイルが内部に保持するファイル情報の一覧(総件数、limit、offset付き)。エラーがあれば、例外をFailureに包んで返却する。
-   *     発生しうる例外は、NotFoundException、AccessDeniedException、BadRequestException、NullPointerExceptionである。
+   * @return
+   *        Success(RangeSlice[DatasetData.DatasetFile])
+   *          取得成功時、Zipファイルが内部に保持するファイル情報の一覧(総件数、limit、offset付き)
+   *        Failure(NullPointerException) 引数がnullの場合
+   *        Failure(NotFoundException) データセットが見つからない場合
+   *        Failure(AccessDeniedException) ログインユーザに参照権限がない場合
+   *        Failure(BadRequestException) ファイルが見つからない場合
+   *        Failure(BadRequestException) Zipファイル以外に対して行った場合
    */
   def getDatasetZippedFiles(
     datasetId: String,
@@ -4070,6 +4741,17 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }
   }
 
+  /**
+   * Zipファイル内ファイルを取得する。
+   *
+   * @param datasetId データセットID
+   * @param historyId ファイル履歴ID
+   * @param permission ログインユーザのアクセスレベル
+   * @param limit 検索上限
+   * @param offset 検索の開始位置
+   * @param s DBセッション
+   * @return 取得結果
+   */
   private def getZippedFiles(
     datasetId: String,
     historyId: String,
@@ -4100,6 +4782,14 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     }.toSeq
   }
 
+  /**
+   * Zipファイル内ファイル件数を取得する。
+   *
+   * @param datasetId データセットID
+   * @param historyId ファイル履歴ID
+   * @param s DBセッション
+   * @return 取得結果
+   */
   private def getZippedFileAmount(datasetId: String, historyId: String)(implicit s: DBSession): Int = {
     val zf = persistence.ZipedFiles.zf
     withSQL {
