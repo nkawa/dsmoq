@@ -1,61 +1,17 @@
 package api
 
 import java.util.UUID
-import java.util.ResourceBundle
 
-import org.eclipse.jetty.servlet.ServletHolder
 import org.json4s.JsonDSL._
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
-import org.scalatest.{ BeforeAndAfter, FreeSpec }
-import org.scalatra.servlet.MultipartConfig
-import org.scalatra.test.scalatest.ScalatraSuite
 
-import _root_.api.api.logic.SpecCommonLogic
+import common.DsmoqSpec
 import dsmoq.controllers.AjaxResponse
-import dsmoq.controllers.ApiController
-import dsmoq.persistence.DefaultAccessLevel
 import dsmoq.services.json.DatasetQuery
 import dsmoq.services.json.SearchDatasetCondition
-import dsmoq.services.json.SearchDatasetConditionSerializer
-import scalikejdbc._
-import scalikejdbc.config.{ DBsWithEnv, DBs }
 
-class DatasetCustomQuerySpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
-  protected implicit val jsonFormats: Formats = DefaultFormats + SearchDatasetConditionSerializer
-
-  override def beforeAll() {
-    super.beforeAll()
-    DBsWithEnv("test").setup()
-    System.setProperty(org.scalatra.EnvironmentKey, "test")
-
-    val resource = ResourceBundle.getBundle("message")
-    val servlet = new ApiController(resource)
-    val holder = new ServletHolder(servlet.getClass.getName, servlet)
-    // multi-part file upload config
-    val multipartConfig = MultipartConfig(
-      maxFileSize = Some(3 * 1024 * 1024),
-      fileSizeThreshold = Some(1 * 1024 * 1024)
-    ).toMultipartConfigElement
-    holder.getRegistration.setMultipartConfig(multipartConfig)
-    servletContextHandler.addServlet(holder, "/api/*")
-
-    SpecCommonLogic.deleteAllCreateData()
-  }
-
-  override def afterAll() {
-    DBsWithEnv("test").close()
-    super.afterAll()
-  }
-
-  before {
-    SpecCommonLogic.insertDummyData()
-  }
-
-  after {
-    SpecCommonLogic.deleteAllCreateData()
-  }
-
+class DatasetCustomQuerySpec extends DsmoqSpec {
   val uuid = UUID.randomUUID.toString
   val validQuery = parse("""{"target":"query","operator":"contain","value":"abcd"}""")
 
@@ -70,7 +26,7 @@ class DatasetCustomQuerySpec extends FreeSpec with ScalatraSuite with BeforeAndA
       withClue(s"name: ${name}, query: ${query}, auth: ${authenticated}") {
         session {
           if (authenticated) {
-            signInDummy1()
+            signIn()
           }
           val params = Map("d" -> compact(render(("name" -> name) ~ ("query" -> query))))
           post(s"/api/dataset_queries", params) {
@@ -96,7 +52,7 @@ class DatasetCustomQuerySpec extends FreeSpec with ScalatraSuite with BeforeAndA
     } {
       s"auth: ${authenticated}, queries: ${queries}" in {
         session {
-          signInDummy1()
+          signIn()
           for {
             i <- 1 to queries
           } {
@@ -109,7 +65,7 @@ class DatasetCustomQuerySpec extends FreeSpec with ScalatraSuite with BeforeAndA
         }
         session {
           if (authenticated) {
-            signInDummy1()
+            signIn()
           }
           get("/api/dataset_queries") {
             checkStatus()
@@ -141,7 +97,7 @@ class DatasetCustomQuerySpec extends FreeSpec with ScalatraSuite with BeforeAndA
         }
         session {
           if (authenticated) {
-            signInDummy1()
+            signIn()
           }
           val url = s"/api/dataset_queries/${id}"
           val check = () => {
@@ -164,24 +120,6 @@ class DatasetCustomQuerySpec extends FreeSpec with ScalatraSuite with BeforeAndA
           }
         }
       }
-    }
-  }
-
-  def signInDummy1() {
-    signIn("dummy1", "password")
-  }
-
-  def signIn(id: String, password: String) {
-    post("/api/signin", params = Map("d" -> compact(render(("id" -> id) ~ ("password" -> password))))) {
-      checkStatus()
-    }
-  }
-
-  def checkStatus(expectedCode: Int = 200, expectedAjaxStatus: Option[String] = Some("OK")) {
-    status should be(expectedCode)
-    expectedAjaxStatus.foreach { expected =>
-      val result = parse(body).extract[AjaxResponse[Any]]
-      result.status should be(expected)
     }
   }
 }

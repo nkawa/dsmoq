@@ -1,36 +1,22 @@
 package api.status
 
-import java.net.URLEncoder
-import java.util.ResourceBundle
+import java.io.File
 import java.util.UUID
 
-import org.eclipse.jetty.servlet.ServletHolder
-
-import _root_.api.api.logic.SpecCommonLogic
-import org.scalatest.{ BeforeAndAfter, FreeSpec }
-import org.scalatra.test.scalatest.ScalatraSuite
-import org.json4s.{ DefaultFormats, Formats }
-import dsmoq.controllers.{ ApiController, AjaxResponse }
-import scalikejdbc.config.{ DBsWithEnv, DBs }
-import java.io.File
-import org.scalatra.servlet.MultipartConfig
+import org.json4s.JBool
+import org.json4s.JInt
 import org.json4s.JsonDSL._
 import org.json4s.jackson.JsonMethods.{ compact, parse, render }
-import org.json4s.{ DefaultFormats, Formats, JBool, JInt }
-import org.scalatest.{ BeforeAndAfter, FreeSpec }
-import org.scalatra.servlet.MultipartConfig
-import org.scalatra.test.scalatest.ScalatraSuite
-import scalikejdbc._
-import scalikejdbc.config.DBsWithEnv
 
+import api.common.DsmoqSpec
 import dsmoq.AppConf
+import dsmoq.controllers.AjaxResponse
 import dsmoq.services.json.DatasetData.Dataset
 import dsmoq.services.json.DatasetData.DatasetAddFiles
 import dsmoq.services.json.DatasetData.DatasetAddImages
+import scalikejdbc.config.DBsWithEnv
 
-class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
-  protected implicit val jsonFormatChecks: Formats = DefaultFormats
-
+class DatasetStatusCheckSpec extends DsmoqSpec {
   private val dummyImage = new File("../testdata/image/1byteover.png")
   private val dummyFile = new File("../testdata/test1.csv")
   private val dummyZipFile = new File("../testdata/test1.zip")
@@ -39,40 +25,6 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
   private val dummyUserName = "dummy4"
   private val testUserId = "023bfa40-e897-4dad-96db-9fd3cf001e79" // dummy1
   private val dummyUserId = "cc130a5e-cb93-4ec2-80f6-78fa83f9bd04" // dummy 2
-  private val dummyUserLoginParams = Map("d" -> compact(render(("id" -> "dummy4") ~ ("password" -> "password"))))
-
-  private val host = "http://localhost:8080"
-
-  override def beforeAll() {
-    super.beforeAll()
-    DBsWithEnv("test").setup()
-    System.setProperty(org.scalatra.EnvironmentKey, "test")
-
-    val resource = ResourceBundle.getBundle("message")
-    val servlet = new ApiController(resource)
-    val holder = new ServletHolder(servlet.getClass.getName, servlet)
-    // multi-part file upload config
-    val multipartConfig = MultipartConfig(
-      maxFileSize = Some(3 * 1024 * 1024),
-      fileSizeThreshold = Some(1 * 1024 * 1024)
-    ).toMultipartConfigElement
-    holder.getRegistration.setMultipartConfig(multipartConfig)
-    servletContextHandler.addServlet(holder, "/api/*")
-  }
-
-  override def afterAll() {
-    DBsWithEnv("test").close()
-    super.afterAll()
-  }
-
-  before {
-    SpecCommonLogic.deleteAllCreateData()
-    SpecCommonLogic.insertDummyData()
-  }
-
-  after {
-    SpecCommonLogic.deleteAllCreateData()
-  }
 
   private val OK = "OK"
   private val ILLEGAL_ARGUMENT = "Illegal Argument"
@@ -188,7 +140,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "404(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             get(s"/api/datasets/hoge") {
               checkStatus(404, ILLEGAL_ARGUMENT)
             }
@@ -197,7 +149,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             get(s"/api/datasets/${datasetId}", Seq.empty, invalidApiKeyHeader) {
               checkStatus(403, UNAUTHORIZED)
             }
@@ -215,7 +167,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(AccessDenied)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             signOut()
             get(s"/api/datasets/${datasetId}") {
               checkStatus(403, ACCESS_DENIED)
@@ -225,7 +177,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             dbDisconnectedBlock {
               get(s"/api/datasets/${datasetId}") {
                 checkStatus(500, NG)
@@ -236,7 +188,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "All" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
           }
           get(s"/api/datasets/hoge", Seq.empty, invalidApiKeyHeader) {
             checkStatus(404, ILLEGAL_ARGUMENT)
@@ -251,7 +203,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "404(Illegal Argument) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             dbDisconnectedBlock {
               get(s"/api/datasets/hoge") {
                 checkStatus(404, ILLEGAL_ARGUMENT)
@@ -262,7 +214,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             dbDisconnectedBlock {
               get(s"/api/datasets/${datasetId}", Seq.empty, invalidApiKeyHeader) {
                 checkStatus(500, NG)
@@ -276,7 +228,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             post(s"/api/datasets/${datasetId}/files") {
               checkStatus(400, ILLEGAL_ARGUMENT)
             }
@@ -294,7 +246,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             signOut()
             val files = Map("files" -> dummyFile)
             post(s"/api/datasets/${datasetId}/files", Map.empty, files) {
@@ -315,7 +267,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(AccessDenied)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             signOut()
             dummySignIn()
             val files = Map("files" -> dummyFile)
@@ -327,7 +279,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val files = Map("files" -> dummyFile)
             dbDisconnectedBlock {
               post(s"/api/datasets/${datasetId}/files", Map.empty, files) {
@@ -354,7 +306,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             dbDisconnectedBlock {
               post(s"/api/datasets/${datasetId}/files") {
                 checkStatus(400, ILLEGAL_ARGUMENT)
@@ -376,7 +328,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             signOut()
             val files = Map("files" -> dummyFile)
             dbDisconnectedBlock {
@@ -402,7 +354,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyFile)
             post(s"/api/datasets/${datasetId}/files/${fileId}") {
               checkStatus(400, ILLEGAL_ARGUMENT)
@@ -412,7 +364,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "404(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyFile)
             val files = Map("file" -> dummyFile)
             post(s"/api/datasets/${datasetId}/files/test", Map.empty, files) {
@@ -423,7 +375,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyFile)
             val files = Map("file" -> dummyFile)
             signOut()
@@ -435,7 +387,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "404(NotFound)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val dummyId = UUID.randomUUID.toString
             val files = Map("file" -> dummyFile)
             post(s"/api/datasets/${datasetId}/files/${dummyId}", Map.empty, files) {
@@ -446,7 +398,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(AccessDenied)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyFile)
             val files = Map("file" -> dummyFile)
             signOut()
@@ -459,7 +411,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyFile)
             val files = Map("file" -> dummyFile)
             dbDisconnectedBlock {
@@ -472,7 +424,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "All" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyFile)
             signOut()
             dummySignIn()
@@ -484,7 +436,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument) * 404(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             post(s"/api/datasets/${datasetId}/files/test") {
               checkStatus(400, ILLEGAL_ARGUMENT)
             }
@@ -493,7 +445,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyFile)
             dbDisconnectedBlock {
               post(s"/api/datasets/${datasetId}/files/${fileId}") {
@@ -505,7 +457,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "404(Illegal Argument) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyFile)
             val files = Map("file" -> dummyFile)
             dbDisconnectedBlock {
@@ -518,7 +470,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyFile)
             val files = Map("file" -> dummyFile)
             signOut()
@@ -532,7 +484,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized) * 404(NotFound)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyFile)
             val files = Map("file" -> dummyFile)
             val dummyId = UUID.randomUUID.toString
@@ -548,7 +500,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyFile)
             put(s"/api/datasets/${datasetId}/files/${fileId}/metadata") {
               checkStatus(400, ILLEGAL_ARGUMENT)
@@ -558,7 +510,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "404(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyFile)
             val params = Map("d" -> compact(render(("name" -> "test1") ~ ("description" -> ""))))
             put(s"/api/datasets/${datasetId}/files/test/metadata", params) {
@@ -569,7 +521,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyFile)
             signOut()
             val params = Map("d" -> compact(render(("name" -> "test1") ~ ("description" -> ""))))
@@ -581,7 +533,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "404(NotFound)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val dummyId = UUID.randomUUID.toString
             val params = Map("d" -> compact(render(("name" -> "test1") ~ ("description" -> ""))))
             put(s"/api/datasets/${datasetId}/files/${dummyId}/metadata", params) {
@@ -592,7 +544,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(AccessDenied)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyFile)
             signOut()
             dummySignIn()
@@ -605,7 +557,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyFile)
             val params = Map("d" -> compact(render(("name" -> "test1") ~ ("description" -> ""))))
             dbDisconnectedBlock {
@@ -624,7 +576,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument) * 404(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             put(s"/api/datasets/${datasetId}/files/test/metadata") {
               checkStatus(400, ILLEGAL_ARGUMENT)
             }
@@ -633,7 +585,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyFile)
             dbDisconnectedBlock {
               put(s"/api/datasets/${datasetId}/files/${fileId}/metadata") {
@@ -645,7 +597,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "404(Illegal Argument) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyFile)
             val params = Map("d" -> compact(render(("name" -> "test1") ~ ("description" -> ""))))
             dbDisconnectedBlock {
@@ -658,7 +610,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyFile)
             signOut()
             dbDisconnectedBlock {
@@ -672,7 +624,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "404(NotFound) * 403(AccessDenied)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val dummyId = UUID.randomUUID.toString
             signOut()
             dummySignIn()
@@ -688,7 +640,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "404(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             delete(s"/api/datasets/${datasetId}/files/test") {
               checkStatus(404, ILLEGAL_ARGUMENT)
             }
@@ -697,7 +649,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyFile)
             signOut()
             delete(s"/api/datasets/${datasetId}/files/${fileId}") {
@@ -708,7 +660,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "404(NotFound)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val dummyId = UUID.randomUUID.toString
             delete(s"/api/datasets/${datasetId}/files/${dummyId}") {
               checkStatus(404, NOT_FOUND)
@@ -718,7 +670,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(AccessDenied)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyFile)
             signOut()
             dummySignIn()
@@ -730,7 +682,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyFile)
             dbDisconnectedBlock {
               delete(s"/api/datasets/${datasetId}/files/${fileId}") {
@@ -751,7 +703,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "404(Illegal Argument) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             dbDisconnectedBlock {
               delete(s"/api/datasets/${datasetId}/files/test") {
                 checkStatus(404, ILLEGAL_ARGUMENT)
@@ -762,7 +714,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyFile)
             signOut()
             dbDisconnectedBlock {
@@ -775,7 +727,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized) * 404(NotFound)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val dummyId = UUID.randomUUID.toString
             signOut()
             delete(s"/api/datasets/${datasetId}/files/${dummyId}") {
@@ -789,7 +741,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             put(s"/api/datasets/${datasetId}/metadata") {
               checkStatus(400, ILLEGAL_ARGUMENT)
             }
@@ -807,7 +759,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             signOut()
             val params = Map("d" -> compact(render(("name" -> "test") ~ ("description" -> "") ~ ("license" -> AppConf.defaultLicenseId) ~ ("attributes" -> Seq()))))
             put(s"/api/datasets/${datasetId}/metadata", params) {
@@ -828,7 +780,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(AccessDenied)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             signOut()
             dummySignIn()
             val params = Map("d" -> compact(render(("name" -> "test") ~ ("description" -> "") ~ ("license" -> AppConf.defaultLicenseId) ~ ("attributes" -> Seq()))))
@@ -840,7 +792,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(BadRequest)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val dummyId = UUID.randomUUID.toString
             val params = Map("d" -> compact(render(("name" -> "test") ~ ("description" -> "") ~ ("license" -> dummyId) ~ ("attributes" -> Seq()))))
             put(s"/api/datasets/${datasetId}/metadata", params) {
@@ -851,7 +803,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("name" -> "test") ~ ("description" -> "") ~ ("license" -> AppConf.defaultLicenseId) ~ ("attributes" -> Seq()))))
             dbDisconnectedBlock {
               put(s"/api/datasets/${datasetId}/metadata", params) {
@@ -878,7 +830,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             dbDisconnectedBlock {
               put(s"/api/datasets/${datasetId}/metadata") {
                 checkStatus(400, ILLEGAL_ARGUMENT)
@@ -900,7 +852,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             signOut()
             val params = Map("d" -> compact(render(("name" -> "test") ~ ("description" -> "") ~ ("license" -> AppConf.defaultLicenseId) ~ ("attributes" -> Seq()))))
             dbDisconnectedBlock {
@@ -924,7 +876,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(AccessDenied) * 400(BadRequest)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val dummyId = UUID.randomUUID.toString
             signOut()
             dummySignIn()
@@ -940,7 +892,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("limit" -> JInt(-1)))))
             get(s"/api/datasets/${datasetId}/images", params) {
               checkStatus(400, ILLEGAL_ARGUMENT)
@@ -950,7 +902,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "404(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("limit" -> JInt(1)))))
             get(s"/api/datasets/test/images", params) {
               checkStatus(404, ILLEGAL_ARGUMENT)
@@ -960,7 +912,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("limit" -> JInt(1)))))
             get(s"/api/datasets/${datasetId}/images", params, invalidApiKeyHeader) {
               checkStatus(403, UNAUTHORIZED)
@@ -980,7 +932,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(AccessDenied)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("limit" -> JInt(1)))))
             signOut()
             dummySignIn()
@@ -992,7 +944,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("limit" -> JInt(1)))))
             dbDisconnectedBlock {
               get(s"/api/datasets/${datasetId}/images", params) {
@@ -1022,7 +974,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("limit" -> JInt(-1)))))
             dbDisconnectedBlock {
               get(s"/api/datasets/${datasetId}/images", params) {
@@ -1034,7 +986,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "404(Illegal Argument) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("limit" -> JInt(1)))))
             get(s"/api/datasets/test/images", params) {
               checkStatus(404, ILLEGAL_ARGUMENT)
@@ -1044,7 +996,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("limit" -> JInt(1)))))
             dbDisconnectedBlock {
               get(s"/api/datasets/${datasetId}/images", params, invalidApiKeyHeader) {
@@ -1069,7 +1021,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             post(s"/api/datasets/${datasetId}/images", Map.empty) {
               checkStatus(400, ILLEGAL_ARGUMENT)
             }
@@ -1087,7 +1039,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val files = Map("images" -> dummyImage)
             signOut()
             post(s"/api/datasets/${datasetId}/images", Map.empty, files) {
@@ -1108,7 +1060,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(AccessDenied)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val files = Map("images" -> dummyImage)
             signOut()
             dummySignIn()
@@ -1120,7 +1072,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val files = Map("images" -> dummyImage)
             dbDisconnectedBlock {
               post(s"/api/datasets/${datasetId}/images", Map.empty, files) {
@@ -1147,7 +1099,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             dbDisconnectedBlock {
               post(s"/api/datasets/${datasetId}/images", Map.empty) {
                 checkStatus(400, ILLEGAL_ARGUMENT)
@@ -1169,7 +1121,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val files = Map("images" -> dummyImage)
             signOut()
             dbDisconnectedBlock {
@@ -1195,7 +1147,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             put(s"/api/datasets/${datasetId}/images/primary") {
               checkStatus(400, ILLEGAL_ARGUMENT)
             }
@@ -1204,7 +1156,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "404(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val imageId = AppConf.defaultDatasetImageId
             val params = Map("d" -> compact(render(("imageId" -> imageId))))
             put(s"/api/datasets/test/images/primary", params) {
@@ -1215,7 +1167,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val imageId = AppConf.defaultDatasetImageId
             val params = Map("d" -> compact(render(("imageId" -> imageId))))
             signOut()
@@ -1238,7 +1190,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(AccessDenied)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val imageId = AppConf.defaultDatasetImageId
             val params = Map("d" -> compact(render(("imageId" -> imageId))))
             signOut()
@@ -1251,7 +1203,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val imageId = AppConf.defaultDatasetImageId
             val params = Map("d" -> compact(render(("imageId" -> imageId))))
             dbDisconnectedBlock {
@@ -1280,7 +1232,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             dbDisconnectedBlock {
               put(s"/api/datasets/${datasetId}/images/primary") {
                 checkStatus(400, ILLEGAL_ARGUMENT)
@@ -1319,7 +1271,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "404(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             delete(s"/api/datasets/${datasetId}/images/test") {
               checkStatus(404, ILLEGAL_ARGUMENT)
             }
@@ -1328,7 +1280,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val imageId = getDatasetImageId(datasetId)
             signOut()
             delete(s"/api/datasets/${datasetId}/images/${imageId}") {
@@ -1339,7 +1291,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "404(NotFound)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val dummyId = UUID.randomUUID.toString
             delete(s"/api/datasets/${datasetId}/images/${dummyId}") {
               checkStatus(404, NOT_FOUND)
@@ -1349,7 +1301,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(AccessDenied)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val imageId = getDatasetImageId(datasetId)
             signOut()
             dummySignIn()
@@ -1361,7 +1313,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(BadRequest)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val imageId = AppConf.defaultDatasetImageId
             delete(s"/api/datasets/${datasetId}/images/${imageId}") {
               checkStatus(400, BAD_REQUEST)
@@ -1371,7 +1323,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val imageId = getDatasetImageId(datasetId)
             dbDisconnectedBlock {
               delete(s"/api/datasets/${datasetId}/images/${imageId}") {
@@ -1391,7 +1343,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "404(Illegal Argument) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             delete(s"/api/datasets/${datasetId}/images/test") {
               checkStatus(404, ILLEGAL_ARGUMENT)
             }
@@ -1400,7 +1352,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val imageId = getDatasetImageId(datasetId)
             signOut()
             dbDisconnectedBlock {
@@ -1413,7 +1365,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized) * 404(NotFound)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val imageId = getDatasetImageId(datasetId)
             signOut()
             val dummyId = UUID.randomUUID.toString
@@ -1425,7 +1377,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "404(NotFound) * 400(BadRequest)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val dummyId = UUID.randomUUID.toString
             val imageId = AppConf.defaultDatasetImageId
             delete(s"/api/datasets/${dummyId}/images/${imageId}") {
@@ -1439,7 +1391,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("limit" -> JInt(-1)))))
             get(s"/api/datasets/${datasetId}/acl", params) {
               checkStatus(400, ILLEGAL_ARGUMENT)
@@ -1458,7 +1410,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("limit" -> JInt(1)))))
             get(s"/api/datasets/${datasetId}/acl", params, invalidApiKeyHeader) {
               checkStatus(403, UNAUTHORIZED)
@@ -1478,7 +1430,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(AccessDenied)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("limit" -> JInt(1)))))
             signOut()
             dummySignIn()
@@ -1490,7 +1442,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("limit" -> JInt(1)))))
             dbDisconnectedBlock {
               get(s"/api/datasets/${datasetId}/acl", params) {
@@ -1520,7 +1472,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("limit" -> JInt(-1)))))
             dbDisconnectedBlock {
               get(s"/api/datasets/${datasetId}/acl", params) {
@@ -1543,7 +1495,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("limit" -> JInt(1)))))
             dbDisconnectedBlock {
               get(s"/api/datasets/${datasetId}/acl", params, invalidApiKeyHeader) {
@@ -1568,7 +1520,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             post(s"/api/datasets/${datasetId}/acl") {
               checkStatus(400, ILLEGAL_ARGUMENT)
             }
@@ -1586,7 +1538,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(Seq(("id" -> testUserId) ~ ("ownerType" -> JInt(1)) ~ ("accessLevel" -> JInt(3))))))
             signOut()
             post(s"/api/datasets/${datasetId}/acl", params) {
@@ -1607,7 +1559,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(AccessDenied)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(Seq(("id" -> testUserId) ~ ("ownerType" -> JInt(1)) ~ ("accessLevel" -> JInt(3))))))
             signOut()
             dummySignIn()
@@ -1619,7 +1571,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(BadRequest)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(Seq(("id" -> testUserId) ~ ("ownerType" -> JInt(1)) ~ ("accessLevel" -> JInt(1))))))
             post(s"/api/datasets/${datasetId}/acl", params) {
               checkStatus(400, BAD_REQUEST)
@@ -1629,7 +1581,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(Seq(("id" -> testUserId) ~ ("ownerType" -> JInt(1)) ~ ("accessLevel" -> JInt(3))))))
             dbDisconnectedBlock {
               post(s"/api/datasets/${datasetId}/acl", params) {
@@ -1656,7 +1608,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             dbDisconnectedBlock {
               post(s"/api/datasets/${datasetId}/acl") {
                 checkStatus(400, ILLEGAL_ARGUMENT)
@@ -1678,7 +1630,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(Seq(("id" -> testUserId) ~ ("ownerType" -> JInt(1)) ~ ("accessLevel" -> JInt(3))))))
             signOut()
             dbDisconnectedBlock {
@@ -1701,7 +1653,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(AccessDenied) * 400(BadRequest)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(Seq(("id" -> testUserId) ~ ("ownerType" -> JInt(1)) ~ ("accessLevel" -> JInt(1))))))
             signOut()
             dummySignIn()
@@ -1716,7 +1668,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             put(s"/api/datasets/${datasetId}/guest_access") {
               checkStatus(400, ILLEGAL_ARGUMENT)
             }
@@ -1734,7 +1686,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("accessLevel" -> JInt(1)))))
             signOut()
             put(s"/api/datasets/${datasetId}/guest_access", params) {
@@ -1755,7 +1707,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(AccessDenied)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("accessLevel" -> JInt(1)))))
             signOut()
             dummySignIn()
@@ -1767,7 +1719,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("accessLevel" -> JInt(1)))))
             dbDisconnectedBlock {
               put(s"/api/datasets/${datasetId}/guest_access", params) {
@@ -1794,7 +1746,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             dbDisconnectedBlock {
               put(s"/api/datasets/${datasetId}/guest_access") {
                 checkStatus(400, ILLEGAL_ARGUMENT)
@@ -1816,7 +1768,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("accessLevel" -> JInt(1)))))
             signOut()
             dbDisconnectedBlock {
@@ -1851,7 +1803,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             signOut()
             delete(s"/api/datasets/${datasetId}") {
               checkStatus(403, UNAUTHORIZED)
@@ -1870,7 +1822,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(AccessDenied)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             signOut()
             dummySignIn()
             delete(s"/api/datasets/${datasetId}") {
@@ -1881,7 +1833,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             dbDisconnectedBlock {
               delete(s"/api/datasets/${datasetId}") {
                 checkStatus(500, NG)
@@ -1909,7 +1861,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             signOut()
             dbDisconnectedBlock {
               delete(s"/api/datasets/${datasetId}") {
@@ -1932,7 +1884,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             put(s"/api/datasets/${datasetId}/storage") {
               checkStatus(400, ILLEGAL_ARGUMENT)
             }
@@ -1950,7 +1902,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("saveLocal" -> JBool(true)) ~ ("saveS3" -> JBool(false)))))
             signOut()
             put(s"/api/datasets/${datasetId}/storage", params) {
@@ -1971,7 +1923,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(AccessDenied)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("saveLocal" -> JBool(true)) ~ ("saveS3" -> JBool(false)))))
             signOut()
             dummySignIn()
@@ -1983,7 +1935,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("saveLocal" -> JBool(true)) ~ ("saveS3" -> JBool(false)))))
             dbDisconnectedBlock {
               put(s"/api/datasets/${datasetId}/storage", params) {
@@ -2010,7 +1962,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             dbDisconnectedBlock {
               put(s"/api/datasets/${datasetId}/storage") {
                 checkStatus(400, ILLEGAL_ARGUMENT)
@@ -2032,7 +1984,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("saveLocal" -> JBool(true)) ~ ("saveS3" -> JBool(false)))))
             signOut()
             dbDisconnectedBlock {
@@ -2066,7 +2018,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             signOut()
             post(s"/api/datasets/${datasetId}/copy") {
               checkStatus(403, UNAUTHORIZED)
@@ -2085,7 +2037,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(AccessDenied)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             signOut()
             dummySignIn()
             post(s"/api/datasets/${datasetId}/copy") {
@@ -2096,7 +2048,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             dbDisconnectedBlock {
               post(s"/api/datasets/${datasetId}/copy") {
                 checkStatus(500, NG)
@@ -2124,7 +2076,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             signOut()
             dbDisconnectedBlock {
               post(s"/api/datasets/${datasetId}/copy") {
@@ -2155,7 +2107,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             get(s"/api/datasets/${datasetId}/attributes/export", Map.empty, invalidApiKeyHeader) {
               checkStatus(403, UNAUTHORIZED)
             }
@@ -2173,7 +2125,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(AccessDenied)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             signOut()
             dummySignIn()
             get(s"/api/datasets/${datasetId}/attributes/export") {
@@ -2184,7 +2136,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             dbDisconnectedBlock {
               get(s"/api/datasets/${datasetId}/attributes/export") {
                 checkStatus(500, NG)
@@ -2210,7 +2162,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             signOut()
             dbDisconnectedBlock {
               get(s"/api/datasets/${datasetId}/attributes/export", Map.empty, invalidApiKeyHeader) {
@@ -2234,7 +2186,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             put(s"/api/datasets/${datasetId}/images/featured") {
               checkStatus(400, ILLEGAL_ARGUMENT)
             }
@@ -2243,7 +2195,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "404(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val imageId = AppConf.defaultDatasetImageId
             val params = Map("d" -> compact(render(("imageId" -> imageId))))
             put(s"/api/datasets/test/images/featured", params) {
@@ -2254,7 +2206,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val imageId = AppConf.defaultDatasetImageId
             val params = Map("d" -> compact(render(("imageId" -> imageId))))
             signOut()
@@ -2277,7 +2229,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(AccessDenied)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val imageId = AppConf.defaultDatasetImageId
             val params = Map("d" -> compact(render(("imageId" -> imageId))))
             signOut()
@@ -2290,7 +2242,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val imageId = AppConf.defaultDatasetImageId
             val params = Map("d" -> compact(render(("imageId" -> imageId))))
             dbDisconnectedBlock {
@@ -2319,7 +2271,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             dbDisconnectedBlock {
               put(s"/api/datasets/${datasetId}/images/featured") {
                 checkStatus(400, ILLEGAL_ARGUMENT)
@@ -2358,7 +2310,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("limit" -> JInt(-1)))))
             get(s"/api/datasets/${datasetId}/files", params) {
               checkStatus(400, ILLEGAL_ARGUMENT)
@@ -2377,7 +2329,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("limit" -> JInt(1)))))
             get(s"/api/datasets/${datasetId}/files", params, invalidApiKeyHeader) {
               checkStatus(403, UNAUTHORIZED)
@@ -2397,7 +2349,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(AccessDenied)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("limit" -> JInt(1)))))
             signOut()
             dummySignIn()
@@ -2409,7 +2361,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("limit" -> JInt(1)))))
             dbDisconnectedBlock {
               get(s"/api/datasets/${datasetId}/files", params) {
@@ -2439,7 +2391,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("limit" -> JInt(-1)))))
             dbDisconnectedBlock {
               get(s"/api/datasets/${datasetId}/files", params) {
@@ -2462,7 +2414,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("limit" -> JInt(1)))))
             signOut()
             dbDisconnectedBlock {
@@ -2475,7 +2427,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized) * 404(NotFound)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("limit" -> JInt(1)))))
             signOut()
             get(s"/api/datasets/${datasetId}/files", params, invalidApiKeyHeader) {
@@ -2489,7 +2441,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyZipFile)
             val params = Map("d" -> compact(render(("limit" -> JInt(-1)))))
             get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles", params) {
@@ -2500,7 +2452,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "404(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("limit" -> JInt(1)))))
             get(s"/api/datasets/test/files/test/zippedfiles", params) {
               checkStatus(404, ILLEGAL_ARGUMENT)
@@ -2510,7 +2462,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyZipFile)
             val params = Map("d" -> compact(render(("limit" -> JInt(1)))))
             get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles", params, invalidApiKeyHeader) {
@@ -2521,7 +2473,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "404(NotFound)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val dummyId = UUID.randomUUID.toString
             val fileId = getFileId(datasetId, dummyZipFile)
             val params = Map("d" -> compact(render(("limit" -> JInt(1)))))
@@ -2533,7 +2485,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(AccessDenied)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyZipFile)
             val params = Map("d" -> compact(render(("limit" -> JInt(1)))))
             signOut()
@@ -2546,7 +2498,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(BadRequest)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyFile)
             val params = Map("d" -> compact(render(("limit" -> JInt(1)))))
             get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles", params) {
@@ -2557,7 +2509,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyZipFile)
             val params = Map("d" -> compact(render(("limit" -> JInt(1)))))
             dbDisconnectedBlock {
@@ -2570,7 +2522,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "All" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val dummyId = UUID.randomUUID.toString
             val params = Map("d" -> compact(render(("limit" -> JInt(-1)))))
             signOut()
@@ -2583,7 +2535,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument) * 404(Illegal Argument)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("limit" -> JInt(-1)))))
             get(s"/api/datasets/${datasetId}/files/test/zippedfiles", params) {
               checkStatus(400, ILLEGAL_ARGUMENT)
@@ -2593,7 +2545,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "400(Illegal Argument) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyZipFile)
             val params = Map("d" -> compact(render(("limit" -> JInt(-1)))))
             dbDisconnectedBlock {
@@ -2606,7 +2558,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "404(Illegal Argument) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val params = Map("d" -> compact(render(("limit" -> JInt(1)))))
             dbDisconnectedBlock {
               get(s"/api/datasets/test/files/test/zippedfiles", params) {
@@ -2618,7 +2570,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "403(Unauthorized) * 500(NG)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val fileId = getFileId(datasetId, dummyZipFile)
             val params = Map("d" -> compact(render(("limit" -> JInt(1)))))
             dbDisconnectedBlock {
@@ -2631,7 +2583,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "404(NotFound) * 403(AccessDenied)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val dummyId = UUID.randomUUID.toString
             val fileId = getFileId(datasetId, dummyZipFile)
             val params = Map("d" -> compact(render(("limit" -> JInt(1)))))
@@ -2645,7 +2597,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
         "404(NotFound) * 400(BadRequest)" in {
           session {
             signIn()
-            val datasetId = createDataset().id
+            val datasetId = createDataset()
             val dummyId = UUID.randomUUID.toString
             val fileId = getFileId(datasetId, dummyFile)
             val params = Map("d" -> compact(render(("limit" -> JInt(1)))))
@@ -2686,19 +2638,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
    * ダミーユーザでサインインします。
    */
   private def dummySignIn(): Unit = {
-    post("/api/signin", dummyUserLoginParams) {
-      checkStatus(200, "OK")
-    }
-  }
-
-  /**
-   * テストユーザでサインインします。
-   */
-  private def signIn() {
-    val params = Map("d" -> compact(render(("id" -> "dummy1") ~ ("password" -> "password"))))
-    post("/api/signin", params) {
-      checkStatus(200, "OK")
-    }
+    signIn("dummy4")
   }
 
   /**
@@ -2730,28 +2670,7 @@ class DatasetStatusCheckSpec extends FreeSpec with ScalatraSuite with BeforeAndA
     }
   }
 
-  /**
-   * データセットを作成します。
-   *
-   * @return 作成したデータセット
-   */
-  private def createDataset(): Dataset = {
-    val params = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
-    post("/api/datasets", params) {
-      checkStatus(200, "OK")
-      parse(body).extract[AjaxResponse[Dataset]].data
-    }
-  }
-
-  /**
-   * API呼び出し結果のstatusを確認します。
-   *
-   * @param statusCode ステータスコード
-   * @param statuString ステータス文字列
-   */
-  private def checkStatus(statusCode: Int, statusString: String): Unit = {
-    status should be(statusCode)
-    val result = parse(body).extract[AjaxResponse[Any]]
-    result.status should be(statusString)
+  private def checkStatus(code: Int, str: String): Unit = {
+    checkStatus(code, Some(str))
   }
 }
