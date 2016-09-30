@@ -23,9 +23,11 @@
             </span>
           </div>
         </div>
+        {^{if !myself^isGuest}}
         <div class="col-xs-2 col-md-2 save-area">
           <button class="btn btn-default query-save-button">Save</button>
         </div>
+        {{/if}}
       </div>
     </div>
   </div>
@@ -114,9 +116,11 @@
         <div class="col-xs-10 col-md-10">
           <button class="btn btn-primary search-button">Search</button>
         </div>
+        {^{if !myself^isGuest}}
         <div class="col-xs-2 col-md-2 save-area">
           <button class="btn btn-default query-save-button">Save</button>
         </div>
+        {{/if}}
       </div>
     </div>
   </div>

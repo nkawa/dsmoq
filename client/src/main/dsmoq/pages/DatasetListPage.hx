@@ -42,6 +42,7 @@ class DatasetListPage {
     public static function render(root: Html, onClose: Promise<Unit>, pageNum: Int, searchQuery: String): Promise<Navigation<Page>> {
         var navigation = new PromiseBroker();
         var data = {
+            myself: Service.instance.profile,
             condition: conditionInputFromString(searchQuery),
             result: Async.Pending,
             page: {
