@@ -5,9 +5,19 @@
     <New class="org.eclipse.jetty.server.session.SessionHandler">
       <Arg>
         <New class="org.eclipse.jetty.server.session.HashSessionManager">
-          <Set name="storeDirectory">../tmp/session</Set>
-          <Set name="savePeriod">5</Set>
-          <Set name="maxInactiveInterval">604800</Set>
+          <Call name="setStoreDirectory">
+            <Arg>
+              <New class="java.io.File">
+                <Arg type="String">../tmp/session</Arg>
+              </New>
+            </Arg>
+          </Call>
+          <Call name="setSavePeriod">
+            <Arg type="int">5</Arg>
+          </Call>
+          <Call name="setMaxInactiveInterval">
+            <Arg type="int">604800</Arg>
+          </Call>
         </New>
       </Arg>
     </New>

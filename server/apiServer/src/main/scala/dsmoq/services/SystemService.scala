@@ -420,7 +420,7 @@ object SystemService extends LazyLogging {
             .isNull(a.deletedAt)
             .orderBy(a.name)
             .offset(offset.getOrElse(0))
-            .limit(offset.getOrElse(100))
+            .limit(limit.getOrElse(100))
         }.map(rs => rs.string(a.resultName.name)).list.apply
       }
     }

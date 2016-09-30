@@ -18,3 +18,5 @@ sdk/.idea/*
 .idea/*
 
 application.conf
+
+tmp/session/*
