@@ -98,7 +98,11 @@ trait AuthTrait { this: ScalatraServlet with LazyLogging =>
     }
     ret.getOrElse {
       logger.info(LOG_MARKER, "Auth: Get user from Session: User not found. Use guest user.")
-      AppConf.guestUser
+      if (cookies.get("user.disabled") == Some("true")) {
+        AppConf.guestUser.copy(isDisabled = true)
+      } else {
+        AppConf.guestUser
+      }
     }
   }
 

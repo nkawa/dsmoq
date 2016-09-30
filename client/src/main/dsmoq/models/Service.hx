@@ -33,8 +33,27 @@ class Service extends Stream<ServiceEvent> {
         profile = guest();
         licenses = [];
 
+        var profilePromice = new Promise(function(context) {
+            send(Get, "/api/profile").then(
+                function (x) {
+                    profile = x;
+                    context.fulfill(Unit._);
+                },
+                function(_) {
+                    if (Cookie.get("user.disabled") == "true") {
+                        Cookie.remove("user.disabled");
+                        context.fulfill(Unit._);
+                    } else {
+                        signout().then(function(_) {
+                            Cookie.set("user.disabled", "true");
+                            js.Browser.location.href = "/";
+                        });
+                    }
+                }
+            );
+        });
         bootstrap = Promise.all([
-            send(Get, "/api/profile").then(function (x) profile = x).map(function (_) return Unit._),
+            profilePromice,
             send(Get, "/api/licenses").then(function (x) licenses = x).map(function (_) return Unit._)
         ]).map(function (_) return Unit._);
     }
