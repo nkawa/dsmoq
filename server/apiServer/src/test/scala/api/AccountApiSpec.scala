@@ -14,7 +14,7 @@ import dsmoq.persistence.SuggestType
 import dsmoq.services.User
 import dsmoq.services.json.DatasetData.Dataset
 import dsmoq.services.json.GroupData.Group
-import dsmoq.services.json.{ MailValidationResult, License }
+import dsmoq.services.json.License
 
 class AccountApiSpec extends DsmoqSpec {
   private val dummyFile = new File("../README.md")
@@ -132,16 +132,6 @@ class AccountApiSpec extends DsmoqSpec {
           put("/api/profile/password", rollbackParams) { checkStatus() }
           post("/api/signout") { checkStatus() }
           signIn()
-        }
-      }
-
-      "メールアドレスが重複していないか" in {
-        val params = Map("value" -> "hogehoge@hoge.jp")
-        get("/api/system/is_valid_email", params) {
-          checkStatus()
-          //TODO 実装されたら書く
-          //          val result = parse(body).extract[AjaxResponse[MailValidationResult]]
-          //          assert(result.data.isValid)
         }
       }
 

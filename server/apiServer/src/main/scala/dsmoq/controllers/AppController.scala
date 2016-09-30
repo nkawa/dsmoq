@@ -23,6 +23,12 @@ import dsmoq.services.AccountService
 import dsmoq.services.DatasetService
 import dsmoq.services.User
 
+/**
+ * /appsにマッピングされるサーブレットクラス
+ * JavaWebStart関連のJar/JNLPへのアクセスを提供する。
+ *
+ * @param resource リソースバンドル
+ */
 class AppController(
   val resource: ResourceBundle
 ) extends ScalatraServlet with JacksonJsonSupport with LazyLogging {
@@ -53,10 +59,12 @@ class AppController(
     contentType = formats("json")
   }
 
+  // いずれにもマッチしないGETリクエスト
   get("/*") {
     NotFound(AjaxResponse("NotFound")) // 404
   }
 
+  // JNLPファイル取得
   get("/:userId/:datasetId.jnlp") {
     val userId = params("userId")
     val datasetId = params("datasetId")
@@ -73,6 +81,7 @@ class AppController(
     toActionResult(ret)
   }
 
+  // JARファイル取得
   get("/:userId/:datasetId.jar") {
     val userId = params("userId")
     val datasetId = params("datasetId")

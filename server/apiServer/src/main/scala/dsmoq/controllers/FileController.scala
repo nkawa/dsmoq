@@ -24,6 +24,12 @@ import dsmoq.services.DatasetService.DownloadFileS3Zipped
 import dsmoq.services.User
 import javax.servlet.http.HttpServletRequest
 
+/**
+ * /filesにマッピングされるサーブレットクラス。
+ * ファイルのダウンロード機能を提供する。
+ *
+ * @param resource リソースバンドル
+ */
 class FileController(val resource: ResourceBundle) extends ScalatraServlet with LazyLogging with AuthTrait {
 
   /**

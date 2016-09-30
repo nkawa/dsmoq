@@ -8,10 +8,29 @@ import org.slf4j.MarkerFactory
 
 import com.typesafe.scalalogging.LazyLogging
 
+/**
+ * Zip処理のユーティリティオブジェクト
+ */
 object ZipUtil extends LazyLogging {
 
   val LOG_MARKER = MarkerFactory.getMarker("ZIP_LOG")
 
+  /**
+   * ZipLocalHeaderの情報
+   *
+   * @param extractVersion 展開に必要なバージョン
+   * @param option オプション(汎用目的のビットフラグ)
+   * @param method 圧縮メソッド
+   * @param time ファイルの最終変更時間
+   * @param date ファイルの最終変更日付
+   * @param crc32 CRC-32
+   * @param compressSize 圧縮サイズ
+   * @param uncompressSize 非圧縮サイズ
+   * @param fileNameLength ファイル名の長さ
+   * @param extraLength 拡張フィールドの長さ
+   * @param fileName ファイル名
+   * @param extra 拡張フィールド
+   */
   case class ZipLocalHeader(
     extractVersion: Short,
     option: Short,
@@ -26,6 +45,16 @@ object ZipUtil extends LazyLogging {
     fileName: String,
     extra: Array[Byte]
   )
+
+  /**
+   * Zip内ファイル一件当たりの解析情報
+   *
+   * @param fileNameファイル名
+   * @param localHeaderOffset Zipファイル内でのLocalHeaderの位置
+   * @param dataSizeWithLocalHeader LocalHeaderを付与した状態でのデータサイズ
+   * @param uncompressSize 非圧縮サイズ
+   * @param centralHeader CentralHeaderのByte列
+   */
   case class ZipInfo(
     fileName: String,
     localHeaderOffset: Long,
@@ -33,6 +62,14 @@ object ZipUtil extends LazyLogging {
     uncompressSize: Long,
     centralHeader: Array[Byte]
   )
+
+  /**
+   * ZipLocalHeaderをZip内ファイル一件当たりの解析情報に変換する。
+   *
+   * @param offset Zipファイル内でのLocalHeaderの位置
+   * @param localHeader ZipLocalHeader
+   * @param centralHeader CentralHeaderのByte列
+   */
   def toZipInfo(offset: Long, localHeader: ZipLocalHeader, centralHeader: Array[Byte]): ZipInfo = {
     val localHeaderSize = 30 + localHeader.fileNameLength + localHeader.extraLength
     ZipInfo(
@@ -43,6 +80,14 @@ object ZipUtil extends LazyLogging {
       centralHeader = centralHeader
     )
   }
+
+  /**
+   * ファイルを指定したByte分読み込み、Longとして取得する。
+   *
+   * @param ra ファイル
+   * @param n 読み込むByte数
+   * @param Longとして変換された読み込み内容
+   */
   def read(ra: RandomAccessFile, n: Int): Long = {
     var ret = 0L
     var i = 0
@@ -54,6 +99,15 @@ object ZipUtil extends LazyLogging {
     }
     ret
   }
+
+  /**
+   * ファイルを指定した位置から指定したByte分読み込み、Longとして取得する。
+   *
+   * @param ra ファイル
+   * @param from 読み込み開始位置
+   * @param n 読み込むByte数
+   * @param Longとして変換された読み込み内容
+   */
   def read(a: Array[Byte], from: Int, n: Int): Long = {
     var ret = 0L
     var i = 0
@@ -86,6 +140,13 @@ object ZipUtil extends LazyLogging {
     }
     ret.toList
   }
+
+  /**
+   * 256の指定Byteシフトした値を計算する。
+   *
+   * @param x 指定値
+   * @return 計算結果
+   */
   def p2(x: Int): Long = {
     var i = 0
     var ret = 1L

@@ -27,8 +27,15 @@ import scalikejdbc.select
 import scalikejdbc.sqls
 import scalikejdbc.withSQL
 
+/**
+ * システムデータ、サジェストの処理を取り扱うサービスクラス
+ */
 object SystemService extends LazyLogging {
+
+  /** ユーザ画像のURLルート */
   private val userImageDownloadRoot = AppConf.imageDownloadRoot + "user/"
+
+  /** グループ画像のURLルート */
   private val groupImageDownloadRoot = AppConf.imageDownloadRoot + "groups/"
 
   private val LOG_MARKER_USER_GROUP = MarkerFactory.getMarker("USER_GROUP")
@@ -38,10 +45,14 @@ object SystemService extends LazyLogging {
    *
    * @param datasetId データセットID
    * @param user ユーザオブジェクト
-   * @return エラーが発生した場合は、例外をFailureに包んで返却する。
+   * @return
+   *     Success(Unit) 記入に成功した場合
+   *     Failure(NullPointerException) 引数がnullの場合
    */
   def writeDatasetAccessLog(datasetId: String, user: User): Try[Unit] = {
     Try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(user, "user")
       DB.localTx { implicit s =>
         if (persistence.Dataset.find(datasetId).nonEmpty) {
           persistence.DatasetAccessLog.create(UUID.randomUUID().toString, datasetId, user.id, DateTime.now)
@@ -53,7 +64,7 @@ object SystemService extends LazyLogging {
   /**
    * ライセンスの一覧を取得する。
    *
-   * @return ライセンスの一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
+   * @return Success(License) 取得に成功した場合、ライセンスの一覧
    */
   def getLicenses(): Try[Seq[dsmoq.services.json.License]] = {
     Try {
@@ -72,7 +83,7 @@ object SystemService extends LazyLogging {
   /**
    * ユーザの一覧を取得する。
    *
-   * @return ユーザの一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
+   * @return Success(Seq[User]) 取得に成功した場合、ユーザの一覧
    */
   def getAccounts(): Try[Seq[User]] = {
     Try {
@@ -104,7 +115,9 @@ object SystemService extends LazyLogging {
    * @param query 絞り込み条件 (比較対象：DB:users.name, users.fullname, mail_addresses.address)
    * @param limit 取得件数
    * @param offset 取得位置
-   * @return (条件に該当する) ユーザ一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
+   * @return
+   *     Success(Seq[SuggestData.User]) 取得に成功した場合、条件に合致するユーザ一覧
+   *     Failure(NullPointerException) 引数がnullの場合
    */
   def getUsers(query: Option[String], limit: Option[Int], offset: Option[Int]): Try[Seq[SuggestData.User]] = {
     logger.debug(
@@ -115,6 +128,9 @@ object SystemService extends LazyLogging {
       limit
     )
     Try {
+      CheckUtil.checkNull(query, "query")
+      CheckUtil.checkNull(limit, "limit")
+      CheckUtil.checkNull(offset, "offset")
       DB.readOnly { implicit s =>
         val u = persistence.User.u // TB: users
         val ma = persistence.MailAddress.ma // TB: mail_addresses
@@ -186,10 +202,15 @@ object SystemService extends LazyLogging {
    * @param query 絞り込み条件 (比較対象：DB:groups.name)
    * @param limit 取得件数
    * @param offset 取得位置
-   * @return グループ一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
+   * @return
+   *     Success(Seq[SuggestData.Group]) 取得に成功した場合、条件に合致するグループ一覧
+   *     Failure(NullPointerException) 引数がnullの場合
    */
   def getGroups(query: Option[String], limit: Option[Int], offset: Option[Int]): Try[Seq[SuggestData.Group]] = {
     Try {
+      CheckUtil.checkNull(query, "query")
+      CheckUtil.checkNull(limit, "limit")
+      CheckUtil.checkNull(offset, "offset")
       val escapedQuery = query match {
         case Some(x) => x.replaceAll("%", "\\\\%").replaceAll("_", "\\\\_") + "%"
         case None => ""
@@ -233,7 +254,9 @@ object SystemService extends LazyLogging {
    * @param limit 取得件数
    * @param offset 取得位置
    * @param excludeIds 除外対象のid (除外対象：DB:users.id, groups.id)
-   * @return (条件に該当する) ユーザとグループの一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
+   * @return
+   *     Success(Seq[SuggestData.WithType]) 取得に成功した場合、条件に合致するユーザ・グループ一覧
+   *     Failure(NullPointerException) 引数がnullの場合
    */
   def getUsersAndGroups(
     param: Option[String],
@@ -249,11 +272,15 @@ object SystemService extends LazyLogging {
       limit,
       excludeIds
     )
-    val query = param match {
-      case Some(x) => x.replaceAll("%", "\\\\%").replaceAll("_", "\\\\_") + "%"
-      case None => "%"
-    }
     Try {
+      CheckUtil.checkNull(param, "param")
+      CheckUtil.checkNull(limit, "limit")
+      CheckUtil.checkNull(offset, "offset")
+      CheckUtil.checkNull(excludeIds, "excludeIds")
+      val query = param match {
+        case Some(x) => x.replaceAll("%", "\\\\%").replaceAll("_", "\\\\_") + "%"
+        case None => "%"
+      }
       DB.readOnly { implicit s =>
         val u = persistence.User.u // TB: users
         val ma = persistence.MailAddress.ma // TB: mail_addresses
@@ -369,10 +396,15 @@ object SystemService extends LazyLogging {
    * @param query 絞り込み条件 (比較対象：DB:annotation.name)
    * @param limit 取得件数
    * @param offset 取得位置
-   * @return 属性の一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
+   * @return
+   *     Success(Seq[String]) 取得に成功した場合、条件に合致する属性の一覧
+   *     Failure(NullPointerException) 引数がnullの場合
    */
   def getAttributes(query: Option[String], limit: Option[Int], offset: Option[Int]): Try[Seq[String]] = {
     Try {
+      CheckUtil.checkNull(query, "query")
+      CheckUtil.checkNull(limit, "limit")
+      CheckUtil.checkNull(offset, "offset")
       val a = persistence.Annotation.a
       DB.readOnly { implicit s =>
         withSQL {
@@ -397,7 +429,7 @@ object SystemService extends LazyLogging {
   /**
    * タグの一覧を取得する。
    *
-   * @return タグの一覧。エラーが発生した場合は、例外をFailureに包んで返却する。
+   * @return Success(Seq[TagDetail]) 取得に成功した場合、タグの一覧
    */
   def getTags(): Try[Seq[TagDetail]] = {
     Try {
@@ -421,7 +453,7 @@ object SystemService extends LazyLogging {
   /**
    * トップページに表示するメッセージを取得する。
    *
-   * @return メッセージの文字列。エラーが発生した場合は、例外をFailureに包んで返却する。
+   * @return Success(Seq[TagDetail]) 取得に成功した場合、メッセージ文字列
    */
   def getMessage(): Try[String] = {
     Try {

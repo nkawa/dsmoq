@@ -72,6 +72,12 @@ import dsmoq.services.json.RangeSlice
 import dsmoq.services.json.SearchDatasetCondition
 import dsmoq.services.json.SearchDatasetConditionSerializer
 
+/**
+ * /apiにマッピングされるサーブレットクラス。
+ * WebAPIを提供する。
+ *
+ * @param resource リソースバンドル
+ */
 class ApiController(
   val resource: ResourceBundle
 ) extends ScalatraServlet with JacksonJsonSupport with FileUploadSupport with LazyLogging with AuthTrait {
@@ -131,18 +137,22 @@ class ApiController(
     }
   }
 
+  // いずれにもマッチしないGETリクエスト
   get("/*") {
     NotFound(AjaxResponse("NotFound")) // 404
   }
 
+  // いずれにもマッチしないPUTリクエスト
   put("/*") {
     NotFound(AjaxResponse("NotFound")) // 404
   }
 
+  // いずれにもマッチしないPOSTリクエスト
   post("/*") {
     NotFound(AjaxResponse("NotFound")) // 404
   }
 
+  // いずれにもマッチしないDELETEリクエスト
   delete("/*") {
     NotFound(AjaxResponse("NotFound")) // 404
   }
@@ -150,6 +160,7 @@ class ApiController(
   // --------------------------------------------------------------------------
   // auth api
   // --------------------------------------------------------------------------
+  // サインイン
   post("/signin") {
     val ret = for {
       d <- getJsonValueFromParams[SigninParams]
@@ -180,6 +191,7 @@ class ApiController(
     }
   }
 
+  // サインアウト
   post("/signout") {
     clearSession()
     AjaxResponse("OK", AppConf.guestUser)
@@ -188,6 +200,7 @@ class ApiController(
   // --------------------------------------------------------------------------
   // profile api
   // --------------------------------------------------------------------------
+  // プロフィール取得
   get("/profile") {
     val ret = for {
       user <- getUser(allowGuest = true)
@@ -198,6 +211,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // プロフィール更新
   put("/profile") {
     val ret = for {
       d <- getJsonValueFromParams[UpdateProfileParams]
@@ -222,6 +236,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // プロフィール画像更新
   post("/profile/image") {
     val ret = for {
       icon <- checkUtil.requireForForm("icon", fileParams.get("icon"))
@@ -236,6 +251,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // メールアドレス更新
   post("/profile/email_change_requests") {
     val ret = for {
       d <- getJsonValueFromParams[UpdateMailAddressParams]
@@ -251,6 +267,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // パスワード変更
   put("/profile/password") {
     val ret = for {
       d <- getJsonValueFromParams[UpdatePasswordParams]
@@ -268,6 +285,7 @@ class ApiController(
   // --------------------------------------------------------------------------
   // dataset api
   // --------------------------------------------------------------------------
+  // データセット作成
   post("/datasets") {
     val files = fileMultiParams.get("file[]").getOrElse(Seq.empty).filter(_.name.nonEmpty)
     val ret = for {
@@ -291,6 +309,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセット一覧取得
   get("/datasets") {
     val ret = for {
       d <- getJsonValueFromParams[SearchDatasetParams]
@@ -367,6 +386,7 @@ class ApiController(
     }
   }
 
+  // データセット詳細取得
   get("/datasets/:datasetId") {
     val id = params("datasetId")
     val ret = for {
@@ -380,6 +400,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセット ファイル追加
   post("/datasets/:datasetId/files") {
     val id = params("datasetId")
     val ret = for {
@@ -395,6 +416,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセット ファイル変更(更新)
   post("/datasets/:datasetId/files/:fileId") {
     val datasetId = params("datasetId")
     val fileId = params("fileId")
@@ -411,6 +433,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセット ファイルメタデータ変更
   put("/datasets/:datasetId/files/:fileId/metadata") {
     val datasetId = params("datasetId")
     val fileId = params("fileId")
@@ -430,6 +453,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセット ファイル削除
   delete("/datasets/:datasetId/files/:fileId") {
     val datasetId = params("datasetId")
     val fileId = params("fileId")
@@ -444,6 +468,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセット メタデータ編集
   put("/datasets/:datasetId/metadata") {
     val datasetId = params("datasetId")
     val ret = for {
@@ -475,6 +500,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセット画像一覧取得
   get("/datasets/:datasetId/images") {
     val datasetId = params("datasetId")
     val ret = for {
@@ -491,6 +517,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセット 画像追加
   post("/datasets/:datasetId/images") {
     val datasetId = params("datasetId")
     val ret = for {
@@ -506,6 +533,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセット メイン画像設定
   put("/datasets/:datasetId/images/primary") {
     val datasetId = params("datasetId")
     val ret = for {
@@ -523,6 +551,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセット 画像削除
   delete("/datasets/:datasetId/images/:imageId") {
     val datasetId = params("datasetId")
     val imageId = params("imageId")
@@ -537,6 +566,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセットアクセスレベル一覧取得
   get("/datasets/:datasetId/acl") {
     val datasetId = params("datasetId")
     val ret = for {
@@ -553,6 +583,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセット ACLアイテム アクセスレベル設定
   post("/datasets/:datasetId/acl") {
     val datasetId = params("datasetId")
     val ret = for {
@@ -576,6 +607,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセット ACL ゲストアクセスレベル設定
   put("/datasets/:datasetId/guest_access") {
     val datasetId = params("datasetId")
     val ret = for {
@@ -592,6 +624,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセット削除
   delete("/datasets/:datasetId") {
     val datasetId = params("datasetId")
     val ret = for {
@@ -602,6 +635,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセット保存先変更
   put("/datasets/:datasetId/storage") {
     val datasetId = params("datasetId")
     val ret = for {
@@ -623,6 +657,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセットコピー
   post("/datasets/:datasetId/copy") {
     val datasetId = params("datasetId")
     val ret = for {
@@ -635,6 +670,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセット属性インポート
   post("/datasets/:datasetId/attributes/import") {
     val datasetId = params("datasetId")
     val ret = for {
@@ -647,6 +683,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセット属性エクスポート
   get("/datasets/:datasetId/attributes/export") {
     val datasetId = params("datasetId")
     val ret = for {
@@ -666,6 +703,7 @@ class ApiController(
     }
   }
 
+  // データセットFeatured画像設定
   put("/datasets/:datasetId/images/featured") {
     val datasetId = params("datasetId")
     val ret = for {
@@ -683,6 +721,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセットファイル一覧取得
   get("/datasets/:datasetId/files") {
     val datasetId = params("datasetId")
     val ret = for {
@@ -699,6 +738,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセットZIP内ファイル一覧取得
   get("/datasets/:datasetId/files/:fileId/zippedfiles") {
     val datasetId = params("datasetId")
     val fileId = params("fileId")
@@ -717,6 +757,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // アプリ一覧取得
   get("/datasets/:datasetId/apps") {
     val datasetId = params("datasetId")
     val ret = for {
@@ -741,6 +782,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // アプリ追加
   post("/datasets/:datasetId/apps") {
     val datasetId = params("datasetId")
     val ret = for {
@@ -755,6 +797,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // アプリ取得
   get("/datasets/:datasetId/apps/:appId") {
     val datasetId = params("datasetId")
     val appId = params("appId")
@@ -769,6 +812,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // アプリ更新
   put("/datasets/:datasetId/apps/:appId") {
     val datasetId = params("datasetId")
     val appId = params("appId")
@@ -785,6 +829,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // アプリ論理削除
   delete("/datasets/:datasetId/apps/:appId") {
     val datasetId = params("datasetId")
     val appId = params("appId")
@@ -799,6 +844,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセットに設定されているアプリ取得
   get("/datasets/:datasetId/apps/primary") {
     val datasetId = params("datasetId")
     val ret = for {
@@ -811,6 +857,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセットに設定されているアプリ変更
   put("/datasets/:datasetId/apps/primary") {
     val datasetId = params("datasetId")
     val ret = for {
@@ -828,6 +875,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセットに設定されているアプリのURL取得
   get("/datasets/:datasetId/apps/primary/url") {
     val datasetId = params("datasetId")
     val ret = for {
@@ -843,6 +891,7 @@ class ApiController(
   // --------------------------------------------------------------------------
   // dataset query api
   // --------------------------------------------------------------------------
+  // データセット検索条件一覧取得
   get("/dataset_queries") {
     val ret = for {
       user <- getUser(allowGuest = true)
@@ -853,6 +902,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセット検索条件保存
   post("/dataset_queries") {
     val ret = for {
       d <- getJsonValueFromParams[CreateDatasetQueryParams]
@@ -867,6 +917,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセット検索条件取得
   get("/dataset_queries/:queryId") {
     val queryId = params("queryId")
     val ret = for {
@@ -879,6 +930,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセット検索条件削除
   delete("/dataset_queries/:queryId") {
     val queryId = params("queryId")
     val ret = for {
@@ -894,6 +946,7 @@ class ApiController(
   // --------------------------------------------------------------------------
   // group api
   // --------------------------------------------------------------------------
+  // グループ一覧取得
   get("/groups") {
     val ret = for {
       d <- getJsonValueFromParams[SearchGroupsParams]
@@ -909,6 +962,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // グループ詳細取得
   get("/groups/:groupId") {
     val groupId = params("groupId")
     val ret = for {
@@ -921,6 +975,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // グループメンバー一覧取得
   get("/groups/:groupId/members") {
     val groupId = params("groupId")
     val ret = for {
@@ -937,6 +992,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // グループ作成
   post("/groups") {
     val ret = for {
       d <- getJsonValueFromParams[CreateGroupParams]
@@ -952,6 +1008,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // グループ基本情報編集
   put("/groups/:groupId") {
     val groupId = params("groupId")
     val ret = for {
@@ -969,6 +1026,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // グループ画像一覧取得
   get("/groups/:groupId/images") {
     val groupId = params("groupId")
     val ret = for {
@@ -985,6 +1043,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // グループ画像追加
   post("/groups/:groupId/images") {
     val groupId = params("groupId")
     val ret = for {
@@ -1000,6 +1059,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // グループメイン画像設定
   put("/groups/:groupId/images/primary") {
     val groupId = params("groupId")
     val ret = for {
@@ -1017,6 +1077,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // グループ画像削除
   delete("/groups/:groupId/images/:imageId") {
     val groupId = params("groupId")
     val imageId = params("imageId")
@@ -1031,6 +1092,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // グループメンバー追加
   post("/groups/:groupId/members") {
     val groupId = params("groupId")
     val ret = for {
@@ -1053,6 +1115,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // グループメンバーロール変更
   put("/groups/:groupId/members/:userId") {
     val groupId = params("groupId")
     val userId = params("userId")
@@ -1071,6 +1134,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // グループメンバー削除
   delete("/groups/:groupId/members/:userId") {
     val groupId = params("groupId")
     val userId = params("userId")
@@ -1083,6 +1147,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // グループ削除
   delete("/groups/:groupId") {
     val groupId = params("groupId")
     val ret = for {
@@ -1094,11 +1159,13 @@ class ApiController(
   }
 
   // --------------------------------------------------------------------------
+  // メールアドレス存在チェック
   get("/system/is_valid_email") {
     // TODO not implemented
     AjaxResponse("OK")
   }
 
+  // ライセンス一覧取得
   get("/licenses") {
     val ret = for {
       result <- SystemService.getLicenses()
@@ -1108,6 +1175,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // ユーザ一覧取得
   get("/accounts") {
     val ret = for {
       result <- SystemService.getAccounts()
@@ -1117,6 +1185,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // タグ一覧取得
   get("/tags") {
     val ret = for {
       result <- SystemService.getTags()
@@ -1126,6 +1195,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // ユーザ候補一覧取得
   get("/suggests/users") {
     val ret = for {
       d <- getJsonValueFromParams[SuggestApiParams]
@@ -1139,6 +1209,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // グループ候補一覧取得
   get("/suggests/groups") {
     val ret = for {
       d <- getJsonValueFromParams[SuggestApiParams]
@@ -1152,6 +1223,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // ユーザ＋グループ候補一覧取得
   get("/suggests/users_and_groups") {
     val ret = for {
       d <- getJsonValueFromParams[UserAndGroupSuggestApiParams]
@@ -1166,6 +1238,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // 属性候補一覧取得
   get("/suggests/attributes") {
     val ret = for {
       d <- getJsonValueFromParams[SuggestApiParams]
@@ -1179,6 +1252,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // タスク状態取得
   get("/tasks/:taskId") {
     val taskId = params("taskId")
     val ret = for {
@@ -1190,6 +1264,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // 統計情報一覧取得
   get("/statistics") {
     val ret = for {
       d <- getJsonValueFromParams[StatisticsParams]
@@ -1201,6 +1276,7 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // トップページメッセージ取得
   get("/message") {
     val ret = for {
       result <- SystemService.getMessage()

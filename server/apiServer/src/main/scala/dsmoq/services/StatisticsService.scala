@@ -12,10 +12,24 @@ import scalikejdbc.DB
 import scalikejdbc.select
 import scalikejdbc.withSQL
 
+/**
+ * 統計データの処理を取り扱うサービスクラス
+ */
 object StatisticsService {
 
+  /**
+   * 統計データを取得する。
+   *
+   * @param from 取得開始日時
+   * @param to 取得終了日時
+   * @return
+   *        Success(Seq[StatisticsDetail]) 取得成功時、統計情報
+   *        Failure(NullPointerException) 引数がnullの場合
+   */
   def getStatistics(from: Option[DateTime], to: Option[DateTime]): Try[Seq[StatisticsDetail]] = {
     Try {
+      CheckUtil.checkNull(from, "from")
+      CheckUtil.checkNull(to, "to")
       DB.readOnly { implicit s =>
         val now = DateTime.now
         // 2015/10/22 -> 2015/10/1
