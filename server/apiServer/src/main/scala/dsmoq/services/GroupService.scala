@@ -398,7 +398,7 @@ class GroupService(resource: ResourceBundle) {
         val group = getGroup(groupId)
         val trimmedName = StringUtil.trimAllSpaces(name)
         if (!isGroupAdministrator(user, groupId)) {
-          throw new AccessDeniedException(resource.getString(ResourceNames.NO_UPDATE_PERMISSION))
+          throw new AccessDeniedException(resource.getString(ResourceNames.NO_UPDATE_PERMISSION), Some(user))
         }
         if (group.name != trimmedName && existsSameNameGroup(trimmedName)) {
           val message = resource.getString(ResourceNames.ALREADY_REGISTERED_GROUP_NAME).format(trimmedName)
@@ -484,7 +484,7 @@ class GroupService(resource: ResourceBundle) {
       DB.localTx { implicit s =>
         val group = getGroup(groupId)
         if (!isGroupAdministrator(user, groupId)) {
-          throw new AccessDeniedException(resource.getString(ResourceNames.NO_UPDATE_PERMISSION))
+          throw new AccessDeniedException(resource.getString(ResourceNames.NO_UPDATE_PERMISSION), Some(user))
         }
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -562,7 +562,7 @@ class GroupService(resource: ResourceBundle) {
       DB.localTx { implicit s =>
         val group = getGroup(groupId)
         if (!isGroupAdministrator(user, groupId)) {
-          throw new AccessDeniedException(resource.getString(ResourceNames.NO_UPDATE_PERMISSION))
+          throw new AccessDeniedException(resource.getString(ResourceNames.NO_UPDATE_PERMISSION), Some(user))
         }
         // 登録処理（既に登録されているユーザが送られてきた場合は無視する）
         val myself = persistence.User.find(user.id).get
@@ -657,7 +657,7 @@ class GroupService(resource: ResourceBundle) {
           member <- findMemberById(groupId, userId)
         } yield {
           if (!isGroupAdministrator(user, groupId)) {
-            throw new AccessDeniedException(resource.getString(ResourceNames.NO_UPDATE_PERMISSION))
+            throw new AccessDeniedException(resource.getString(ResourceNames.NO_UPDATE_PERMISSION), Some(user))
           }
           // 更新によってマネージャが0人になる場合をエラーとしている
           if (getOtherManagerCount(groupId, userId) == 0 && role != GroupMemberRole.Manager) {
@@ -764,7 +764,7 @@ class GroupService(resource: ResourceBundle) {
           member <- findMemberById(groupId, userId)
         } yield {
           if (!isGroupAdministrator(user, groupId)) {
-            throw new AccessDeniedException(resource.getString(ResourceNames.NO_UPDATE_PERMISSION))
+            throw new AccessDeniedException(resource.getString(ResourceNames.NO_UPDATE_PERMISSION), Some(user))
           }
           // 削除によってマネージャが0人になる場合をエラーとしている
           if (getOtherManagerCount(groupId, userId) == 0) {
@@ -836,7 +836,7 @@ class GroupService(resource: ResourceBundle) {
       val result = DB.localTx { implicit s =>
         getGroup(groupId)
         if (!isGroupAdministrator(user, groupId)) {
-          throw new AccessDeniedException(resource.getString(ResourceNames.NO_UPDATE_PERMISSION))
+          throw new AccessDeniedException(resource.getString(ResourceNames.NO_UPDATE_PERMISSION), Some(user))
         }
         deleteGroupById(groupId, user)
       }
@@ -892,7 +892,7 @@ class GroupService(resource: ResourceBundle) {
           throw new NotFoundException
         }
         if (!isGroupAdministrator(user, groupId)) {
-          throw new AccessDeniedException(resource.getString(ResourceNames.NO_UPDATE_PERMISSION))
+          throw new AccessDeniedException(resource.getString(ResourceNames.NO_UPDATE_PERMISSION), Some(user))
         }
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
@@ -994,7 +994,7 @@ class GroupService(resource: ResourceBundle) {
           throw new NotFoundException
         }
         if (!isGroupAdministrator(user, groupId)) {
-          throw new AccessDeniedException(resource.getString(ResourceNames.NO_UPDATE_PERMISSION))
+          throw new AccessDeniedException(resource.getString(ResourceNames.NO_UPDATE_PERMISSION), Some(user))
         }
         val cantDeleteImages = Seq(AppConf.defaultGroupImageId)
         if (cantDeleteImages.contains(imageId)) {

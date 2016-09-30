@@ -89,7 +89,7 @@ class ImageService(resource: ResourceBundle) {
         val groups = getJoinedGroups(user)
         if (getPermission(datasetId, groups) == GroupAccessLevel.Deny) {
           // 指定したユーザが所属しているグループが、指定したデータセットに対してアクセス権を持っていない場合、アクセス権がないとして処理を打ち切る
-          throw new AccessDeniedException(resource.getString(ResourceNames.NO_ACCESS_PERMISSION))
+          throw new AccessDeniedException(resource.getString(ResourceNames.NO_ACCESS_PERMISSION), Some(user))
         }
         getFile(imageId, size)
       }

@@ -1345,7 +1345,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
    */
   private def checkOwnerAccess(datasetId: String, user: User)(implicit s: DBSession): Unit = {
     if (!isOwner(user.id, datasetId)) {
-      throw new AccessDeniedException(resource.getString(ResourceNames.ONLY_ALLOW_DATASET_OWNER))
+      throw new AccessDeniedException(resource.getString(ResourceNames.ONLY_ALLOW_DATASET_OWNER), Some(user))
     }
   }
 
@@ -1367,7 +1367,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
     // FIXME チェック時、user権限はUserAccessLevelクラス, groupの場合はGroupAccessLevelクラスの定数を使用する
     // (UserAndGroupAccessLevel.DENY 定数を削除する)
     if (permission == UserAndGroupAccessLevel.DENY) {
-      throw new AccessDeniedException(resource.getString(ResourceNames.NO_ACCESS_PERMISSION))
+      throw new AccessDeniedException(resource.getString(ResourceNames.NO_ACCESS_PERMISSION), Some(user))
     }
     permission
   }
@@ -2905,7 +2905,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       getPermission(datasetId, groups)
     }
     if (permission < UserAndGroupAccessLevel.ALLOW_DOWNLOAD) {
-      return Failure(new AccessDeniedException(resource.getString(ResourceNames.NO_DOWNLOAD_PERMISSION)))
+      return Failure(new AccessDeniedException(resource.getString(ResourceNames.NO_DOWNLOAD_PERMISSION), Some(user)))
     }
     Success(())
   }

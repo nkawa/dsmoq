@@ -83,7 +83,7 @@ class GoogleAccountService(resource: ResourceBundle) extends LazyLogging {
           googleAccount.getId,
           googleAccount.getEmail
         )
-        throw new AccessDeniedException(resource.getString(ResourceNames.INVALID_EMAIL_FORMAT))
+        throw new AccessDeniedException(resource.getString(ResourceNames.INVALID_EMAIL_FORMAT), None)
       }
 
       logger.info(
@@ -122,7 +122,7 @@ class GoogleAccountService(resource: ResourceBundle) extends LazyLogging {
               googleAccount.getId,
               googleAccount.getEmail
             )
-            throw new AccessDeniedException(resource.getString(ResourceNames.DISABLED_USER))
+            throw new AccessDeniedException(resource.getString(ResourceNames.DISABLED_USER), Some(x))
           }
           case Some(x) if !x.isDisabled => {
             updateUser(x, googleAccount)
