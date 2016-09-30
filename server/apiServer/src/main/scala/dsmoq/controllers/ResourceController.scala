@@ -10,6 +10,9 @@ import org.scalatra.ScalatraServlet
  * Viewのファイルへのルーティングを提供する。
  */
 class ResourceController extends ScalatraServlet {
+  /**
+   * 取り扱う拡張子
+   */
   object Ext {
     val Js = """.*\.js$""".r
     val SourceMap = """.*\.map$""".r
@@ -28,6 +31,12 @@ class ResourceController extends ScalatraServlet {
     val Csv = """.*\.csv""".r
   }
 
+  /**
+   * ファイル名をファイルに変換する。
+   *
+   * @param filename ファイル名
+   * @return 実ファイルオブジェクト
+   */
   def resource(filename: String): java.io.File = {
     new java.io.File(
       "../client/www/" + filename
@@ -56,6 +65,14 @@ class ResourceController extends ScalatraServlet {
     returnResource(params("captures"))
   }
 
+  /**
+   * ファイル名をActionResultに変換する。
+   *
+   * @param filename ファイル名
+   * @return
+   *      Ok(File) ファイル名からContent-Typeが決定できる場合、実ファイルオブジェクト
+   *      NotFound ファイル名からContent-Typeが決定できない場合
+   */
   def returnResource(filename: String): ActionResult = {
     contextTypeForName(filename) match {
       case None => NotFound()
@@ -66,6 +83,12 @@ class ResourceController extends ScalatraServlet {
     }
   }
 
+  /**
+   * ファイル名からContent-Typeを取得する。
+   *
+   * @param filename ファイル名
+   * @return Content-Typeの文字列
+   */
   def contextTypeForName(filename: String): Option[String] = {
     filename match {
       case Ext.Js() => Some("application/javascript")

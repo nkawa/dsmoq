@@ -25,6 +25,9 @@ import javax.servlet.http.HttpServletRequest
 trait AuthTrait { this: ScalatraServlet with LazyLogging =>
   import AuthTrait._
 
+  /**
+   * リソースバンドルのインスタンス
+   */
   def resource: ResourceBundle
 
   /**

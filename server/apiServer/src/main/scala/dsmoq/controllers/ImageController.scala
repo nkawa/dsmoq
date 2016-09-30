@@ -34,10 +34,12 @@ class ImageController(val resource: ResourceBundle) extends ScalatraServlet with
    */
   val LOG_MARKER = MarkerFactory.getMarker("IMAGE_LOG")
 
+  // いずれにもマッチしないGETリクエスト
   before("/*") {
     // TODO session control
   }
 
+  // ユーザ画像取得
   get("/user/:userId/:imageId") {
     val imageId = params("imageId")
     val userId = params("userId")
@@ -50,6 +52,7 @@ class ImageController(val resource: ResourceBundle) extends ScalatraServlet with
     toActionResult(ret)
   }
 
+  // ユーザ画像取得(サイズ指定あり)
   get("/user/:userId/:imageId/:size") {
     val imageId = params("imageId")
     val userId = params("userId")
@@ -63,6 +66,7 @@ class ImageController(val resource: ResourceBundle) extends ScalatraServlet with
     toActionResult(ret)
   }
 
+  // データセット画像取得
   get("/datasets/:datasetId/:imageId") {
     val imageId = params("imageId")
     val datasetId = params("datasetId")
@@ -76,6 +80,7 @@ class ImageController(val resource: ResourceBundle) extends ScalatraServlet with
     toActionResult(ret)
   }
 
+  // データセット画像取得(サイズ指定あり)
   get("/datasets/:datasetId/:imageId/:size") {
     val imageId = params("imageId")
     val datasetId = params("datasetId")
@@ -93,6 +98,7 @@ class ImageController(val resource: ResourceBundle) extends ScalatraServlet with
     toActionResult(ret)
   }
 
+  // グループ画像取得
   get("/groups/:groupId/:imageId") {
     val imageId = params("imageId")
     val groupId = params("groupId")
@@ -105,6 +111,7 @@ class ImageController(val resource: ResourceBundle) extends ScalatraServlet with
     toActionResult(ret)
   }
 
+  // グループ画像取得(サイズ指定あり)
   get("/groups/:groupId/:imageId/:size") {
     val imageId = params("imageId")
     val groupId = params("groupId")

@@ -29,16 +29,19 @@ class GoogleOAuthController(val resource: ResourceBundle) extends ScalatraServle
    */
   val LOG_MARKER = MarkerFactory.getMarker("GOOGLE_OAUTH_LOG")
 
+  // いずれにもマッチしないGETリクエスト
   get("/*") {
     throw new Exception("err")
   }
 
+  // Google Oauthログインリクエスト起点
   get("/signin") {
     val location = params("location")
     logger.info(LOG_MARKER, "Receive signin request, location={}", location)
     redirect(googleAccountService.getOAuthUrl(location))
   }
 
+  // Google Oauthからのコールバック
   get("/oauth2callback") {
     logger.info(LOG_MARKER, "Receive oauth2callback request")
 

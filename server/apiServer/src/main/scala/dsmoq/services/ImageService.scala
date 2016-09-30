@@ -38,10 +38,14 @@ class ImageService(resource: ResourceBundle) {
    * @param size 取得する画像サイズ、Noneでオリジナル
    * @return
    *   Success(ファイルオブジェクトとファイル名のペア) 成功時
+   *   Failure(NullPointerException) 引数がnullの場合
    *   Failure(NotFoundException) 対象画像が存在しない場合
    */
   def getUserFile(userId: String, imageId: String, size: Option[String]): Try[(java.io.File, String)] = {
     Try {
+      CheckUtil.checkNull(userId, "userId")
+      CheckUtil.checkNull(imageId, "imageId")
+      CheckUtil.checkNull(size, "size")
       DB.readOnly { implicit s =>
         val user = persistence.User.find(userId)
         if (user.filter(_.imageId == imageId).isEmpty) {
@@ -62,6 +66,7 @@ class ImageService(resource: ResourceBundle) {
    * @param user 画像を取得しようとしてるユーザ
    * @return
    *   Success(ファイルオブジェクトとファイル名のペア) 成功時
+   *   Failure(NullPointerException) 引数がnullの場合
    *   Failure(NotFoundException) 対象画像が存在しない場合
    *   Failure(AccessDeniedException) 画像を取得しようとしているユーザに、対象データセットへのアクセス権限がない場合
    */
@@ -72,6 +77,10 @@ class ImageService(resource: ResourceBundle) {
     user: User
   ): Try[(java.io.File, String)] = {
     Try {
+      CheckUtil.checkNull(datasetId, "datasetId")
+      CheckUtil.checkNull(imageId, "imageId")
+      CheckUtil.checkNull(size, "size")
+      CheckUtil.checkNull(user, "user")
       DB.readOnly { implicit s =>
         if (!isRelatedToDataset(datasetId, imageId)) {
           // 指定した画像が、指定のデータセットのものではない場合、画像が存在しないとして処理を打ち切る
@@ -95,10 +104,14 @@ class ImageService(resource: ResourceBundle) {
    * @param size 取得する画像サイズ、Noneでオリジナル
    * @return
    *   Success(ファイルオブジェクトとファイル名のペア) 成功時
+   *   Failure(NullPointerException) 引数がnullの場合
    *   Failure(NotFoundException) 対象画像が存在しない場合
    */
   def getGroupFile(groupId: String, imageId: String, size: Option[String]): Try[(java.io.File, String)] = {
     Try {
+      CheckUtil.checkNull(groupId, "groupId")
+      CheckUtil.checkNull(imageId, "imageId")
+      CheckUtil.checkNull(size, "size")
       DB.readOnly { implicit s =>
         if (!isRelatedToGroup(groupId, imageId)) {
           // 指定した画像が、指定のグループのものではない場合、画像が存在しないとして処理を打ち切る

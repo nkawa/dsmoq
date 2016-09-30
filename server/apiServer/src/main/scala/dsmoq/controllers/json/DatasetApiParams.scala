@@ -51,8 +51,20 @@ object SearchDatasetParams {
     orderby: Option[String] = None
   ) extends SearchDatasetParams
 
+  /**
+   * SearchDatasetParamsを構築する。
+   *
+   * @return SearchDatasetParams
+   */
   def apply(): SearchDatasetParams = Condition(SearchDatasetCondition.Query())
 
+  /**
+   * JSONオブジェクトをSearchDatasetParamsに展開する。
+   *
+   * @param x JSONオブジェクト
+   * @param formats JSONフォーマット
+   * @return SearchDatasetParams
+   */
   def unapply(x: JValue)(implicit formats: Formats): Option[SearchDatasetParams] = {
     x.extractOpt[Condition] orElse x.extractOpt[Params]
   }
@@ -62,9 +74,16 @@ object SearchDatasetParams {
  * GET /api/datasetsのリクエストに使用するJSON型のシリアライザ・デシリアライザ
  */
 object SearchDatasetParamsSerializer extends CustomSerializer[SearchDatasetParams](implicit formats => {
+  /**
+   * JSON型のデシリアライザ
+   */
   val deserializer: PartialFunction[JValue, SearchDatasetParams] = {
     case SearchDatasetParams(p) => p
   }
+
+  /**
+   * JSON型のシリアライザ
+   */
   val serializer: PartialFunction[Any, JValue] = {
     case x: SearchDatasetParams.Condition => {
       ("query" -> Extraction.decompose(x.query)) ~

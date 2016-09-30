@@ -52,6 +52,11 @@ class ScalatraBootstrap extends LifeCycle {
     }
   }
 
+  /**
+   * 初期化処理。
+   *
+   * @param context サーブレットコンテキスト
+   */
   override def init(context: ServletContext) {
     GlobalSettings.loggingSQLAndTime = LoggingSQLAndTimeSettings(
       enabled = true,
@@ -72,6 +77,9 @@ class ScalatraBootstrap extends LifeCycle {
     System.setProperty(org.scalatra.EnvironmentKey, "development")
   }
 
+  /**
+   * 終了処理。
+   */
   override def destroy(context: ServletContext) {
     DBs.close()
   }

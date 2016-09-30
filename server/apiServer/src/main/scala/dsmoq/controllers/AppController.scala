@@ -59,10 +59,12 @@ class AppController(
     contentType = formats("json")
   }
 
+  // いずれにもマッチしないGETリクエスト
   get("/*") {
     NotFound(AjaxResponse("NotFound")) // 404
   }
 
+  // JNLPファイル取得
   get("/:userId/:datasetId.jnlp") {
     val userId = params("userId")
     val datasetId = params("datasetId")
@@ -79,6 +81,7 @@ class AppController(
     toActionResult(ret)
   }
 
+  // JARファイル取得
   get("/:userId/:datasetId.jar") {
     val userId = params("userId")
     val datasetId = params("datasetId")
