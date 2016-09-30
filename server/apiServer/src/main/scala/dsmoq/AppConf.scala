@@ -5,7 +5,7 @@ import scala.collection.JavaConverters._
 import com.typesafe.config.ConfigFactory
 
 /**
- * application.confの設定値を取りまとめるオブジェクト
+ * application.conf、system.confの設定値を取りまとめるオブジェクト
  */
 object AppConf {
   private val conf = ConfigFactory.load
