@@ -2352,7 +2352,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           throw new NotFoundException
         }
         checkOwnerAccess(datasetId, user)
-        val cantDeleteImages = Seq(AppConf.defaultDatasetImageId)
+        val cantDeleteImages = Seq(AppConf.defaultDatasetImageId) ++ AppConf.defaultFeaturedImageIds
         if (cantDeleteImages.contains(imageId)) {
           throw new BadRequestException(resource.getString(ResourceNames.CANT_DELETE_DEFAULTIMAGE))
         }
