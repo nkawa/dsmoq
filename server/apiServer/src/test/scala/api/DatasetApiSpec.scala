@@ -1,45 +1,38 @@
 package api
 
+import java.io.File
+import java.net.URLEncoder
 import java.nio.file.Paths
+import java.util.{ Base64, UUID }
+
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
-import java.net.URLEncoder
-import java.util.ResourceBundle
 
-import org.eclipse.jetty.servlet.ServletHolder
+import org.json4s.JsonDSL._
+import org.json4s._
+import org.json4s.jackson.JsonMethods._
 
-import _root_.api.api.logic.SpecCommonLogic
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.AmazonS3Client
-import org.eclipse.jetty.server.Connector
-import org.scalatest.{ BeforeAndAfter, FreeSpec }
-import org.scalatra.test.scalatest.ScalatraSuite
-import org.json4s.{ DefaultFormats, Formats }
-import dsmoq.controllers.{ ImageController, FileController, ApiController }
-import scalikejdbc.config.{ DBsWithEnv, DBs }
-import org.json4s.jackson.JsonMethods._
-import java.io.File
-import dsmoq.services.json.DatasetData._
-import dsmoq.services.json.TaskData._
+
+import common.DsmoqSpec
 import dsmoq.AppConf
-import org.scalatra.servlet.MultipartConfig
-import dsmoq.services.json.DatasetData.DatasetDeleteImage
-import dsmoq.services.json.DatasetData.DatasetAddFiles
-import dsmoq.services.json.DatasetData.Dataset
 import dsmoq.controllers.AjaxResponse
-import dsmoq.services.json.DatasetData.DatasetAddImages
-import dsmoq.services.json.RangeSlice
-import dsmoq.services.json.GroupData.Group
-import java.util.{ Base64, UUID }
-import dsmoq.persistence.{ DefaultAccessLevel, OwnerType, UserAccessLevel, GroupAccessLevel }
-import org.json4s._
-import org.json4s.JsonDSL._
-import scalikejdbc._
 import dsmoq.persistence.PostgresqlHelper._
+import dsmoq.persistence.{ DefaultAccessLevel, OwnerType, UserAccessLevel, GroupAccessLevel }
+import dsmoq.services.UserAndGroupAccessLevel
+import dsmoq.services.json.DatasetData.Dataset
+import dsmoq.services.json.DatasetData.DatasetAddFiles
+import dsmoq.services.json.DatasetData.DatasetAddImages
+import dsmoq.services.json.DatasetData.DatasetAttribute
+import dsmoq.services.json.DatasetData.DatasetDeleteImage
+import dsmoq.services.json.DatasetData._
+import dsmoq.services.json.GroupData.Group
+import dsmoq.services.json.RangeSlice
+import dsmoq.services.json.TaskData.TaskStatus
+import scalikejdbc._
 
-class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
-  protected implicit val jsonFormats: Formats = DefaultFormats
-
+class DatasetApiSpec extends DsmoqSpec {
   private val dummyFile = new File("../README.md")
   private val dummyImage = new File("../../client/www/dummy/images/nagoya.jpg")
   private val dummyZipFile = new File("../testdata/test1.zip")
@@ -47,41 +40,6 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
   private val dummyUserName = "dummy4"
   private val testUserId = "023bfa40-e897-4dad-96db-9fd3cf001e79" // dummy1
   private val dummyUserId = "eb7a596d-e50c-483f-bbc7-50019eea64d7" // dummy 4
-  private val dummyUserLoginParams = Map("d" -> compact(render(("id" -> "dummy4") ~ ("password" -> "password"))))
-
-  private val host = "http://localhost:8080"
-
-  override def beforeAll() {
-    super.beforeAll()
-    DBsWithEnv("test").setup()
-    System.setProperty(org.scalatra.EnvironmentKey, "test")
-
-    val resource = ResourceBundle.getBundle("message")
-    val servlet = new ApiController(resource)
-    val holder = new ServletHolder(servlet.getClass.getName, servlet)
-    // multi-part file upload config
-    val multipartConfig = MultipartConfig(
-      maxFileSize = Some(3 * 1024 * 1024),
-      fileSizeThreshold = Some(1 * 1024 * 1024)
-    ).toMultipartConfigElement
-    holder.getRegistration.setMultipartConfig(multipartConfig)
-    servletContextHandler.addServlet(holder, "/api/*")
-    addServlet(new FileController(resource), "/files/*")
-    addServlet(new ImageController(resource), "/images/*")
-  }
-
-  override def afterAll() {
-    DBsWithEnv("test").close()
-    super.afterAll()
-  }
-
-  before {
-    SpecCommonLogic.insertDummyData()
-  }
-
-  after {
-    SpecCommonLogic.deleteAllCreateData()
-  }
 
   "API test" - {
     "dataset" - {
@@ -211,6 +169,57 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         }
       }
 
+      "dataset attribute import" in {
+        for {
+          file <- Seq("../README.md", "empty", "attr.csv").map(x => new File(s"../testdata/${x}"))
+          permission <- Seq(true, false)
+          dataset <- Seq(true, false)
+        } {
+          withClue(s"file: ${file}, permission: ${permission}, dataset: ${dataset}") {
+            val datasetId = if (dataset) {
+              session {
+                signIn()
+                createDataset()
+              }
+            } else {
+              UUID.randomUUID.toString
+            }
+            session {
+              signIn(id = if (permission) "dummy1" else "dummy2")
+              post(s"/api/datasets/${datasetId}/attributes/import", params = Map.empty, files = Map("file" -> file)) {
+                if (file.getName == "empty") {
+                  status should be(400)
+                  val result = parse(body).extract[AjaxResponse[Any]]
+                  result.status should be("Illegal Argument")
+                } else if (!dataset) {
+                  status should be(404)
+                  val result = parse(body).extract[AjaxResponse[Any]]
+                  result.status should be("NotFound")
+                } else if (!permission) {
+                  status should be(403)
+                  val result = parse(body).extract[AjaxResponse[Any]]
+                  result.status should be("AccessDenied")
+                } else {
+                  checkStatus()
+                  get("/api/datasets/" + datasetId) {
+                    checkStatus()
+                    val result = parse(body).extract[AjaxResponse[Dataset]]
+                    if (file.getName == "attr.csv") {
+                      val attrs = Seq(
+                        DatasetAttribute("abc", "def"),
+                        DatasetAttribute("abc", "xyz"),
+                        DatasetAttribute("test", "$tag")
+                      )
+                      result.data.meta.attributes should be(attrs)
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
       "データセットにファイルが追加できるか" in {
         session {
           signIn()
@@ -277,7 +286,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[DatasetFile]]
             result.data.id should be(fileId)
-            result.data.url
+            result.data.url.get
           }
 
           get(new java.net.URI(url).getPath) {
@@ -294,7 +303,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               assert(result.data.results.map(_.id).contains(fileId))
               result.data.results.foreach { x =>
                 if (x.id == fileId) {
-                  x.size should be(anotherFile.length)
+                  x.size should be(Some(anotherFile.length))
                 }
               }
             }
@@ -343,7 +352,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           signIn()
           val datasetId = createDataset()
 
-          // add file(x3)
+          // add file (x3)
           val files = Map("files[]" -> dummyFile)
           post("/api/datasets/" + datasetId + "/files", Map.empty, files) { checkStatus() }
           val fileId = post("/api/datasets/" + datasetId + "/files", Map.empty, files) {
@@ -354,13 +363,28 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           post("/api/datasets/" + datasetId + "/files", Map.empty, files) { checkStatus() }
 
           delete("/api/datasets/" + datasetId + "/files/" + fileId) { checkStatus() }
-          get("/api/datasets/" + datasetId) {
-            checkStatus()
-            val result = parse(body).extract[AjaxResponse[Dataset]]
-            result.data.filesCount should be(3)
-            get(s"/api/datasets/${datasetId}/files") {
-              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
-              assert(!result.data.results.map(_.id).contains(fileId))
+          withClue("get datasets after delete file") {
+            get("/api/datasets/" + datasetId) {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[Dataset]]
+              result.data.filesCount should be(3)
+              get(s"/api/datasets/${datasetId}/files") {
+                val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+                assert(!result.data.results.map(_.id).contains(fileId))
+              }
+            }
+          }
+          withClue("get file info after delete file") {
+            get("/api/datasets/" + datasetId + "/files/" + fileId) {
+              status should be(404)
+              val result = parse(body).extract[AjaxResponse[Any]]
+              result.status should be("NotFound")
+            }
+          }
+          withClue("get file after delete file") {
+            get("/files/" + datasetId + "/" + fileId) {
+              status should be(404)
+              body should be("Not Found")
             }
           }
         }
@@ -448,7 +472,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           val createParams = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
           val url = post("/api/datasets", createParams, files) {
             checkStatus()
-            parse(body).extract[AjaxResponse[Dataset]].data.files(0).url
+            parse(body).extract[AjaxResponse[Dataset]].data.files(0).url.get
           }
 
           // ダウンロードチェック(リダイレクトされるか)
@@ -479,6 +503,35 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         }
       }
 
+      "データセットACLアイテム 存在しないID" in {
+        val uuid = UUID.randomUUID.toString
+        session {
+          signIn()
+          val datasetId = createDataset()
+          for {
+            ownerType <- Seq(OwnerType.User, OwnerType.Group)
+          } {
+            val params = Map(
+              "d" ->
+                compact(
+                  render(
+                    Seq(
+                      ("id" -> uuid) ~
+                        ("ownerType" -> JInt(ownerType)) ~
+                        ("accessLevel" -> JInt(UserAndGroupAccessLevel.OWNER_OR_PROVIDER))
+                    )
+                  )
+                )
+            )
+            post("/api/datasets/" + datasetId + "/acl", params) {
+              status should be(400)
+              val result = parse(body).extract[AjaxResponse[Any]]
+              result.status should be("BadRequest")
+            }
+          }
+        }
+      }
+
       "データセットACLアイテム アクセスレベル設定したデータが閲覧できるか(ユーザー)" in {
         session {
           // データセット作成
@@ -505,7 +558,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           }
           post("/api/signout") { checkStatus() }
 
-          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          signIn("dummy4")
           // 一覧検索
           get("/api/datasets") {
             checkStatus()
@@ -531,7 +584,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           post("/api/signout") { checkStatus() }
 
           // アクセスレベル設定対象のグループを作成
-          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          signIn("dummy4")
           val groupName = "groupName" + UUID.randomUUID().toString
           val createGroupParams = Map("d" -> compact(render(("name" -> groupName) ~ ("description" -> "group description"))))
           val groupId = post("/api/groups", createGroupParams) {
@@ -561,7 +614,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           post("/api/signout") { checkStatus() }
 
           // アクセスレベルを設定したdatasetはそのユーザー(グループ)から参照できるはず
-          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          signIn("dummy4")
           // 一覧検索
           get("/api/datasets") {
             checkStatus()
@@ -588,7 +641,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           post("/api/signout") { checkStatus() }
 
           // アクセスレベル設定対象のグループを作成
-          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          signIn("dummy4")
           val groupName = "group name" + UUID.randomUUID().toString
           val createGroupParams = Map("d" -> compact(render(("name" -> groupName) ~ ("description" -> "group description"))))
           val groupId = post("/api/groups", createGroupParams) {
@@ -618,7 +671,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           post("/api/signout") { checkStatus() }
 
           // アクセスレベルを設定したdatasetはグループから参照できるはず
-          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          signIn("dummy4")
           get("/api/datasets/" + datasetId) {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Dataset]]
@@ -647,7 +700,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           post("/api/signout") { checkStatus() }
 
           // アクセスレベルを解除したdatasetはグループから見えなくなるはず
-          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          signIn("dummy4")
           get("/api/datasets/" + datasetId) {
             status should be(403)
             val result = parse(body).extract[AjaxResponse[Dataset]]
@@ -810,7 +863,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             val dataset = parse(body).extract[AjaxResponse[Dataset]]
             dataset.data.s3State should be(2)
             dataset.data.localState should be(3)
-            dataset.data.files(0).url
+            dataset.data.files(0).url.get
           }
 
           val uri = new java.net.URI(url)
@@ -843,7 +896,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           }
           changeStorageState(data.id, 0, 1)
 
-          val uri = new java.net.URI(data.files(0).url)
+          val uri = new java.net.URI(data.files(0).url.get)
           get(uri.getPath) {
             // リダイレクト
             status should be(302)
@@ -861,7 +914,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
             val dataset = parse(body).extract[AjaxResponse[Dataset]]
             dataset.data.s3State should be(2)
             dataset.data.localState should be(1)
-            dataset.data.files(0).url
+            dataset.data.files(0).url.get
           }
 
           val uri = new java.net.URI(url)
@@ -1270,9 +1323,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
           // dummyUser (dummy4)
           // 片方のデータセットは2人にOnwer権限を与える
-          post("/api/signin", dummyUserLoginParams) {
-            checkStatus()
-          }
+          signIn("dummy4")
           val twoOwnersDatasetId = createDataset()
           val aclParams = Map(
             "d" -> compact(
@@ -1368,9 +1419,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
 
           // dummyUser (dummy4)
           // 片方のデータセットは2つのGroupにProvider権限を与える
-          post("/api/signin", dummyUserLoginParams) {
-            checkStatus()
-          }
+          signIn("dummy4")
           val twoGroupsDatasetId = createDataset()
           val anotherGroupName = "groupName" + UUID.randomUUID().toString
           val createGroupParams2 = Map("d" -> compact(render(("name" -> anotherGroupName) ~ ("description" -> "group description"))))
@@ -1586,9 +1635,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               checkStatus()
             }
 
-            post("/api/signin", dummyUserLoginParams) {
-              checkStatus()
-            }
+            signIn("dummy4")
             val anotherDatasetId = createDataset()
             put("/api/datasets/" + anotherDatasetId + "/guest_access", params) {
               checkStatus()
@@ -2441,7 +2488,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               result.data.id
             }
             post("/api/signout") { checkStatus() }
-            post("/api/signin", dummyUserLoginParams) { checkStatus() }
+            signIn("dummy4")
             get(s"/api/datasets/${datasetId}/files") {
               status should be(403)
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
@@ -2495,7 +2542,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               checkStatus()
             }
             post("/api/signout") { checkStatus() }
-            post("/api/signin", dummyUserLoginParams) { checkStatus() }
+            signIn("dummy4")
             get(s"/api/datasets/${datasetId}/files") {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
@@ -2611,7 +2658,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               result.data.results(0).id
             }
             post("/api/signout") { checkStatus() }
-            post("/api/signin", dummyUserLoginParams) { checkStatus() }
+            signIn("dummy4")
             get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles") {
               status should be(403)
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
@@ -2675,7 +2722,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
               result.data.results(0).id
             }
             post("/api/signout") { checkStatus() }
-            post("/api/signin", dummyUserLoginParams) { checkStatus() }
+            signIn("dummy4")
             get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles") {
               checkStatus()
               val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
@@ -3446,25 +3493,7 @@ class DatasetApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
     URLEncoder.encode(Base64.getEncoder.encodeToString(result), "UTF-8")
   }
 
-  private def signIn() {
-    val params = Map("d" -> compact(render(("id" -> "dummy1") ~ ("password" -> "password"))))
-    post("/api/signin", params) {
-      checkStatus()
-    }
-  }
-
-  private def checkStatus() {
-    status should be(200)
-    val result = parse(body).extract[AjaxResponse[Any]]
-    result.status should be("OK")
-  }
-
   private def createDataset(): String = {
-    val files = Map("file[]" -> dummyFile)
-    val params = Map("saveLocal" -> "true", "saveS3" -> "false", "name" -> "test1")
-    post("/api/datasets", params, files) {
-      checkStatus()
-      parse(body).extract[AjaxResponse[Dataset]].data.id
-    }
+    createDataset(name = "test1", file = Some(dummyFile))
   }
 }

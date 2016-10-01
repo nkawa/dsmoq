@@ -1,0 +1,24 @@
+<configuration>
+
+  <appender name="MAINTENANCE" class="ch.qos.logback.core.FileAppender">
+    <!-- the filter element -->
+    <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
+      <evaluator class="ch.qos.logback.classic.boolex.OnMarkerEvaluator">
+        <marker>MAINTENANCE_LOG</marker>
+      </evaluator>
+      <onMatch>ACCEPT</onMatch>
+      <onMismatch>DENY</onMismatch>
+    </filter>
+
+    <File>maintenance.log</File>
+    <Append>true</Append>
+
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} [%thread] %marker %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+  
+  <root level="info">
+    <appender-ref ref="MAINTENANCE" />
+  </root>
+</configuration>

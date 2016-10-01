@@ -32,28 +32,27 @@ object AppManager {
    * アプリのJARファイルを保存する。
    *
    * @param appId アプリID
-   * @param appVersionId アプリバージョンID
    * @param file アプリのJARファイル
    * @throws IOException 入出力エラーが発生した場合
    */
-  def upload(appId: String, appVersionId: String, file: FileItem): Unit = {
-    val appDir = Paths.get(AppConf.appDir, "upload", appId).toFile
+  def upload(appId: String, file: FileItem): Unit = {
+    val appDir = Paths.get(AppConf.appDir, "upload").toFile
     if (!appDir.exists()) {
       appDir.mkdirs()
     }
-    file.write(appDir.toPath.resolve(appVersionId).toFile)
+    // TODO: ファイル存在時の挙動確認
+    file.write(appDir.toPath.resolve(appId).toFile)
   }
 
   /**
    * アプリのJARファイルを取得する。
    *
    * @param appId アプリID
-   * @param appVersionId アプリバージョンID
    * @return アプリのJARファイル
    * @throws RuntimeException ファイルが存在しない場合
    */
-  def download(appId: String, appVersionId: String): File = {
-    val fullPath = Paths.get(AppConf.appDir, "upload", appId, appVersionId).toFile
+  def download(appId: String): File = {
+    val fullPath = Paths.get(AppConf.appDir, "upload", appId).toFile
     if (!fullPath.exists()) {
       throw new RuntimeException("file not found")
     }
@@ -64,31 +63,28 @@ object AppManager {
    * アプリのJNLPファイルのURLを取得する。
    *
    * @param datasetId データセットID
-   * @param appId アプリID
    * @param userId ユーザID
    * @return JNLPファイルのURL
    */
-  def getJnlpUrl(datasetId: String, appId: String, userId: String): String = {
-    s"${AppConf.appDownloadRoot}${userId}/${datasetId}/${appId}.jnlp"
+  def getJnlpUrl(datasetId: String, userId: String): String = {
+    s"${AppConf.appDownloadRoot}${userId}/${datasetId}.jnlp"
   }
 
   /**
    * アプリのJARファイルのURLを取得する。
    *
    * @param datasetId データセットID
-   * @param appId アプリID
    * @param userId ユーザID
    * @return JARファイルのURL
    */
-  def getJarUrl(datasetId: String, appId: String, userId: String): String = {
-    s"${AppConf.appDownloadRoot}${userId}/${datasetId}/${appId}.jar"
+  def getJarUrl(datasetId: String, userId: String): String = {
+    s"${AppConf.appDownloadRoot}${userId}/${datasetId}.jar"
   }
 
   /**
    * アプリのJNLPファイルを取得する。
    *
    * @param datasetId データセットID
-   * @param appId アプリID
    * @param userId 利用ユーザのユーザID
    * @param apiKey 利用ユーザのAPIキー
    * @param secretKey 利用ユーザのシークレットキー
@@ -96,7 +92,6 @@ object AppManager {
    */
   def getJnlp(
     datasetId: String,
-    appId: String,
     userId: String,
     apiKey: String,
     secretKey: String
@@ -110,7 +105,7 @@ object AppManager {
       override def transform(n: Node) = n match {
         case <jar></jar> => {
           // JARファイルのURLを埋め込み
-          <jar href={ getJarUrl(datasetId, appId, userId) }></jar>
+          <jar href={ getJarUrl(datasetId, userId) }></jar>
         }
         case <property></property> => {
           val attrs = n.asInstanceOf[Elem].attributes.asAttrMap

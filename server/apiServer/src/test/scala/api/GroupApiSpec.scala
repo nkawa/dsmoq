@@ -1,72 +1,29 @@
 package api
 
-import java.util.ResourceBundle
-
-import org.eclipse.jetty.servlet.ServletHolder
-
-import _root_.api.api.logic.SpecCommonLogic
-import dsmoq.services.User
-import org.eclipse.jetty.server.Connector
-import org.scalatest.{ BeforeAndAfter, FreeSpec }
-import org.scalatra.test.scalatest.ScalatraSuite
-import org.json4s.{ DefaultFormats, Formats }
 import java.io.File
-import dsmoq.controllers.{ ImageController, FileController, ApiController }
-import scalikejdbc.config.{ DBsWithEnv, DBs }
-import org.json4s.jackson.JsonMethods._
-import dsmoq.services.json.GroupData._
-import dsmoq.services.json.GroupData.Group
-import org.scalatra.servlet.MultipartConfig
-import dsmoq.services.json.GroupData.GroupAddImages
-import scala.Some
-import dsmoq.services.json.GroupData.GroupsSummary
-import dsmoq.controllers.AjaxResponse
-import dsmoq.services.json.RangeSlice
-import dsmoq.services.json.DatasetData.{ DatasetsSummary, Dataset }
-import dsmoq.persistence.GroupMemberRole
 import java.util.UUID
-import org.json4s._
+
 import org.json4s.JsonDSL._
+import org.json4s._
+import org.json4s.jackson.JsonMethods._
 
-class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
-  protected implicit val jsonFormats: Formats = DefaultFormats
+import common.DsmoqSpec
+import dsmoq.controllers.AjaxResponse
+import dsmoq.persistence.GroupMemberRole
+import dsmoq.services.User
+import dsmoq.services.json.DatasetData.{ DatasetsSummary, Dataset }
+import dsmoq.services.json.GroupData.Group
+import dsmoq.services.json.GroupData.GroupAddImages
+import dsmoq.services.json.GroupData.GroupDeleteImage
+import dsmoq.services.json.GroupData.GroupsSummary
+import dsmoq.services.json.GroupData.MemberSummary
+import dsmoq.services.json.RangeSlice
 
+class GroupApiSpec extends DsmoqSpec {
   private val dummyFile = new File("../README.md")
   private val dummyImage = new File("../../client/www/dummy/images/nagoya.jpg")
   private val dummyUserUUID = "eb7a596d-e50c-483f-bbc7-50019eea64d7" // dummy 4
   private val dummyUserLoginParams = Map("d" -> compact(render(("id" -> "dummy4") ~ ("password" -> "password"))))
-
-  override def beforeAll() {
-    super.beforeAll()
-    DBsWithEnv("test").setup()
-    System.setProperty(org.scalatra.EnvironmentKey, "test")
-
-    val resource = ResourceBundle.getBundle("message")
-    val servlet = new ApiController(resource)
-    val holder = new ServletHolder(servlet.getClass.getName, servlet)
-    // multi-part file upload config
-    val multipartConfig = MultipartConfig(
-      maxFileSize = Some(3 * 1024 * 1024),
-      fileSizeThreshold = Some(1 * 1024 * 1024)
-    ).toMultipartConfigElement
-    holder.getRegistration.setMultipartConfig(multipartConfig)
-    servletContextHandler.addServlet(holder, "/api/*")
-    addServlet(new FileController(resource), "/files/*")
-    addServlet(new ImageController(resource), "/images/*")
-  }
-
-  override def afterAll() {
-    DBsWithEnv("test").close()
-    super.afterAll()
-  }
-
-  before {
-    SpecCommonLogic.insertDummyData()
-  }
-
-  after {
-    SpecCommonLogic.deleteAllCreateData()
-  }
 
   "API test" - {
     "dataset" - {
@@ -421,19 +378,6 @@ class GroupApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         }
       }
     }
-  }
-
-  private def signIn() {
-    val params = Map("d" -> compact(render(("id" -> "dummy1") ~ ("password" -> "password"))))
-    post("/api/signin", params) {
-      checkStatus()
-    }
-  }
-
-  private def checkStatus() {
-    status should be(200)
-    val result = parse(body).extract[AjaxResponse[Any]]
-    result.status should be("OK")
   }
 
   private def createGroup(): String = {

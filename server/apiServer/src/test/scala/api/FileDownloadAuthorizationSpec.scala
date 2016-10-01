@@ -2,64 +2,23 @@ package api
 
 import java.io.File
 import java.util.UUID
-import java.util.ResourceBundle
 
-import org.eclipse.jetty.servlet.ServletHolder
+import org.json4s.jackson.JsonMethods._
+import org.json4s._
+import org.json4s.JsonDSL._
 
-import _root_.api.api.logic.SpecCommonLogic
-import dsmoq.controllers.{ FileController, ApiController, AjaxResponse }
+import common.DsmoqSpec
+import dsmoq.controllers.AjaxResponse
 import dsmoq.persistence._
 import dsmoq.services.json.DatasetData.{ Dataset, DatasetFile }
 import dsmoq.services.json.GroupData.Group
 import dsmoq.services.json.RangeSlice
-import org.eclipse.jetty.server.Connector
-import org.json4s.{ DefaultFormats, Formats }
-import org.json4s.jackson.JsonMethods._
-import org.scalatest.{ BeforeAndAfter, FreeSpec }
-import org.scalatra.servlet.MultipartConfig
-import org.scalatra.test.scalatest.ScalatraSuite
-import scalikejdbc.config.{ DBsWithEnv, DBs }
-import org.json4s._
-import org.json4s.JsonDSL._
 
-class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
-  protected implicit val jsonFormats: Formats = DefaultFormats
-
+class FileDownloadAuthorizationSpec extends DsmoqSpec {
   private val dummyFile = new File("../README.md")
   private val dummyUserId = "eb7a596d-e50c-483f-bbc7-50019eea64d7" // dummy 4
   private val dummyUserLoginParams = Map("d" -> compact(render(("id" -> "dummy4") ~ ("password" -> "password"))))
   private val anotherUserLoginParams = Map("d" -> compact(render(("id" -> "dummy2") ~ ("password" -> "password"))))
-
-  override def beforeAll() {
-    super.beforeAll()
-    DBsWithEnv("test").setup()
-    System.setProperty(org.scalatra.EnvironmentKey, "test")
-
-    val resource = ResourceBundle.getBundle("message")
-    val servlet = new ApiController(resource)
-    val holder = new ServletHolder(servlet.getClass.getName, servlet)
-    // multi-part file upload config
-    val multipartConfig = MultipartConfig(
-      maxFileSize = Some(3 * 1024 * 1024),
-      fileSizeThreshold = Some(1 * 1024 * 1024)
-    ).toMultipartConfigElement
-    holder.getRegistration.setMultipartConfig(multipartConfig)
-    servletContextHandler.addServlet(holder, "/api/*")
-    addServlet(new FileController(resource), "/files/*")
-  }
-
-  override def afterAll() {
-    DBsWithEnv("test").close()
-    super.afterAll()
-  }
-
-  before {
-    SpecCommonLogic.insertDummyData()
-  }
-
-  after {
-    SpecCommonLogic.deleteAllCreateData()
-  }
 
   "Authorization Test" - {
     "設定した権限にあわせてファイルをダウンロードできるか" - {
@@ -1212,21 +1171,8 @@ class FileDownloadAuthorizationSpec extends FreeSpec with ScalatraSuite with Bef
   private def getFileUrl(datasetId: String): String = {
     get(s"/api/datasets/${datasetId}/files") {
       val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
-      result.data.results(0).url
+      result.data.results(0).url.get
     }
-  }
-
-  private def signIn() {
-    val params = Map("d" -> compact(render(("id" -> "dummy1") ~ ("password" -> "password"))))
-    post("/api/signin", params) {
-      checkStatus()
-    }
-  }
-
-  private def checkStatus() {
-    status should be(200)
-    val result = parse(body).extract[AjaxResponse[Any]]
-    result.status should be("OK")
   }
 
   private def createDataset(): String = {

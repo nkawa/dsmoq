@@ -4,14 +4,17 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
+import org.joda.time.DateTime
 import org.slf4j.MarkerFactory
 
 import com.typesafe.scalalogging.LazyLogging
 
+import dsmoq.maintenance.AppConfig
 import dsmoq.maintenance.data.SearchResult
 import dsmoq.maintenance.data.user.SearchCondition
 import dsmoq.maintenance.data.user.SearchCondition.UserType
 import dsmoq.maintenance.data.user.SearchResultUser
+import dsmoq.maintenance.data.user.UpdateParameter
 import dsmoq.persistence
 import dsmoq.persistence.PostgresqlHelper.PgConditionSQLBuilder
 import dsmoq.persistence.PostgresqlHelper.PgSQLSyntaxType
@@ -37,12 +40,18 @@ object UserService extends LazyLogging {
   val LOG_MARKER = MarkerFactory.getMarker("MAINTENANCE_USER_LOG")
 
   /**
+   * サービス名
+   */
+  val SERVICE_NAME = "UserService"
+
+  /**
    * ユーザを検索する。
    *
    * @param condition 検索条件
    * @return 検索結果
    */
   def search(condition: SearchCondition): SearchResult[SearchResultUser] = {
+    logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "search", condition))
     val u = persistence.User.u
     val ma = persistence.MailAddress.ma
     def createSqlBase(select: SelectSQLBuilder[Unit]): ConditionSQLBuilder[Unit] = {
@@ -68,15 +77,17 @@ object UserService extends LazyLogging {
           )
         )
     }
+    val limit = AppConfig.searchLimit
+    val offset = (condition.page - 1) * limit
     DB.readOnly { implicit s =>
       val total = withSQL {
         createSqlBase(select(sqls.count))
       }.map(_.int(1)).single.apply().getOrElse(0)
-      val eles = withSQL {
+      val records = withSQL {
         createSqlBase(select(u.result.*, ma.result.address))
-          .orderBy(u.createdAt)
-          .offset(condition.offset)
-          .limit(condition.limit)
+          .orderBy(u.createdAt, u.id)
+          .offset(offset)
+          .limit(limit)
       }.map { rs =>
         val user = persistence.User(u.resultName)(rs)
         val address = rs.string(ma.resultName.address)
@@ -94,10 +105,10 @@ object UserService extends LazyLogging {
         )
       }.list.apply()
       SearchResult(
-        from = condition.offset + 1,
-        to = condition.offset + eles.length,
-        total = total,
-        data = eles
+        offset,
+        limit,
+        total,
+        records
       )
     }
   }
@@ -115,49 +126,38 @@ object UserService extends LazyLogging {
   /**
    * ユーザの無効化状態を更新する。
    *
-   * @param originals 無効であったユーザ
-   * @param updates 無効にするユーザ
+   * @param param 入力パラメータ
    * @return 処理結果、存在しないIDが含まれていた場合 Failure(ServiceException)
    */
-  def updateDisabled(originals: Seq[String], updates: Seq[String]): Try[Unit] = {
-    DB.localTx { implicit s =>
+  def updateDisabled(param: UpdateParameter): Try[Unit] = {
+    logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "updateDisabled", param))
+    val result = DB.localTx { implicit s =>
       for {
-        _ <- Util.checkUuids(originals ++ updates)
-        _ <- checkUserIds(originals ++ updates)
-        _ <- execUpdateDisabled(originals, updates)
+        _ <- checkChange(param.originals, param.updates)
+        _ <- execUpdateDisabled(param.originals, param.updates)
       } yield {
         ()
       }
     }
+    Util.withErrorLogging(logger, LOG_MARKER, result)
   }
 
   /**
-   * 指定されたユーザIDがDBに存在することを確認する。
+   * ユーザーの無効化状態の変更があるかを確認する。
    *
-   * @param ids ユーザID
-   * @return 処理結果、存在しないIDが含まれていた場合 Failure(ServiceException)
+   * @param originals 無効であったユーザ
+   * @param updates 無効にするユーザ
+   * @return 処理結果、無効化状態に変更がない場合 Failure(ServiceException)
    */
-  def checkUserIds(ids: Seq[String])(implicit s: DBSession): Try[Unit] = {
-    Try {
-      val u = persistence.User.u
-      val checks = ids.map { id =>
-        val contains = withSQL {
-          select(u.result.id)
-            .from(persistence.User as u)
-            .where
-            .eq(u.id, sqls.uuid(id))
-        }.map { rs =>
-          rs.string(u.resultName.id)
-        }.single.apply().isDefined
-        (id, contains)
-      }
-      checks.collect { case (id, false) => id }
-    }.flatMap { invalids =>
-      if (invalids.isEmpty) {
-        Success(())
-      } else {
-        Failure(new ServiceException("存在しないユーザーが指定されました。"))
-      }
+  def checkChange(originals: Seq[String], updates: Seq[String]): Try[Unit] = {
+    val os = originals.toSet
+    val us = updates.toSet
+    val enabledTargets = os -- us
+    val disabledTargets = us -- os
+    if (enabledTargets.isEmpty && disabledTargets.isEmpty) {
+      Failure(new ServiceException("ユーザーの無効化状態の変更がありません。"))
+    } else {
+      Success(())
     }
   }
 
@@ -171,6 +171,8 @@ object UserService extends LazyLogging {
    */
   def execUpdateDisabled(originals: Seq[String], updates: Seq[String])(implicit s: DBSession): Try[Unit] = {
     Try {
+      val timestamp = DateTime.now()
+      val systemUserId = AppConfig.systemUserId
       val os = originals.toSet
       val us = updates.toSet
       val enabledTargets = os -- us
@@ -178,13 +180,21 @@ object UserService extends LazyLogging {
       val u = persistence.User.column
       withSQL {
         update(persistence.User)
-          .set(u.disabled -> false)
+          .set(
+            u.disabled -> false,
+            u.updatedAt -> timestamp,
+            u.updatedBy -> sqls.uuid(systemUserId)
+          )
           .where
           .in(u.id, enabledTargets.toSeq.map(sqls.uuid))
       }.update.apply()
       withSQL {
         update(persistence.User)
-          .set(u.disabled -> true)
+          .set(
+            u.disabled -> true,
+            u.updatedAt -> timestamp,
+            u.updatedBy -> sqls.uuid(systemUserId)
+          )
           .where
           .in(u.id, disabledTargets.toSeq.map(sqls.uuid))
       }.update.apply()

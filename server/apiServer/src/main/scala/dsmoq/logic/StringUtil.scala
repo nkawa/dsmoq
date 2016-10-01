@@ -2,6 +2,9 @@ package dsmoq.logic
 
 import java.util.UUID
 
+/**
+ * 文字列処理のユーティリティオブジェクト
+ */
 object StringUtil {
   /**
    * 空白文字(全角含む)のtrim

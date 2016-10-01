@@ -24,6 +24,12 @@ import dsmoq.services.DatasetService.DownloadFileS3Zipped
 import dsmoq.services.User
 import javax.servlet.http.HttpServletRequest
 
+/**
+ * /filesにマッピングされるサーブレットクラス。
+ * ファイルのダウンロード機能を提供する。
+ *
+ * @param resource リソースバンドル
+ */
 class FileController(val resource: ResourceBundle) extends ScalatraServlet with LazyLogging with AuthTrait {
 
   /**
@@ -75,7 +81,7 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
             // from,toが指定されている場合
             logger.debug(LOG_MARKER, "Found Range header, Range={}", rangeHeader)
 
-            progressTotalRequest(fileSize)
+            progressHeadRequest(fileName, fileSize)
             // 空ボディを返す
             ""
           }
@@ -83,7 +89,7 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
             // fromのみが指定されている場合
             logger.debug(LOG_MARKER, "Found Range header, Range={}", rangeHeader)
 
-            progressTotalRequest(fileSize)
+            progressHeadRequest(fileName, fileSize)
             // 空ボディを返す
             ""
           }
@@ -91,7 +97,7 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
             // Rangeヘッダがない場合
             logger.debug(LOG_MARKER, "Not found Range header.")
 
-            progressTotalRequest(fileSize)
+            progressHeadRequest(fileName, fileSize)
             // 空ボディを返す
             ""
           }
@@ -120,7 +126,7 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
             // Rangeヘッダがない場合
             logger.debug(LOG_MARKER, "Not found Range header.")
 
-            progressTotalRequest(fileSize)
+            progressHeadRequest(fileName, fileSize)
             // 空ボディを返す
             ""
           }
@@ -157,7 +163,7 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
             // Rangeヘッダがない場合
             logger.debug(LOG_MARKER, "Not found Range header.")
 
-            progressTotalRequest(fileSize)
+            progressHeadRequest(fileName, fileSize)
             // 空ボディを返す
             ""
           }
@@ -442,14 +448,16 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
   }
 
   /**
-   * Content-Lengthのみをレスポンスヘッダに設定する。
+   * HEADリクエストのレスポンスヘッダを設定する。
    * ステータスコードは、200:OK とする。
    *
+   * @param fileName ファイル名
    * @param contentLength レスポンスで返すバイト長
    */
-  private def progressTotalRequest(contentLength: Long): Unit = {
+  private def progressHeadRequest(fileName: String, contentLength: Long): Unit = {
     val status = 200
     val headers = Map(
+      "Content-Disposition" -> generateContentDispositionValue(fileName),
       "Content-Length" -> contentLength.toString
     )
     progress(status, headers)
@@ -469,11 +477,13 @@ class FileController(val resource: ResourceBundle) extends ScalatraServlet with 
     // でStreamのクローズに関わる例外が発生する。このため、Content-Lengthは設定しない。
     // なお、上記問題はクライアントにcurlコマンドを使用した場合は発生しない。このため、
     // クライアント依存の問題である。
-
+    // Chrome 53, FF 48, IE 11, Edge 25 で、Content-Lengthを設定して正常にダウンロード
+    // できることを確認。
     val status = 200
     val headers = Map(
       "Content-Disposition" -> generateContentDispositionValue(fileName),
-      "Content-Type" -> "application/octet-stream;charset=binary"
+      "Content-Type" -> "application/octet-stream;charset=binary",
+      "Content-Length" -> contentLength.toString
     )
     progress(status, headers)
   }

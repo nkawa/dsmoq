@@ -7,7 +7,7 @@ enum Page {
     Dashboard;
 
     //DatasetNew;
-    DatasetList(page: Int, query: String, filters: Array<Dynamic>);
+    DatasetList(page: Int, query: String);
     DatasetShow(id: String);
     DatasetEdit(id: String);
 

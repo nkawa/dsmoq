@@ -3,73 +3,145 @@
   <li class="active">Datasets</li>
 </ol>
 
-<div class="well well-sm dsmoq-filter" id="conditions">
-  <div class="row">
-    <div class="col-md-12">
-      <div class="input-group" style="float:left; width: 400px;">
-		<form id="search-form">
-			<input type="text" class="form-control" placeholder="query" data-link="condition.query">
-		</form>
-        <span class="input-group-btn">
-          <button class="btn btn-primary" type="button" id="search-button"><span class="glyphicon glyphicon-search"></span></button>
-        </span>
+<div class="tabbable">
+  <ul class="nav nav-tabs">
+    <li data-link="class{merge:condition^type == 'basic' toggle='active'}"><a class="basic-search-tab" href="#basic-search-tab-content" data-toggle="tab">Basic</a></li>
+    <li data-link="class{merge:condition^type == 'advanced' toggle='active'}"><a class="advanced-search-tab" href="#advanced-search-tab-content" data-toggle="tab">Advanced</a></li>
+  </ul>
+</div>
+<div class="tab-content">
+  <div class="tab-pane" id="basic-search-tab-content" data-link="class{merge:condition^type == 'basic' toggle='active'}">
+    <div class="well well-sm dsmoq-filter basic-conditions">
+      <div class="row">
+        <div class="col-xs-10 col-md-10">
+          <div class="input-group" style="width: 400px;">
+            <div class="search-form">
+              <input type="text" class="form-control basic-query" placeholder="keyword" data-link="condition^basic">
+            </div>
+            <span class="input-group-btn">
+              <button class="btn btn-primary search-button" type="button"><span class="glyphicon glyphicon-search"></span></button>
+            </span>
+          </div>
+        </div>
+        {^{if !myself^isGuest}}
+        <div class="col-xs-2 col-md-2 save-area">
+          <button class="btn btn-default query-save-button">Save</button>
+        </div>
+        {{/if}}
       </div>
-      <button id="add-filter-button" class="btn btn-default" style="margin-left: 8px;"><span class="glyphicon glyphicon-plus"></span> Filter</button>
     </div>
   </div>
-  {^{if condition.filters.length > 0}}
-    <div class="row">
-      <div class="col-md-12">
-        <ul class="list-group">
-          {^{for condition.filters}}
-            {{if (type == "owner")}}
-              <li class="list-group-item list-group-item-success">
-                <span class="glyphicon glyphicon-user"></span>{{>item.name}} {{if item.dataType==1}}({{>item.fullname}}){{/if}}
-                <button type="button" class="close"><span aria-hidden="true">&times;</span><span class="sr-only">Remove</span></button>
-              </li>
-            {{else}}
-              <li class="list-group-item list-group-item-info">
-                <span class="glyphicon glyphicon-tag"></span> {{>item.name}} = {{>item.value}}
-                <button type="button" class="close"><span aria-hidden="true">&times;</span><span class="sr-only">Remove</span></button>
-              </li>
-            {{/if}}
-          {{/for}}
-          <li class="list-group-item" style="padding: 0; border-width: 0;"></li>
-        </ul>
+  <div class="tab-pane" id="advanced-search-tab-content" data-link="class{merge:condition^type == 'advanced' toggle='active'}">
+    <div class="well well-sm dsmoq-filter advanced-conditions">
+      <div class="query-rows">
+        {^{for condition^advanced}}
+        <div class="row query-row" data-id="{{>id}}">
+          <div class="col-md-12 form-inline">
+            <div class="form-group">
+              <select class="form-control query-type" data-link="target">
+                <option value="query">Keyword</option>
+                <option value="owner">Owner</option>
+                <option value="tag">Tag</option>
+                <option value="attribute">Attribute</option>
+                <option value="total-size">Total size</option>
+                <option value="num-of-files">Number of files</option>
+                <option value="public">Public/Private</option>
+                <option value="or">OR</option>
+              </select>
+              {^{if target == "query"}}
+              <select class="form-control query-contain-select" data-link="operator">
+                <option value="contain">Contains</option>
+                <option value="not-contain">Not Contains</option>
+              </select>
+              <input type="text" class="form-control query-value" data-link="value">
+              {{/if}}
+              {^{if target == "owner"}}
+              <select class="form-control equal-select" data-link="operator">
+                <option value="equal">Equals</option>
+                <option value="not-equal">Not Equals</option>
+              </select>
+              <input type="text" class="form-control owner-value" data-link="value">
+              {{/if}}
+              {^{if target == "tag"}}
+              <select class="form-control tag-select" data-link="value">
+                {^{for ~root^tag}}
+                <option value="{{>tag}}">{{>tag}}</option>
+                {{/for}}
+              </select>
+              {{/if}}
+              {^{if target == "attribute"}}
+              <input type="text" class="form-control attribute-key" placeholder="key" data-link="key">
+              <input type="text" class="form-control attribute-value" placeholder="value" data-link="value">
+              {{/if}}
+              {^{if target == "total-size"}}
+              <select class="form-control compare-select" data-link="operator">
+                <option value="ge" selected>Greater Than</option>
+                <option value="le">Less Than</option>
+              </select>
+              <input type="number" class="form-control total-size" data-link="value">
+              <select class="form-control unit-select" data-link="unit">
+                <option value="byte" selected>Byte</option>
+                <option value="kb">KB</option>
+                <option value="mb">MB</option>
+                <option value="gb">GB</option>
+              </select>
+              {{/if}}
+              {^{if target == "num-of-files"}}
+              <select class="form-control compare-select" data-link="operator">
+                <option value="ge" selected>Greater Than</option>
+                <option value="le">Less Than</option>
+              </select>
+              <input type="number" class="form-control num-of-files" data-link="value">
+              {{/if}}
+              {^{if target == "public"}}
+              <select class="form-control public-select" data-link="value">
+                <option value="public" selected>Public</option>
+                <option value="private">Private</option>
+              </select>
+              {{/if}}
+              <button class="add-row">
+                <span class="glyphicon glyphicon-plus"></span>
+              </button>
+              {^{if ~root^condition^advanced^length > 1}}
+              <button class="delete-row">
+                <span class="glyphicon glyphicon-minus"></span>
+              </button>
+              {{/if}}
+            </div>
+          </div>
+        </div>
+        {{/for}}
       </div>
-    </div>
-  {{/if}}
-
-  <div style="display:none" id="filter-add-form">
-    <ul class="nav nav-tabs" role="tablist">
-      <li class="active"><a role="tab" data-toggle="tab" href="#filter-owner-tab"><span class="glyphicon glyphicon-user"></span> Owner</a></li>
-      <li><a role="tab" data-toggle="tab" href="#filter-attribute-tab"><span class="glyphicon glyphicon-tag"></span> Attribute</a></li>
-    </ul>
-    <div class="tab-content" style="width: 280px;">
-      <div class="tab-pane active" id="filter-owner-tab">
-        <div class="form-group">
-          <input type="text" class="form-control" id="filter-owner-input" placeholder="Enter owner">
+      <div class="row">
+        <div class="col-xs-10 col-md-10">
+          <button class="btn btn-primary search-button">Search</button>
         </div>
-        <div class="form-group">
-          <button type="button" class="btn btn-primary" id="filter-owner-apply">Apply</button>
+        {^{if !myself^isGuest}}
+        <div class="col-xs-2 col-md-2 save-area">
+          <button class="btn btn-default query-save-button">Save</button>
         </div>
-      </div>
-      <div class="tab-pane" id="filter-attribute-tab">
-        <div class="form-group">
-          <input type="text" class="form-control" id="filter-attribute-name-input" placeholder="Enter name">
-        </div>
-        <div class="form-group">
-          <input type="text" class="form-control" id="filter-attribute-value-input" placeholder="Enter value">
-        </div>
-        <div class="form-group">
-          <button type="button" class="btn btn-primary" id="filter-attribute-apply">Apply</button>
-        </div>
+        {{/if}}
       </div>
     </div>
   </div>
 </div>
 
-{^{async result ~condition=condition ~tag=tag}}
+{^{if customQueries^length > 0}}
+<div class="well well-sm dsmoq-filter">
+  <div class="row saved-query-row">
+    <div class="col-md-12">
+      {^{for customQueries}}
+      <span class="saved-query" data-id="{{>data^id}}">
+        <a class="saved-query-link" href="{{>url}}">{{>data^name}}</a>
+        <span class="delete-query-button glyphicon glyphicon-trash"></span>
+      </span>
+      {{/for}}
+    </div>
+  </div>
+</div>
+{{/if}}
+
+{^{async result ~page=page ~tag=tag}}
   {^{if total > 0}}
     <p><strong>Found {^{>total}} records</strong></p>
     <ul class="media-list dataset-list">
@@ -82,7 +154,7 @@
             <h4 class="media-heading"><a href="/datasets/{{>id}}" data-navigation>{{>name}}</a></h4>
             <p class="dataset-description-list">{{if ~trimTags(description)}}{{:~trimTags(description)}}{{else}}<span class="text-muted">(No description)</span>{{/if}}</p>
             <div>
-              {{for ownerships ~length=ownerships.length}}
+              {{for ownerships ~length=ownerships^length}}
                 <span class="label label-success">
                   <span class="glyphicon glyphicon-user"></span>
                   {{if ownerType == 1}} {{>fullname}} {{else}} {{>name}} {{/if}}
@@ -92,17 +164,50 @@
             <div>
               <span class="label label-default">{{>files}} files ({{datasize dataSize /}})</span>&nbsp;
               {{for attributes}}
-				{{if value=="$tag"}}
-				<span class="label label-info" style="background-color: {{: ~getTagColor(~tag)(name)}}"><span class="glyphicon glyphicon-tag"></span> {{>name}}</span>
-				{{/if}}
+                {{if value=="$tag"}}
+                <span class="label label-info" style="background-color: {{: ~getTagColor(~tag)(name)}}"><span class="glyphicon glyphicon-tag"></span> {{>name}}</span>
+                {{/if}}
               {{/for}}
             </div>
           </div>
         </li>
       {{/for}}
     </ul>
-    {^{pagination ~condition.index pages id="dataset-pagination" pagedelta=5 /}}
+    {{!-- ~page.index は ~page^index ではいけない。(ライブラリ内で.で書き換え先propertyを識別しているため) --}}
+    {^{pagination ~page.index pages id="dataset-pagination" pagedelta=5 /}}
   {{else}}
      <p>There are no datasets.</p>
   {{/if}}
 {{/async}}
+
+<div id="save-query-modal" class="modal fade" tabindex="-1" data-width="600" data-backdrop="static" data-keyboard="false" style="display: none;">
+  <div class="modal-header">
+    <h4 class="modal-title">Save Query</h4>
+  </div>
+  <div class="modal-body">
+    <div class="container">
+      <div class="form-inline" style="float:left; width: 400px;">
+        <label>Name <input type="text" class="form-control query-name" data-link="saveQueryName"></label>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+    <button type="button" class="btn btn-primary save-query" data-link="disabled{:saveQueryName == ''}">Save</button>
+  </div>
+</div>
+
+<div id="delete-query-modal" class="modal fade" tabindex="-1" data-width="600" data-backdrop="static" data-keyboard="false" style="display: none;">
+  <div class="modal-header">
+    <h4 class="modal-title">Delete Query</h4>
+  </div>
+  <div class="modal-body">
+    <div class="container">
+      <span class="delete-message">Would you delete Query: {^{>deleteQuery^name}} ?</span>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+    <button type="button" class="btn btn-primary delete-query">Delete</button>
+  </div>
+</div>

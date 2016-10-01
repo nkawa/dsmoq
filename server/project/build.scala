@@ -174,7 +174,7 @@ object DsmoqBuild extends Build {
     .settings(ScalatraPlugin.scalatraSettings)
     .settings(dsmoqSettings)
     .settings(
-      name := "apiKeyWeb",
+      name := "maintenance",
       libraryDependencies ++= Seq(
         "org.scalatra" %% "scalatra-scalate" % ScalatraVersion,
         "org.scalatra" %% "scalatra-specs2" % ScalatraVersion % "test",
@@ -183,7 +183,13 @@ object DsmoqBuild extends Build {
         "javax.servlet" % "javax.servlet-api" % "3.1.0" % "provided",
         "commons-codec" % "commons-codec" % "1.10",
         "com.typesafe" % "config" % "1.3.0",
-        "com.typesafe.scala-logging" % "scala-logging_2.11" % "3.1.0" % "compile"
+        "com.typesafe.scala-logging" % "scala-logging_2.11" % "3.1.0" % "compile",
+        "com.amazonaws" % "aws-java-sdk" % "1.9.4",
+        "org.apache.httpcomponents" % "httpclient" % "4.3.6" % "test",
+        "org.apache.httpcomponents" % "httpmime" % "4.3.6" % "test",
+        "org.json4s" %% "json4s-jackson" % "3.2.10" % "test",
+        "com.fasterxml.jackson.core" % "jackson-databind" % "2.4.4" % "test",
+        "net.databinder.dispatch" %% "dispatch-core" % "0.11.2" % "test"
       ),
       scalateTemplateConfig in Compile <<= (sourceDirectory in Compile) { base =>
         Seq(
@@ -196,7 +202,8 @@ object DsmoqBuild extends Build {
             Some("templates")
           )
         )
-      }
+      },
+      parallelExecution in Test := false
     )
     .dependsOn(common)
 }

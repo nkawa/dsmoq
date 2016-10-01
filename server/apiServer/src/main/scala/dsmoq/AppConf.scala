@@ -1,7 +1,12 @@
 package dsmoq
 
+import scala.collection.JavaConverters._
+
 import com.typesafe.config.ConfigFactory
 
+/**
+ * application.conf、system.confの設定値を取りまとめるオブジェクト
+ */
 object AppConf {
   private val conf = ConfigFactory.load
   private val root = {
@@ -11,54 +16,165 @@ object AppConf {
       conf
     }
   }
+  private val sys = ConfigFactory.load("system.conf")
 
+  /**
+   * 起動ポート番号
+   */
   val port = root.getInt("apiserver.port")
+
+  /**
+   * 画像配置ディレクトリ
+   */
   val imageDir = root.getString("apiserver.image_dir")
+
+  /**
+   * ファイル配置ディレクトリ
+   */
   val fileDir = root.getString("apiserver.file_dir")
+
+  /**
+   * 一時ディレクトリ
+   */
   val tempDir = root.getString("apiserver.temp_dir")
+
+  /**
+   * メッセージファイルディレクトリ
+   */
   val messageDir = root.getString("apiserver.message_dir")
+
+  /**
+   * jarファイル配置ディレクトリ
+   */
   val appDir = if (root.hasPath("apiserver.app_dir")) {
     root.getString("apiserver.app_dir")
   } else {
     fileDir + "/../jws"
   }
-  val systemUserId = "dccc110c-c34f-40ed-be2c-7e34a9f1b8f0"
-  val guestUserId = "6afb4198-859d-4053-8a15-5c791f3a8089"
-  val guestGroupId = "f274a75c-e20e-4b4a-8db9-566fd41aa1bd"
 
-  val defaultAvatarImageId = "8a981652-ea4d-48cf-94db-0ceca7d81aef"
-  val defaultDatasetImageId = "8b570468-9814-4d30-8c04-392b263b6404"
-  val defaultGroupImageId = "960a5601-2b60-2531-e6ad-54b91612ede5"
-  val defaultLicenseId = "dc16a22c-00de-b00e-dbec-38cbad333bf7"
-  val defaultFeaturedImageIds = Seq(
-    "e7aa025c-6498-4f1e-bca4-7c8dd85c9a4e",
-    "897b71d7-c704-4f9d-b97e-f594f0570b55",
-    "20f1586a-22b3-40c1-a308-d038284148cc",
-    "aa6ce408-091d-4d28-897e-e75de8959b7f",
-    "cb76a32d-5b12-42f4-90fd-62b8cfb19525",
-    "59ae7029-fafc-4f7e-8578-e7a00db2d147"
+  /**
+   * システムユーザID
+   */
+  val systemUserId = sys.getString("system.user.system.id")
+
+  /**
+   * ゲストグループID
+   */
+  val guestGroupId = sys.getString("system.group.guest")
+
+  /**
+   * ゲストユーザオブジェクト
+   */
+  val guestUser = dsmoq.services.User(
+    id = sys.getString("system.user.guest.id"),
+    name = sys.getString("system.user.guest.name"),
+    fullname = sys.getString("system.user.guest.fullname"),
+    organization = sys.getString("system.user.guest.organization"),
+    title = sys.getString("system.user.guest.title"),
+    image = sys.getString("system.user.guest.image"),
+    mailAddress = sys.getString("system.user.guest.mailAddress"),
+    description = sys.getString("system.user.guest.description"),
+    isGuest = true,
+    isDisabled = false
   )
 
+  /**
+   * デフォルトユーザアイコン画像ID
+   */
+  val defaultAvatarImageId = sys.getString("system.default.image.avatar")
+
+  /**
+   * デフォルトデータセットアイコン画像ID
+   */
+  val defaultDatasetImageId = sys.getString("system.default.image.dataset")
+
+  /**
+   * デフォルトグループアイコン画像ID
+   */
+  val defaultGroupImageId = sys.getString("system.default.image.group")
+
+  /**
+   * デフォルトFeatured画像ID
+   */
+  val defaultFeaturedImageIds = sys.getStringList("system.default.image.featured").asScala
+
+  /**
+   * デフォルトライセンスID
+   */
+  val defaultLicenseId = sys.getString("system.default.license")
+
+  /**
+   * ルートURL
+   */
   val urlRoot = root.getString("apiserver.url_root")
+
+  /**
+   * 画像URLのルート
+   */
   val imageDownloadRoot = root.getString("apiserver.image_url_root")
+
+  /**
+   * ファイルダウンロードURLのルート
+   */
   val fileDownloadRoot = root.getString("apiserver.file_url_root")
+
+  /**
+   * APPURLのルート
+   */
   val appDownloadRoot = if (root.hasPath("apiserver.app_url_root")) {
     root.getString("apiserver.app_url_root")
   } else {
     fileDownloadRoot + "../apps/"
   }
 
+  /**
+   * Google OAuthのクライアントID
+   */
   val clientId = root.getString("google.client_id")
+
+  /**
+   * Google OAuthのクライアントSecret
+   */
   val clientSecret = root.getString("google.client_secret")
+
+  /**
+   * Google OAuthのコールバックURL
+   */
   val callbackUrl = root.getString("google.callback_url")
+
+  /**
+   * Google OAuthの適用範囲
+   */
   val scopes = root.getStringList("google.scopes")
+
+  /**
+   * Google OAuthのアプリケーション名
+   */
   val applicationName = root.getString("google.application_name")
+
+  /**
+   * Google OAuthで許可するメールアドレス形式
+   */
   val allowedMailaddrs = root.getStringList("google.allowed_mailaddrs")
 
+  /**
+   * Amazon S3のアクセスキー
+   */
   val s3AccessKey = root.getString("s3.access_key")
+
+  /**
+   * Amazon S3のシークレットキー
+   */
   val s3SecretKey = root.getString("s3.secret_key")
+
+  /**
+   * Amazon S3のアップロード先bucket
+   */
   val s3UploadRoot = root.getString("s3.upload_bucket")
 
+  /**
+   * ファイル取得時の取得上限デフォルト値
+   */
   val fileLimit = {
     if (root.hasPath("apiserver.file_limit")) {
       root.getInt("apiserver.file_limit")

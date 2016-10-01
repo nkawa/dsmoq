@@ -1,0 +1,52 @@
+<%@ val condition: dsmoq.maintenance.data.dataset.SearchCondition %>
+<%@ val data: dsmoq.maintenance.data.dataset.AclListData %>
+<% import dsmoq.maintenance.views.Util %>
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>データメンテナンス：データセットアクセス権一覧</title>
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+  </head>
+  <body>
+    <p>
+      <a class="menu" href="/">メニュー</a>
+    </p>
+    <h1>データセットアクセス権一覧</h1>
+    <h2>${data.datasetName}</h2>
+    #if(data.ownerships.isEmpty)
+    <p>アクセス権なし</p>
+    #else
+    <div class="table">
+      <table>
+        <thead>
+          <tr>
+            <th>区分</th>
+            <th>ユーザーID/グループ名</th>
+            <th>アクセス権</th>
+            <th>更新</th>
+          </tr>
+        </thead>
+        <tbody>
+          #for (item <- data.ownerships)
+          <tr>
+            <td>${item.ownerType.toString}</td>
+            <td>${item.name}</td>
+            <td>${item.accessLevel.toString}</td>
+            <td><a href="${Util.getDatasetAclUpdateUrl(data.datasetId, item, condition)}">更新</a></td>
+          </tr>
+          #end
+        </tbody>
+      </table>
+    </div>
+    #end
+    <hr>
+    <p>
+      <a href="${Util.getDatasetAclAddUserUrl(data.datasetId, condition)}">アクセス権追加(ユーザー)</a>
+      <a href="${Util.getDatasetAclAddGroupUrl(data.datasetId, condition)}">アクセス権追加(グループ)</a>
+    </p>
+    <p>
+      <a href="${Util.getDatasetManagementUrl(condition)}">Back</a>
+    </p>
+  </body>
+</html>

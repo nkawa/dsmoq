@@ -10,8 +10,7 @@ import dsmoq.maintenance.AppConfig
 case class SearchCondition(
   userType: SearchCondition.UserType,
   query: String,
-  offset: Int,
-  limit: Int
+  page: Int
 ) {
   import SearchCondition._
 
@@ -19,9 +18,12 @@ case class SearchCondition(
     Map(
       "userType" -> userType.toString,
       "query" -> query,
-      "offset" -> offset.toString,
-      "limit" -> limit.toString
+      "page" -> page.toString
     )
+  }
+
+  override def toString: String = {
+    toMap.collect { case (key, value) => s"${key}=${value}" }.mkString(",")
   }
 }
 
@@ -77,19 +79,18 @@ object SearchCondition {
     SearchCondition(
       userType = UserType(map.get("userType")),
       query = map.getOrElse("query", ""),
-      offset = toInt(map.get("offset"), 0),
-      limit = toInt(map.get("limit"), AppConfig.searchLimit)
+      page = toPage(map.get("page"), 1)
     )
   }
 
   /**
-   * オプショナル文字列を整数に変換する。
+   * オプショナル文字列をページを表す数値に変換する。
    *
    * @param str オプショナル文字列
    * @param default 変換できなかった場合に用いる値
    * @return 変換された整数
    */
-  def toInt(str: Option[String], default: Int): Int = {
-    str.flatMap(s => Try(s.toInt).toOption).filter(_ >= 0).getOrElse(default)
+  def toPage(str: Option[String], default: Int): Int = {
+    str.flatMap(s => Try(s.toInt).toOption).filter(_ >= 1).getOrElse(default)
   }
 }

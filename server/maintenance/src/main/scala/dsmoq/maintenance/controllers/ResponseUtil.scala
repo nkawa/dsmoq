@@ -11,6 +11,7 @@ import org.slf4j.MarkerFactory
 
 import com.typesafe.scalalogging.LazyLogging
 
+import dsmoq.maintenance.services.ErrorDetail
 import dsmoq.maintenance.services.ServiceException
 
 /**
@@ -26,21 +27,24 @@ object ResponseUtil extends LazyLogging {
    * エラーが発生し得る処理結果のレスポンスに対して、エラー側のレスポンスを作成する。
    *
    * @param result 処理結果
-   * @param errorProc エラーメッセージを受け取ってレスポンスボディを返す関数
+   * @param errorProc エラーメッセージ、エラー詳細のリストを受け取ってレスポンスボディを返す関数
    * @return レスポンス
    */
-  def resultAs(result: Try[ActionResult])(errorProc: String => String): ActionResult = {
+  def resultAs(result: Try[ActionResult])(errorProc: (String, Seq[ErrorDetail]) => String): ActionResult = {
     result match {
       case Success(res) => res
       case Failure(e) => {
         e match {
-          case _: ServiceException => {
-            val content = errorProc(e.getMessage)
+          case se: ServiceException => {
+            val content = errorProc(se.getMessage, se.details)
             BadRequest(content)
           }
           case _ => {
             logger.error(LOG_MARKER, e.getMessage, e)
-            val content = errorProc("内部エラーが発生しました。")
+            val errorDetails = Seq(
+              ErrorDetail(e.getMessage, e.getStackTrace.map(_.toString))
+            )
+            val content = errorProc("内部エラーが発生しました。", errorDetails)
             InternalServerError(content)
           }
         }

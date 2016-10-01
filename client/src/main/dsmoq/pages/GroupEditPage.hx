@@ -359,7 +359,7 @@ class GroupEditPage {
             var binding = JsViews.observable(data.selectedIds).refresh([]);
             searchImageCandidate();
             
-            html.find("#image-form input").on("change", function(_) {
+            html.find("#upload-image-form input").on("change", function(_) {
                 var isPrevEnabled = html.find("#image-list-prev").attr("disabled") != "disabled";
                 var isNextEnabled = html.find("#image-list-next").attr("disabled") != "disabled";
                 
@@ -373,11 +373,11 @@ class GroupEditPage {
                 // 直接Loadingを指定すると、内部のinput要素までloading-textで置き換わるため、模倣している。
                 // メッセージは内部のdivに担当させ、disableのみを#upload-imageボタンに設定する
                 BootstrapButton.setLoading(html.find("#upload-image > div"));
-                Service.instance.addGroupImages(id, html.find("#image-form")).then(
+                Service.instance.addGroupImages(id, html.find("#upload-image-form")).then(
                     function (_) {
                         Notification.show("success", "save successful");
                         searchImageCandidate();
-                        html.find("#image-form input").val("");
+                        html.find("#upload-image-form input").val("");
                     },
                     function (e) {
                         // Service内でNotificationを出力するようにしたため、この箇所でのNotification出力は不要。

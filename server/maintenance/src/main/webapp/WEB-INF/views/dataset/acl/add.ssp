@@ -1,0 +1,59 @@
+<%@ val condition: dsmoq.maintenance.data.dataset.SearchCondition %>
+<%@ val data: dsmoq.maintenance.data.dataset.AclAddData %>
+<%@ val ownerType: dsmoq.maintenance.data.dataset.OwnerType %>
+<%@ val csrfKey: String %>
+<%@ val csrfToken: String %>
+<% import dsmoq.maintenance.views.Util %>
+<% import dsmoq.maintenance.data.dataset.OwnerType %>
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>データメンテナンス：データセットアクセス権追加(${ownerType.toString})</title>
+    <link rel="stylesheet" type="text/css" href="/css/style.css">
+    <link rel="stylesheet" type="text/css" href="/css/ionicons.min.css">
+  </head>
+  <body>
+    <p>
+      <a class="menu" href="/">メニュー</a>
+    </p>
+    <h1>データセットアクセス権追加(${ownerType.toString})</h1>
+    <h2>${data.datasetName}</h2>
+    #match(ownerType)
+    #case(OwnerType.User)
+    <form method="POST" action="/dataset/acl/add/user/apply">
+      <input type="hidden" name="${csrfKey}" value="${csrfToken}">
+      <input type="hidden" name="datasetId" value="${data.datasetId}" />
+      <% render("/views/util/formHidden.ssp", Map("params" -> condition.toMap)) %>
+      <p>
+        <label>ユーザーID <input name="userName" type="text" value="" /></label>
+        <select name="accessLevel" class="operation">
+          <option value="limitedRead">Limited Read</option>
+          <option value="fullRead">Full Read</option>
+          <option value="owner">Owner</option>
+        </select>
+        <button class="add" name="update" type="submit" value="add">追加</button>
+      </p>
+    </form>
+    #case(OwnerType.Group)
+    <form method="POST" action="/dataset/acl/add/group/apply">
+      <input type="hidden" name="${csrfKey}" value="${csrfToken}">
+      <input type="hidden" name="datasetId" value="${data.datasetId}" />
+      <% render("/views/util/formHidden.ssp", Map("params" -> condition.toMap)) %>
+      <p>
+        <label>グループ名 <input name="groupName" type="text" value="" /></label>
+        <select name="accessLevel" class="operation">
+          <option value="limitedRead">Limited Read</option>
+          <option value="fullRead">Full Read</option>
+          <option value="provider">Provider</option>
+        </select>
+        <button class="add" name="update" type="submit" value="add">追加</button>
+      </p>
+    </form>
+    #end
+    <hr>
+    <p>
+      <a href="${Util.getDatasetAclUrl(data.datasetId, condition)}">Back</a>
+    </p>
+  </body>
+</html>

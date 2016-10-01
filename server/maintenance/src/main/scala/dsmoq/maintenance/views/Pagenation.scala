@@ -25,88 +25,33 @@ object Pagenation {
    * ページングの1ページを表すケースクラス
    *
    * @param num ページ番号
-   * @param offset 検索オフセット
    * @param enabled ページが有効な場合true、無効な場合false
    */
   case class Page(
     num: Int,
-    offset: Int,
     enabled: Boolean
   )
 
   /**
    * ページング部を作成する。
    *
-   * @param offset 現在のページの検索オフセット
-   * @param limit 検索上限
+   * @param page 現在のページ番号
+   * @param lastPage 最終ページ番号
    * @param total 検索結果の総件数
    * @return ページング部
    */
-  def apply(offset: Int, limit: Int, total: Int): Pagenation = {
-    val page = pageOf(offset, limit)
-    val lastOffset = lastOffsetOf(offset, limit, total)
-    val lastPage = pageOf(lastOffset, limit)
-    val from = minPageOf(offset, limit, total)
-    val to = maxPageOf(offset, limit, total)
+  def apply(page: Int, lastPage: Int, total: Int): Pagenation = {
+    val currentPage = math.max(math.min(page, lastPage), 1)
+    val from = math.max(currentPage + math.min(-2, -4 + lastPage - currentPage), 1)
+    val to = math.min(currentPage + math.max(5 - currentPage, 2), lastPage)
     Pagenation(
-      Page(1, 0, page > 1),
-      Page(page - 1, math.max(0, offset - limit), page > 1),
+      Page(1, currentPage > 1),
+      Page(currentPage - 1, currentPage > 1),
       (from to to).map { p =>
-        Page(p, math.max(0, offset + limit * (p - page)), p != page)
+        Page(p, p != currentPage)
       },
-      Page(page + 1, offset + limit, page < lastPage),
-      Page(lastPage, lastOffset, page < lastPage)
+      Page(currentPage + 1, currentPage < lastPage),
+      Page(lastPage, currentPage < lastPage)
     )
-  }
-
-  /**
-   * 検索オフセットからページ番号を取得する。
-   *
-   * @param offset 現在のページの検索オフセット
-   * @param limit 検索上限
-   * @return ページ番号
-   */
-  def pageOf(offset: Int, limit: Int): Int = {
-    math.ceil(math.max(offset, 0D) / limit).toInt + 1
-  }
-
-  /**
-   * 検索オフセットから最後のページ番号を取得する。
-   *
-   * @param offset 現在のページの検索オフセット
-   * @param limit 検索上限
-   * @param total 検索結果の総件数
-   * @return 最後のページ番号
-   */
-  def lastOffsetOf(offset: Int, limit: Int, total: Int): Int = {
-    offset + limit * ((total - offset - 1) / limit)
-  }
-
-  /**
-   * 検索オフセットから前後ページの最初のページ番号を取得する。
-   *
-   * @param offset 現在のページの検索オフセット
-   * @param limit 検索上限
-   * @param total 検索結果の総件数
-   * @return 前後ページの最初のページ番号
-   */
-  def minPageOf(offset: Int, limit: Int, total: Int): Int = {
-    val lastOffset = lastOffsetOf(offset, limit, total)
-    val minPageOffset = math.max(0, math.min(offset - limit * 2, lastOffset - limit * 4))
-    pageOf(minPageOffset, limit)
-  }
-
-  /**
-   * 検索オフセットから前後ページの最後のページ番号を取得する。
-   *
-   * @param offset 現在のページの検索オフセット
-   * @param limit 検索上限
-   * @param total 検索結果の総件数
-   * @return 前後ページの最後のページ番号
-   */
-  def maxPageOf(offset: Int, limit: Int, total: Int): Int = {
-    val lastOffset = lastOffsetOf(offset, limit, total)
-    val maxPageOffset = math.min(math.max(offset + limit * 2, limit * 4), lastOffset)
-    pageOf(maxPageOffset, limit)
   }
 }

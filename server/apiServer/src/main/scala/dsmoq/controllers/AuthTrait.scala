@@ -25,6 +25,9 @@ import javax.servlet.http.HttpServletRequest
 trait AuthTrait { this: ScalatraServlet with LazyLogging =>
   import AuthTrait._
 
+  /**
+   * リソースバンドルのインスタンス
+   */
   def resource: ResourceBundle
 
   /**
@@ -95,7 +98,11 @@ trait AuthTrait { this: ScalatraServlet with LazyLogging =>
     }
     ret.getOrElse {
       logger.info(LOG_MARKER, "Auth: Get user from Session: User not found. Use guest user.")
-      GUEST_USER
+      if (cookies.get("user.disabled") == Some("true")) {
+        AppConf.guestUser.copy(isDisabled = true)
+      } else {
+        AppConf.guestUser
+      }
     }
   }
 
@@ -192,22 +199,6 @@ object AuthTrait {
    * JSESSIONID
    */
   private val SESSION_ID = "JSESSIONID"
-
-  /**
-   * ゲストユーザ情報
-   */
-  val GUEST_USER = User(
-    id = AppConf.guestUserId,
-    name = "",
-    fullname = "",
-    organization = "",
-    title = "",
-    image = "http://xxxx",
-    mailAddress = "",
-    description = "",
-    isGuest = true,
-    isDisabled = false
-  )
 
   /**
    * HTTPヘッダからAuthorizationヘッダ内のAPIキー、シグネチャを取得する。

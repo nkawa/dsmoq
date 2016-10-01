@@ -8,11 +8,22 @@ import org.scalatra.servlet.FileItem
 import dsmoq.AppConf
 import javax.imageio.ImageIO
 
+/**
+ * 画像ファイルを保存するオブジェクト
+ */
 object ImageSaveLogic {
   val defaultFileName = "original"
   val uploadPath = "upload"
   val imageSizes = Array(16, 32, 48, 64, 96, 128, 192, 256)
 
+  /**
+   * 画像ファイルを保存する。
+   * 保存先はAppConf.dir/upload/imageId、保存名はサイズ、およびoriginalになる。
+   *
+   * @param imageId 画像ID
+   * @param file 画像ファイル
+   * @return 画像を保存したパス
+   */
   def writeImageFile(imageId: String, file: FileItem): String = {
     // 拡張子判定(現状例外スロー)
     val fileType = file.name.split('.').last.toLowerCase
@@ -45,6 +56,13 @@ object ImageSaveLogic {
     "/" + uploadPath + "/" + imageId
   }
 
+  /**
+   * リサイズ時のスケールを計算する。
+   *
+   * @param width 幅
+   * @param height 高さ
+   * @return 縮小サイズごとの縦横の比率のマップ
+   */
   def calcResizeScale(width: Int, height: Int): Map[Int, (Int, Int)] = {
     imageSizes.map { size =>
       if (width > height) {

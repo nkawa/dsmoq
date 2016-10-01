@@ -9,11 +9,11 @@
       <div class="media image-box">
         <label style="max-width: none; font-weight: normal;">
           <input type="radio" name="selected-app" data-link="selected" value="{{>item.id}}">
-          <span>{{>item.name}}</span>
+          <div>{{>item.name}}</div>
         </label>
       </div>
     {{/for}}
-    {^{range ^start=items.length end=7}}
+    {^{range ^start=items.length end=6}}
       <div class="media image-box" style="visibility: hidden;">
         <div class="media-body">
           <h4 class="media-heading">&nbsp;</h4>
@@ -34,12 +34,6 @@
       <div type="button" id="upload-app" class="btn btn-default">
         <div type="button" data-loading-text="Uploading...">Upload</div>
         <form id="upload-app-form">
-          <input type="file" name="file" accept=".jar">
-        </form>
-      </div>
-      <div type="button" id="upgrade-app" class="btn btn-default" data-link="disabled{:selectedIds.length <= 0}">
-        <div type="button" data-loading-text="Upgrading...">Upgrade</div>
-        <form id="upgrade-app-form">
           <input type="file" name="file" accept=".jar">
         </form>
       </div>

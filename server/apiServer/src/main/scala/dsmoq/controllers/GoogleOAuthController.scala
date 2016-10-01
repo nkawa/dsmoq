@@ -5,13 +5,21 @@ import java.util.ResourceBundle
 import scala.util.Failure
 import scala.util.Success
 
+import org.scalatra.Found
 import org.scalatra.ScalatraServlet
 import org.slf4j.MarkerFactory
 
 import com.typesafe.scalalogging.LazyLogging
 
+import dsmoq.exceptions.AccessDeniedException
 import dsmoq.services.GoogleAccountService
 
+/**
+ * /google_oauthにマッピングされるサーブレットクラス。
+ * Google OAuthでのログイン、リダイレクト機能を提供する。
+ *
+ * @param resource リソースバンドル
+ */
 class GoogleOAuthController(val resource: ResourceBundle) extends ScalatraServlet with LazyLogging with AuthTrait {
   /**
    * GoogleAccountServiceのインスタンス
@@ -23,16 +31,19 @@ class GoogleOAuthController(val resource: ResourceBundle) extends ScalatraServle
    */
   val LOG_MARKER = MarkerFactory.getMarker("GOOGLE_OAUTH_LOG")
 
+  // いずれにもマッチしないGETリクエスト
   get("/*") {
     throw new Exception("err")
   }
 
+  // Google Oauthログインリクエスト起点
   get("/signin") {
     val location = params("location")
     logger.info(LOG_MARKER, "Receive signin request, location={}", location)
-    redirect(googleAccountService.getOAuthUrl(location))
+    Found(googleAccountService.getOAuthUrl(location))
   }
 
+  // Google Oauthからのコールバック
   get("/oauth2callback") {
     logger.info(LOG_MARKER, "Receive oauth2callback request")
 
@@ -48,16 +59,22 @@ class GoogleOAuthController(val resource: ResourceBundle) extends ScalatraServle
             logger.info(LOG_MARKER, "login succeeded")
             clearSession()
             updateSessionUser(y)
-            redirect(userRedirectUri)
+            Found(userRedirectUri)
           case Failure(e) =>
             logger.error(LOG_MARKER, "login failed", e)
             clearSession()
-            redirect(userRedirectUri)
+            e match {
+              case e: AccessDeniedException if e.user.isDefined => {
+                cookies.set("user.disabled", "true")
+              }
+              case _ =>
+            }
+            Found("/")
         }
       case None =>
         logger.error(LOG_MARKER, "login failed - no code param")
         clearSession()
-        redirect(userRedirectUri)
+        Found(userRedirectUri)
     }
   }
 }

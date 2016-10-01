@@ -38,7 +38,7 @@ test {
   apiserver {
     port = 8080
     image_dir = "../../test_storage/image"
-    app_dir = "../test_storage/jws"
+    app_dir = "../../test_storage/jws"
     file_dir = "../../test_storage/file"
     temp_dir = "../../test_storage/temp"
     message_dir = "../../test_storage"
@@ -46,6 +46,6 @@ test {
     image_url_root = "http://localhost:8080/images/"
     app_url_root = "http://localhost:8080/apps/"
     file_url_root = "http://localhost:8080/files/"
-    file_limit = 20
+    file_limit = 150
   }
 }

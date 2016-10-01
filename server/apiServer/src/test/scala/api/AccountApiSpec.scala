@@ -1,65 +1,24 @@
 package api
 
-import java.util.ResourceBundle
-import javax.crypto.Mac
-import javax.crypto.spec.SecretKeySpec
-
-import org.eclipse.jetty.servlet.ServletHolder
-
-import api.logic.SpecCommonLogic
-import dsmoq.services.User
-import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfter, FreeSpec }
-import org.scalatra.test.scalatest.ScalatraSuite
-import org.json4s.{ DefaultFormats, Formats }
-import scalikejdbc.config.{ DBsWithEnv, DBs }
-import dsmoq.controllers.{ AjaxResponse, ApiController }
-import org.json4s.jackson.JsonMethods._
-import dsmoq.services.json.{ MailValidationResult, License }
 import java.io.File
-import org.scalatra.servlet.MultipartConfig
-import dsmoq.persistence.SuggestType
-import dsmoq.services.json.GroupData.Group
-import java.util.{ Base64, UUID }
-import dsmoq.AppConf
-import dsmoq.services.json.DatasetData.Dataset
-import org.json4s._
+import java.util.UUID
+
 import org.json4s.JsonDSL._
-import org.eclipse.jetty.server.Connector
+import org.json4s._
+import org.json4s.jackson.JsonMethods._
 
-class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
-  protected implicit val jsonFormats: Formats = DefaultFormats
+import common.DsmoqSpec
+import dsmoq.AppConf
+import dsmoq.controllers.AjaxResponse
+import dsmoq.persistence.SuggestType
+import dsmoq.services.User
+import dsmoq.services.json.DatasetData.Dataset
+import dsmoq.services.json.GroupData.Group
+import dsmoq.services.json.License
 
+class AccountApiSpec extends DsmoqSpec {
   private val dummyFile = new File("../README.md")
   private val dummyImage = new File("../../client/www/dummy/images/nagoya.jpg")
-
-  override def beforeAll() {
-    super.beforeAll()
-    DBsWithEnv("test").setup()
-    System.setProperty(org.scalatra.EnvironmentKey, "test")
-
-    val servlet = new ApiController(ResourceBundle.getBundle("message"))
-    val holder = new ServletHolder(servlet.getClass.getName, servlet)
-    // multi-part file upload config
-    val multipartConfig = MultipartConfig(
-      maxFileSize = Some(3 * 1024 * 1024),
-      fileSizeThreshold = Some(1 * 1024 * 1024)
-    ).toMultipartConfigElement
-    holder.getRegistration.setMultipartConfig(multipartConfig)
-    servletContextHandler.addServlet(holder, "/api/*")
-  }
-
-  override def afterAll() {
-    DBsWithEnv("test").close()
-    super.afterAll()
-  }
-
-  before {
-    SpecCommonLogic.insertDummyData()
-  }
-
-  after {
-    SpecCommonLogic.deleteAllCreateData()
-  }
 
   "API test" - {
     "プロフィール" - {
@@ -173,16 +132,6 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
           put("/api/profile/password", rollbackParams) { checkStatus() }
           post("/api/signout") { checkStatus() }
           signIn()
-        }
-      }
-
-      "メールアドレスが重複していないか" in {
-        val params = Map("value" -> "hogehoge@hoge.jp")
-        get("/api/system/is_valid_email", params) {
-          checkStatus()
-          //TODO 実装されたら書く
-          //          val result = parse(body).extract[AjaxResponse[MailValidationResult]]
-          //          assert(result.data.isValid)
         }
       }
 
@@ -310,19 +259,5 @@ class AccountApiSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
         }
       }
     }
-  }
-
-  def signIn() {
-    //    val params = Map("id" -> "dummy1", "password" -> "password")
-    val params = Map("d" -> compact(render(("id" -> "dummy1") ~ ("password" -> "password"))))
-    post("/api/signin", params) {
-      checkStatus()
-    }
-  }
-
-  def checkStatus() {
-    status should be(200)
-    val result = parse(body).extract[AjaxResponse[Any]]
-    result.status should be("OK")
   }
 }

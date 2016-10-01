@@ -68,9 +68,9 @@ object Ownership extends SQLSyntaxSupport[Ownership] {
 
   override val autoSession = AutoSession
 
-  def find(id: Any)(implicit session: DBSession = autoSession): Option[Ownership] = {
+  def find(id: String)(implicit session: DBSession = autoSession): Option[Ownership] = {
     withSQL {
-      select.from(Ownership as o).where.eq(o.id, id)
+      select.from(Ownership as o).where.eq(o.id, sqls.uuid(id))
     }.map(Ownership(o.resultName)).single.apply()
   }
 

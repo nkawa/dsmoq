@@ -2,57 +2,22 @@ package api
 
 import java.util.ResourceBundle
 
-import org.eclipse.jetty.servlet.ServletHolder
-
-import _root_.api.api.logic.SpecCommonLogic
 import com.google.api.services.oauth2.model.Userinfoplus
+
+import common.DsmoqSpec
 import dsmoq.AppConf
-import dsmoq.controllers.{ GoogleOAuthController, AjaxResponse, ApiController, FileController }
+import dsmoq.controllers.{ GoogleOAuthController, AjaxResponse }
+import dsmoq.persistence.PostgresqlHelper._
 import dsmoq.persistence._
 import dsmoq.services.GoogleAccountService
-import org.eclipse.jetty.server.Connector
-import org.json4s.{ DefaultFormats, Formats, _ }
-import org.scalatest.{ BeforeAndAfter, FreeSpec }
-import org.scalatra.servlet.MultipartConfig
-import org.scalatra.test.scalatest.ScalatraSuite
 import scalikejdbc._
-import scalikejdbc.config.DBsWithEnv
-import dsmoq.persistence.PostgresqlHelper._
 
-class GoogleAccountSpec extends FreeSpec with ScalatraSuite with BeforeAndAfter {
+class GoogleAccountSpec extends DsmoqSpec {
   val googleService = new GoogleAccountService(ResourceBundle.getBundle("message"))
-
-  protected implicit val jsonFormats: Formats = DefaultFormats
 
   override def beforeAll() {
     super.beforeAll()
-    DBsWithEnv("test").setup()
-    System.setProperty(org.scalatra.EnvironmentKey, "test")
-
-    val resource = ResourceBundle.getBundle("message")
-    val servlet = new ApiController(resource)
-    val holder = new ServletHolder(servlet.getClass.getName, servlet)
-    // multi-part file upload config
-    val multipartConfig = MultipartConfig(
-      maxFileSize = Some(3 * 1024 * 1024),
-      fileSizeThreshold = Some(1 * 1024 * 1024)
-    ).toMultipartConfigElement
-    holder.getRegistration.setMultipartConfig(multipartConfig)
-    servletContextHandler.addServlet(holder, "/api/*")
     addServlet(new GoogleOAuthController(resource), "/google_oauth/*")
-  }
-
-  override def afterAll() {
-    DBsWithEnv("test").close()
-    super.afterAll()
-  }
-
-  before {
-    //SpecCommonLogic.insertDummyData()
-  }
-
-  after {
-    SpecCommonLogic.deleteAllCreateData()
   }
 
   "Authorization Test" - {
