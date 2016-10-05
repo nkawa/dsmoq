@@ -1,0 +1,14 @@
+# Maintenance Page settings
+maintenance {
+  port = 8092
+
+  user = "coi"
+  password = "coicoi"
+
+  search_limit = 5
+  dsmoq_url_root = "http://localhost:8080/"
+
+  image_dir = "../storage/image"
+  file_dir = "../storage/file"
+  app_dir = "../storage/jws"
+}
