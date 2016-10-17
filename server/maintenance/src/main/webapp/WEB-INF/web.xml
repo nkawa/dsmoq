@@ -3,6 +3,15 @@
       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
       xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd"
       version="3.0">
+  <!-- dsmoqと同じドメインで運用すると、SessionIDが被って上書きしてしまうため、JSESSIONIDをリネームする必要がある -->
+  <context-param>
+    <param-name>org.eclipse.jetty.servlet.SessionCookie</param-name>
+    <param-value>JSESSIONIDM</param-value>
+  </context-param>
+  <context-param>
+    <param-name>org.eclipse.jetty.servlet.SessionIdPathParameterName</param-name>
+    <param-value>jsessionidm</param-value>
+  </context-param>
 
   <!--
     This listener loads a class in the default package called ScalatraBootstrap.
