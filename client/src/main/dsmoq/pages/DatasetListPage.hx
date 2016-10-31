@@ -5,7 +5,7 @@ import conduitbox.Navigation;
 import dsmoq.Async;
 import dsmoq.models.DatasetQuery;
 import dsmoq.models.Service;
-import dsmoq.models.TagDetail;
+import dsmoq.models.TagColor;
 import dsmoq.views.AutoComplete;
 import hxgnd.Error;
 import hxgnd.js.Html;
@@ -48,7 +48,8 @@ class DatasetListPage {
             page: {
                 index: pageNum - 1,
             },
-            tag: new Array<TagDetail>(),
+            tagColor: new Array<TagColor>(),
+            tag: new Array<String>(),
             customQueries: new Array<{ data: DatasetQuery, url: String }>(),
             saveQueryName: "",
             deleteQuery: {
@@ -197,7 +198,7 @@ class DatasetListPage {
             var obj: Dynamic = switch (e.target.target) {
                 case "query": { operator: "contain", value: "" };
                 case "owner": { operator: "equal", value: "" };
-                case "tag": { value: if (data.tag.length == 0) "" else data.tag[0].tag };
+                case "tag": { value: if (data.tag.length == 0) "" else data.tag[0] };
                 case "attribute": { key: "", value: "" };
                 case "total-size": { operator: "ge", value: 0, unit: "byte" };
                 case "public": { value: "public" };
@@ -205,6 +206,10 @@ class DatasetListPage {
                 default: { value: "" };
             }
             JsViews.observable(e.target).setProperty(obj);
+        });
+
+        Service.instance.getTagColors().then(function(x) {
+            binding.setProperty("tagColor", x);
         });
 
         Service.instance.getTags().then(function(x) {

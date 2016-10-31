@@ -1195,6 +1195,16 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // タグ色一覧取得
+  get("/tags/color") {
+    val ret = for {
+      result <- SystemService.getTagColors()
+    } yield {
+      result
+    }
+    toActionResult(ret)
+  }
+
   // ユーザ候補一覧取得
   get("/suggests/users") {
     val ret = for {

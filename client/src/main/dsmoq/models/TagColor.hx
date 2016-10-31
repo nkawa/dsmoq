@@ -1,6 +1,6 @@
 package dsmoq.models;
 
-typedef TagDetail = {
+typedef TagColor = {
     var tag(default, null): String;
     var color(default, null): String;
 }

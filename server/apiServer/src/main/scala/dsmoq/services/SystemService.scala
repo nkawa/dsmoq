@@ -40,6 +40,9 @@ object SystemService extends LazyLogging {
 
   private val LOG_MARKER_USER_GROUP = MarkerFactory.getMarker("USER_GROUP")
 
+  /** タグを表す属性値 */
+  private val TAG_VALUE = "$tag"
+
   /**
    * データセットへのアクセスログを記入する。
    *
@@ -427,11 +430,41 @@ object SystemService extends LazyLogging {
   }
 
   /**
-   * タグの一覧を取得する。
+   * タグ名の一覧を取得する。
    *
-   * @return Success(Seq[TagDetail]) 取得に成功した場合、タグの一覧
+   * @return Success(Seq[String]) 取得に成功した場合、タグの一覧
    */
-  def getTags(): Try[Seq[TagDetail]] = {
+  def getTags(): Try[Seq[String]] = {
+    Try {
+      DB.readOnly { implicit s =>
+        val a = persistence.Annotation.a
+        val da = persistence.DatasetAnnotation.da
+        withSQL {
+          select
+            .from(persistence.Annotation as a)
+            .innerJoin(persistence.DatasetAnnotation as da).on(da.annotationId, a.id)
+            .where
+            .eq(da.data, TAG_VALUE)
+            .and
+            .isNull(a.deletedBy)
+            .and
+            .isNull(a.deletedAt)
+            .and
+            .isNull(da.deletedBy)
+            .and
+            .isNull(da.deletedAt)
+            .orderBy(a.name)
+        }.map(_.string(a.resultName.name)).list.apply()
+      }
+    }
+  }
+
+  /**
+   * タグ色の一覧を取得する。
+   *
+   * @return Success(Seq[TagDetail]) 取得に成功した場合、タグ色の一覧
+   */
+  def getTagColors(): Try[Seq[TagDetail]] = {
     Try {
       DB.readOnly { implicit s =>
         val t = persistence.Tag.t

@@ -395,8 +395,12 @@ class Service extends Stream<ServiceEvent> {
         return send(Put, '/api/datasets/$datasetId/images/featured', { imageId: imageId });
     }
     
-    public function getTags() : Promise<Array<TagDetail>> {
+    public function getTags() : Promise<Array<String>> {
         return send(Get, '/api/tags');
+    }
+    
+    public function getTagColors() : Promise<Array<TagColor>> {
+        return send(Get, '/api/tags/color');
     }
     
     public function getMessage() : Promise<String> {

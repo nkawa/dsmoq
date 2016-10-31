@@ -4,7 +4,7 @@ import conduitbox.Engine;
 import conduitbox.LocationMapping;
 import dsmoq.models.Profile;
 import dsmoq.models.Service;
-import dsmoq.models.TagDetail;
+import dsmoq.models.TagColor;
 import dsmoq.Page;
 import dsmoq.pages.*;
 import haxe.Resource;
@@ -46,7 +46,7 @@ class Main {
             return r.replace(x, "").trim();
         });
 
-		JsViews.views.helpers("getTagColor", function(tag: Array<TagDetail>) {
+		JsViews.views.helpers("getTagColor", function(tag: Array<TagColor>) {
 			return function(key: String) {
 				var target = tag.filter(function(x) { return x.tag == key; } );
 				if (target.length == 0) {
