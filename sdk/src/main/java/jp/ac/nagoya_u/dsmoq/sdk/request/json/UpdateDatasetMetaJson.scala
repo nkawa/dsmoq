@@ -4,5 +4,7 @@ private[request] case class UpdateDatasetMetaJson(
   name: String,
   description: String,
   license: String,
-  attributes: Seq[Attribute]
+  attributes: Seq[UpdateDatasetAttributeJson]
 ) extends Jsonable
+
+private[request] case class UpdateDatasetAttributeJson(name: String, value: String)

@@ -1,16 +1,16 @@
 package jp.ac.nagoya_u.dsmoq.sdk.sample;
 
 import jp.ac.nagoya_u.dsmoq.sdk.client.DsmoqClient;
-import jp.ac.nagoya_u.dsmoq.sdk.request.Attribute;
 import jp.ac.nagoya_u.dsmoq.sdk.request.CreateGroupParam;
 import jp.ac.nagoya_u.dsmoq.sdk.request.GetGroupsParam;
-import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateDatasetMetaParam;
 import jp.ac.nagoya_u.dsmoq.sdk.request.GetMembersParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateDatasetAttributeParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateDatasetMetaParam;
 import jp.ac.nagoya_u.dsmoq.sdk.response.Dataset;
 import jp.ac.nagoya_u.dsmoq.sdk.response.Group;
 import jp.ac.nagoya_u.dsmoq.sdk.response.GroupsSummary;
-import jp.ac.nagoya_u.dsmoq.sdk.response.RangeSlice;
 import jp.ac.nagoya_u.dsmoq.sdk.response.MemberSummary;
+import jp.ac.nagoya_u.dsmoq.sdk.response.RangeSlice;
 import jp.ac.nagoya_u.dsmoq.sdk.util.NotAuthorizedException;
 import jp.ac.nagoya_u.dsmoq.sdk.util.NotFoundException;
 
@@ -55,7 +55,7 @@ public class UseSdkSampleMain {
 
     private static void useDatasetApi(DsmoqClient client) throws NotAuthorizedException, NotFoundException {
         // Dataset の取得 [get:/api/datasets/:datasetId]
-        Dataset dataset = dataset = client.getDataset(TEST_DATASET_ID);
+        Dataset dataset = client.getDataset(TEST_DATASET_ID);
         printout("",
                 "=== getDataset [get:/api/datasets/:datasetId] ===",
                 "  dataset     : " + dataset.toString(),
@@ -85,9 +85,9 @@ public class UseSdkSampleMain {
         // そのまま使用できないため、移し替えを行う
         //   Server [DatasetAttribute] -> { name: String, value: String }
         //   SDL [Attribute] -> { id: String, value: String }
-        List<Attribute> attrs = dataset.getMeta().getAttributes().stream().map(keyPair ->
-                new Attribute(keyPair.getName(), keyPair.getValue())).collect(Collectors.toList());
-        attrs.add(new Attribute("追加属性", ZonedDateTime.now().toString()));
+        List<UpdateDatasetAttributeParam> attrs = dataset.getMeta().getAttributes().stream().map(keyPair ->
+                new UpdateDatasetAttributeParam(keyPair.getName(), keyPair.getValue())).collect(Collectors.toList());
+        attrs.add(new UpdateDatasetAttributeParam("追加属性", ZonedDateTime.now().toString()));
         param.setAttributes(attrs);
 
         client.updateDatasetMetaInfo(TEST_DATASET_ID,  param);

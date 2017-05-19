@@ -40,6 +40,7 @@ import jp.ac.nagoya_u.dsmoq.sdk.request.SetGuestAccessLevelParam;
 import jp.ac.nagoya_u.dsmoq.sdk.request.SetMemberRoleParam;
 import jp.ac.nagoya_u.dsmoq.sdk.request.SetPrimaryImageParam;
 import jp.ac.nagoya_u.dsmoq.sdk.request.StatisticsParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateDatasetAttributeParam;
 import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateDatasetMetaParam;
 import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateEmailParam;
 import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateFileMetaParam;
@@ -47,8 +48,10 @@ import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateGroupParam;
 import jp.ac.nagoya_u.dsmoq.sdk.request.UpdateProfileParam;
 import jp.ac.nagoya_u.dsmoq.sdk.response.Dataset;
 import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetAddImages;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetAttribute;
 import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetFile;
 import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetGetImage;
+import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetMetaData;
 import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetOwnership;
 import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetTask;
 import jp.ac.nagoya_u.dsmoq.sdk.response.DatasetZipedFile;
@@ -539,10 +542,22 @@ public class SDKTest {
         param.setName("hoge");
         param.setDescription("dummy description");
         param.setLicense("1050f556-7fee-4032-81e7-326e5f1b82fb");
+        param.setAttributes(Arrays.asList(
+                new UpdateDatasetAttributeParam("attr1", "value1"),
+                new UpdateDatasetAttributeParam("attr2", "value2")
+        ));
         client.updateDatasetMetaInfo(datasetId, param);
+
         Dataset updated = client.getDataset(datasetId);
-        assertThat(updated.getMeta().getName(), is("hoge"));
-        assertThat(updated.getMeta().getDescription(), is("dummy description"));
+        DatasetMetaData metadata = updated.getMeta();
+        assertThat(metadata.getName(), is("hoge"));
+        assertThat(metadata.getDescription(), is("dummy description"));
+        List<DatasetAttribute> attr = metadata.getAttributes();
+        assertThat(attr.size(), is(2));
+        assertThat(attr.get(0).getName(), is("attr2"));
+        assertThat(attr.get(0).getValue(), is("value2"));
+        assertThat(attr.get(1).getName(), is("attr1"));
+        assertThat(attr.get(1).getValue(), is("value1"));
     }
 
     @Test
@@ -732,10 +747,22 @@ public class SDKTest {
         param.setName("ほげ");
         param.setDescription("日本語の説明");
         param.setLicense("1050f556-7fee-4032-81e7-326e5f1b82fb");
+        param.setAttributes(Arrays.asList(
+                new UpdateDatasetAttributeParam("属性１", "値１"),
+                new UpdateDatasetAttributeParam("属性２", "値２")
+        ));
+
         client.updateDatasetMetaInfo(datasetId, param);
         Dataset updated = client.getDataset(datasetId);
-        assertThat(updated.getMeta().getName(), is("ほげ"));
-        assertThat(updated.getMeta().getDescription(), is("日本語の説明"));
+        DatasetMetaData metadata = updated.getMeta();
+        assertThat(metadata.getName(), is("ほげ"));
+        assertThat(metadata.getDescription(), is("日本語の説明"));
+        List<DatasetAttribute> attr = metadata.getAttributes();
+        assertThat(attr.size(), is(2));
+        assertThat(attr.get(0).getName(), is("属性２"));
+        assertThat(attr.get(0).getValue(), is("値２"));
+        assertThat(attr.get(1).getName(), is("属性１"));
+        assertThat(attr.get(1).getValue(), is("値１"));
     }
 
     @Test
