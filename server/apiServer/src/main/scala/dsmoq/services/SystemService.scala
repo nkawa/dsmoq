@@ -454,7 +454,7 @@ object SystemService extends LazyLogging {
             .and
             .isNull(da.deletedAt)
             .orderBy(a.name)
-        }.map(_.string(a.resultName.name)).list.apply()
+        }.map(_.string(a.resultName.name)).list.apply().distinct
       }
     }
   }
