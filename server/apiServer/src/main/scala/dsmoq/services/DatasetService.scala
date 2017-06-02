@@ -2,14 +2,13 @@ package dsmoq.services
 
 import java.io.ByteArrayInputStream
 import java.io.Closeable
+import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.io.SequenceInputStream
-import java.nio.charset.Charset
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
+import java.nio.charset.{ Charset, StandardCharsets }
+import java.nio.file.{ Files, Path, Paths, StandardCopyOption }
 import java.util.ResourceBundle
 import java.util.UUID
 import java.util.zip.ZipInputStream
@@ -4003,10 +4002,20 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(datasetId, "datasetId")
       CheckUtil.checkNull(file, "file")
       CheckUtil.checkNull(user, "user")
-      val csv = use(new InputStreamReader(file.getInputStream)) { in =>
-        CSVReader.open(in).all().collect {
-          case name :: value :: _ => (name, value)
+      val tmpFile = File.createTempFile("coi_", null)
+      val csv = try {
+        // 負荷分散のため、一旦テンポラリファイルに保存
+        val tmpPath = Paths.get(tmpFile.getAbsolutePath)
+        Files.copy(file.getInputStream, tmpPath, StandardCopyOption.REPLACE_EXISTING)
+
+        val charset = parseCharset(tmpPath)
+        use(Files.newBufferedReader(tmpPath, charset)) { in =>
+          CSVReader.open(in).all().collect {
+            case name :: value :: _ => (name, value)
+          }
         }
+      } finally {
+        tmpFile.delete()
       }
 
       DB.localTx { implicit s =>
@@ -4080,6 +4089,28 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         case e: Exception =>
       }
     }
+  }
+
+  /**
+   * 指定したファイルの文字コードを判定する。
+   *
+   *
+   * @param path 判定対象ファイルへのパス
+   * @return 文字コード
+   */
+  private def parseCharset(path: Path): Charset = {
+    val charsets = Seq("ISO-2022-JP", "EUC-JP", "MS932", "UTF-8", "UTF-16")
+      .map { c =>
+        try {
+          Files.readAllLines(path, Charset.forName(c))
+          Some(c)
+        } catch {
+          case _: Throwable => None
+        }
+      }
+      .filter(_.nonEmpty)
+    if (charsets.nonEmpty) Charset.forName(charsets.head.get)
+    else StandardCharsets.UTF_8
   }
 
   /**
