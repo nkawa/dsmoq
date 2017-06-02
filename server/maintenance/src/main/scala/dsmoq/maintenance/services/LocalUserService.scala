@@ -1,0 +1,156 @@
+package dsmoq.maintenance.services
+
+import java.security.MessageDigest
+import java.util.UUID
+
+import com.typesafe.scalalogging.LazyLogging
+import dsmoq.maintenance.AppConfig
+import dsmoq.maintenance.data.localuser.CreateParameter
+import dsmoq.persistence._
+import org.joda.time.DateTime
+import org.scalatra.servlet.FileItem
+import org.slf4j.MarkerFactory
+import scalikejdbc.DB
+
+import scala.util.{ Failure, Try }
+
+/**
+ * ローカルユーザー生成サービス
+ */
+object LocalUserService extends LazyLogging {
+  /**
+   * ログマーカー
+   */
+  private val LOG_MARKER = MarkerFactory.getMarker("MAINTENANCE_LOCALUSER_LOG")
+
+  /**
+   * サービス名
+   */
+  private val SERVICE_NAME = LocalUserService.getClass.getSimpleName
+
+  /**
+   * デフォルトアイコンのID
+   */
+  private val defaultAvatarImageId = "8a981652-ea4d-48cf-94db-0ceca7d81aef"
+
+  /**
+   * 新規にユーザーを作成する
+   *
+   * @param param ユーザー情報
+   * @return ユーザーID
+   */
+  def create(param: CreateParameter): Try[String] = {
+    logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "create"))
+    val result = param.userName.filter(_.nonEmpty).map { userName =>
+      DB.localTx { implicit s =>
+        for {
+          // ユーザーの作成
+          fullName <- Util.require(param.fullName, "フルネーム")
+          organization <- Util.require(param.organization, "組織")
+          title <- Util.require(param.title, "タイトル")
+          description <- Util.require(param.description, "詳細")
+          user <- createUser(userName, fullName, organization, title, description, defaultAvatarImageId)
+
+          // パスワードの追加
+          password <- Util.require(param.password, "パスワード")
+          _ <- addPassword(password, user)
+
+          // メールアドレスの追加
+          mailAddress <- Util.require(param.mailAddress, "メールアドレス")
+          _ <- addMailAddress(mailAddress, user)
+
+          // パーソナルグループの追加
+          _ <- joinPersonalGroup(user)
+        } yield user.id
+      }
+    }.getOrElse {
+      Failure(new ServiceException("ユーザー名が指定されていません。"))
+    }
+    Util.withErrorLogging(logger, LOG_MARKER, result)
+  }
+
+  private def createUser(userName: String, fullName: String, organization: String, title: String, description: String,
+    imageId: String): Try[User] = Try {
+    val timestamp = DateTime.now()
+    val systemUserId = AppConfig.systemUserId
+
+    User.create(
+      id = UUID.randomUUID().toString,
+      name = userName,
+      fullname = fullName,
+      organization = organization,
+      title = title,
+      description = description,
+      imageId = imageId,
+      createdBy = systemUserId,
+      createdAt = timestamp,
+      updatedBy = systemUserId,
+      updatedAt = timestamp
+    )
+  }
+
+  private def addPassword(password: String, user: User): Try[Unit] = Try {
+    val timestamp = DateTime.now()
+    val systemUserId = AppConfig.systemUserId
+
+    def createPasswordHash(password: String) = {
+      // TODO ApiServer部とロジックを共通化
+      MessageDigest.getInstance("SHA-256").digest(password.getBytes("UTF-8")).map("%02x".format(_)).mkString
+    }
+
+    Password.create(
+      id = UUID.randomUUID().toString,
+      userId = user.id,
+      hash = createPasswordHash(password),
+      createdBy = systemUserId,
+      createdAt = timestamp,
+      updatedBy = systemUserId,
+      updatedAt = timestamp
+    )
+  }
+
+  private def addMailAddress(mailAddress: String, user: User): Try[Unit] = Try {
+    val timestamp = DateTime.now()
+    val systemUserId = AppConfig.systemUserId
+
+    MailAddress.create(
+      id = UUID.randomUUID().toString,
+      userId = user.id,
+      address = mailAddress,
+      status = 1,
+      createdBy = systemUserId,
+      createdAt = timestamp,
+      updatedBy = systemUserId,
+      updatedAt = timestamp
+    )
+  }
+
+  private def joinPersonalGroup(user: User): Try[Unit] = Try {
+    val timestamp = DateTime.now()
+    val systemUserId = AppConfig.systemUserId
+
+    val group = Group.create(
+      id = UUID.randomUUID.toString,
+      name = user.name,
+      description = "",
+      groupType = GroupType.Personal,
+      createdBy = systemUserId,
+      createdAt = timestamp,
+      updatedBy = systemUserId,
+      updatedAt = timestamp
+    )
+
+    Member.create(
+      id = UUID.randomUUID.toString,
+      groupId = group.id,
+      userId = user.id,
+      role = GroupMemberRole.Manager,
+      status = 1,
+      createdBy = systemUserId,
+      createdAt = timestamp,
+      updatedBy = systemUserId,
+      updatedAt = timestamp
+    )
+  }
+
+}

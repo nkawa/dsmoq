@@ -1,0 +1,53 @@
+<%@ val csrfKey: String %>
+<%@ val csrfToken: String %>
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>データメンテナンス：ローカルユーザー作成</title>
+        <link rel="stylesheet" type="text/css" href="/css/style.css">
+        <link rel="stylesheet" type="text/css" href="/css/ionicons.min.css">
+        <script type="text/javascript" src="/js/lib/jquery-3.1.0.min.js"></script>
+        <script type="text/javascript" src="/js/localuser/index.js"></script>
+    </head>
+    <body>
+        <p>
+            <a class="menu" href="/">メニュー</a>
+        </p>
+        <h1>ローカルユーザー作成</h1>
+        <form method="POST" action="/localuser/apply">
+            <input type="hidden" name="${csrfKey}" value="${csrfToken}">
+            <div class="form-group">
+                <label>Account name</label>
+                <div><input type="text" name="userName" /></div>
+            </div>
+            <div class="form-group">
+                <label>Full name</label>
+                <div><input type="text" name="fullName" /></div>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <div><input type="password" name="password" /></div>
+            </div>
+            <div class="form-group">
+                <label>Organization</label>
+                <div><input type="text" name="organization" /></div>
+            </div>
+            <div class="form-group">
+                <label>Title</label>
+                <div><input type="text" name="title" /></div>
+            </div>
+            <div class="form-group">
+                <label>Mail address</label>
+                <div><input type="email" name="mailAddress" /></div>
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <div><textarea name="description" rows="3"></textarea></div>
+            </div>
+            <p>
+                <button type="submit" class="create_user">ユーザー作成</button> <button type="reset">リセット</button>
+            </p>
+        </form>
+    </body>
+</html>

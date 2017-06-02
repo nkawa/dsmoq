@@ -43,3 +43,19 @@ div.buttons > button {
 ul.error-list {
    list-style: none;
 }
+div.form-group {
+    margin-bottom: 7px;
+}
+div.form-group label {
+    margin-bottom: 5px;
+}
+div.form-group input {
+    width: 90%;
+    padding: 3px;
+    margin: 6px 0px;
+}
+div.form-group textarea {
+    width: 90%;
+    padding: 3px;
+    margin: 6px 0px;
+}
