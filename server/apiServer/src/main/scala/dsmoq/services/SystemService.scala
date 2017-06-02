@@ -439,10 +439,12 @@ object SystemService extends LazyLogging {
       DB.readOnly { implicit s =>
         val a = persistence.Annotation.a
         val da = persistence.DatasetAnnotation.da
+        val d = persistence.Dataset.d
         withSQL {
-          select
+          select(sqls.distinct(a.result.column("name")))
             .from(persistence.Annotation as a)
             .innerJoin(persistence.DatasetAnnotation as da).on(da.annotationId, a.id)
+            .innerJoin(persistence.Dataset as d).on(d.id, da.datasetId)
             .where
             .eq(da.data, TAG_VALUE)
             .and
@@ -453,8 +455,12 @@ object SystemService extends LazyLogging {
             .isNull(da.deletedBy)
             .and
             .isNull(da.deletedAt)
+            .and
+            .isNull(d.deletedBy)
+            .and
+            .isNull(d.deletedAt)
             .orderBy(a.name)
-        }.map(_.string(a.resultName.name)).list.apply().distinct
+        }.map(_.string(a.resultName.name)).list.apply()
       }
     }
   }
