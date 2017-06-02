@@ -48,6 +48,11 @@
         </div>
       </div>
       <div class="view-description">{^{: ~trimScriptTags(description)}}</div>
+      {^{if appUrl}}
+      <div class="view-app-download">
+        <a class="btn btn-primary" href="{{:appUrl}}">App Download</a>
+      </div>
+      {{/if}}
       <div class="dataset-view-body">
         <div class="form-horizontal">
           <div class="form-group">
@@ -177,11 +182,6 @@
           </div>
         </div>
       </div>
-      {^{if appUrl}}
-      <div class="dataset-view-body">
-        <a class="btn btn-primary" href="{{:appUrl}}">App Download</a>
-      </div>
-      {{/if}}
     </div>
   </div>
 {{/async}}
