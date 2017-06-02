@@ -17,6 +17,7 @@ import hxgnd.PromiseBroker;
 import hxgnd.Result;
 import hxgnd.Unit;
 import js.bootstrap.BootstrapPopover;
+import js.html.Event;
 import js.html.KeyboardEvent;
 import js.Lib;
 
@@ -97,7 +98,8 @@ class DatasetListPage {
                 }));
             });
         }
-        root.find(".search-button").on("click", function(_) {
+        var searchButton = root.find(".search-button");
+        searchButton.on("click", function(_) {
             var c = conditionFromConditionInput(data.condition);
             var q = Json.stringify(c);
             if (q == searchQuery && pageNum == 1) {
@@ -109,6 +111,12 @@ class DatasetListPage {
                 searchDatasets();
             } else {
                 navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, StringTools.urlEncode(q))));
+            }
+        });
+        root.find(".basic-query").keyup(function(e: Event) {
+            var event: KeyboardEvent = cast e;
+            if (event.keyCode == 13) {
+                searchButton.click();
             }
         });
 
