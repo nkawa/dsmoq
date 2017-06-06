@@ -54,6 +54,20 @@ object Util {
   }
 
   /**
+   * オプショナルな値から値を取得する。
+   *
+   * @param target オプショナルな値
+   * @param name 対象の名前(見つからなかった時のメッセージに含まれます)
+   * @throws Failure(ServiceException) オプショナルな値が未指定の場合
+   */
+  def requireString(target: Option[String], name: String): Try[String] = {
+    target match {
+      case Some(t) if t.nonEmpty => Success(t)
+      case _ => Failure(new ServiceException(s"${name}の指定がありません。"))
+    }
+  }
+
+  /**
    * 指定された文字列がUUID形式かを返す。
    *
    * @param str 検査する文字列

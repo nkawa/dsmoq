@@ -18,35 +18,35 @@
         <form method="POST" action="/localuser/apply">
             <input type="hidden" name="${csrfKey}" value="${csrfToken}">
             <div class="form-group">
-                <label>Account name</label>
+                <label>ユーザーID</label>
                 <div><input type="text" name="userName" /></div>
             </div>
             <div class="form-group">
-                <label>Full name</label>
-                <div><input type="text" name="fullName" /></div>
-            </div>
-            <div class="form-group">
-                <label>Password</label>
+                <label>パスワード</label>
                 <div><input type="password" name="password" /></div>
             </div>
             <div class="form-group">
-                <label>Organization</label>
-                <div><input type="text" name="organization" /></div>
+                <label>ユーザー名</label>
+                <div><input type="text" name="fullName" /></div>
             </div>
             <div class="form-group">
-                <label>Title</label>
-                <div><input type="text" name="title" /></div>
-            </div>
-            <div class="form-group">
-                <label>Mail address</label>
+                <label>メールアドレス</label>
                 <div><input type="email" name="mailAddress" /></div>
             </div>
             <div class="form-group">
-                <label>Description</label>
+                <label>所属</label>
+                <div><input type="text" name="organization" /></div>
+            </div>
+            <div class="form-group">
+                <label>タイトル</label>
+                <div><input type="text" name="title" /></div>
+            </div>
+            <div class="form-group">
+                <label>詳細</label>
                 <div><textarea name="description" rows="3"></textarea></div>
             </div>
             <p>
-                <button type="submit" class="create_user">ユーザー作成</button> <button type="reset">リセット</button>
+                <button type="submit" class="create_user">ユーザー作成</button>
             </p>
         </form>
     </body>

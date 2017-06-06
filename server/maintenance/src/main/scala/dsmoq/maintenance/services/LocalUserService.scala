@@ -8,11 +8,10 @@ import dsmoq.maintenance.AppConfig
 import dsmoq.maintenance.data.localuser.CreateParameter
 import dsmoq.persistence._
 import org.joda.time.DateTime
-import org.scalatra.servlet.FileItem
 import org.slf4j.MarkerFactory
-import scalikejdbc.DB
+import scalikejdbc.{ DB, DBSession }
 
-import scala.util.{ Failure, Try }
+import scala.util.Try
 
 /**
  * ローカルユーザー生成サービス
@@ -41,36 +40,34 @@ object LocalUserService extends LazyLogging {
    */
   def create(param: CreateParameter): Try[String] = {
     logger.info(LOG_MARKER, Util.formatLogMessage(SERVICE_NAME, "create"))
-    val result = param.userName.filter(_.nonEmpty).map { userName =>
-      DB.localTx { implicit s =>
-        for {
-          // ユーザーの作成
-          fullName <- Util.require(param.fullName, "フルネーム")
-          organization <- Util.require(param.organization, "組織")
-          title <- Util.require(param.title, "タイトル")
-          description <- Util.require(param.description, "詳細")
-          user <- createUser(userName, fullName, organization, title, description, defaultAvatarImageId)
+    import scalikejdbc.TxBoundary.Try._
+    val result = DB.localTx { implicit session =>
+      for {
+        // ユーザーの作成
+        userName <- Util.requireString(param.userName, "ユーザー")
+        fullName <- Util.require(param.fullName, "フルネーム")
+        organization <- Util.require(param.organization, "組織")
+        title <- Util.require(param.title, "タイトル")
+        description <- Util.require(param.description, "詳細")
+        user <- createUser(userName, fullName, organization, title, description, defaultAvatarImageId)(session)
 
-          // パスワードの追加
-          password <- Util.require(param.password, "パスワード")
-          _ <- addPassword(password, user)
+        // パスワードの追加
+        password <- Util.requireString(param.password, "パスワード")
+        _ <- addPassword(password, user)(session)
 
-          // メールアドレスの追加
-          mailAddress <- Util.require(param.mailAddress, "メールアドレス")
-          _ <- addMailAddress(mailAddress, user)
+        // メールアドレスの追加
+        mailAddress <- Util.require(param.mailAddress, "メールアドレス")
+        _ <- addMailAddress(mailAddress, user)(session)
 
-          // パーソナルグループの追加
-          _ <- joinPersonalGroup(user)
-        } yield user.id
-      }
-    }.getOrElse {
-      Failure(new ServiceException("ユーザー名が指定されていません。"))
+        // パーソナルグループの追加
+        _ <- joinPersonalGroup(user)(session)
+      } yield user.id
     }
     Util.withErrorLogging(logger, LOG_MARKER, result)
   }
 
   private def createUser(userName: String, fullName: String, organization: String, title: String, description: String,
-    imageId: String): Try[User] = Try {
+    imageId: String)(implicit session: DBSession): Try[User] = Try {
     val timestamp = DateTime.now()
     val systemUserId = AppConfig.systemUserId
 
@@ -86,10 +83,10 @@ object LocalUserService extends LazyLogging {
       createdAt = timestamp,
       updatedBy = systemUserId,
       updatedAt = timestamp
-    )
+    )(session)
   }
 
-  private def addPassword(password: String, user: User): Try[Unit] = Try {
+  private def addPassword(password: String, user: User)(implicit session: DBSession): Try[Unit] = Try {
     val timestamp = DateTime.now()
     val systemUserId = AppConfig.systemUserId
 
@@ -106,10 +103,10 @@ object LocalUserService extends LazyLogging {
       createdAt = timestamp,
       updatedBy = systemUserId,
       updatedAt = timestamp
-    )
+    )(session)
   }
 
-  private def addMailAddress(mailAddress: String, user: User): Try[Unit] = Try {
+  private def addMailAddress(mailAddress: String, user: User)(implicit session: DBSession): Try[Unit] = Try {
     val timestamp = DateTime.now()
     val systemUserId = AppConfig.systemUserId
 
@@ -122,10 +119,10 @@ object LocalUserService extends LazyLogging {
       createdAt = timestamp,
       updatedBy = systemUserId,
       updatedAt = timestamp
-    )
+    )(session)
   }
 
-  private def joinPersonalGroup(user: User): Try[Unit] = Try {
+  private def joinPersonalGroup(user: User)(implicit session: DBSession): Try[Unit] = Try {
     val timestamp = DateTime.now()
     val systemUserId = AppConfig.systemUserId
 
@@ -138,7 +135,7 @@ object LocalUserService extends LazyLogging {
       createdAt = timestamp,
       updatedBy = systemUserId,
       updatedAt = timestamp
-    )
+    )(session)
 
     Member.create(
       id = UUID.randomUUID.toString,
@@ -150,7 +147,7 @@ object LocalUserService extends LazyLogging {
       createdAt = timestamp,
       updatedBy = systemUserId,
       updatedAt = timestamp
-    )
+    )(session)
   }
 
 }
