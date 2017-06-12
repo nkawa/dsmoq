@@ -149,7 +149,9 @@ class Service extends Stream<ServiceEvent> {
                 localState: a.localState,
                 s3State: a.s3State,
                 filesCount: a.filesCount,
-                fileLimit: a.fileLimit
+                fileLimit: a.fileLimit,
+				app: a.app,
+				appUrl: a.appUrl
             };
         });
     }
@@ -241,32 +243,20 @@ class Service extends Stream<ServiceEvent> {
         return send(Put, '/api/datasets/$datasetId/storage', { saveLocal: saveLocal, saveS3: saveS3 });
     }
 
-    public function getDatasetApps(datasetId: String, ?params: { ?limit: Int, ?offset: Int}): Promise<RangeSlice<DatasetApp>> {
-        return send(Get, '/api/datasets/${datasetId}/apps', params);
+    public function getDatasetApp(datasetId: String): Promise<RangeSlice<DatasetApp>> {
+        return send(Get, '/api/datasets/${datasetId}/app');
     }
 
-    public function addDatasetApp(datasetId: String, form: JqHtml): Promise<DatasetApp> {
-        return sendForm(Post, '/api/datasets/${datasetId}/apps', form);
+    public function addDatasetApp(datasetId: String, description: String, form: JqHtml): Promise<DatasetApp> {
+        return sendForm(Post, '/api/datasets/${datasetId}/app', form, { description: description });
     }
 
-    public function upgradeDatasetApp(datasetId: String, appId: String, form: JqHtml): Promise<DatasetApp> {
-        return sendForm(Put, '/api/datasets/${datasetId}/apps/${appId}', form);
+    public function updateDatasetApp(datasetId: String, appId: String, description: String, form: JqHtml): Promise<DatasetApp> {
+        return sendForm(Post, '/api/datasets/${datasetId}/app', form, { appId: appId, description: description });
     }
 
-    public function removeDatasetApp(datasetId: String, appId: String): Promise<Unit> {
-        return send(Delete, '/api/datasets/${datasetId}/apps/${appId}');
-    }
-
-    public function getPrimaryDatasetApp(datasetId: String): Promise<Null<DatasetApp>> {
-        return send(Get, '/api/datasets/${datasetId}/apps/primary');
-    }
-
-    public function setDatasetAppPrimary(datasetId: String, appId: String): Promise<DatasetApp> {
-        return send(Put, '/api/datasets/${datasetId}/apps/primary', { appId: appId });
-    }
-
-    public function getDatasetAppUrl(datasetId: String): Promise<Null<String>> {
-        return send(Get, '/api/datasets/${datasetId}/apps/primary/url');
+    public function removeDatasetApp(datasetId: String): Promise<Unit> {
+        return send(Delete, '/api/datasets/${datasetId}/app');
     }
 
     // ---

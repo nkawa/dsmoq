@@ -1,6 +1,7 @@
 package dsmoq.logic
 
 import java.io.File
+import java.io.IOException
 import java.io.StringWriter
 import java.nio.charset.StandardCharsets
 import java.nio.file.Paths
@@ -42,6 +43,23 @@ object AppManager {
     }
     // TODO: ファイル存在時の挙動確認
     file.write(appDir.toPath.resolve(appId).toFile)
+  }
+
+  /**
+   * アプリのJARファイルを削除する。
+   *
+   * @param appId アプリID
+   * @throws IOException 入出力エラーが発生した場合
+   */
+  def delete(appId: String): Unit = {
+    val fullPath = Paths.get(AppConf.appDir, "upload", appId).toFile
+    if (!fullPath.exists()) {
+      throw new RuntimeException("file not found")
+    }
+    val result = new File(fullPath.toString).delete()
+    if (!result) {
+      throw new IOException("file cannot delete")
+    }
   }
 
   /**

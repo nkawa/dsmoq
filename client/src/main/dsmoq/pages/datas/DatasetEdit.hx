@@ -34,7 +34,7 @@ typedef DatasetEditDataset = {
     /** @see dsmoq.models.Dataset.s3State */
     var s3State: Int;
     /** @see dsmoq.models.DatasetApp */
-    var primaryApp: Null<DatasetApp>;
+    var app: Null<DatasetApp>;
     var errors: {
         meta: {
             name: String,

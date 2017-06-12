@@ -121,7 +121,7 @@ class DatasetEditPage {
                     },
                     localState: x.localState,
                     s3State: x.s3State,
-                    primaryApp: null,
+                    app: if (x.app == null) { "id": "", "name": "App: Unregistered", "description": "" } else x.app,
                     errors: {
                         meta: {
                             name: "",
@@ -505,27 +505,82 @@ class DatasetEditPage {
                     );
                 });
             });
-            
-            // app
-            root.find("#dataset-app-select").on("click", function (_) {
-                showSelectAppDialog(id, binding).then(function(app) {
-                    Service.instance.setDatasetAppPrimary(id, app.id).then(
-                        function (_) {
-                            if (data.dataset.primaryApp == null) {
-                                binding.setProperty("dataset.primaryApp", app);
-                            } else {
-                                binding.setProperty("dataset.primaryApp.id", app.id);
-                                binding.setProperty("dataset.primaryApp.name", app.name);
-                            }
-                            Notification.show("success", "save successful");
-                        }
-                    );
-                });
-            });
-            Service.instance.getPrimaryDatasetApp(id).then(function(app) {
-                binding.setProperty("dataset.primaryApp", app);
-            });
 
+            // app
+            // 指定したフォームのID(formId)が保持しているファイルをServerにアップロードする
+            // submitId: Uploadボタン(aタグ)、formId: Add fileフォーム
+            function uploadApp(submitId, formId) {
+				var fileButton = root.find("#dataset-app-select-file");
+				var description = data.dataset.app.description;
+                BootstrapButton.setLoading(root.find(submitId));
+
+				var result: Promise<DatasetApp> = if (data.dataset.app.id == "") {
+					Service.instance.addDatasetApp(id, description, root.find(formId));
+				} else {
+					Service.instance.updateDatasetApp(id, data.dataset.app.id, description, root.find(formId));
+				}
+				result.then(
+                    function (res) {
+						fileButton.val("");
+						binding.setProperty("dataset.app.id", res.id);
+						binding.setProperty("dataset.app.name", res.name);
+						binding.setProperty("dataset.app.description", res.description);
+						root.find("#dataset-app-delete").show();
+						Notification.show("success", "save successful");
+					},
+					function (e) {
+                        // Service内でNotificationを出力するようにしたため、この箇所でのNotification出力は不要。
+                        // このfunctionはfinally時に呼び出されるfunctionを指定するための引数の数合わせです。
+					},
+					function() {
+                        BootstrapButton.reset(root.find(submitId));
+                        fileButton.removeAttr("disabled");
+					}
+				);
+                // フォームのinputタグを無効にする
+                fileButton.attr("disabled", true);
+            }
+			function deleteApp(submitId) {
+				var fileButton = root.find("#dataset-app-select-file");
+                BootstrapButton.setLoading(root.find(submitId));
+                JsTools.confirm("Are you sure you want to delete this app?").flatMap(function(_) {
+					return Service.instance.removeDatasetApp(id);
+				}).then(
+					function (res) {
+						fileButton.val("");
+						binding.setProperty("dataset.app.id", "");
+						binding.setProperty("dataset.app.name", "App: Unregistered");
+						binding.setProperty("dataset.app.description", "");
+						root.find("#dataset-app-submit").hide();
+						root.find("#dataset-app-delete").hide();
+						Notification.show("success", "delete successful");
+					},
+					function (e) {
+                        // Service内でNotificationを出力するようにしたため、この箇所でのNotification出力は不要。
+                        // このfunctionはfinally時に呼び出されるfunctionを指定するための引数の数合わせです。
+					},
+					function() {
+                        BootstrapButton.reset(root.find(submitId));
+                        fileButton.removeAttr("disabled");
+					}
+				);
+                // フォームのinputタグを無効にする
+                fileButton.attr("disabled", true);
+			}
+			binding.setProperty("dataset.app.id", data.dataset.app.id);
+			binding.setProperty("dataset.app.name", data.dataset.app.name);
+			binding.setProperty("dataset.app.description", data.dataset.app.description);
+            // #dataset-app-select-fileの状態が変更したときに動作する
+            root.find("#dataset-app-form").on("change", "input[type=file]", function (e) {
+                // #dataset-app-submitの表示/非表示を切り替える
+                updateAddFileButton("#dataset-app-submit", e);
+            });
+			root.find("#dataset-app-submit").on("click", function(_) {
+				uploadApp("#dataset-app-submit", "#dataset-app-form");
+			});
+			root.find("#dataset-app-delete").on("click", function (_) {
+				deleteApp("#dataset-app-submit");
+			});
         });
 
         return navigation.promise;
@@ -664,46 +719,6 @@ class DatasetEditPage {
                 rootBinding.setProperty("dataset.primaryImage.url", getUrl(ids.primaryImage));
                 rootBinding.setProperty("dataset.featuredImage.id", ids.featuredImage);
                 rootBinding.setProperty("dataset.featuredImage.url", getUrl(ids.featuredImage));
-            }
-        );
-    }
-    /**
-     * アプリを選択するダイアログを表示する。
-     *
-     * @param id データセットID
-     * @param rootBinding JsViewsのObservable
-     * @return モーダルダイアログを表示するPromise
-     */
-    static function showSelectAppDialog(id: String, rootBinding: Observable): Promise<DatasetApp> {
-        function updatePrimary(data: DatasetEditSelect<DatasetApp>) {
-            var primary = data.items
-                .filter(function(x) { return x.item.isPrimary; })
-                .map(function(x) { return x.item; })
-            ;
-            if (primary.length == 0) {
-                rootBinding.setProperty("dataset.primaryApp", null);
-            } else {
-                rootBinding.setProperty("dataset.primaryApp.id", primary[0].id);
-                rootBinding.setProperty("dataset.primaryApp.name", primary[0].name);
-            }
-        }
-        return showSelectDialog(
-            id,
-            rootBinding,
-            "app",
-            "template/dataset/select_app_dialog",
-            AppCandicateSize,
-            function(datasetId, offset, limit): Promise<RangeSlice<DatasetApp>> {
-                return Service.instance.getDatasetApps(datasetId, { offset: offset, limit: limit });
-            },
-            function(datasetId, file): Promise<DatasetApp> {
-                return Service.instance.addDatasetApp(datasetId, file);
-            },
-            function(datasetId, appId): Promise<Unit> {
-                return Service.instance.removeDatasetApp(datasetId, appId);
-            },
-            function(_, data) {
-                updatePrimary(data);
             }
         );
     }

@@ -15,4 +15,6 @@ typedef Dataset = {
     var s3State(default, null): Int;
     var filesCount(default, null): Int;
     var fileLimit(default, null): Int;
+	var app(default, null): DatasetApp;
+	var appUrl(default, null): String;
 }

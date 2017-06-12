@@ -83,7 +83,9 @@ object DatasetData {
     accessCount: Long,
     localState: Int,
     s3State: Int,
-    fileLimit: Int
+    fileLimit: Int,
+    app: Option[App] = None,
+    appUrl: String = ""
   )
 
   /**
@@ -268,15 +270,15 @@ object DatasetData {
    *
    * @param id アプリID
    * @param name アプリ名
+   * @param description アプリ説明文
    * @param datasetId データセットID
-   * @param isPrimary データセットにアプリとして設定されているか
    * @param lastModified 最終更新日時
    */
   case class App(
     id: String,
     name: String,
+    description: String,
     datasetId: String,
-    isPrimary: Boolean,
     lastModified: DateTime
   )
 

@@ -25,6 +25,8 @@ import scalikejdbc.withSQL
 case class App(
   id: String,
   name: String,
+  description: Option[String] = None,
+  datasetId: Option[String] = None,
   createdBy: String,
   createdAt: DateTime,
   updatedBy: String,
@@ -45,6 +47,7 @@ object App extends SQLSyntaxSupport[App] {
 
   override val columns = Seq(
     "id", "name",
+    "description", "dataset_id",
     "created_by", "created_at",
     "updated_by", "updated_at",
     "deleted_by", "deleted_at"
@@ -55,6 +58,8 @@ object App extends SQLSyntaxSupport[App] {
   def apply(a: ResultName[App])(rs: WrappedResultSet): App = App(
     id = rs.string(a.id),
     name = rs.string(a.name),
+    description = rs.stringOpt(a.description),
+    datasetId = rs.stringOpt(a.datasetId),
     createdBy = rs.string(a.createdBy),
     createdAt = rs.timestamp(a.createdAt).toJodaDateTime,
     updatedBy = rs.string(a.updatedBy),
@@ -96,6 +101,8 @@ object App extends SQLSyntaxSupport[App] {
   def create(
     id: String,
     name: String,
+    description: Option[String],
+    datasetId: Option[String],
     createdBy: String,
     createdAt: DateTime,
     updatedBy: String,
@@ -107,6 +114,8 @@ object App extends SQLSyntaxSupport[App] {
       insert.into(App).columns(
         column.id,
         column.name,
+        column.description,
+        column.datasetId,
         column.createdBy,
         column.createdAt,
         column.updatedBy,
@@ -116,6 +125,8 @@ object App extends SQLSyntaxSupport[App] {
       ).values(
         sqls.uuid(id),
         name,
+        description.getOrElse(""),
+        sqls.uuid(datasetId.getOrElse("")),
         sqls.uuid(createdBy),
         createdAt,
         sqls.uuid(updatedBy),
@@ -128,6 +139,8 @@ object App extends SQLSyntaxSupport[App] {
     App(
       id = id,
       name = name,
+      description = description,
+      datasetId = datasetId,
       createdBy = createdBy,
       createdAt = createdAt,
       updatedBy = updatedBy,
@@ -142,6 +155,8 @@ object App extends SQLSyntaxSupport[App] {
       update(App as a).set(
         a.id -> entity.id,
         a.name -> entity.name,
+        a.description -> entity.description,
+        a.datasetId -> entity.datasetId,
         a.createdBy -> entity.createdBy,
         a.createdAt -> entity.createdAt,
         a.updatedBy -> entity.updatedBy,

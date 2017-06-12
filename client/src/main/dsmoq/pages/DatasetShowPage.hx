@@ -50,12 +50,14 @@ class DatasetShowPage {
                     case DatasetPermission.Write, DatasetPermission.Read: true;
                     case _: false;
                 },
-                appUrl: null,
+                appUrl: res.appUrl,
+				app: res.app,
                 accessCount: res.accessCount,
                 filesCount: res.filesCount,
                 fileLimit: res.fileLimit
             };
             binding.setProperty("data", data);
+			binding.setProperty("data.appUrl", data.appUrl);
 
             html.find("#dataset-edit").on("click", function (_) {
                 navigation.fulfill(Navigation.Navigate(Page.DatasetEdit(id)));
@@ -105,10 +107,6 @@ class DatasetShowPage {
                     }
                 );
             }
-
-            Service.instance.getDatasetAppUrl(id).then(function(url) {
-                binding.setProperty("data.appUrl", url);
-            });
         }, function (err: Dynamic) {
             switch (err.status) {
                 case 403: // Forbidden

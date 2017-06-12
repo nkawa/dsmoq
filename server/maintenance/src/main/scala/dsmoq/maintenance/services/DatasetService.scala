@@ -744,13 +744,13 @@ object DatasetService extends LazyLogging {
     if (datasets.isEmpty) {
       return (Seq.empty, Seq.empty)
     }
-    val da = persistence.DatasetApp.v
+    val a = persistence.App.a
     val appIds = withSQL {
-      select(sqls.distinct(da.result.appId))
-        .from(persistence.DatasetApp as da)
+      select(a.result.id)
+        .from(persistence.App as a)
         .where
-        .in(da.datasetId, datasets.map(dataset => sqls.uuid(dataset.id)))
-    }.map(_.string(da.resultName.appId)).list.apply().toSet.toSeq
+        .in(a.datasetId, datasets.map(dataset => sqls.uuid(dataset.id)))
+    }.map(_.string(a.resultName.id)).list.apply().toSet.toSeq
     val deleteApps = appIds.map { id =>
       DeleteUtil.LocalFile(Paths.get(AppConfig.appDir, "upload", id))
     }
@@ -925,9 +925,9 @@ object DatasetService extends LazyLogging {
     }.update.apply()
     withSQL {
       delete
-        .from(persistence.DatasetApp)
+        .from(persistence.App)
         .where
-        .inUuid(persistence.DatasetApp.column.datasetId, datasetIds)
+        .inUuid(persistence.App.column.datasetId, datasetIds)
     }.update.apply()
     withSQL {
       delete

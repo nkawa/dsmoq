@@ -757,131 +757,56 @@ class ApiController(
     toActionResult(ret)
   }
 
-  // アプリ一覧取得
-  get("/datasets/:datasetId/apps") {
-    val datasetId = params("datasetId")
-    val ret = for {
-      d <- getJsonValueFromParams[SearchAppsParams]
-      json <- Success(d.getOrElse(SearchAppsParams()))
-      _ <- checkUtil.checkNonMinusNumber("d.limit", json.limit)
-      _ <- checkUtil.checkNonMinusNumber("d.offset", json.offset)
-      _ <- checkUtil.invokeSeq(json.excludeIds)(checkUtil.validUuidForForm("d.excludeIds", _))
-      _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
-      user <- getUser(allowGuest = false)
-      result <- datasetService.getApps(
-        datasetId = Some(datasetId),
-        excludeIds = json.excludeIds,
-        deletedType = json.deletedType,
-        offset = json.offset,
-        limit = json.limit,
-        user = user
-      )
-    } yield {
-      result
-    }
-    toActionResult(ret)
-  }
-
-  // アプリ追加
-  post("/datasets/:datasetId/apps") {
-    val datasetId = params("datasetId")
-    val ret = for {
-      file <- checkUtil.requireForForm("file", fileParams.get("file"))
-      _ <- checkUtil.checkJarFile("file", file)
-      _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
-      user <- getUser(allowGuest = false)
-      result <- datasetService.addApp(datasetId, file, user)
-    } yield {
-      result
-    }
-    toActionResult(ret)
-  }
-
   // アプリ取得
-  get("/datasets/:datasetId/apps/:appId") {
+  get("/datasets/:datasetId/app") {
     val datasetId = params("datasetId")
-    val appId = params("appId")
     val ret = for {
       _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
-      _ <- checkUtil.validUuidForUrl("appId", appId)
       user <- getUser(allowGuest = false)
-      result <- datasetService.getApp(datasetId, appId, user)
+      result <- datasetService.getApp(datasetId, user)
     } yield {
       result
     }
     toActionResult(ret)
   }
 
-  // アプリ更新
-  put("/datasets/:datasetId/apps/:appId") {
+  // アプリ追加・更新
+  post("/datasets/:datasetId/app") {
     val datasetId = params("datasetId")
-    val appId = params("appId")
-    val ret = for {
-      file <- checkUtil.requireForForm("file", fileParams.get("file"))
-      _ <- checkUtil.checkJarFile("file", file)
-      _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
-      _ <- checkUtil.validUuidForUrl("appId", appId)
-      user <- getUser(allowGuest = false)
-      result <- datasetService.updateApp(datasetId, appId, file, user)
-    } yield {
-      result
+    val appId = params.get("appId")
+    val fileItem = fileParams.get("file")
+    val description = params.getOrElse("description", "")
+    val ret = if (appId.isEmpty) {
+      // アプリ追加
+      for {
+        file <- checkUtil.requireForForm("file", fileItem)
+        _ <- checkUtil.checkJarFile("file", file)
+        _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
+        user <- getUser(allowGuest = false)
+        result <- datasetService.addApp(datasetId, description, file, user)
+      } yield {
+        result
+      }
+    } else {
+      // アプリ更新
+      for {
+        _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
+        user <- getUser(allowGuest = false)
+        result <- datasetService.updateApp(datasetId, appId.get, description, fileItem, user)
+      } yield {
+        result
+      }
     }
     toActionResult(ret)
   }
 
-  // アプリ論理削除
-  delete("/datasets/:datasetId/apps/:appId") {
-    val datasetId = params("datasetId")
-    val appId = params("appId")
-    val ret = for {
-      _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
-      _ <- checkUtil.validUuidForUrl("appId", appId)
-      user <- getUser(allowGuest = false)
-      result <- datasetService.deleteApp(datasetId, appId, user)
-    } yield {
-      result
-    }
-    toActionResult(ret)
-  }
-
-  // データセットに設定されているアプリ取得
-  get("/datasets/:datasetId/apps/primary") {
+  // アプリ物理削除
+  delete("/datasets/:datasetId/app") {
     val datasetId = params("datasetId")
     val ret = for {
       _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
       user <- getUser(allowGuest = false)
-      result <- datasetService.getPrimaryApp(datasetId, user)
-    } yield {
-      result
-    }
-    toActionResult(ret)
-  }
-
-  // データセットに設定されているアプリ変更
-  put("/datasets/:datasetId/apps/primary") {
-    val datasetId = params("datasetId")
-    val ret = for {
-      d <- getJsonValueFromParams[ChangePrimaryAppParams]
-      json <- jsonOptToTry(d)
-      appId <- checkUtil.requireForForm("d.appId", json.appId)
-      _ <- checkUtil.nonEmptyTrimmedSpacesForForm("d.appId", appId)
-      _ <- checkUtil.validUuidForForm("d.appId", appId)
-      _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
-      user <- getUser(allowGuest = false)
-      result <- datasetService.changePrimaryApp(datasetId, appId, user)
-    } yield {
-      result
-    }
-    toActionResult(ret)
-  }
-
-  // データセットに設定されているアプリのURL取得
-  get("/datasets/:datasetId/apps/primary/url") {
-    val datasetId = params("datasetId")
-    val ret = for {
-      _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
-      user <- getUser(allowGuest = true)
-      result <- datasetService.getPrimaryAppUrl(datasetId, user)
+      result <- datasetService.deleteApp(datasetId, user)
     } yield {
       result
     }
