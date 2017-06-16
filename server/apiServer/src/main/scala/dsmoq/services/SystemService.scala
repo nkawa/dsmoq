@@ -441,24 +441,32 @@ object SystemService extends LazyLogging {
         val da = persistence.DatasetAnnotation.da
         val d = persistence.Dataset.d
         withSQL {
-          select(sqls.distinct(a.result.column("name")))
+          select(a.result.column("name"))
             .from(persistence.Annotation as a)
-            .innerJoin(persistence.DatasetAnnotation as da).on(da.annotationId, a.id)
-            .innerJoin(persistence.Dataset as d).on(d.id, da.datasetId)
             .where
-            .eq(da.data, TAG_VALUE)
+            .exists(select
+              .from(persistence.DatasetAnnotation as da)
+              .where
+              .exists(select
+                .from(persistence.Dataset as d)
+                .where
+                .eq(d.id, da.datasetId)
+                .and
+                .isNull(d.deletedBy)
+                .and
+                .isNull(d.deletedAt))
+              .and
+              .eq(da.annotationId, a.id)
+              .and
+              .eq(da.data, TAG_VALUE)
+              .and
+              .isNull(da.deletedBy)
+              .and
+              .isNull(da.deletedAt))
             .and
             .isNull(a.deletedBy)
             .and
             .isNull(a.deletedAt)
-            .and
-            .isNull(da.deletedBy)
-            .and
-            .isNull(da.deletedAt)
-            .and
-            .isNull(d.deletedBy)
-            .and
-            .isNull(d.deletedAt)
             .orderBy(a.name)
         }.map(_.string(a.resultName.name)).list.apply()
       }
