@@ -5,7 +5,6 @@ import java.util.ResourceBundle
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-
 import org.json4s.DefaultFormats
 import org.json4s.Formats
 import org.json4s.jackson.JsonMethods
@@ -18,11 +17,9 @@ import org.scalatra.NotFound
 import org.scalatra.Ok
 import org.scalatra.ScalatraServlet
 import org.scalatra.json.JacksonJsonSupport
-import org.scalatra.servlet.FileUploadSupport
+import org.scalatra.servlet.{ FileItem, FileUploadSupport }
 import org.slf4j.MarkerFactory
-
 import com.typesafe.scalalogging.LazyLogging
-
 import dsmoq.AppConf
 import dsmoq.ResourceNames
 import dsmoq.controllers.AjaxResponse.toActionResult
@@ -67,10 +64,7 @@ import dsmoq.services.StatisticsService
 import dsmoq.services.SystemService
 import dsmoq.services.TaskService
 import dsmoq.services.User
-import dsmoq.services.json.DatasetData
-import dsmoq.services.json.RangeSlice
-import dsmoq.services.json.SearchDatasetCondition
-import dsmoq.services.json.SearchDatasetConditionSerializer
+import dsmoq.services.json._
 
 /**
  * /apiにマッピングされるサーブレットクラス。
@@ -789,8 +783,14 @@ class ApiController(
       }
     } else {
       // アプリ更新
+      def checkJarFile(fileItem: Option[FileItem]): Try[Unit] = {
+        // ファイル指定がないときはJarファイルのチェックをスキップ
+        if (fileItem.isDefined) checkUtil.checkJarFile("file", fileItem.get) else Success(())
+      }
       for {
         _ <- checkUtil.validUuidForUrl("datasetId", datasetId)
+        _ <- checkUtil.validUuidForUrl("appId", appId.get)
+        _ <- checkJarFile(fileItem)
         user <- getUser(allowGuest = false)
         result <- datasetService.updateApp(datasetId, appId.get, description, fileItem, user)
       } yield {

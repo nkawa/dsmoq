@@ -282,7 +282,6 @@ object SpecCommonLogic {
       deleteAllData(deleteFrom(persistence.Dataset))
       deleteAllData(deleteFrom(persistence.DatasetAccessLog))
       deleteAllData(deleteFrom(persistence.DatasetAnnotation))
-      deleteAllData(deleteFrom(persistence.DatasetApp))
       deleteAllData(deleteFrom(persistence.DatasetImage))
       deleteAllData(deleteFrom(persistence.File))
       deleteAllData(deleteFrom(persistence.FileHistory))

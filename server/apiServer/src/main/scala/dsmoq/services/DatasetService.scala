@@ -4893,10 +4893,9 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(user, "user")
       DB.readOnly { implicit s =>
         checkDatasetExisitence(datasetId)
-        val app = getApp(datasetId)
         checkOwnerAccess(datasetId, user)
-        app.fold(RangeSlice(RangeSliceSummary(0, 0), Seq.empty[DatasetData.App])) { data =>
-          RangeSlice(RangeSliceSummary(1, 1), Seq(data))
+        getApp(datasetId).fold(RangeSlice(RangeSliceSummary(0, 0), Seq.empty[DatasetData.App])) { app =>
+          RangeSlice(RangeSliceSummary(1, 1), Seq(app))
         }
       }
     }
@@ -4994,7 +4993,6 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         app.id
       }
       // Jarファイルの削除
-      logger.info(LOG_MARKER, s"delete app: $appId")
       AppManager.delete(appId)
     }
   }
@@ -5129,7 +5127,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         for {
           user <- found(getUser(userId))
           dataset <- found(getDataset(datasetId))
-          app <- getApp(datasetId, user)
+          app <- found(getApp(datasetId))
           uk <- found(getUserKey(user))
           _ <- requireAllowDownload(user, datasetId)
         } yield {
@@ -5139,8 +5137,6 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       for {
         (dataset, app, uk) <- db
       } yield {
-        if (app.summary.count == 0) throw new NotFoundException()
-        val appData = app.results.head
         val content = AppManager.getJnlp(
           datasetId = datasetId,
           userId = userId,
@@ -5148,10 +5144,10 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           secretKey = uk.secretKey
         )
         DatasetData.AppJnlp(
-          id = appData.id,
+          id = app.id,
           name = dataset.name,
           datasetId = datasetId,
-          lastModified = appData.lastModified,
+          lastModified = app.lastModified,
           content = content
         )
       }
@@ -5181,7 +5177,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         for {
           user <- found(getUser(userId))
           dataset <- found(getDataset(datasetId))
-          app <- getApp(datasetId, user)
+          app <- found(getApp(datasetId))
           _ <- found(getUserKey(user))
           _ <- requireAllowDownload(user, datasetId)
         } yield {
@@ -5191,16 +5187,12 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       for {
         (dataset, app) <- db
       } yield {
-        if (app.summary.count == 0) {
-          throw new NotFoundException()
-        }
-        val appData = app.results.head
-        val file = AppManager.download(appData.id)
+        val file = AppManager.download(app.id)
         val size = file.length
         val content = Files.newInputStream(file.toPath)
         DatasetData.AppFile(
-          appId = appData.id,
-          lastModified = appData.lastModified,
+          appId = app.id,
+          lastModified = app.lastModified,
           size = size,
           content = content
         )
