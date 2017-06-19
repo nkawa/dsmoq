@@ -98,8 +98,8 @@ class DatasetListPage {
                 }));
             });
         }
-        var searchButton = root.find(".search-button");
-        searchButton.on("click", function(_) {
+
+        function startSearch() {
             var c = conditionFromConditionInput(data.condition);
             var q = Json.stringify(c);
             if (q == searchQuery && pageNum == 1) {
@@ -112,12 +112,15 @@ class DatasetListPage {
             } else {
                 navigation.fulfill(Navigation.Navigate(Page.DatasetList(1, StringTools.urlEncode(q))));
             }
+		}
+
+        root.find("#search-form").on("submit", function(_) {
+            startSearch();
+            return false;
         });
-        root.find(".basic-query").keyup(function(e: Event) {
-            var event: KeyboardEvent = cast e;
-            if (event.keyCode == 13) {
-                searchButton.click();
-            }
+        root.find("#advanced-search-form").on("submit", function(_) {
+            startSearch();
+            return false;
         });
 
         var queryRows = root.find(".query-rows");

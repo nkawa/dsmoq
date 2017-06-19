@@ -14,14 +14,14 @@
     <div class="well well-sm dsmoq-filter basic-conditions">
       <div class="row">
         <div class="col-xs-10 col-md-10">
-          <div class="input-group" style="width: 400px;">
-            <div class="search-form">
+          <form id="search-form">
+            <div class="input-group" style="width: 400px;">
               <input type="text" class="form-control basic-query" placeholder="keyword" data-link="condition^basic">
+              <span class="input-group-btn">
+                <button class="btn btn-primary"><span class="glyphicon glyphicon-search"></span></button>
+              </span>
             </div>
-            <span class="input-group-btn">
-              <button class="btn btn-primary search-button" type="button"><span class="glyphicon glyphicon-search"></span></button>
-            </span>
-          </div>
+          </form>
         </div>
         {^{if !myself^isGuest}}
         <div class="col-xs-2 col-md-2 save-area">
@@ -114,7 +114,9 @@
       </div>
       <div class="row">
         <div class="col-xs-10 col-md-10">
-          <button class="btn btn-primary search-button">Search</button>
+        <form id="advanced-search-form">
+          <button class="btn btn-primary">Search</button>
+        </form>
         </div>
         {^{if !myself^isGuest}}
         <div class="col-xs-2 col-md-2 save-area">
