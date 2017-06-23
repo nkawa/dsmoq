@@ -32,6 +32,8 @@ import java.util.regex.Pattern;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import jp.ac.nagoya_u.dsmoq.sdk.request.GetDatasetsConditionParam;
+import jp.ac.nagoya_u.dsmoq.sdk.request.SearchCondition;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpException;
@@ -879,8 +881,28 @@ public class DsmoqClient {
      * @throws TimeoutException 接続がタイムアウトした場合
      * @throws ConnectionLostException 接続が失敗した、または失われた場合
      * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
+     * @deprecated 2018/03にサポート打ち切り
      */
     public RangeSlice<DatasetsSummary> getDatasets(GetDatasetsParam param) {
+        logger.debug(LOG_MARKER, "DsmoqClient#getDatasets start : [param] = {}", param);
+        requireNotNull(param, "at param in DsmoqClient#getDatasets");
+        return get("/api/datasets", param.toJsonString(), JsonUtil::toDatasets);
+    }
+
+    /**
+     * Datasetを検索する。
+     *
+     * GET /api/datasets を呼ぶ。
+     *
+     * @param param Dataset検索に使用するパラメタ
+     * @return 検索結果
+     * @throws NullPointerException paramsがnullの場合
+     * @throws HttpStatusException エラーレスポンスが返ってきた場合
+     * @throws TimeoutException 接続がタイムアウトした場合
+     * @throws ConnectionLostException 接続が失敗した、または失われた場合
+     * @throws ApiFailedException 上記以外の何らかの例外が発生した場合
+     */
+    public RangeSlice<DatasetsSummary> getDatasets(GetDatasetsConditionParam param) {
         logger.debug(LOG_MARKER, "DsmoqClient#getDatasets start : [param] = {}", param);
         requireNotNull(param, "at param in DsmoqClient#getDatasets");
         return get("/api/datasets", param.toJsonString(), JsonUtil::toDatasets);
