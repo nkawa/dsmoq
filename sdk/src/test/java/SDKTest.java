@@ -2,6 +2,8 @@
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -12,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.zip.ZipEntry;
@@ -544,7 +547,8 @@ public class SDKTest {
         param.setLicense("1050f556-7fee-4032-81e7-326e5f1b82fb");
         param.setAttributes(Arrays.asList(
                 new UpdateDatasetAttributeParam("attr1", "value1"),
-                new UpdateDatasetAttributeParam("attr2", "value2")
+                new UpdateDatasetAttributeParam("attr2", "value2"),
+                new UpdateDatasetAttributeParam("tag", "$tag")
         ));
         client.updateDatasetMetaInfo(datasetId, param);
 
@@ -553,11 +557,70 @@ public class SDKTest {
         assertThat(metadata.getName(), is("hoge"));
         assertThat(metadata.getDescription(), is("dummy description"));
         List<DatasetAttribute> attr = metadata.getAttributes();
-        assertThat(attr.size(), is(2));
-        assertThat(attr.get(0).getName(), is("attr2"));
-        assertThat(attr.get(0).getValue(), is("value2"));
-        assertThat(attr.get(1).getName(), is("attr1"));
-        assertThat(attr.get(1).getValue(), is("value1"));
+        assertThat(attr.size(), is(3));
+        assertThat(attr.get(0).getName(), is("tag"));
+        assertThat(attr.get(0).getValue(), is("$tag"));
+        assertThat(attr.get(1).getName(), is("attr2"));
+        assertThat(attr.get(1).getValue(), is("value2"));
+        assertThat(attr.get(2).getName(), is("attr1"));
+        assertThat(attr.get(2).getValue(), is("value1"));
+    }
+
+    @Test
+    public void 不正な属性指定でエラーとなるか_keyなし_valueなし() {
+        DsmoqClient client = create();
+        Dataset created = client.createDataset(true, false, new File("README.md"));
+        String datasetId = created.getId();
+        UpdateDatasetMetaParam param = new UpdateDatasetMetaParam();
+        param.setName("hoge");
+        param.setDescription("dummy description");
+        param.setLicense("1050f556-7fee-4032-81e7-326e5f1b82fb");
+        param.setAttributes(Collections.singletonList(new UpdateDatasetAttributeParam("", "")));
+
+        try {
+            client.updateDatasetMetaInfo(datasetId, param);
+            fail();
+        } catch (HttpStatusException e) {
+            assertTrue(true);
+        }
+    }
+
+    @Test
+    public void 不正な属性指定でエラーとなるか_keyなし_valueあり() {
+        DsmoqClient client = create();
+        Dataset created = client.createDataset(true, false, new File("README.md"));
+        String datasetId = created.getId();
+        UpdateDatasetMetaParam param = new UpdateDatasetMetaParam();
+        param.setName("hoge");
+        param.setDescription("dummy description");
+        param.setLicense("1050f556-7fee-4032-81e7-326e5f1b82fb");
+        param.setAttributes(Collections.singletonList(new UpdateDatasetAttributeParam("", "value1")));
+
+        try {
+            client.updateDatasetMetaInfo(datasetId, param);
+            fail();
+        } catch (HttpStatusException e) {
+            assertTrue(true);
+        }
+    }
+
+    @Test
+    public void 不正な属性指定でエラーとなるか_keyあり_valueなし() {
+        DsmoqClient client = create();
+        Dataset created = client.createDataset(true, false, new File("README.md"));
+        String datasetId = created.getId();
+        UpdateDatasetMetaParam param = new UpdateDatasetMetaParam();
+        param.setName("hoge");
+        param.setDescription("dummy description");
+        param.setLicense("1050f556-7fee-4032-81e7-326e5f1b82fb");
+        param.setAttributes(Collections.singletonList(new UpdateDatasetAttributeParam("attr1", "")));
+
+        try {
+            client.updateDatasetMetaInfo(datasetId, param);
+            fail();
+        } catch (HttpStatusException e) {
+            assertTrue(true);
+        }
     }
 
     @Test
@@ -749,7 +812,8 @@ public class SDKTest {
         param.setLicense("1050f556-7fee-4032-81e7-326e5f1b82fb");
         param.setAttributes(Arrays.asList(
                 new UpdateDatasetAttributeParam("属性１", "値１"),
-                new UpdateDatasetAttributeParam("属性２", "値２")
+                new UpdateDatasetAttributeParam("属性２", "値２"),
+                new UpdateDatasetAttributeParam("タグ", "$tag")
         ));
 
         client.updateDatasetMetaInfo(datasetId, param);
@@ -758,11 +822,13 @@ public class SDKTest {
         assertThat(metadata.getName(), is("ほげ"));
         assertThat(metadata.getDescription(), is("日本語の説明"));
         List<DatasetAttribute> attr = metadata.getAttributes();
-        assertThat(attr.size(), is(2));
-        assertThat(attr.get(0).getName(), is("属性２"));
-        assertThat(attr.get(0).getValue(), is("値２"));
-        assertThat(attr.get(1).getName(), is("属性１"));
-        assertThat(attr.get(1).getValue(), is("値１"));
+        assertThat(attr.size(), is(3));
+        assertThat(attr.get(0).getName(), is("タグ"));
+        assertThat(attr.get(0).getValue(), is("$tag"));
+        assertThat(attr.get(1).getName(), is("属性２"));
+        assertThat(attr.get(1).getValue(), is("値２"));
+        assertThat(attr.get(2).getName(), is("属性１"));
+        assertThat(attr.get(2).getValue(), is("値１"));
     }
 
     @Test

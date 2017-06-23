@@ -171,7 +171,10 @@ class DatasetApiSpec extends DsmoqSpec {
 
       "dataset attribute import" in {
         for {
-          file <- Seq("../README.md", "empty", "attr.csv").map(x => new File(s"../testdata/${x}"))
+          file <- Seq(
+            "../README.md", "empty", "attr.csv", "attr_jis.csv", "attr_eucjp.csv", "attr_sjis.csv",
+            "attr_utf8.csv", "attr_utf16be.csv", "attr_utf16le.csv"
+          ).map(x => new File(s"../testdata/${x}"))
           permission <- Seq(true, false)
           dataset <- Seq(true, false)
         } {
@@ -209,6 +212,17 @@ class DatasetApiSpec extends DsmoqSpec {
                         DatasetAttribute("abc", "def"),
                         DatasetAttribute("abc", "xyz"),
                         DatasetAttribute("test", "$tag")
+                      )
+                      result.data.meta.attributes should be(attrs)
+                    } else if (file.getName.startsWith("attr_")) {
+                      val attrs = Seq(
+                        DatasetAttribute("abc", "def"),
+                        DatasetAttribute("abc", "xyz"),
+                        DatasetAttribute("test", "$tag"),
+                        DatasetAttribute("あいう", "えお"),
+                        DatasetAttribute("属性", "値"),
+                        DatasetAttribute("タグ", "$tag"),
+                        DatasetAttribute("表予申能十ソ", "表予申能十ソ")
                       )
                       result.data.meta.attributes should be(attrs)
                     }
