@@ -10,7 +10,7 @@ import jp.ac.nagoya_u.dsmoq.sdk.request.ConvertOptional._
 import scala.beans.BeanProperty
 import scala.collection.mutable.ArrayBuffer
 
-/** ファイルサイズ単位を表すトレイト */
+/** File size unit */
 sealed trait SizeUnit { val value: String }
 object SizeUnit {
   case object Byte extends SizeUnit { override val value = "byte" }

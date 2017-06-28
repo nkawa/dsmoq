@@ -6,6 +6,7 @@ import jp.ac.nagoya_u.dsmoq.sdk.request.ConvertOptional._
 import scala.beans.BeanProperty
 import scala.collection.JavaConverters._
 
+/** @deprecated until 2018/03 */
 class GetDatasetsParam(
   @BeanProperty var query: Optional[String],
   @BeanProperty var owners: java.util.List[String],
@@ -32,4 +33,5 @@ class GetDatasetsParam(
 
 }
 
+/** @deprecated until 2018/03 */
 case class Attribute(@BeanProperty var id: String, @BeanProperty var value: String)
