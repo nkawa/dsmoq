@@ -188,7 +188,7 @@ public class UseSdkSampleMain {
         printout(Arrays.stream(strs));
     }
 
-    private static void printout(Stream stream) {
+    private static void printout(Stream<String> stream) {
         stream.forEach(x -> System.out.println(x));
     }
 
