@@ -1,89 +1,33 @@
 package dsmoq.services
 
-import java.io.ByteArrayInputStream
-import java.io.Closeable
-import java.io.File
-import java.io.FileOutputStream
-import java.io.InputStream
-import java.io.InputStreamReader
-import java.io.SequenceInputStream
+import java.io.{ ByteArrayInputStream, Closeable, File, FileOutputStream, InputStream, SequenceInputStream }
 import java.nio.charset.{ Charset, StandardCharsets }
 import java.nio.file.{ Files, Path, Paths, StandardCopyOption }
-import java.util.ResourceBundle
-import java.util.UUID
+import java.util.{ ResourceBundle, UUID }
 import java.util.zip.ZipInputStream
-
-import scala.math.BigInt.int2bigInt
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
-import org.apache.commons.io.input.BoundedInputStream
-import org.joda.time.DateTime
-import org.json4s.JBool
-import org.json4s.JInt
-import org.json4s.JsonDSL.jobject2assoc
-import org.json4s.JsonDSL.pair2Assoc
-import org.json4s.JsonDSL.string2jvalue
-import org.json4s.jackson.JsonMethods.compact
-import org.json4s.jackson.JsonMethods.render
-import org.scalatra.servlet.FileItem
-import org.slf4j.MarkerFactory
 
 import com.github.tototoshi.csv.CSVReader
 import com.typesafe.scalalogging.LazyLogging
+import dsmoq.exceptions.{ AccessDeniedException, BadRequestException, NotFoundException }
+import dsmoq.logic.{ AppManager, FileManager, ImageSaveLogic, StringUtil, ZipUtil }
+import dsmoq.{ AppConf, ResourceNames, persistence }
+import dsmoq.persistence.PostgresqlHelper.{ PgConditionSQLBuilder, PgSQLSyntaxType }
+import dsmoq.persistence.{ Annotation, Dataset, DatasetAnnotation, DatasetImage, DefaultAccessLevel, GroupAccessLevel, GroupType, OwnerType, Ownership, PresetType, UserAccessLevel, ZipedFiles }
+import dsmoq.services.json.DatasetData.{ CopiedDataset, DatasetOwnership, DatasetTask, DatasetZipedFile }
+import dsmoq.services.json.{ DatasetData, Image, RangeSlice, RangeSliceSummary, SearchDatasetCondition }
+import org.apache.commons.io.input.BoundedInputStream
+import org.joda.time.DateTime
+import org.json4s.{ JBool, JInt }
+import org.json4s.JsonDSL.{ jobject2assoc, pair2Assoc, string2jvalue }
+import org.json4s.jackson.JsonMethods.{ compact, render }
+import org.scalatra.servlet.FileItem
+import org.slf4j.MarkerFactory
+import scalikejdbc.interpolation.Implicits.{ scalikejdbcSQLInterpolationImplicitDef, scalikejdbcSQLSyntaxToStringImplicitDef }
+import scalikejdbc.{ ConditionSQLBuilder, DB, DBSession, SQLSyntax, SelectSQLBuilder, SubQuery, delete, select, sqls, update, withSQL }
 
-import dsmoq.AppConf
-import dsmoq.ResourceNames
-import dsmoq.exceptions.AccessDeniedException
-import dsmoq.exceptions.BadRequestException
-import dsmoq.exceptions.NotFoundException
-import dsmoq.logic.AppManager
-import dsmoq.logic.FileManager
-import dsmoq.logic.Identity
-import dsmoq.logic.ImageSaveLogic
-import dsmoq.logic.StringUtil
-import dsmoq.logic.ZipUtil
-import dsmoq.persistence
-import dsmoq.persistence.Annotation
-import dsmoq.persistence.Dataset
-import dsmoq.persistence.Dataset.d.selectDynamic
-import dsmoq.persistence.DatasetAnnotation
-import dsmoq.persistence.DatasetImage
-import dsmoq.persistence.DefaultAccessLevel
-import dsmoq.persistence.GroupAccessLevel
-import dsmoq.persistence.GroupType
-import dsmoq.persistence.OwnerType
-import dsmoq.persistence.Ownership
-import dsmoq.persistence.PostgresqlHelper.PgConditionSQLBuilder
-import dsmoq.persistence.PostgresqlHelper.PgSQLSyntaxType
-import dsmoq.persistence.PresetType
-import dsmoq.persistence.UserAccessLevel
-import dsmoq.persistence.ZipedFiles
-import dsmoq.services.json.DatasetData
-import dsmoq.services.json.DatasetData.CopiedDataset
-import dsmoq.services.json.DatasetData.DatasetOwnership
-import dsmoq.services.json.DatasetData.DatasetTask
-import dsmoq.services.json.DatasetData.DatasetZipedFile
-import dsmoq.services.json.Image
-import dsmoq.services.json.RangeSlice
-import dsmoq.services.json.RangeSliceSummary
-import dsmoq.services.json.SearchDatasetCondition
-import scalikejdbc.ConditionSQLBuilder
-import scalikejdbc.DB
-import scalikejdbc.DBSession
-import scalikejdbc.SQLBuilder
-import scalikejdbc.SQLSyntax
-import scalikejdbc.SelectSQLBuilder
-import scalikejdbc.SubQuery
-import scalikejdbc.convertJavaSqlTimestampToConverter
-import scalikejdbc.delete
-import scalikejdbc.interpolation.Implicits.scalikejdbcSQLInterpolationImplicitDef
-import scalikejdbc.interpolation.Implicits.scalikejdbcSQLSyntaxToStringImplicitDef
-import scalikejdbc.select
-import scalikejdbc.sqls
-import scalikejdbc.update
-import scalikejdbc.withSQL
+import scala.collection.mutable.{ HashSet, Set => MutableSet }
+import scala.math.BigInt.int2bigInt
+import scala.util.{ Failure, Success, Try }
 
 /**
  * データセット関連の操作を取り扱うサービスクラス
@@ -132,7 +76,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         val datasetId = UUID.randomUUID().toString
         val timestamp = DateTime.now()
         val f = files.map { f =>
-          val isZip = f.getName.endsWith("zip")
+          // 拡張子を含み、大文字小文字を区別しない
+          val isZip = f.getName.toLowerCase.endsWith(".zip")
           val fileId = UUID.randomUUID.toString
           val historyId = UUID.randomUUID.toString
           FileManager.uploadToLocal(datasetId, fileId, historyId, f)
@@ -154,7 +99,20 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             s3State = if (saveS3) { SaveStatus.SYNCHRONIZING } else { SaveStatus.NOT_SAVED }
           )
           val realSize = if (isZip) {
-            createZipedFiles(path, historyId, timestamp, myself).getOrElse(f.size)
+            createZipedFiles(path, historyId, timestamp, myself).getOrElse {
+              // 新規採番されたファイルヒストリIDに紐づくエラーIDを、新規登録する
+              persistence.FileHistoryError.create(
+                id = UUID.randomUUID().toString,
+                historyId = historyId,
+                createdBy = myself.id,
+                createdAt = timestamp,
+                updatedBy = myself.id,
+                updatedAt = timestamp
+              )
+
+              // 展開できないZIPファイルのため、サイズはそのままとする
+              f.size
+            }
           } else {
             f.size
           }
@@ -395,238 +353,545 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       CheckUtil.checkNull(offset, "offset")
       CheckUtil.checkNull(user, "user")
       val d = persistence.Dataset.d
+      val o = persistence.Ownership.o
       val limit_ = limit.getOrElse(DEFALUT_LIMIT)
       val offset_ = offset.getOrElse(0)
       DB.readOnly { implicit s =>
         val joinedGroups = getJoinedGroups(user) :+ AppConf.guestGroupId
-        val condition = createSearchSQL(query, joinedGroups)
-        val count = withSQL {
-          select(sqls.count).from(persistence.Dataset as d).where(condition)
-        }.map(_.int(1)).single.apply().getOrElse(0)
-        val records = if (count == 0) {
-          Seq.empty
-        } else {
-          val ds = withSQL {
-            select(d.result.*)
-              .from(persistence.Dataset as d)
-              .where(condition)
-              .orderBy(d.updatedAt.desc)
-              .offset(offset_)
-              .limit(limit_)
-          }.map(persistence.Dataset(d.resultName)).list.apply()
-          toDataset(ds, joinedGroups)
-        }
+        val datasetIds = findMatchedDatasetIds(query, joinedGroups).distinct
+        val count = datasetIds.size
+
+        val records =
+          if (count == 0) {
+            Seq.empty
+          } else {
+            val ds = withSQL {
+              select(d.result.*)
+                .from(persistence.Dataset as d)
+                .where.in(d.id, datasetIds.map(x => sqls.uuid(x)))
+                .orderBy(d.updatedAt.desc)
+                .offset(offset_)
+                .limit(limit_)
+            }.map(persistence.Dataset(d.resultName)).list.apply()
+
+            toDataset(ds, joinedGroups)
+          }
         RangeSlice(RangeSliceSummary(count, limit_, offset_), records)
       }
     }
   }
 
-  /**
-   * データセット検索SQLの条件部を作成する。
-   *
-   * @param query 検索条件
-   * @param joinedGroups ユーザが所属しているグループ
-   * @return SQLの条件部
-   */
-  def createSearchSQL(query: SearchDatasetCondition, joinedGroups: Seq[String]): Option[SQLSyntax] = {
-    CheckUtil.checkNull(query, "query")
-    CheckUtil.checkNull(joinedGroups, "joinedGroups")
-    val d = persistence.Dataset.d
-    val o = persistence.Ownership.o
-    val querySql = conditionToSQL(query)
-    val accessible = sqls.exists(
-      select
-      .from(persistence.Ownership as o)
-      .where
-      .eq(d.id, o.datasetId)
-      .and
-      .inUuid(o.groupId, joinedGroups)
-      .and
-      .gt(o.accessLevel, GroupAccessLevel.Deny)
-      .and
-      .isNull(o.deletedAt)
-      .toSQLSyntax
-    )
-    sqls.toAndConditionOpt(
-      querySql,
-      Some(accessible),
-      Some(sqls.isNull(d.deletedAt))
-    )
-  }
-
-  /**
-   * データセット検索条件をSQL条件部に変換する。
-   *
-   * @param query 検索条件
-   * @return SQLの条件部
-   */
-  def conditionToSQL(condition: SearchDatasetCondition): Option[SQLSyntax] = {
-    CheckUtil.checkNull(condition, "condition")
-    val d = persistence.Dataset.d
-    condition match {
-      case SearchDatasetCondition.Container(SearchDatasetCondition.Operators.Container.AND, xs) => {
-        sqls.toAndConditionOpt(xs.map(conditionToSQL): _*)
+  def findMatchedDatasetIds(query: SearchDatasetCondition, joinedGroups: Seq[String])(implicit s: DBSession): Seq[String] = {
+    query match {
+      case SearchDatasetCondition.Query(value, contains) => {
+        // ベーシック検索
+        findBasicMatchedDatasetIds(value, contains, joinedGroups)
       }
-      case SearchDatasetCondition.Container(SearchDatasetCondition.Operators.Container.OR, xs) => {
-        sqls.toOrConditionOpt(xs.map(conditionToSQL): _*)
+      case SearchDatasetCondition.Container(operator, value) => {
+        // アドバンスド検索
+        findAdvancedMatchedDatasetIds(operator, value, joinedGroups)
       }
-      case SearchDatasetCondition.Query("", _) => {
-        None
-      }
-      case SearchDatasetCondition.Query(str, contains) => {
-        val f = persistence.File.f
-        val fh = persistence.FileHistory.fh
-        val zf = persistence.ZipedFiles.zf
-        val inFileName = select
-          .from(persistence.File as f)
-          .where
-          .eq(f.datasetId, d.id)
-          .and
-          .upperLikeQuery(f.name, str)
-          .and
-          .isNull(f.deletedAt)
-          .toSQLSyntax
-        val inZipFileName = select
-          .from(persistence.ZipedFiles as zf)
-          .innerJoin(persistence.FileHistory as fh)
-          .on(sqls.eq(fh.id, zf.historyId).and.isNull(fh.deletedAt))
-          .innerJoin(persistence.File as f)
-          .on(sqls.eq(f.id, fh.fileId).and.isNull(f.deletedAt))
-          .where
-          .eq(f.datasetId, d.id)
-          .and
-          .upperLikeQuery(zf.name, str)
-          .and
-          .isNull(zf.deletedAt)
-          .toSQLSyntax
-        sqls.toOrConditionOpt(
-          Some(sqls.upperLikeQuery(d.name, str)),
-          Some(sqls.upperLikeQuery(d.description, str)),
-          Some(sqls.exists(inFileName)),
-          Some(sqls.exists(inZipFileName))
-        ).map(q => if (contains) q else sqls"not (${q})")
-      }
-      case SearchDatasetCondition.Owner(name, equals) => {
-        val o = persistence.Ownership.o
-        val g = persistence.Group.g
-        val m = persistence.Member.m
-        val u = persistence.User.u
-        val userName = select
-          .from(persistence.Member as m)
-          .innerJoin(persistence.User as u).on(u.id, m.userId)
-          .where
-          .eq(m.groupId, g.id)
-          .and
-          .eq(u.name, name)
-          .and
-          .isNull(m.deletedAt)
-          .and
-          .eq(u.disabled, false)
-          .toSQLSyntax
-        val owner = select
-          .from(persistence.Ownership as o)
-          .innerJoin(persistence.Group as g)
-          .on(sqls.eq(g.id, o.groupId).and.isNull(g.deletedAt))
-          .where(
-            sqls.toAndConditionOpt(
-              Some(sqls.eq(o.datasetId, d.id)),
-              sqls.toOrConditionOpt(
-                Some(sqls.eq(g.groupType, GroupType.Public).and.eq(g.name, name)),
-                Some(sqls.eq(g.groupType, GroupType.Personal).and.exists(userName))
-              ),
-              Some(sqls.eq(o.accessLevel, UserAndGroupAccessLevel.OWNER_OR_PROVIDER)),
-              Some(sqls.isNull(o.deletedAt))
-            )
-          )
-          .toSQLSyntax
-        if (equals) {
-          Some(sqls.exists(owner))
-        } else {
-          Some(sqls.notExists(owner))
-        }
-      }
-      case SearchDatasetCondition.Tag(tag) => {
-        val a = persistence.Annotation.a
-        val da = persistence.DatasetAnnotation.da
-        Some(
-          sqls.exists(
-            select
-            .from(persistence.DatasetAnnotation as da)
-            .innerJoin(persistence.Annotation as a)
-            .on(sqls.eq(a.id, da.annotationId).and.isNull(a.deletedAt))
-            .where
-            .eq(da.datasetId, d.id)
-            .and
-            .eq(a.name, tag)
-            .and
-            .eq(da.data, "$tag")
-            .and
-            .isNull(da.deletedAt)
-            .toSQLSyntax
-          )
-        )
-      }
-      case SearchDatasetCondition.Attribute("", "") => {
-        None
-      }
-      case SearchDatasetCondition.Attribute(key, value) => {
-        val a = persistence.Annotation.a
-        val da = persistence.DatasetAnnotation.da
-        Some(
-          sqls.exists(
-            select
-            .from(persistence.DatasetAnnotation as da)
-            .innerJoin(persistence.Annotation as a)
-            .on(sqls.eq(a.id, da.annotationId).and.isNull(a.deletedAt))
-            .where(
-              sqls.toAndConditionOpt(
-                Some(sqls.eq(da.datasetId, d.id)),
-                if (key.isEmpty) None else Some(sqls.eq(a.name, key)),
-                if (value.isEmpty) None else Some(sqls.eq(da.data, value)),
-                Some(sqls.isNull(da.deletedAt))
-              )
-            )
-            .toSQLSyntax
-          )
-        )
-      }
-      case SearchDatasetCondition.TotalSize(op, value, unit) => {
-        val size = (value * unit.magnification).toLong
-        op match {
-          case SearchDatasetCondition.Operators.Compare.GE => {
-            Some(sqls.ge(d.filesSize, size))
-          }
-          case SearchDatasetCondition.Operators.Compare.LE => {
-            Some(sqls.le(d.filesSize, size))
-          }
-        }
-      }
-      case SearchDatasetCondition.NumOfFiles(op, value) => {
-        op match {
-          case SearchDatasetCondition.Operators.Compare.GE => {
-            Some(sqls.ge(d.filesCount, value))
-          }
-          case SearchDatasetCondition.Operators.Compare.LE => {
-            Some(sqls.le(d.filesCount, value))
-          }
-        }
-      }
-      case SearchDatasetCondition.Public(p) => {
-        val o = persistence.Ownership.o
-        val guestAccess = select
-          .from[Unit](persistence.Ownership as o)
-          .where
-          .eq(d.id, o.datasetId)
-          .and
-          .eqUuid(o.groupId, AppConf.guestGroupId)
-          .and
-          .gt(o.accessLevel, GroupAccessLevel.Deny)
-          .and
-          .isNull(o.deletedAt)
-          .toSQLSyntax
-        Some(if (p) sqls.exists(guestAccess) else sqls.notExists(guestAccess))
+      case _ => {
+        // 想定外のため、例外
+        throw new RuntimeException
       }
     }
+  }
+
+  def createFindMatchedDatasetIdsFromQueryBlank(joinedGroups: Seq[String]): SQLSyntax = {
+    // 全表示
+    val d = persistence.Dataset.d
+    val o = persistence.Ownership.o
+    val q = select(d.id)
+      .from(persistence.Dataset as d)
+      .innerJoin(persistence.Ownership as o)
+      .on(sqls.eq(o.datasetId, d.id)
+        .and.isNull(o.deletedAt)
+        .and.gt(o.accessLevel, GroupAccessLevel.Deny)
+        .and.append(sqls"${o.groupId} in ( ${sqls.join(joinedGroups.map(x => sqls.uuid(x)), sqls",")} )"))
+      .where.isNull(d.deletedAt)
+      .toSQLSyntax
+    q
+  }
+
+  def createFindMatchedDatasetIdsFromQueryLike(value: String, joinedGroups: Seq[String]): SQLSyntax = {
+    // キーワード検索
+    val d = persistence.Dataset.d
+    val o = persistence.Ownership.o
+    val g = persistence.Group.g
+    val f = persistence.File.f
+    val fh = persistence.FileHistory.fh
+    val zf = persistence.ZipedFiles.zf
+
+    val q: SQLSyntax =
+      select(d.id)
+        .from(persistence.Dataset as d)
+        .innerJoin(persistence.Ownership as o)
+        .on(sqls.eq(o.datasetId, d.id)
+          .and.isNull(o.deletedAt)
+          .and.gt(o.accessLevel, GroupAccessLevel.Deny)
+          .and.append(sqls"${o.groupId} in ( ${sqls.join(joinedGroups.map(x => sqls.uuid(x)), sqls",")} )"))
+        .where.isNull(d.deletedAt)
+        .and.append(sqls"(UPPER(${d.name}) like CONCAT('%', UPPER(${value}), '%') or UPPER(${d.description}) like CONCAT('%', UPPER(${value}), '%'))")
+        .union(
+          select(d.id)
+            .from(persistence.Dataset as d)
+            .innerJoin(persistence.Ownership as o)
+            .on(sqls.eq(o.datasetId, d.id)
+              .and.isNull(o.deletedAt)
+              .and.gt(o.accessLevel, GroupAccessLevel.Deny)
+              .and.append(sqls"${o.groupId} in ( ${sqls.join(joinedGroups.map(x => sqls.uuid(x)), sqls",")} )"))
+            .innerJoin(persistence.File as f)
+            .on(sqls.eq(f.datasetId, d.id)
+              .and.isNull(f.deletedAt)
+              .and.append(sqls"UPPER(${f.name}) like CONCAT('%', UPPER(${value}), '%')"))
+            .where.isNull(d.deletedAt)
+        )
+        .union(
+          select(d.id)
+            .from(persistence.Dataset as d)
+            .innerJoin(persistence.Ownership as o)
+            .on(sqls.eq(o.datasetId, d.id)
+              .and.isNull(o.deletedAt)
+              .and.gt(o.accessLevel, GroupAccessLevel.Deny)
+              .and.append(sqls"${o.groupId} in ( ${sqls.join(joinedGroups.map(x => sqls.uuid(x)), sqls",")} )"))
+            .innerJoin(persistence.File as f)
+            .on(sqls.eq(f.datasetId, d.id)
+              .and.isNull(f.deletedAt))
+            .innerJoin(persistence.FileHistory as fh)
+            .on(sqls.eq(fh.fileId, f.id)
+              .and.isNull(fh.deletedAt))
+            .innerJoin(persistence.ZipedFiles as zf)
+            .on(sqls.eq(zf.historyId, fh.id)
+              .and.isNull(zf.deletedAt)
+              .and.append(sqls"UPPER(${zf.name}) like CONCAT('%', UPPER(${value}), '%')"))
+            .where.isNull(d.deletedAt)
+        )
+        .toSQLSyntax
+
+    q
+  }
+
+  def createFindMatchedDatasetIdsFromOwner(value: String, joinedGroups: Seq[String]): SQLSyntax = {
+    // オーナー検索
+    val d = persistence.Dataset.d
+    val o_access = persistence.Ownership.syntax("o1") // 閲覧権限があるかどうかをチェックするため
+    val o_group = persistence.Ownership.syntax("o2") // グループとの結合のため
+    val g = persistence.Group.g
+    val m = persistence.Member.m
+    val u = persistence.User.u
+
+    val q: SQLSyntax =
+      select(d.id)
+        .from(persistence.Dataset as d)
+        .innerJoin(persistence.Ownership as o_access)
+        .on(sqls.eq(o_access.datasetId, d.id)
+          .and.isNull(o_access.deletedAt)
+          .and.gt(o_access.accessLevel, GroupAccessLevel.Deny)
+          .and.append(sqls"${o_access.groupId} in ( ${sqls.join(joinedGroups.map(x => sqls.uuid(x)), sqls",")} )"))
+        .innerJoin(persistence.Ownership as o_group)
+        .on(sqls.eq(o_group.datasetId, d.id)
+          .and.isNull(o_group.deletedAt)
+          .and.eq(o_group.accessLevel, UserAndGroupAccessLevel.OWNER_OR_PROVIDER))
+        .innerJoin(persistence.Group as g)
+        .on(sqls.eq(g.id, o_group.groupId)
+          .and.isNull(g.deletedAt)
+          .and.eq(g.groupType, GroupType.Public)
+          .and.eq(g.name, value))
+        .where.isNull(d.deletedAt)
+        .union(
+          select(d.id)
+            .from(persistence.Dataset as d)
+            .innerJoin(persistence.Ownership as o_access)
+            .on(sqls.eq(o_access.datasetId, d.id)
+              .and.isNull(o_access.deletedAt)
+              .and.gt(o_access.accessLevel, GroupAccessLevel.Deny)
+              .and.append(sqls"${o_access.groupId} in ( ${sqls.join(joinedGroups.map(x => sqls.uuid(x)), sqls",")} )"))
+            .innerJoin(persistence.Ownership as o_group)
+            .on(sqls.eq(o_group.datasetId, d.id)
+              .and.isNull(o_group.deletedAt)
+              .and.eq(o_group.accessLevel, UserAndGroupAccessLevel.OWNER_OR_PROVIDER))
+            .innerJoin(persistence.Group as g)
+            .on(sqls.eq(g.id, o_group.groupId)
+              .and.isNull(g.deletedAt)
+              .and.eq(g.groupType, GroupType.Personal))
+            .innerJoin(persistence.Member as m)
+            .on(sqls.eq(m.groupId, g.id)
+              .and.isNull(m.deletedAt))
+            .innerJoin(persistence.User as u)
+            .on(sqls.eq(u.id, m.userId)
+              .and.eq(u.disabled, false)
+              .and.eq(u.name, value))
+            .where.isNull(d.deletedAt)
+        )
+        .toSQLSyntax
+
+    q
+  }
+
+  def createFindMatchedDatasetIdsFromTag(value: String, joinedGroups: Seq[String]): SQLSyntax = {
+    // タグ検索
+    val d = persistence.Dataset.d
+    val o = persistence.Ownership.o
+    val a = persistence.Annotation.a
+    val da = persistence.DatasetAnnotation.da
+
+    val q: SQLSyntax =
+      select(d.id)
+        .from(persistence.Dataset as d)
+        .innerJoin(persistence.Ownership as o)
+        .on(sqls.eq(o.datasetId, d.id)
+          .and.isNull(o.deletedAt)
+          .and.gt(o.accessLevel, GroupAccessLevel.Deny)
+          .and.append(sqls"${o.groupId} in ( ${sqls.join(joinedGroups.map(x => sqls.uuid(x)), sqls",")} )"))
+        .innerJoin(persistence.DatasetAnnotation as da)
+        .on(sqls.eq(da.datasetId, d.id)
+          .and.isNull(da.deletedAt)
+          .and.eq(da.data, "$tag"))
+        .innerJoin(persistence.Annotation as a)
+        .on(sqls.eq(a.id, da.annotationId)
+          .and.isNull(a.deletedAt)
+          .and.eq(a.name, value))
+        .where.isNull(d.deletedAt)
+        .toSQLSyntax
+
+    q
+  }
+
+  def createFindMatchedDatasetIdsFromAttribute(key: String, value: String, joinedGroups: Seq[String]): SQLSyntax = {
+    // 属性検索
+    val d = persistence.Dataset.d
+    val o = persistence.Ownership.o
+    val a = persistence.Annotation.a
+    val da = persistence.DatasetAnnotation.da
+
+    val q: SQLSyntax =
+      select(d.id)
+        .from(persistence.Dataset as d)
+        .innerJoin(persistence.Ownership as o)
+        .on(sqls.eq(o.datasetId, d.id)
+          .and.isNull(o.deletedAt)
+          .and.gt(o.accessLevel, GroupAccessLevel.Deny)
+          .and.append(sqls"${o.groupId} in ( ${sqls.join(joinedGroups.map(x => sqls.uuid(x)), sqls",")} )"))
+        .innerJoin(persistence.DatasetAnnotation as da)
+        .on(sqls.eq(da.datasetId, d.id)
+          .and.isNull(da.deletedAt))
+        .innerJoin(persistence.Annotation as a)
+        .on(sqls.eq(a.id, da.annotationId)
+          .and.isNull(a.deletedAt))
+        .where(
+          sqls.toAndConditionOpt(
+            Some(sqls.eq(da.datasetId, d.id)),
+            if (key.isEmpty) None else Some(sqls.eq(a.name, key)),
+            if (value.isEmpty) None else Some(sqls.eq(da.data, value)),
+            Some(sqls.isNull(d.deletedAt))
+          )
+        )
+        .toSQLSyntax
+
+    q
+  }
+
+  def createFindMatchedDatasetIdsFromTotalSize(compare: SearchDatasetCondition.Operators.Compare, value: Double, unit: SearchDatasetCondition.SizeUnit, joinedGroups: Seq[String]): SQLSyntax = {
+    val d = persistence.Dataset.d
+    val o = persistence.Ownership.o
+
+    val size = (value * unit.magnification).toLong
+    val q =
+      select(d.id)
+        .from(persistence.Dataset as d)
+        .innerJoin(persistence.Ownership as o)
+        .on(sqls.eq(o.datasetId, d.id)
+          .and.isNull(o.deletedAt)
+          .and.gt(o.accessLevel, GroupAccessLevel.Deny)
+          .and.append(sqls"${o.groupId} in ( ${sqls.join(joinedGroups.map(x => sqls.uuid(x)), sqls",")} )"))
+
+    compare match {
+      case SearchDatasetCondition.Operators.Compare.GE => {
+        q.where.ge(d.filesSize, size)
+          .and.isNull(d.deletedAt)
+          .toSQLSyntax
+      }
+      case SearchDatasetCondition.Operators.Compare.LE => {
+        q.where.le(d.filesSize, size)
+          .and.isNull(d.deletedAt)
+          .toSQLSyntax
+
+      }
+    }
+  }
+
+  def createFindMatchedDatasetIdsFromNumOfFiles(compare: SearchDatasetCondition.Operators.Compare, value: Int, joinedGroups: Seq[String]): SQLSyntax = {
+    val d = persistence.Dataset.d
+    val o = persistence.Ownership.o
+
+    val q =
+      select(d.id)
+        .from(persistence.Dataset as d)
+        .innerJoin(persistence.Ownership as o)
+        .on(sqls.eq(o.datasetId, d.id)
+          .and.isNull(o.deletedAt)
+          .and.gt(o.accessLevel, GroupAccessLevel.Deny)
+          .and.append(sqls"${o.groupId} in ( ${sqls.join(joinedGroups.map(x => sqls.uuid(x)), sqls",")} )"))
+
+    compare match {
+      case SearchDatasetCondition.Operators.Compare.GE => {
+        q.where.ge(d.filesCount, value)
+          .and.isNull(d.deletedAt)
+          .toSQLSyntax
+      }
+      case SearchDatasetCondition.Operators.Compare.LE => {
+        q.where.le(d.filesCount, value)
+          .and.isNull(d.deletedAt)
+          .toSQLSyntax
+      }
+    }
+  }
+
+  def createFindMatchedDatasetIdsFromPublic(value: Boolean, joinedGroups: Seq[String]): SQLSyntax = {
+    val d = persistence.Dataset.d
+    val o_access = persistence.Ownership.syntax("o1") // 閲覧権限があるかどうかをチェックするため
+    val o_public = persistence.Ownership.syntax("o2") // 公開/非公開のチェックのため
+
+    val q =
+      select(d.id)
+        .from(persistence.Dataset as d)
+        .innerJoin(persistence.Ownership as o_access)
+        .on(sqls.eq(o_access.datasetId, d.id)
+          .and.isNull(o_access.deletedAt)
+          .and.gt(o_access.accessLevel, GroupAccessLevel.Deny)
+          .and.append(sqls"${o_access.groupId} in ( ${sqls.join(joinedGroups.map(x => sqls.uuid(x)), sqls",")} )"))
+
+    if (value) {
+      q.innerJoin(persistence.Ownership as o_public)
+        .on(sqls.eq(o_public.datasetId, d.id)
+          .and.isNull(o_public.deletedAt)
+          .and.gt(o_public.accessLevel, GroupAccessLevel.Deny)
+          .and.eq(o_public.groupId, sqls.uuid(AppConf.guestGroupId)))
+        .where.isNull(d.deletedAt)
+        .toSQLSyntax
+    } else {
+      q.where(
+        sqls.notExists(
+          select
+          .from(persistence.Ownership as o_public)
+          .where.eq(o_public.datasetId, d.id)
+          .and.isNull(o_public.deletedAt)
+          .and.gt(o_public.accessLevel, GroupAccessLevel.Deny)
+          .and.eqUuid(o_public.groupId, AppConf.guestGroupId)
+          .toSQLSyntax
+        )
+      ).and.isNull(d.deletedAt).toSQLSyntax
+    }
+  }
+
+  def findBasicMatchedDatasetIds(keyword: String, contains: Boolean, joinedGroups: Seq[String])(implicit s: DBSession): Seq[String] = {
+    // ベーシック検索
+    // ここでは以下の構造のみを想定する
+    // Query([キーワード],true)
+
+    val q: SQLSyntax = (keyword, contains) match {
+      case ("", _) => {
+        // 全表示
+        createFindMatchedDatasetIdsFromQueryBlank(joinedGroups)
+      }
+      case (value, true) => {
+        // キーワード検索
+        createFindMatchedDatasetIdsFromQueryLike(value, joinedGroups)
+      }
+      case _ => {
+        throw new RuntimeException
+      }
+    }
+
+    withSQL {
+      new SelectSQLBuilder(q)
+    }.map(_.string(1)).list().apply()
+  }
+
+  def findInternalMatchedDatasetIds(subCondition: SearchDatasetCondition, joinedGroups: Seq[String])(implicit s: DBSession): Seq[String] = {
+    subCondition match {
+      case SearchDatasetCondition.Query("", _) => {
+        // キーワード検索だが、なにも指定されていないため、全表示
+
+        // 全表示
+        val findIds = withSQL {
+          new SelectSQLBuilder(createFindMatchedDatasetIdsFromQueryBlank(joinedGroups))
+        }.map(_.string(1)).list().apply()
+
+        findIds
+      }
+      case SearchDatasetCondition.Query(value, true) => {
+        // キーワード検索（LIKE）
+        val findIds = withSQL {
+          new SelectSQLBuilder(createFindMatchedDatasetIdsFromQueryLike(value, joinedGroups))
+        }.map(_.string(1)).list().apply()
+
+        findIds
+      }
+      case SearchDatasetCondition.Query(value, false) => {
+        // 全て
+        val allIds = withSQL {
+          new SelectSQLBuilder(createFindMatchedDatasetIdsFromQueryBlank(joinedGroups))
+        }.map(_.string(1)).list().apply()
+
+        // キーワードを含む
+        val ignoreIds = withSQL {
+          new SelectSQLBuilder(createFindMatchedDatasetIdsFromQueryLike(value, joinedGroups))
+        }.map(_.string(1)).list().apply()
+
+        // ユーザーが閲覧できるデータセットから、検索条件を含むものを除外する
+        val findIds = allIds.filterNot(v => ignoreIds.contains(v))
+
+        findIds
+      }
+      case SearchDatasetCondition.Owner(value, true) => {
+        // オーナー検索
+        val findIds = withSQL {
+          new SelectSQLBuilder(createFindMatchedDatasetIdsFromOwner(value, joinedGroups))
+        }.map(_.string(1)).list().apply()
+
+        findIds
+      }
+      case SearchDatasetCondition.Owner(value, false) => {
+        // 全て
+        val allIds = withSQL {
+          new SelectSQLBuilder(createFindMatchedDatasetIdsFromQueryBlank(joinedGroups))
+        }.map(_.string(1)).list().apply()
+
+        // オーナー検索
+        val ignoreIds = withSQL {
+          new SelectSQLBuilder(createFindMatchedDatasetIdsFromOwner(value, joinedGroups))
+        }.map(_.string(1)).list().apply()
+
+        // ユーザーが閲覧できるデータセットから、検索条件を含むものを除外する
+        val findIds = allIds.filterNot(v => ignoreIds.contains(v))
+
+        findIds
+      }
+      case SearchDatasetCondition.Tag(value) => {
+        // タグ検索
+        val findIds = withSQL {
+          new SelectSQLBuilder(createFindMatchedDatasetIdsFromTag(value, joinedGroups))
+        }.map(_.string(1)).list().apply()
+
+        findIds
+      }
+      case SearchDatasetCondition.Attribute("", "") => {
+        // 属性検索だが、なにも指定されていないため、全表示
+
+        // 全表示
+        val findIds = withSQL {
+          new SelectSQLBuilder(createFindMatchedDatasetIdsFromQueryBlank(joinedGroups))
+        }.map(_.string(1)).list().apply()
+
+        findIds
+      }
+      case SearchDatasetCondition.Attribute(key, value) => {
+        // 属性検索
+
+        val findIds = withSQL {
+          new SelectSQLBuilder(createFindMatchedDatasetIdsFromAttribute(key, value, joinedGroups))
+        }.map(_.string(1)).list().apply()
+
+        findIds
+      }
+      case SearchDatasetCondition.TotalSize(compare, value, unit) => {
+        // データセットについている総ファイルサイズ検索
+
+        val findIds = withSQL {
+          new SelectSQLBuilder(createFindMatchedDatasetIdsFromTotalSize(compare, value, unit, joinedGroups))
+        }.map(_.string(1)).list().apply()
+
+        findIds
+      }
+      case SearchDatasetCondition.NumOfFiles(compare, value) => {
+        // データセットについている総ファイル数検索
+
+        val findIds = withSQL {
+          new SelectSQLBuilder(createFindMatchedDatasetIdsFromNumOfFiles(compare, value, joinedGroups))
+        }.map(_.string(1)).list().apply()
+
+        findIds
+      }
+      case SearchDatasetCondition.Public(value) => {
+        // 公開・非公開
+        val findIds = withSQL {
+          new SelectSQLBuilder(createFindMatchedDatasetIdsFromPublic(value, joinedGroups))
+        }.map(_.string(1)).list().apply()
+
+        findIds
+      }
+      case _ => {
+        throw new IllegalArgumentException
+      }
+    }
+  }
+
+  def findAdvancedMatchedDatasetIds(operator: SearchDatasetCondition.Operators.Container, conditions: Seq[SearchDatasetCondition], joinedGroups: Seq[String])(implicit s: DBSession): Seq[String] = {
+    // アドバンスト検索
+    // ここでは以下の構造のみを想定する（親ORコンテナ１つに対し、子ANDコンテナ複数）
+    // 想定外の構造の場合、例外をスロー
+    //   Container(OR,List(
+    //     Container(AND,List( // List内にはContainerを含まない
+    //       Query(json,true),
+    //       Query(json,false), ...
+    //     )), Container(AND,List(
+    //       Query(java,true),
+    //       Query(java,false), ...
+    //     )), Container(AND,List(
+    //       Query(expo,true),
+    //       Query(expo,false), ...
+    //     )), ...
+    //   ))
+
+    if (SearchDatasetCondition.Operators.Container.AND.equals(operator)) {
+      // 対象外の構造のため、例外
+      throw new IllegalArgumentException
+    }
+
+    // 親構造がORのため、子構造のANDでヒットしたIDを保持し、返却するためのSet
+    val ids: MutableSet[String] = HashSet.empty
+
+    conditions foreach {
+
+      condition =>
+        condition match {
+          case SearchDatasetCondition.Container(SearchDatasetCondition.Operators.Container.AND, subConditions) => {
+
+            var subIds: Set[String] = null
+            var alreadyAddedSubIds = false
+
+            // 以下のすべての条件にマッチするIDのみを返却する
+            subConditions foreach {
+              subCondition =>
+                (alreadyAddedSubIds, (subIds == null || subIds.size == 0)) match {
+                  case (false, _) => {
+                    // 未検索のため、検索し、すべてを保持する
+                    subIds = findInternalMatchedDatasetIds(subCondition, joinedGroups).toSet
+                    alreadyAddedSubIds = true
+                  }
+                  case (true, true) => {
+                    // すでに検索済み、かつ、検索済みIDが空のため、検索しない
+                  }
+                  case (true, false) => {
+                    // すでに検索済み、かつ、検索済みIDがあるため、検索し、含まれるもののみを保持する
+                    subIds = findInternalMatchedDatasetIds(subCondition, joinedGroups)
+                      .toStream.filter(v => subIds.contains(v)).toSet
+                  }
+                }
+            }
+
+            // AND条件でヒットしたデータセットIDを追加
+            subIds.foreach(v => ids += v)
+          }
+          case _ => {
+            throw new IllegalArgumentException
+          }
+        }
+    }
+
+    ids.toList
   }
 
   /**
@@ -1449,7 +1714,8 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         val myself = persistence.User.find(user.id).get
         val timestamp = DateTime.now()
         val f = files.map { f =>
-          val isZip = f.getName.endsWith("zip")
+          // 拡張子を含み、大文字小文字を区別しない
+          val isZip = f.getName.toLowerCase.endsWith(".zip")
           val fileId = UUID.randomUUID.toString
           val historyId = UUID.randomUUID.toString
           FileManager.uploadToLocal(id, fileId, historyId, f)
@@ -1479,7 +1745,20 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
             }
           )
           val realSize = if (isZip) {
-            createZipedFiles(path, historyId, timestamp, myself).getOrElse(f.size)
+            createZipedFiles(path, historyId, timestamp, myself).getOrElse {
+              // 新規採番されたファイルヒストリIDに紐づくエラーIDを、新規登録する
+              persistence.FileHistoryError.create(
+                id = UUID.randomUUID().toString,
+                historyId = historyId,
+                createdBy = myself.id,
+                createdAt = timestamp,
+                updatedBy = myself.id,
+                updatedAt = timestamp
+              )
+
+              // 展開できないZIPファイルのため、サイズはそのままとする
+              f.size
+            }
           } else {
             f.size
           }
@@ -1576,12 +1855,58 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
           }
         )
 
-        val isZip = file.getName.endsWith("zip")
+        // 拡張子を含み、大文字小文字を区別しない
+        val isZip = file.getName.toLowerCase.endsWith(".zip")
         FileManager.uploadToLocal(datasetId, fileId, historyId, file)
         val path = Paths.get(AppConf.fileDir, datasetId, fileId, historyId)
 
         val realSize = if (isZip) {
-          createZipedFiles(path, historyId, timestamp, myself).getOrElse(file.size)
+          createZipedFiles(path, historyId, timestamp, myself).getOrElse {
+
+            // 直前のファイルヒストリIDに紐づくエラーIDを取得する
+            val prevErrorId = withSQL {
+              val fh = persistence.FileHistory.fh
+              val fhe = persistence.FileHistoryError.fhe
+
+              select(fhe.id)
+                .from(persistence.FileHistory as fh)
+                .innerJoin(persistence.FileHistoryError as fhe)
+                .on(sqls.eq(fhe.historyId, fh.id)
+                  .and.isNull(fhe.deletedAt))
+                .where.eqUuid(fh.fileId, fileId)
+                .and.isNull(fh.deletedAt)
+                .orderBy(fh.updatedAt.desc, fhe.updatedAt.desc)
+                .limit(1)
+            }.map(_.string(1)).single().apply()
+
+            if (prevErrorId.isDefined) {
+              // 直前のファイルヒストリIDに紐づくエラーIDがあるため、論理削除する
+              withSQL {
+                val fhe = persistence.FileHistoryError.column
+
+                update(persistence.FileHistoryError)
+                  .set(
+                    fhe.deletedBy -> sqls.uuid(myself.id),
+                    fhe.deletedAt -> timestamp
+                  )
+                  .where
+                  .eq(fhe.id, sqls.uuid(prevErrorId.get))
+              }.update.apply()
+            }
+
+            // 新規採番されたファイルヒストリIDに紐づくエラーIDを、新規登録する
+            persistence.FileHistoryError.create(
+              id = UUID.randomUUID().toString,
+              historyId = historyId,
+              createdBy = myself.id,
+              createdAt = timestamp,
+              updatedBy = myself.id,
+              updatedAt = timestamp
+            )
+
+            // 展開できないZIPファイルのため、サイズはそのままとする
+            file.size
+          }
         } else {
           file.size
         }
@@ -4801,6 +5126,7 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
         .from(ZipedFiles as zf)
         .where
         .eq(zf.historyId, sqls.uuid(historyId))
+        .orderBy(zf.name.asc)
         .offset(offset)
         .limit(limit)
     }.map(persistence.ZipedFiles(zf.resultName)).list.apply()
@@ -5226,6 +5552,89 @@ class DatasetService(resource: ResourceBundle) extends LazyLogging {
       User(user, address)
     }.single.apply()
   }
+
+  /**
+   * 指定したデータセットのエラー一覧を取得します。
+   *
+   * @param id データセットID
+   * @param user ユーザ情報
+   * @return
+   *        Success(Seq[DatasetData.DatasetFile]) 取得成功時、エラー一覧
+   *        Failure(NullPointerException) 引数がnullの場合
+   *        Failure(NotFoundException) データセットが見つからない場合
+   *        Failure(AccessDeniedException) ログインユーザに参照権限がない場合
+   */
+  def getFileHistoryErrors(id: String, user: User): Try[Seq[DatasetData.DatasetFile]] = {
+    logger.debug("Called getFileHistoryErrors, id = {}, user = {}", id, user)
+
+    val ret = Try {
+      CheckUtil.checkNull(id, "id")
+      CheckUtil.checkNull(user, "user")
+      DB.readOnly { implicit s =>
+        val dataset = checkDatasetExisitence(id)
+        val permission = checkReadPermission(id, user)
+        val histories = findFileHistoryErrors(id, user)
+
+        histories.getOrElse(List.empty).map {
+          x =>
+            DatasetData.DatasetFile(
+              id = x.id,
+              name = x.name,
+              description = x.description,
+              size = Some(x.fileSize),
+              url = Some(AppConf.fileDownloadRoot + id + "/" + x.id),
+              createdBy = getUser(x.createdBy),
+              createdAt = x.createdAt.toString,
+              updatedBy = getUser(x.updatedBy),
+              updatedAt = x.updatedAt.toString,
+              isZip = false,
+              zipedFiles = Seq.empty,
+              zipCount = 0
+            )
+        }
+      }
+    }
+
+    // 結果ログを出力する
+    ret match {
+      case Success(_) => {
+        logger.debug("Successed getFileHistoryErrors, id = {}, user = {}", id, user)
+      }
+      case Failure(x) => {
+        logger.info("Failed getFileHistoryErrors, id = {}, user = {}, errorClass = {}, errorMessage = {}", id, user, x.getClass, x.getMessage)
+      }
+    }
+
+    ret
+  }
+
+  private def findFileHistoryErrors(id: String, user: User): Try[List[persistence.File]] = {
+    Try {
+      DB.localTx { implicit s =>
+        val fhe = persistence.FileHistoryError.fhe
+        val fh = persistence.FileHistory.fh
+        val f = persistence.File.f
+
+        withSQL {
+          select
+            .from(persistence.File as f)
+            .innerJoin(persistence.FileHistory as fh)
+            .on(
+              sqls.eq(fh.fileId, f.id)
+                .and.isNull(fh.deletedAt)
+            )
+            .innerJoin(persistence.FileHistoryError as fhe)
+            .on(
+              sqls.eq(fhe.historyId, fh.id)
+                .and.isNull(fhe.deletedAt)
+            )
+            .where.eq(f.datasetId, sqls.uuid(id))
+            .and.isNull(f.deletedAt)
+        }.map(persistence.File(f.resultName)).list.apply()
+      }
+    }
+  }
+
 }
 
 object DatasetService {

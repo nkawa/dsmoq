@@ -5,9 +5,7 @@ import org.joda.time.DateTime
 import PostgresqlHelper.PgSQLSyntaxType
 import scalikejdbc.DBSession
 import scalikejdbc.ResultName
-import scalikejdbc.ResultName
 import scalikejdbc.SQLSyntax
-import scalikejdbc.SQLSyntaxSupport
 import scalikejdbc.SQLSyntaxSupport
 import scalikejdbc.WrappedResultSet
 import scalikejdbc.convertJavaSqlTimestampToConverter

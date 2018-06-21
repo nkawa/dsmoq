@@ -2,19 +2,11 @@ package dsmoq.statistics
 
 import java.util.UUID
 
+import dsmoq.persistence.{ Dataset, File, FileHistory, Statistics }
 import org.joda.time.DateTime
 
-import dsmoq.persistence.Dataset
-import dsmoq.persistence.File
-import dsmoq.persistence.FileHistory
-import dsmoq.persistence.Statistics
-import scalikejdbc.DB
-import scalikejdbc.DBSession
 import scalikejdbc.config.DBs
-import scalikejdbc.scalikejdbcSQLInterpolationImplicitDef
-import scalikejdbc.scalikejdbcSQLSyntaxToStringImplicitDef
-import scalikejdbc.select
-import scalikejdbc.withSQL
+import scalikejdbc.{ DB, DBSession, delete, scalikejdbcSQLInterpolationImplicitDef, scalikejdbcSQLSyntaxToStringImplicitDef, select, withSQL }
 
 object Main extends scala.App {
   val systemUserId = "dccc110c-c34f-40ed-be2c-7e34a9f1b8f0"
@@ -41,42 +33,59 @@ object Main extends scala.App {
       }
     }
 
-    while (date.compareTo(now) < 0) {
-      if (!hasStatistics(date, 2)) {
-        Statistics.create(
-          id = UUID.randomUUID().toString,
-          targetMonth = date,
-          datasetCount = countDatasets(Some(date)),
-          realSize = countRealSize(Some(date)),
-          compressedSize = countFullSize(Some(date)),
-          s3Size = countS3Size(Some(date)),
-          statisticsType = 2,
-          localSize = countLocalSize(Some(date)),
-          createdBy = systemUserId,
-          createdAt = now,
-          updatedBy = systemUserId,
-          updatedAt = now
-        )
-      }
-      date = date.minusMonths(-1)
-    }
+    // データセットを年月単位で取得し、
+    // すでに存在する場合は、削除して、対象年月に対して、再度統計情報を登録する
+    //
+    // 現在想定されているデータセット数であれば、特に問題はない
 
-    if (!hasStatistics(date, 1)) {
+    val st = Statistics.s
+    while (date.compareTo(now) < 0) {
+      if (hasStatistics(date, 2)) {
+        // すでに存在すれば削除する
+        withSQL {
+          delete.from(Statistics as st)
+            .where.eq(st.targetMonth, date)
+            .and.eq(st.statisticsType, 2)
+        }.update().apply()
+      }
       Statistics.create(
         id = UUID.randomUUID().toString,
         targetMonth = date,
-        datasetCount = countDatasets(None),
-        realSize = countRealSize(None),
-        compressedSize = countFullSize(None),
-        s3Size = countS3Size(None),
-        statisticsType = 1,
-        localSize = countLocalSize(None),
+        datasetCount = countDatasets(Some(date)),
+        realSize = countRealSize(Some(date)),
+        compressedSize = countFullSize(Some(date)),
+        s3Size = countS3Size(Some(date)),
+        statisticsType = 2,
+        localSize = countLocalSize(Some(date)),
         createdBy = systemUserId,
         createdAt = now,
         updatedBy = systemUserId,
         updatedAt = now
       )
+      date = date.minusMonths(-1)
     }
+    if (hasStatistics(date, 1)) {
+      // すでに存在すれば削除する
+      withSQL {
+        delete.from(Statistics as st)
+          .where.eq(st.targetMonth, date)
+          .and.eq(st.statisticsType, 1)
+      }.update().apply()
+    }
+    Statistics.create(
+      id = UUID.randomUUID().toString,
+      targetMonth = date,
+      datasetCount = countDatasets(None),
+      realSize = countRealSize(None),
+      compressedSize = countFullSize(None),
+      s3Size = countS3Size(None),
+      statisticsType = 1,
+      localSize = countLocalSize(None),
+      createdBy = systemUserId,
+      createdAt = now,
+      updatedBy = systemUserId,
+      updatedAt = now
+    )
   }
   DBs.closeAll()
 

@@ -1142,6 +1142,10 @@ class InputCheckSpec extends DsmoqSpec {
             val generator = (x: String) => s"/api/groups/${x}/members/${dummyUserId}"
             uuidCheckForUrl(DELETE, generator, groupId, Map.empty)
           }
+
+          // グループメンバーの削除は物理削除となったため、再追加が必要
+          addMember(groupId, dummyUserId)
+
           // UUIDチェック(userId)
           block {
             val generator = (x: String) => s"/api/groups/${groupId}/members/${x}"

@@ -61,13 +61,85 @@ class DatasetSearchSpec extends DsmoqSpec {
       }
     }
   }
-  "query targets" - {
+  "シンプル検索" - {
     "query" in {
       session {
         signIn()
         val d1 = createDataset(name = "abc")
         val d2 = createDataset(name = "def")
-        paramTest("query", JString("a"), Seq("contain", "not-contain"), Seq(d1, d2))
+        val query = (x: String) =>
+          ("target" -> "query") ~
+            ("operator" -> "contain") ~
+            ("value" -> x)
+
+        paramTest(query("a"), Seq(d1))
+        paramTest(query("d"), Seq(d2))
+      }
+    }
+    "permissions" in {
+      val ds = session {
+        signIn()
+        val gid = createGroup(Seq(dummy2Id))
+        for {
+          found <- Seq(true, false)
+          guestAccess <- Seq(true, false)
+          userAccess <- Seq(true, false)
+          groupAccess <- Seq(true, false)
+        } yield {
+          val id = createDataset(name = if (found) "abc" else "xxx", allowGuest = guestAccess)
+          val acl = Seq(
+            if (userAccess) Some((dummy2Id, true)) else None,
+            if (groupAccess) Some((gid, false)) else None
+          ).flatten
+          if (!acl.isEmpty) {
+            setDatasetAcl(id, acl)
+          }
+          (found, guestAccess, userAccess, groupAccess, id)
+        }
+      }.toSeq.reverse
+      val query = (x: String) =>
+        ("target" -> "query") ~
+          ("operator" -> "contain") ~
+          ("value" -> x)
+      val params = Map("d" -> compact(render(("query" -> query("b")))))
+      for {
+        guest <- Seq(true, false)
+      } yield {
+        withClue(s"guest: ${guest}, params: ${params}") {
+          session {
+            if (!guest) {
+              signIn("dummy2", "password")
+            }
+            get("/api/datasets", params) {
+              val data = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]].data
+              val expected = ds.collect {
+                case (true, true, _, _, id) => id
+                case (true, false, ua, ga, id) if (!guest && (ua || ga)) => id
+              }
+              data.results.map(_.id) should be(expected)
+            }
+          }
+        }
+      }
+    }
+  }
+  "アドバンスト検索" - {
+    "query" in {
+      session {
+        signIn()
+        val d1 = createDataset(name = "abc")
+        val d2 = createDataset(name = "def")
+        val query = (x: String, y: String, z: String) => ("operator" -> "or") ~
+          ("value" -> Seq(
+            ("operator" -> "and") ~
+              ("value" -> Seq(
+                ("target" -> x) ~
+                  ("operator" -> y) ~
+                  ("value" -> z)
+              ))
+          ))
+        paramTest(query("query", "contain", "a"), Seq(d1))
+        paramTest(query("query", "not-contain", "a"), Seq(d2))
       }
     }
     "owner" in {
@@ -79,7 +151,17 @@ class DatasetSearchSpec extends DsmoqSpec {
         signIn("dummy2", "password")
         createDataset(allowGuest = true)
       }
-      paramTest("owner", JString("dummy1"), Seq("equal", "not-equal"), Seq(d1, d2))
+      val query = (x: String, y: String, z: String) => ("operator" -> "or") ~
+        ("value" -> Seq(
+          ("operator" -> "and") ~
+            ("value" -> Seq(
+              ("target" -> x) ~
+                ("operator" -> y) ~
+                ("value" -> z)
+            ))
+        ))
+      paramTest(query("owner", "equal", "dummy1"), Seq(d1))
+      paramTest(query("owner", "not-equal", "dummy1"), Seq(d2))
     }
     "tag" in {
       session {
@@ -87,7 +169,15 @@ class DatasetSearchSpec extends DsmoqSpec {
         val d1 = createDataset()
         setAttribute(d1, Seq("tuvwx" -> "$tag"))
         val d2 = createDataset()
-        paramTest("tag", JString("tuvwx"), Seq(""), Seq(d1))
+        val query = (x: String, y: String) => ("operator" -> "or") ~
+          ("value" -> Seq(
+            ("operator" -> "and") ~
+              ("value" -> Seq(
+                ("target" -> x) ~
+                  ("value" -> y)
+              ))
+          ))
+        paramTest(query("tag", "tuvwx"), Seq(d1))
       }
     }
     "attribute" in {
@@ -96,27 +186,19 @@ class DatasetSearchSpec extends DsmoqSpec {
         val d1 = createDataset()
         setAttribute(d1, Seq("abc" -> "def"))
         val d2 = createDataset()
-        for {
-          key <- Seq(None, Some(""), Some("abc"), Some("xyz"))
-          value <- Seq(None, Some(""), Some("def"), Some("stu"))
-        } {
-          withClue(s"key: ${key}, value: ${value}") {
-            val query = render(("target" -> "attribute") ~ ("key" -> key) ~ ("value" -> value))
-            val params = Map("d" -> compact(render(("query" -> query))))
-            get("/api/datasets", params) {
-              checkStatus()
-              val data = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]].data
-              val expected = if (key == Some("xyz") || value == Some("stu")) {
-                Seq.empty
-              } else if (key == Some("abc") || value == Some("def")) {
-                Seq(d1)
-              } else {
-                Seq(d2, d1)
-              }
-              data.results.map(_.id) should be(expected)
-            }
-          }
-        }
+        val query = (x: String, y: String) =>
+          ("operator" -> "or") ~
+            ("value" -> Seq(
+              ("operator" -> "and") ~
+                ("value" -> Seq(
+                  ("target" -> "attribute") ~
+                    ("key" -> x) ~
+                    ("value" -> y)
+                ))
+            ))
+        paramTest(query("abc", "def"), Seq(d1))
+        paramTest(query("xyz", "stu"), Seq.empty)
+        paramTest(query("", ""), Seq(d2, d1))
       }
     }
     "public" in {
@@ -124,74 +206,322 @@ class DatasetSearchSpec extends DsmoqSpec {
         signIn()
         val d1 = createDataset(allowGuest = true)
         val d2 = createDataset(allowGuest = false)
-        paramTest("public", JString("public"), Seq(""), Seq(d1))
-        paramTest("public", JString("private"), Seq(""), Seq(d2))
+        val query = (x: String) =>
+          ("operator" -> "or") ~
+            ("value" -> Seq(
+              ("operator" -> "and") ~
+                ("value" -> Seq(
+                  ("target" -> "public") ~
+                    ("value" -> x)
+                ))
+            ))
+        paramTest(query("public"), Seq(d1))
+        paramTest(query("private"), Seq(d2))
       }
     }
-    "total-size" in {
+    "total-size(1ファイル,byteチェック)" in {
+      session {
+        signIn()
+        val d1 = createDataset()
+        val query = (x: String, y: Double, z: String) =>
+          ("operator" -> "or") ~
+            ("value" -> Seq(
+              ("operator" -> "and") ~
+                ("value" -> Seq(
+                  ("target" -> "total-size") ~
+                    ("operator" -> x) ~
+                    ("value" -> y) ~
+                    ("unit" -> z)
+                ))
+            ))
+
+        // fileSize = 0
+        setFileSize(d1, 0)
+        paramTest(query("le", -1, "byte"), Seq.empty)
+        paramTest(query("le", 0, "byte"), Seq(d1))
+        paramTest(query("le", 1, "byte"), Seq(d1))
+        paramTest(query("ge", -1, "byte"), Seq(d1))
+        paramTest(query("ge", 0, "byte"), Seq(d1))
+        paramTest(query("ge", 1, "byte"), Seq.empty)
+
+        // fileSize = 1
+        setFileSize(d1, 1)
+        paramTest(query("le", -1, "byte"), Seq.empty)
+        paramTest(query("le", 0, "byte"), Seq.empty)
+        paramTest(query("le", 1, "byte"), Seq(d1))
+        paramTest(query("ge", -1, "byte"), Seq(d1))
+        paramTest(query("ge", 0, "byte"), Seq(d1))
+        paramTest(query("ge", 1, "byte"), Seq(d1))
+
+        // fileSize = 2
+        setFileSize(d1, 2)
+        paramTest(query("le", -1, "byte"), Seq.empty)
+        paramTest(query("le", 0, "byte"), Seq.empty)
+        paramTest(query("le", 1, "byte"), Seq.empty)
+        paramTest(query("ge", -1, "byte"), Seq(d1))
+        paramTest(query("ge", 0, "byte"), Seq(d1))
+        paramTest(query("ge", 1, "byte"), Seq(d1))
+      }
+    }
+    "total-size(1ファイル,kbチェック)" in {
+      session {
+        signIn()
+        val d1 = createDataset()
+        val query = (x: String, y: Double, z: String) =>
+          ("operator" -> "or") ~
+            ("value" -> Seq(
+              ("operator" -> "and") ~
+                ("value" -> Seq(
+                  ("target" -> "total-size") ~
+                    ("operator" -> x) ~
+                    ("value" -> y) ~
+                    ("unit" -> z)
+                ))
+            ))
+
+        // fileSize = 1 * 1024 = 1KB
+        setFileSize(d1, 1 * 1024)
+        paramTest(query("le", 1023, "byte"), Seq.empty)
+        paramTest(query("le", 1024, "byte"), Seq(d1))
+        paramTest(query("le", 1025, "byte"), Seq(d1))
+        paramTest(query("ge", 1023, "byte"), Seq(d1))
+        paramTest(query("ge", 1024, "byte"), Seq(d1))
+        paramTest(query("ge", 1025, "byte"), Seq.empty)
+        paramTest(query("le", 0.9, "kb"), Seq.empty)
+        paramTest(query("le", 1.0, "kb"), Seq(d1))
+        paramTest(query("le", 1.1, "kb"), Seq(d1))
+        paramTest(query("ge", 0.9, "kb"), Seq(d1))
+        paramTest(query("ge", 1.0, "kb"), Seq(d1))
+        paramTest(query("ge", 1.1, "kb"), Seq.empty)
+      }
+    }
+    "total-size(1ファイル,mbチェック)" in {
+      session {
+        signIn()
+        val d1 = createDataset()
+        val query = (x: String, y: Double, z: String) =>
+          ("operator" -> "or") ~
+            ("value" -> Seq(
+              ("operator" -> "and") ~
+                ("value" -> Seq(
+                  ("target" -> "total-size") ~
+                    ("operator" -> x) ~
+                    ("value" -> y) ~
+                    ("unit" -> z)
+                ))
+            ))
+
+        // fileSize = 1 * 1024 * 1024 = 1MB
+        setFileSize(d1, 1 * 1024 * 1024)
+        paramTest(query("le", (1024 * 1024) - 1, "byte"), Seq.empty)
+        paramTest(query("le", (1024 * 1024) + 0, "byte"), Seq(d1))
+        paramTest(query("le", (1024 * 1024) + 1, "byte"), Seq(d1))
+        paramTest(query("ge", (1024 * 1024) - 1, "byte"), Seq(d1))
+        paramTest(query("ge", (1024 * 1024) + 0, "byte"), Seq(d1))
+        paramTest(query("ge", (1024 * 1024) + 1, "byte"), Seq.empty)
+        paramTest(query("le", 1024 - 1, "kb"), Seq.empty)
+        paramTest(query("le", 1024 + 0, "kb"), Seq(d1))
+        paramTest(query("le", 1024 + 1, "kb"), Seq(d1))
+        paramTest(query("ge", 1024 - 1, "kb"), Seq(d1))
+        paramTest(query("ge", 1024 + 0, "kb"), Seq(d1))
+        paramTest(query("ge", 1024 + 1, "kb"), Seq.empty)
+        paramTest(query("le", 0.9, "mb"), Seq.empty)
+        paramTest(query("le", 1.0, "mb"), Seq(d1))
+        paramTest(query("le", 1.1, "mb"), Seq(d1))
+        paramTest(query("ge", 0.9, "mb"), Seq(d1))
+        paramTest(query("ge", 1.0, "mb"), Seq(d1))
+        paramTest(query("ge", 1.1, "mb"), Seq.empty)
+      }
+    }
+    "total-size(1ファイル,gbチェック)" in {
+      session {
+        signIn()
+        val d1 = createDataset()
+        val query = (x: String, y: Double, z: String) =>
+          ("operator" -> "or") ~
+            ("value" -> Seq(
+              ("operator" -> "and") ~
+                ("value" -> Seq(
+                  ("target" -> "total-size") ~
+                    ("operator" -> x) ~
+                    ("value" -> y) ~
+                    ("unit" -> z)
+                ))
+            ))
+
+        // fileSize = 1 * 1024 * 1024 * 1024 = 1GB
+        setFileSize(d1, 1 * 1024 * 1024 * 1024)
+        paramTest(query("le", (1024 * 1024 * 1024) - 1, "byte"), Seq.empty)
+        paramTest(query("le", (1024 * 1024 * 1024) + 0, "byte"), Seq(d1))
+        paramTest(query("le", (1024 * 1024 * 1024) + 1, "byte"), Seq(d1))
+        paramTest(query("ge", (1024 * 1024 * 1024) - 1, "byte"), Seq(d1))
+        paramTest(query("ge", (1024 * 1024 * 1024) + 0, "byte"), Seq(d1))
+        paramTest(query("ge", (1024 * 1024 * 1024) + 1, "byte"), Seq.empty)
+        paramTest(query("le", (1024 * 1024) - 1, "kb"), Seq.empty)
+        paramTest(query("le", (1024 * 1024) + 0, "kb"), Seq(d1))
+        paramTest(query("le", (1024 * 1024) + 1, "kb"), Seq(d1))
+        paramTest(query("ge", (1024 * 1024) - 1, "kb"), Seq(d1))
+        paramTest(query("ge", (1024 * 1024) + 0, "kb"), Seq(d1))
+        paramTest(query("ge", (1024 * 1024) + 1, "kb"), Seq.empty)
+        paramTest(query("le", 1024 - 1, "mb"), Seq.empty)
+        paramTest(query("le", 1024 + 0, "mb"), Seq(d1))
+        paramTest(query("le", 1024 + 1, "mb"), Seq(d1))
+        paramTest(query("ge", 1024 - 1, "mb"), Seq(d1))
+        paramTest(query("ge", 1024 + 0, "mb"), Seq(d1))
+        paramTest(query("ge", 1024 + 1, "mb"), Seq.empty)
+        paramTest(query("le", 0.9, "gb"), Seq.empty)
+        paramTest(query("le", 1.0, "gb"), Seq(d1))
+        paramTest(query("le", 1.1, "gb"), Seq(d1))
+        paramTest(query("ge", 0.9, "gb"), Seq(d1))
+        paramTest(query("ge", 1.0, "gb"), Seq(d1))
+        paramTest(query("ge", 1.1, "gb"), Seq.empty)
+      }
+    }
+    "total-size(3ファイル)" in {
       session {
         signIn()
         val d1 = createDataset()
         val d2 = createDataset()
         val d3 = createDataset()
-        for {
-          operator <- Seq(None, Some(""), Some("le"), Some("ge"), Some("xx"))
-          value <- Seq(None, Some(JString("")), Some(JString("aa")), Some(JInt(-1)), Some(JDouble(10.0)), Some(JInt(10)))
-          unit <- Seq(None, Some(JString("")), Some(JString("byte")), Some(JString("kb")), Some(JString("mb")), Some(JString("gb")), Some(JString("xx")))
-        } {
-          withClue(s"operator: ${operator}, value: ${value}, unit: ${unit}") {
-            val m = unit match {
-              case Some(JString("kb")) => 1024L
-              case Some(JString("mb")) => 1024L * 1024
-              case Some(JString("gb")) => 1024L * 1024 * 1024
-              case _ => 1
-            }
-            setFileSize(d1, 9 * m)
-            setFileSize(d2, 10 * m)
-            setFileSize(d3, 11 * m)
-            val query = render(("target" -> "total-size") ~ ("operator" -> operator) ~ ("value" -> value) ~ ("unit" -> unit))
-            val params = Map("d" -> compact(render(("query" -> query))))
-            get("/api/datasets", params) {
-              checkStatus()
-              val data = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]].data
-              val v = value.flatMap(_.extractOpt[Double])
-              val expected = (operator, v) match {
-                case (Some("le"), Some(10)) => Seq(d2, d1)
-                case (Some("le"), _) => Seq.empty
-                case (_, Some(10)) => Seq(d3, d2)
-                case _ => Seq(d3, d2, d1)
-              }
-              data.results.map(_.id) should be(expected)
-            }
-          }
-        }
+        val query = (x: String, y: Double, z: String) =>
+          ("operator" -> "or") ~
+            ("value" -> Seq(
+              ("operator" -> "and") ~
+                ("value" -> Seq(
+                  ("target" -> "total-size") ~
+                    ("operator" -> x) ~
+                    ("value" -> y) ~
+                    ("unit" -> z)
+                ))
+            ))
+        // fileSize = 9, 10, 11
+        setFileSize(d1, 9)
+        setFileSize(d2, 10)
+        setFileSize(d3, 11)
+        paramTest(query("ge", 9, "byte"), Seq(d3, d2, d1))
+        paramTest(query("ge", 10, "byte"), Seq(d3, d2))
+        paramTest(query("ge", 11, "byte"), Seq(d3))
+        paramTest(query("le", 9, "byte"), Seq(d1))
+        paramTest(query("le", 10, "byte"), Seq(d2, d1))
+        paramTest(query("le", 11, "byte"), Seq(d3, d2, d1))
       }
     }
-    "num-of-files" in {
+    "num-of-files(1ファイル)" in {
       session {
         signIn()
         val d1 = createDataset()
+        val query = (x: String, y: Double) =>
+          ("operator" -> "or") ~
+            ("value" -> Seq(
+              ("operator" -> "and") ~
+                ("value" -> Seq(
+                  ("target" -> "num-of-files") ~
+                    ("operator" -> x) ~
+                    ("value" -> y)
+                ))
+            ))
+
+        // filenum = 0
+        setFileNum(d1, 0)
+        paramTest(query("ge", -1), Seq(d1))
+        paramTest(query("ge", 0), Seq(d1))
+        paramTest(query("ge", 1), Seq.empty)
+        paramTest(query("le", -1), Seq.empty)
+        paramTest(query("le", 0), Seq(d1))
+        paramTest(query("le", 1), Seq(d1))
+
+        // filenum = 1
+        setFileNum(d1, 1)
+        paramTest(query("ge", -1), Seq(d1))
+        paramTest(query("ge", 0), Seq(d1))
+        paramTest(query("ge", 1), Seq(d1))
+        paramTest(query("le", -1), Seq.empty)
+        paramTest(query("le", 0), Seq.empty)
+        paramTest(query("le", 1), Seq(d1))
+
+        // filenum = 2
+        setFileNum(d1, 2)
+        paramTest(query("ge", -1), Seq(d1))
+        paramTest(query("ge", 0), Seq(d1))
+        paramTest(query("ge", 1), Seq(d1))
+        paramTest(query("le", -1), Seq.empty)
+        paramTest(query("le", 0), Seq.empty)
+        paramTest(query("le", 1), Seq.empty)
+      }
+    }
+    "num-of-files(3ファイル)" in {
+      session {
+        signIn()
+        val d1 = createDataset()
+        val d2 = createDataset()
+        val d3 = createDataset()
+        val query = (x: String, y: Double) =>
+          ("operator" -> "or") ~
+            ("value" -> Seq(
+              ("operator" -> "and") ~
+                ("value" -> Seq(
+                  ("target" -> "num-of-files") ~
+                    ("operator" -> x) ~
+                    ("value" -> y)
+                ))
+            ))
+
+        // filenum = 9, 10, 11
         setFileNum(d1, 9)
-        val d2 = createDataset()
         setFileNum(d2, 10)
-        val d3 = createDataset()
         setFileNum(d3, 11)
+        paramTest(query("ge", 9), Seq(d3, d2, d1))
+        paramTest(query("ge", 10), Seq(d3, d2))
+        paramTest(query("ge", 11), Seq(d3))
+        paramTest(query("le", 9), Seq(d1))
+        paramTest(query("le", 10), Seq(d2, d1))
+        paramTest(query("le", 11), Seq(d3, d2, d1))
+      }
+    }
+    "permissions" in {
+      val ds = session {
+        signIn()
+        val gid = createGroup(Seq(dummy2Id))
         for {
-          operator <- Seq(None, Some(""), Some("le"), Some("ge"), Some("xx"))
-          value <- Seq(None, Some(JString("")), Some(JString("aa")), Some(JInt(-1)), Some(JDouble(10.0)), Some(JInt(10)))
-        } {
-          withClue(s"operator: ${operator}, value: ${value}") {
-            val query = render(("target" -> "num-of-files") ~ ("operator" -> operator) ~ ("value" -> value))
-            val params = Map("d" -> compact(render(("query" -> query))))
+          found <- Seq(true, false)
+          guestAccess <- Seq(true, false)
+          userAccess <- Seq(true, false)
+          groupAccess <- Seq(true, false)
+        } yield {
+          val id = createDataset(name = if (found) "abc" else "xxx", allowGuest = guestAccess)
+          val acl = Seq(
+            if (userAccess) Some((dummy2Id, true)) else None,
+            if (groupAccess) Some((gid, false)) else None
+          ).flatten
+          if (!acl.isEmpty) {
+            setDatasetAcl(id, acl)
+          }
+          (found, guestAccess, userAccess, groupAccess, id)
+        }
+      }.toSeq.reverse
+      val query = (x: String, y: String, z: String) => ("operator" -> "or") ~
+        ("value" -> Seq(
+          ("operator" -> "and") ~
+            ("value" -> Seq(
+              ("target" -> x) ~
+                ("operator" -> y) ~
+                ("value" -> z)
+            ))
+        ))
+      val params = Map("d" -> compact(render(("query" -> query("query", "contain", "b")))))
+      for {
+        guest <- Seq(true, false)
+      } yield {
+        withClue(s"guest: ${guest}, params: ${params}") {
+          session {
+            if (!guest) {
+              signIn("dummy2", "password")
+            }
             get("/api/datasets", params) {
-              checkStatus()
               val data = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]].data
-              val v = value.flatMap(_.extractOpt[Int])
-              val expected = (operator, v) match {
-                case (Some("le"), Some(10)) => Seq(d2, d1)
-                case (Some("le"), _) => Seq.empty
-                case (_, Some(10)) => Seq(d3, d2)
-                case _ => Seq(d3, d2, d1)
+              val expected = ds.collect {
+                case (true, true, _, _, id) => id
+                case (true, false, ua, ga, id) if (!guest && (ua || ga)) => id
               }
               data.results.map(_.id) should be(expected)
             }
@@ -199,112 +529,131 @@ class DatasetSearchSpec extends DsmoqSpec {
         }
       }
     }
-  }
-  "array params" in {
-    val trueElement = render(("target" -> "query") ~ ("value" -> "test"))
-    val falseElement = render(("target" -> "query") ~ ("value" -> "abc"))
-    val andTrueElement = render(("operator" -> "and") ~ ("value" -> render(Seq(trueElement))))
-    val andFalseElement = render(("operator" -> "and") ~ ("value" -> render(Seq(falseElement))))
-    val orTrueElement = render(("operator" -> "or") ~ ("value" -> render(Seq(trueElement))))
-    val orFalseElement = render(("operator" -> "or") ~ ("value" -> render(Seq(falseElement))))
-    session {
-      signIn()
-      val id = createDataset()
-      for {
-        operator <- Seq("or", "and")
-        trueElements <- 0 to 1
-        falseElements <- 0 to 1
-        andTrueElements <- 0 to 1
-        andFalseElements <- 0 to 1
-        orTrueElements <- 0 to 1
-        orFalseElements <- 0 to 1
-      } {
-        val trues = trueElements + andTrueElements + orTrueElements
-        val falses = falseElements + andFalseElements + orFalseElements
-        val value = Seq(
-          (1 to trueElements).map(_ => trueElement),
-          (1 to falseElements).map(_ => falseElement),
-          (1 to andTrueElements).map(_ => andTrueElement),
-          (1 to andFalseElements).map(_ => andFalseElement),
-          (1 to orTrueElements).map(_ => orTrueElement),
-          (1 to orFalseElements).map(_ => orFalseElement)
-        ).flatten
-        val query = render(("operator" -> operator) ~ ("value" -> value))
-        val params = Map("d" -> compact(render(("query" -> query))))
-        withClue(params) {
-          get("/api/datasets", params) {
-            checkStatus()
-            val data = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]].data
-            val expected = (operator, trues, falses) match {
-              case (_, 0, 0) => Seq(id)
-              case ("or", 0, _) => Seq.empty
-              case ("or", _, _) => Seq(id)
-              case ("and", _, 0) => Seq(id)
-              case ("and", _, _) => Seq.empty
-              case _ => Seq(id)
-            }
-            data.results.map(_.id) should be(expected)
-          }
-        }
+    "組み合わせ条件(ANDのみ)" in {
+      session {
+        signIn()
+
+        val d1 = createDataset(name = "abc")
+        val d2 = createDataset(name = "def")
+        val queryRoot = (x: Seq[JValue]) =>
+          ("operator" -> "or") ~
+            ("value" -> x)
+        val queryAndContainer = (x: Seq[JValue]) =>
+          ("operator" -> "and") ~
+            ("value" -> x)
+        val queryKeyword = (x: String, y: String, z: String) =>
+          ("target" -> x) ~
+            ("operator" -> y) ~
+            ("value" -> z)
+
+        val query1 = queryRoot(Seq(queryAndContainer(Seq(
+          queryKeyword("query", "contain", "a")
+        ))))
+        paramTest(query1, Seq(d1))
+        val query2 = queryRoot(Seq(queryAndContainer(Seq(
+          queryKeyword("query", "contain", "a"),
+          queryKeyword("query", "contain", "b")
+        ))))
+        paramTest(query2, Seq(d1))
+        val query3 = queryRoot(Seq(queryAndContainer(Seq(
+          queryKeyword("query", "contain", "a"),
+          queryKeyword("query", "contain", "b"),
+          queryKeyword("query", "not-contain", "c")
+        ))))
+        paramTest(query3, Seq.empty)
       }
     }
-  }
-  "permissions" in {
-    val ds = session {
-      signIn()
-      val gid = createGroup(Seq(dummy2Id))
-      for {
-        found <- Seq(true, false)
-        guestAccess <- Seq(true, false)
-        userAccess <- Seq(true, false)
-        groupAccess <- Seq(true, false)
-      } yield {
-        val id = createDataset(name = if (found) "abc" else "xxx", allowGuest = guestAccess)
-        val acl = Seq(
-          if (userAccess) Some((dummy2Id, true)) else None,
-          if (groupAccess) Some((gid, false)) else None
-        ).flatten
-        if (!acl.isEmpty) {
-          setDatasetAcl(id, acl)
-        }
-        (found, guestAccess, userAccess, groupAccess, id)
+    "組み合わせ条件(ORのみ)" in {
+      session {
+        signIn()
+
+        val d1 = createDataset(name = "abc")
+        val d2 = createDataset(name = "def")
+        val queryRoot = (x: Seq[JValue]) =>
+          ("operator" -> "or") ~
+            ("value" -> x)
+        val queryAndContainer = (x: Seq[JValue]) =>
+          ("operator" -> "and") ~
+            ("value" -> x)
+        val queryKeyword = (x: String, y: String, z: String) =>
+          ("target" -> x) ~
+            ("operator" -> y) ~
+            ("value" -> z)
+
+        val query1 = queryRoot(Seq(
+          queryAndContainer(
+            Seq(queryKeyword("query", "contain", "a"))
+          ),
+          queryAndContainer(
+            Seq(queryKeyword("query", "contain", "d"))
+          )
+        ))
+        paramTest(query1, Seq(d2, d1))
+
+        val query2 = queryRoot(Seq(
+          queryAndContainer(
+            Seq(queryKeyword("query", "contain", "a"))
+          ),
+          queryAndContainer(
+            Seq(queryKeyword("query", "not-contain", "d"))
+          )
+        ))
+        paramTest(query2, Seq(d1))
       }
-    }.toSeq.reverse
-    val query = render(("target" -> "query") ~ ("value" -> "b"))
-    val params = Map("d" -> compact(render(("query" -> query))))
-    for {
-      guest <- Seq(true, false)
-    } yield {
-      withClue(s"guest: ${guest}, params: ${params}") {
-        session {
-          if (!guest) {
-            signIn("dummy2", "password")
-          }
-          get("/api/datasets", params) {
-            val data = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]].data
-            val expected = ds.collect {
-              case (true, true, _, _, id) => id
-              case (true, false, ua, ga, id) if (!guest && (ua || ga)) => id
-            }
-            data.results.map(_.id) should be(expected)
-          }
-        }
+    }
+    "組み合わせ条件(AND,OR)" in {
+      session {
+        signIn()
+
+        val d1 = createDataset(name = "abc")
+        val d2 = createDataset(name = "def")
+        val queryRoot = (x: Seq[JValue]) =>
+          ("operator" -> "or") ~
+            ("value" -> x)
+        val queryAndContainer = (x: Seq[JValue]) =>
+          ("operator" -> "and") ~
+            ("value" -> x)
+        val queryKeyword = (x: String, y: String, z: String) =>
+          ("target" -> x) ~
+            ("operator" -> y) ~
+            ("value" -> z)
+
+        val query1 = queryRoot(Seq(
+          queryAndContainer(
+            Seq(
+              queryKeyword("query", "contain", "a"),
+              queryKeyword("query", "contain", "d")
+            )
+          ),
+          queryAndContainer(
+            Seq(queryKeyword("query", "contain", "d"))
+          )
+        ))
+        paramTest(query1, Seq(d2))
+        val query2 = queryRoot(Seq(
+          queryAndContainer(
+            Seq(
+              queryKeyword("query", "contain", "a"),
+              queryKeyword("query", "not-contain", "d")
+            )
+          ),
+          queryAndContainer(
+            Seq(queryKeyword("query", "not-contain", "d"))
+          )
+        ))
+        paramTest(query2, Seq(d1))
       }
     }
   }
 
-  def paramTest(target: String, value: JValue, operator: Seq[String], expecteds: Seq[String]): Unit = {
-    (operator zip expecteds).foreach {
-      case (operator, expected) =>
-        withClue(operator) {
-          val query = render(("target" -> target) ~ ("operator" -> operator) ~ ("value" -> value))
-          val params = Map("d" -> compact(render(("query" -> query))))
-          get("/api/datasets", params) {
-            checkStatus()
-            val data = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]].data
-            data.results.map(_.id) should be(Seq(expected))
-          }
-        }
+  def paramTest(query: JValue, expecteds: Seq[String]): Unit = {
+    val params = Map("d" -> compact(render(("query" -> query))))
+    withClue(s"query: ${compact(render(query))}") {
+      get("/api/datasets", params) {
+        checkStatus()
+        val data = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]].data
+        data.results.map(_.id) should be(expecteds)
+      }
     }
   }
 

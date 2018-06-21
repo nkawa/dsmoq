@@ -49,7 +49,7 @@ public class AutoCloseHttpClient implements AutoCloseable {
     private static ResourceBundle resource = ResourceBundle.getBundle("message");
 
     /** HTTP Request のタイムアウト時間 (ms) */
-    private static final int TIMEOUT = 30 * 1000;
+    private static final int TIMEOUT = 30 * 1000 * 4;
 
     private CloseableHttpClient client;
 

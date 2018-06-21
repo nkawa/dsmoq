@@ -213,7 +213,17 @@ class DatasetApiSpec extends DsmoqSpec {
                         DatasetAttribute("abc", "xyz"),
                         DatasetAttribute("test", "$tag")
                       )
-                      result.data.meta.attributes should be(attrs)
+                      // 順番保障はしていないため、登録したattributeを含むかどうかで判断
+                      // result.data.meta.attributes should be(attrs)
+                      result.data.meta.attributes.foreach(f => {
+                        (f.name, f.value) match {
+                          case ("abc", "def") => // Success
+                          case ("abc", "xyz") => // Success
+                          case ("test", "$tag") => // Success
+                          case _ => fail()
+                        }
+                      })
+
                     } else if (file.getName.startsWith("attr_")) {
                       val attrs = Seq(
                         DatasetAttribute("abc", "def"),
@@ -224,7 +234,20 @@ class DatasetApiSpec extends DsmoqSpec {
                         DatasetAttribute("タグ", "$tag"),
                         DatasetAttribute("表予申能十ソ", "表予申能十ソ")
                       )
-                      result.data.meta.attributes should be(attrs)
+                      // 順番保障はしていないため、登録したattributeを含むかどうかで判断
+                      // result.data.meta.attributes should be(attrs)
+                      result.data.meta.attributes.foreach(f => {
+                        (f.name, f.value) match {
+                          case ("abc", "def") => // Success
+                          case ("abc", "xyz") => // Success
+                          case ("test", "$tag") => // Success
+                          case ("あいう", "えお") => // Success
+                          case ("属性", "値") => // Success
+                          case ("タグ", "$tag") => // Success
+                          case ("表予申能十ソ", "表予申能十ソ") => // Success
+                          case _ => fail()
+                        }
+                      })
                     }
                   }
                 }
@@ -261,7 +284,10 @@ class DatasetApiSpec extends DsmoqSpec {
         session {
           signIn()
           val datasetId = createDataset()
-          val files = Seq(("files[]", dummyFile), ("files[]", dummyFile))
+          val files = Seq(
+            ("files[]", dummyFile),
+            ("files[]", dummyFile)
+          )
           val fileIds = post("/api/datasets/" + datasetId + "/files", Map.empty, files) {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[DatasetAddFiles]]
@@ -1140,6 +1166,124 @@ class DatasetApiSpec extends DsmoqSpec {
           parse(body).extract[AjaxResponse[Dataset]].data.id
         }
       }
+
+      "ZIP内ファイル一覧はファイル名の昇順になっているか" in {
+        session {
+          signIn()
+          val datasetId = createDataset()
+          val validZipFile = new File("../testdata/valid_zip.zip")
+          val dummyFile1 = new File("../testdata/test1.csv")
+          val dummyFile2 = new File("../testdata/test1.zip")
+          val dummyFile3 = new File("../testdata/test2.csv")
+          val dummyFile4 = new File("../testdata/test2.zip")
+          val dummyFile5 = new File("../testdata/test3.csv")
+          val dummyFile6 = new File("../testdata/test3.zip")
+          val files = Seq(
+            ("files[]", validZipFile)
+          )
+          val fileIds = post("/api/datasets/" + datasetId + "/files", Map.empty, files) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[DatasetAddFiles]]
+            result.data.files.map(_.id)
+          }
+
+          get(s"/api/datasets/${datasetId}/files") {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+            result.data.summary.count should be(2)
+
+            val fileId = result.data.results.filter(v => v.name.equals(validZipFile.getName)).head.id
+            get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
+              result.data.summary.count should be(6)
+              result.data.results.size should be(6)
+
+              // ファイル名の昇順ソートになっているか確認する
+              result.data.results(0).name should be(dummyFile1.getName)
+              result.data.results(1).name should be(dummyFile2.getName)
+              result.data.results(2).name should be(dummyFile3.getName)
+              result.data.results(3).name should be(dummyFile4.getName)
+              result.data.results(4).name should be(dummyFile5.getName)
+              result.data.results(5).name should be(dummyFile6.getName)
+            }
+          }
+        }
+      }
+
+      "unzipできないファイル一覧を取得できるか" in {
+        session {
+          signIn()
+          val datasetId = createDataset()
+          val validZipFile = new File("../testdata/valid_zip.zip")
+          val invalidZipFile = new File("../testdata/invalid_zip.zip")
+          val files = Seq(
+            ("files[]", validZipFile),
+            ("files[]", invalidZipFile)
+          )
+          val fileIds = post("/api/datasets/" + datasetId + "/files", Map.empty, files) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[DatasetAddFiles]]
+            result.data.files.map(_.id)
+          }
+
+          get("/api/datasets/" + datasetId) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.data.filesCount should be(3)
+            result.data.files.size should be(0)
+
+            get(s"/api/datasets/${datasetId}/files") {
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+              result.data.results(0).name should be(dummyFile.getName)
+              result.data.results(1).name should be(invalidZipFile.getName)
+              result.data.results(2).name should be(validZipFile.getName)
+            }
+            get(s"/api/datasets/${datasetId}/file_errors") {
+              val result = parse(body).extract[AjaxResponse[Seq[DatasetFile]]]
+              result.data.size should be(1)
+              result.data(0).name should be(invalidZipFile.getName)
+            }
+          }
+        }
+      }
+
+      "ZIP拡張子を適切に判別しているか" in {
+        session {
+          signIn()
+          val datasetId = createDataset()
+          val validExtFile = new File("../testdata/valid_extension.zip")
+          val invalidExtFile = new File("../testdata/invalid_extension.zzip")
+          val files = Seq(
+            ("files[]", validExtFile),
+            ("files[]", invalidExtFile)
+          )
+          val fileIds = post("/api/datasets/" + datasetId + "/files", Map.empty, files) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[DatasetAddFiles]]
+            result.data.files.map(_.id)
+          }
+
+          get(s"/api/datasets/${datasetId}/files") {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetFile]]]
+            result.data.summary.count should be(3)
+
+            val invalidResult = result.data.results.filter(v => v.name.equals(invalidExtFile.getName)).head
+            invalidResult.isZip should be(false)
+
+            val fileId = result.data.results.filter(v => v.name.equals(validExtFile.getName)).head.id
+            get(s"/api/datasets/${datasetId}/files/${fileId}/zippedfiles") {
+              checkStatus()
+              val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetZipedFile]]]
+              result.data.summary.count should be(1)
+              result.data.results.size should be(1)
+
+              result.data.results(0).name should be("README1.md")
+            }
+          }
+        }
+      }
     }
 
     "SearchDatasetList" - {
@@ -1402,8 +1546,19 @@ class DatasetApiSpec extends DsmoqSpec {
       "グループアクセス権限がProviderのデータセットを検索できるか" in {
         // 2つのユーザーでグループとデータセットを1つずつ作成し、データセットはグループにProvider権限を与える
         session {
+          get("/api/datasets") {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+            result.data.summary.total should be(0)
+          }
+
           // testUser (dummy1)
           signIn()
+          get("/api/datasets") {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+            result.data.summary.total should be(0)
+          }
           val datasetId = createDataset()
           val groupName = "groupName" + UUID.randomUUID().toString
           val createGroupParams = Map("d" -> compact(render(("name" -> groupName) ~ ("description" -> "group description"))))
@@ -1426,6 +1581,11 @@ class DatasetApiSpec extends DsmoqSpec {
             checkStatus()
             val result = parse(body).extract[AjaxResponse[Seq[DatasetOwnership]]]
             assert(result.data.map(_.id) contains (groupId))
+          }
+          get("/api/datasets") {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+            result.data.summary.total should be(1)
           }
           post("/api/signout") {
             checkStatus()

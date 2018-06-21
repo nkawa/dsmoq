@@ -98,7 +98,9 @@ public class SDKTest {
                 throw new RuntimeException(e);
             }
         });
-        assertThat(data.replaceAll("\r\n", "\n"), is("aaaaa,1\nfuga,2\n"));
+        // 順番保障はしていないため、登録したattributeを含むかどうかで判断
+        assertThat(data.replaceAll("\r\n", "\n"), is("aaaaa,1\n"));
+        assertThat(data.replaceAll("\r\n", "\n"), is("fuga,2\n"));
     }
 
     @Test
@@ -171,7 +173,9 @@ public class SDKTest {
                 // do nothing
             }
         }
-        List<DatasetsSummary> datasets = client.getDatasets(new GetDatasetsParam()).getResults();
+        GetDatasetsConditionParam param = new GetDatasetsConditionParam();
+        param.add(new QueryContainCondition(""));
+        List<DatasetsSummary> datasets = client.getDatasets(param).getResults();
         for (DatasetsSummary dataset : datasets) {
             RangeSlice<DatasetFile> files = client.getDatasetFiles(dataset.getId(), new GetRangeParam());
             try {

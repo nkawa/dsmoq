@@ -1,53 +1,31 @@
 package dsmoq.services
 
-import java.util.ResourceBundle
-import java.util.UUID
+import java.util.{ ResourceBundle, UUID }
 
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
+import com.typesafe.scalalogging.LazyLogging
+import dsmoq.exceptions.{ AccessDeniedException, BadRequestException, NotFoundException }
+import dsmoq.logic.{ ImageSaveLogic, StringUtil }
+import dsmoq.{ AppConf, ResourceNames, persistence }
+import dsmoq.persistence.PostgresqlHelper.{ PgConditionSQLBuilder, PgSQLSyntaxType }
+import dsmoq.persistence.{ Group, GroupAccessLevel, GroupMemberRole, GroupType, Member, PresetType }
+import dsmoq.services.json.{ GroupData, Image, RangeSlice, RangeSliceSummary }
 import org.joda.time.DateTime
 import org.scalatra.servlet.FileItem
+import org.slf4j.MarkerFactory
+import scalikejdbc.{ ConditionSQLBuilder, DB, DBSession, SelectSQLBuilder, delete, scalikejdbcSQLInterpolationImplicitDef, scalikejdbcSQLSyntaxToStringImplicitDef, select, sqls, update, withSQL }
 
-import dsmoq.AppConf
-import dsmoq.ResourceNames
-import dsmoq.exceptions.AccessDeniedException
-import dsmoq.exceptions.BadRequestException
-import dsmoq.exceptions.NotFoundException
-import dsmoq.logic.ImageSaveLogic
-import dsmoq.logic.StringUtil
-import dsmoq.persistence
-import dsmoq.persistence.Group
-import dsmoq.persistence.GroupAccessLevel
-import dsmoq.persistence.GroupMemberRole
-import dsmoq.persistence.GroupType
-import dsmoq.persistence.Member
-import dsmoq.persistence.PostgresqlHelper.PgConditionSQLBuilder
-import dsmoq.persistence.PostgresqlHelper.PgSQLSyntaxType
-import dsmoq.persistence.PresetType
-import dsmoq.services.json.GroupData
-import dsmoq.services.json.Image
-import dsmoq.services.json.RangeSlice
-import dsmoq.services.json.RangeSliceSummary
-import scalikejdbc.ConditionSQLBuilder
-import scalikejdbc.ConditionSQLBuilder
-import scalikejdbc.DB
-import scalikejdbc.DBSession
-import scalikejdbc.SelectSQLBuilder
-import scalikejdbc.SelectSQLBuilder
-import scalikejdbc.scalikejdbcSQLInterpolationImplicitDef
-import scalikejdbc.scalikejdbcSQLSyntaxToStringImplicitDef
-import scalikejdbc.select
-import scalikejdbc.sqls
-import scalikejdbc.update
-import scalikejdbc.withSQL
+import scala.util.Try
 
 /**
  * グループの処理を取り扱うサービスクラス
  * @param resource ResourceBundleのインスタンス
  */
-class GroupService(resource: ResourceBundle) {
+class GroupService(resource: ResourceBundle) extends LazyLogging {
+  /**
+   * ログマーカー
+   */
+  val LOG_MARKER = MarkerFactory.getMarker("GROUP_LOG")
+
   private val groupImageDownloadRoot = AppConf.imageDownloadRoot + "groups/"
 
   /**
@@ -770,19 +748,12 @@ class GroupService(resource: ResourceBundle) {
           if (getOtherManagerCount(groupId, userId) == 0) {
             throw new BadRequestException(resource.getString(ResourceNames.NO_MANAGER))
           }
-          persistence.Member(
-            id = member.id,
-            groupId = member.groupId,
-            userId = member.userId,
-            role = GroupMemberRole.Deny,
-            status = member.status,
-            createdBy = member.createdBy,
-            createdAt = member.createdAt,
-            updatedBy = groupUser.id,
-            updatedAt = DateTime.now(),
-            deletedBy = None,
-            deletedAt = None
-          ).save()
+
+          val m = persistence.Member.m
+          withSQL {
+            delete.from(persistence.Member as m)
+              .where.eqUuid(m.id, member.id)
+          }.update().apply()
         }
         if (ret.isEmpty) {
           throw new NotFoundException

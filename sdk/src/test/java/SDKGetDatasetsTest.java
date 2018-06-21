@@ -64,7 +64,10 @@ public class SDKGetDatasetsTest {
         }
 
         public void tearDown() {
-            RangeSlice<DatasetsSummary> datasets = client.getDatasets(new GetDatasetsConditionParam());
+            GetDatasetsConditionParam param = new GetDatasetsConditionParam();
+            param.add(new QueryContainCondition(""));
+
+            RangeSlice<DatasetsSummary> datasets = client.getDatasets(param);
             datasets.getResults().forEach(ds -> {
                 RangeSlice<DatasetFile> files = client.getDatasetFiles(ds.getId(), new GetRangeParam());
                 try {

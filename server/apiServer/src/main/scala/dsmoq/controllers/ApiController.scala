@@ -2,69 +2,22 @@ package dsmoq.controllers
 
 import java.util.ResourceBundle
 
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-import org.json4s.DefaultFormats
-import org.json4s.Formats
+import com.typesafe.scalalogging.LazyLogging
+import dsmoq.controllers.AjaxResponse.toActionResult
+import dsmoq.controllers.json.{ ChangeGroupPrimaryImageParams, ChangePrimaryImageParams, CreateDatasetQueryParams, CreateGroupParams, DatasetStorageParams, GetGroupMembersParams, SearchDatasetParams, SearchDatasetParamsSerializer, SearchGroupsParams, SearchRangeParams, SetGroupMemberRoleParams, SigninParams, StatisticsParams, SuggestApiParams, UpdateDatasetFileMetadataParams, UpdateDatasetGuestAccessParams, UpdateDatasetMetaParams, UpdateGroupParams, UpdateMailAddressParams, UpdatePasswordParams, UpdateProfileParams, UserAndGroupSuggestApiParams }
+import dsmoq.exceptions.{ BadRequestException, InputCheckException }
+import dsmoq.logic.CheckUtil
+import dsmoq.services.json.{ DatasetData, RangeSlice, SearchDatasetConditionSerializer }
+import dsmoq.services.{ AccountService, DataSetAccessControlItem, DatasetService, GroupMember, GroupService, QueryService, StatisticsService, SystemService, TaskService }
+import dsmoq.{ AppConf, ResourceNames }
 import org.json4s.jackson.JsonMethods
-import org.json4s.jvalue2extractable
-import org.json4s.string2JsonInput
-import org.scalatra.ActionResult
-import org.scalatra.BadRequest
-import org.scalatra.InternalServerError
-import org.scalatra.NotFound
-import org.scalatra.Ok
-import org.scalatra.ScalatraServlet
+import org.json4s.{ DefaultFormats, Formats, jvalue2extractable, string2JsonInput }
 import org.scalatra.json.JacksonJsonSupport
 import org.scalatra.servlet.{ FileItem, FileUploadSupport }
+import org.scalatra.{ BadRequest, InternalServerError, NotFound, ScalatraServlet }
 import org.slf4j.MarkerFactory
-import com.typesafe.scalalogging.LazyLogging
-import dsmoq.AppConf
-import dsmoq.ResourceNames
-import dsmoq.controllers.AjaxResponse.toActionResult
-import dsmoq.controllers.json.ChangeGroupPrimaryImageParams
-import dsmoq.controllers.json.ChangePrimaryAppParams
-import dsmoq.controllers.json.ChangePrimaryImageParams
-import dsmoq.controllers.json.CreateDatasetQueryParams
-import dsmoq.controllers.json.CreateGroupParams
-import dsmoq.controllers.json.DatasetStorageParams
-import dsmoq.controllers.json.GetGroupMembersParams
-import dsmoq.controllers.json.SearchAppsParams
-import dsmoq.controllers.json.SearchDatasetParams
-import dsmoq.controllers.json.SearchDatasetParamsSerializer
-import dsmoq.controllers.json.SearchGroupsParams
-import dsmoq.controllers.json.SearchRangeParams
-import dsmoq.controllers.json.SetGroupMemberRoleParams
-import dsmoq.controllers.json.SigninParams
-import dsmoq.controllers.json.StatisticsParams
-import dsmoq.controllers.json.SuggestApiParams
-import dsmoq.controllers.json.UpdateDatasetFileMetadataParams
-import dsmoq.controllers.json.UpdateDatasetGuestAccessParams
-import dsmoq.controllers.json.UpdateDatasetMetaParams
-import dsmoq.controllers.json.UpdateGroupParams
-import dsmoq.controllers.json.UpdateMailAddressParams
-import dsmoq.controllers.json.UpdatePasswordParams
-import dsmoq.controllers.json.UpdateProfileParams
-import dsmoq.controllers.json.UserAndGroupSuggestApiParams
-import dsmoq.exceptions.AccessDeniedException
-import dsmoq.exceptions.BadRequestException
-import dsmoq.exceptions.InputCheckException
-import dsmoq.exceptions.InputValidationException
-import dsmoq.exceptions.NotAuthorizedException
-import dsmoq.exceptions.NotFoundException
-import dsmoq.logic.CheckUtil
-import dsmoq.services.AccountService
-import dsmoq.services.DataSetAccessControlItem
-import dsmoq.services.DatasetService
-import dsmoq.services.GroupMember
-import dsmoq.services.GroupService
-import dsmoq.services.QueryService
-import dsmoq.services.StatisticsService
-import dsmoq.services.SystemService
-import dsmoq.services.TaskService
-import dsmoq.services.User
-import dsmoq.services.json._
+
+import scala.util.{ Failure, Success, Try }
 
 /**
  * /apiにマッピングされるサーブレットクラス。
@@ -732,6 +685,26 @@ class ApiController(
     toActionResult(ret)
   }
 
+  // データセット エラー一覧取得
+  get("/datasets/:datasetId/file_errors") {
+    val id = params("datasetId")
+    logger.debug(LOG_MARKER, "Called /datasets/{}/file_errors", id)
+
+    val ret = for {
+      _ <- checkUtil.validUuidForUrl("datasetId", id)
+      user <- getUser(allowGuest = true)
+      result <- datasetService.getFileHistoryErrors(id, user)
+      _ <- SystemService.writeDatasetAccessLog(id, user)
+    } yield {
+      result
+    }
+
+    if (ret.isSuccess) {
+      logger.info(LOG_MARKER, "Successed /datasets/{}/file_errors", id)
+    }
+    toActionResult(ret)
+  }
+
   // データセットZIP内ファイル一覧取得
   get("/datasets/:datasetId/files/:fileId/zippedfiles") {
     val datasetId = params("datasetId")
@@ -1225,6 +1198,7 @@ class ApiController(
    * Option値をTry値へ変換する。
    *
    * Noneの場合はFailure(InputCheckException)となる。
+   *
    * @tparam T
    * @param obj 変換するOption値
    * @return Try値
@@ -1255,7 +1229,7 @@ class ApiController(
    * 指定されたJSON文字列を指定された型の値に変換する。
    *
    * @tparam T 変換先の型
-   * @param str JSON文字列
+   * @param str      JSON文字列
    * @param position 文字列のパラメータ位置
    * @return 変換結果
    */
