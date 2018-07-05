@@ -19,7 +19,7 @@ import common.DsmoqSpec
 import dsmoq.AppConf
 import dsmoq.controllers.AjaxResponse
 import dsmoq.persistence.PostgresqlHelper._
-import dsmoq.persistence.{ DefaultAccessLevel, OwnerType, UserAccessLevel, GroupAccessLevel }
+import dsmoq.persistence.{ DefaultAccessLevel, GroupAccessLevel, GroupMemberRole, OwnerType, UserAccessLevel }
 import dsmoq.services.UserAndGroupAccessLevel
 import dsmoq.services.json.DatasetData.Dataset
 import dsmoq.services.json.DatasetData.DatasetAddFiles
@@ -668,6 +668,94 @@ class DatasetApiSpec extends DsmoqSpec {
             val result = parse(body).extract[AjaxResponse[Dataset]]
             result.data.id should be(datasetId)
             assert(result.data.ownerships.filter(_.ownerType == OwnerType.Group).map(_.name).contains(groupName))
+          }
+        }
+      }
+
+      "データセットACLアイテム アクセスレベル設定したデータが閲覧不可になっているか(グループから削除したメンバー)" in {
+        session {
+          // データセット作成
+          signIn()
+          val datasetId = createDataset()
+          post("/api/signout") { checkStatus() }
+
+          // アクセスレベル設定対象のグループを作成
+          signIn("dummy4")
+          val groupName = "groupName" + UUID.randomUUID().toString
+          val createGroupParams = Map("d" -> compact(render(("name" -> groupName) ~ ("description" -> "group description"))))
+          val groupId = post("/api/groups", createGroupParams) {
+            checkStatus()
+            parse(body).extract[AjaxResponse[Group]].data.id
+          }
+          // メンバー追加(dummy3)
+          val dummyAddUserUUID = "4aaefd45-2fe5-4ce0-b156-3141613f69a6" // dummy3
+          post(
+            s"/api/groups/${groupId}/members",
+            Map("d" -> compact(render(Seq(("userId" -> dummyAddUserUUID) ~ ("role" -> JInt(GroupMemberRole.Member))))))
+          ) { checkStatus() }
+
+          post("/api/signout") { checkStatus() }
+
+          // アクセスレベル設定(グループ)
+          signIn()
+          val params = Map(
+            "d" -> compact(
+              render(
+                Seq(
+                  ("id" -> groupId) ~
+                    ("ownerType" -> JInt(OwnerType.Group)) ~
+                    ("accessLevel" -> JInt(GroupAccessLevel.FullPublic))
+                )
+              )
+            )
+          )
+          post("/api/datasets/" + datasetId + "/acl", params) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[Seq[DatasetOwnership]]]
+            assert(result.data.map(_.id) contains (groupId))
+          }
+          post("/api/signout") { checkStatus() }
+
+          // アクセスレベルを設定したdatasetはそのユーザー(グループ)から参照できるはず
+          signIn("dummy3")
+
+          // 一覧検索
+          get("/api/datasets") {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+            result.data.summary.total should be(1)
+            assert(result.data.results.map(_.id).contains(datasetId))
+          }
+          // 詳細検索
+          get("/api/datasets/" + datasetId) {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[Dataset]]
+            result.data.id should be(datasetId)
+            assert(result.data.ownerships.filter(_.ownerType == OwnerType.Group).map(_.name).contains(groupName))
+          }
+
+          // サインアウト
+          post("/api/signout") { checkStatus() }
+
+          // グループ管理者でサインインして、追加ユーザーを削除する
+          signIn("dummy4")
+          delete(s"/api/groups/${groupId}/members/${dummyAddUserUUID}") { checkStatus() }
+
+          // サインアウト
+          post("/api/signout") { checkStatus() }
+
+          // 削除前にグループに追加したユーザーが参照できるか
+          signIn("dummy3")
+
+          // 一覧検索
+          get("/api/datasets") {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[RangeSlice[DatasetsSummary]]]
+            result.data.summary.total should be(0)
+          }
+          // 詳細検索
+          get("/api/datasets/" + datasetId) {
+            checkStatus(403, Some("AccessDenied"))
           }
         }
       }

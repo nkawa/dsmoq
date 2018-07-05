@@ -240,6 +240,57 @@ class GroupApiSpec extends DsmoqSpec {
         }
       }
 
+      "追加したグループメンバーを削除後、削除したメンバーがグループにアクセスできるか" in {
+        session {
+          signIn()
+          // 新規グループ作成
+          val groupId = createGroup()
+          // メンバー追加
+          val params = Map("d" -> compact(render(Seq(("userId" -> dummyUserUUID) ~ ("role" -> JInt(GroupMemberRole.Member))))))
+          post(s"/api/groups/${groupId}/members", params) { checkStatus() }
+
+          // サインアウト
+          post("/api/signout") { checkStatus() }
+
+          // 追加したグループメンバーでサインイン
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+          get(s"/api/groups/${groupId}/members") {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[RangeSlice[MemberSummary]]]
+            assert(result.data.results.map(_.id).contains(dummyUserUUID))
+          }
+
+          // サインアウト
+          post("/api/signout") { checkStatus() }
+
+          // グループ管理者でサインイン
+          signIn()
+
+          delete(s"/api/groups/${groupId}/members/${dummyUserUUID}") { checkStatus() }
+
+          get(s"/api/groups/${groupId}/members") {
+            checkStatus()
+            val result = parse(body).extract[AjaxResponse[RangeSlice[MemberSummary]]]
+            assert(!result.data.results.map(_.id).contains(dummyUserUUID))
+          }
+
+          // サインアウト
+          post("/api/signout") { checkStatus() }
+
+          // 追加したグループメンバーでサインイン
+          post("/api/signin", dummyUserLoginParams) { checkStatus() }
+
+          // グループ削除後であっても、グループIDを知っていればアクセスできることを確認
+          get(s"/api/groups/${groupId}") {
+            checkStatus()
+          }
+
+          get(s"/api/groups/${groupId}/members") {
+            checkStatus()
+          }
+        }
+      }
+
       "PUT /api/groups/:group_id/members/:user_id" - {
         "マネージャが1人から0人に変更される場合" in {
           session {

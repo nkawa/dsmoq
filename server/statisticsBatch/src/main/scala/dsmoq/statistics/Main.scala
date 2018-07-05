@@ -33,15 +33,15 @@ object Main extends scala.App {
       }
     }
 
-    // �f�[�^�Z�b�g��N���P�ʂŎ擾���A
-    // ���łɑ��݂���ꍇ�́A�폜���āA�Ώ۔N���ɑ΂��āA�ēx���v����o�^����
+    // データセットを年月単位で取得し、
+    // すでに存在する場合は、削除して、対象年月に対して、再度統計情報を登録する
     //
-    // ���ݑz�肳��Ă���f�[�^�Z�b�g���ł���΁A���ɖ��͂Ȃ�
+    // 現在想定されているデータセット数であれば、特に問題はない
 
     val st = Statistics.s
     while (date.compareTo(now) < 0) {
       if (hasStatistics(date, 2)) {
-        // ���łɑ��݂���΍폜����
+        // すでに存在すれば削除する
         withSQL {
           delete.from(Statistics as st)
             .where.eq(st.targetMonth, date)
@@ -65,7 +65,7 @@ object Main extends scala.App {
       date = date.minusMonths(-1)
     }
     if (hasStatistics(date, 1)) {
-      // ���łɑ��݂���΍폜����
+      // すでに存在すれば削除する
       withSQL {
         delete.from(Statistics as st)
           .where.eq(st.targetMonth, date)
